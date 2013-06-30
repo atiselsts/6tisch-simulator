@@ -53,7 +53,7 @@ class SimEngine(threading.Thread):
             neighborId = None
             while (neighborId==None) or (neighborId==id):
                 neighborId = random.randint(0,len(self.motes)-1)
-            self.motes[id].setTrafficGoal(
+            self.motes[id].setDataEngine(
                 self.motes[neighborId],
                 s().traffic,
             )

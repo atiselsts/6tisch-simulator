@@ -37,7 +37,7 @@ class Mote(object):
         self.dataLock        = threading.RLock()
         self.x               = random.random()
         self.y               = random.random()
-        self.traffic         = {}
+        self.dataPeriod      = {}
         self.numCells        = {}
         self.booted          = False
         self.schedule        = {}
@@ -45,9 +45,10 @@ class Mote(object):
     
     #======================== public =========================================
     
-    def setTrafficGoal(self,neighbor,traffic):
+    def setDataEngine(self,neighbor,dataPeriod):
         with self.dataLock:
-            self.traffic[neighbor] = traffic
+            self.dataPeriod[neighbor] = dataPeriod
+            self._schedule_sendPk(neighbor)
     
     def boot(self):
         with self.dataLock:
@@ -90,7 +91,7 @@ class Mote(object):
     
     #======================== actions =========================================
     
-    #===== sendPk
+    #===== activeCell
     
     def _action_activeCell(self):
         
@@ -134,24 +135,51 @@ class Mote(object):
             uniqueTag   = (self.id,'activeCell'),
         )
     
-    #====- housekeeping
+    #===== sendPk
+    
+    def _action_sendPk(self,neighbor):
+        
+        self._log(self.DEBUG,"_action_sendPk to {0}".format(neighbor.id))
+        
+        # schedule next _action_sendPk
+        self._schedule_sendPk(neighbor)
+    
+    def _schedule_sendPk(self,neighbor):
+        
+        # cancel activity if neighbor disappeared from schedule
+        if neighbor not in self.dataPeriod:
+            return
+        
+        # compute random
+        delay      = self.dataPeriod[neighbor]*(0.9+0.2*random.random())
+        
+        # create lambda function with destination
+        cb         = lambda x=neighbor: self._action_sendPk(x)
+        
+        # schedule
+        self.engine.scheduleIn(
+            delay  = delay,
+            cb     = cb,
+        )
+    
+    #===== housekeeping
     
     def _action_housekeeping(self):
         
         self._log(self.DEBUG,"_action_housekeeping")
         
         with self.dataLock:
-            for (n,ppgoal) in self.traffic.items():
+            for (n,periodGoal) in self.dataPeriod.items():
                 while True:
                 
-                    # calculate the actual traffic
+                    # calculate the actual dataPeriod
                     if self.numCells.get(n):
-                        actualPkperiod  = (self.settings.timeslots*self.settings.slotDuration)/self.numCells[n]
+                        periodActual   = (self.settings.timeslots*self.settings.slotDuration)/self.numCells[n]
                     else:
-                        actualPkperiod  = None
+                        periodActual   = None
                     
                     # schedule another cell if needed
-                    if not actualPkperiod or actualPkperiod>ppgoal:
+                    if not periodActual or periodActual>periodGoal:
                         self._addCellToNeighbor(n)
                     else:
                         break
