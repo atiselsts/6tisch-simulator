@@ -69,7 +69,7 @@ class ScheduleFrame(Tkinter.Frame):
         
         # color according to usage
         for m in self.engine.motes:
-            for (ts,ch) in m.getTxCells():
+            for (ts,ch,_) in m.getTxCells():
                 color = self.schedule.itemcget(self.cells[ts][ch], "fill")
                 if not color:
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_OK)

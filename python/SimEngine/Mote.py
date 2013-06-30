@@ -58,11 +58,7 @@ class Mote(object):
     
     def getTxCells(self):
         with self.dataLock:
-            return [(ts,c['ch']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
-    
-    def getRxCells(self):
-        with self.dataLock:
-            return [(ts,c['ch']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
+            return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
     
     def getLocation(self):
         with self.dataLock:
@@ -75,7 +71,9 @@ class Mote(object):
     
     # TODO: replace direct call by packets
     def scheduleCell(self,ts,ch,dir,neighbor):
-        print "[{0}] schedule ts={1} ch={2}".format(self.id,ts,ch)
+        
+        log.debug("[{0}] schedule ts={1} ch={2}".format(self.id,ts,ch))
+        
         with self.dataLock:
             assert ts not in self.schedule.keys()
             self.schedule[ts] = {
