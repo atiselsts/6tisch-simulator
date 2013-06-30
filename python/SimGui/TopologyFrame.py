@@ -61,7 +61,7 @@ class TopologyFrame(Tkinter.Frame):
                 pass
     
     def _moteCoordinates(self,m):
-        (x,y) = m.getPosition()
+        (x,y) = m.getLocation()
         return (
             self.WIDTH*x-self.MOTE_SIZE/2,
             self.HEIGHT*y-self.MOTE_SIZE/2,

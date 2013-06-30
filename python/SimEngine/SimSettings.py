@@ -33,5 +33,5 @@ class SimSettings(object):
         self.degree          = None
         self.channels        = None
         self.timeslots       = None
-        self.pkperiod        = None
+        self.traffic         = None
     

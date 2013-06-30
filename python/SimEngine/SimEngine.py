@@ -18,7 +18,7 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    SLOT_DURATION = 0.015
+    SLOT_DURATION  = 0.015
     
     #======================== singleton pattern ===============================
     
@@ -44,13 +44,19 @@ class SimEngine(threading.Thread):
         self.propagation     = Propagation.Propagation()
         self.asn             = 0
         self.events          = []
-        self.delay           = 0
+        self.simDelay        = 0
         self.motes           = [Mote.Mote(id) for id in range(s().numMotes)]
         self.goOn            = True
         
-        # set the mote's pkperiod goals
-        for i in range(len(self.motes)):
-            self.motes[i].setPkperiodGoal(self.motes[random.randint(0,len(self.motes)-1)],s().pkperiod)
+        # set the mote's traffic goals
+        for id in range(len(self.motes)):
+            neighborId = None
+            while (neighborId==None) or (neighborId==id):
+                neighborId = random.randint(0,len(self.motes)-1)
+            self.motes[id].setTrafficGoal(
+                self.motes[neighborId],
+                s().traffic,
+            )
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -60,7 +66,7 @@ class SimEngine(threading.Thread):
         threading.Thread.__init__(self)
         self.name            = 'SimEngine'
         
-        # start myself
+        # start thread
         self.start()
     
     #======================== thread ==========================================
@@ -73,7 +79,7 @@ class SimEngine(threading.Thread):
         while self.goOn:
             
             with self.dataLock: 
-            
+                
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
                     break
@@ -92,10 +98,9 @@ class SimEngine(threading.Thread):
                 self.propagation.propagate()
                 
                 # wait a bit
-                time.sleep(self.delay)
+                time.sleep(self.simDelay)
         
         # log
-        log.debug("thread {0} ends".format(self.name))
         log.debug("thread {0} ends".format(self.name))
     
     #======================== public ==========================================
@@ -105,16 +110,16 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             asn = int(self.asn+(float(delay)/float(s().slotDuration)))
             
-            self.schedule(asn,cb)
+            self.scheduleAtAsn(asn,cb)
     
-    def schedule(self,asn,cb):
+    def scheduleAtAsn(self,asn,cb):
         
         with self.dataLock:
             
             assert asn>self.asn
             
             if not self.events:
-                self.events.append((asn,[cb]))
+                self.events.append([asn,[cb]])
                 return
             
             for i in range(len(self.events)):
@@ -160,13 +165,13 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             return self.asn
     
-    def setDelay(self,delay):
+    def setDelay(self,simDelay):
         with self.dataLock:
-            self.delay = delay
+            self.simDelay = simDelay
     
     def getDelay(self):
         with self.dataLock:
-            return self.delay
+            return self.simDelay
     
     def close(self):
         self.goOn = False

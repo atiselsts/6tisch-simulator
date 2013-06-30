@@ -54,8 +54,8 @@ def parseCliOptions():
         default    = 101,
     )
     
-    parser.add_option( '--pp',
-        dest       = 'pkperiod',
+    parser.add_option( '--traffic',
+        dest       = 'traffic',
         type       = 'int',
         default    = 0.100,
     )

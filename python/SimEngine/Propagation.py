@@ -12,14 +12,43 @@ import threading
 
 class Propagation(object):
     
+     #======================== singleton pattern ===============================
+    
+    _instance      = None
+    _init          = False
+    
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(Propagation,cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+    
     def __init__(self):
-        pass
+        
+        # don't re-initialize an instance (needed because singleton)
+        if self._init:
+            return
+        self._init = True
+        
         # store params
         
-        
         # variables
-        
-        # initialize parent class
+        self.dataLock            = threading.Lock()
+        self.transmissions       = []
+    
+    def send(self,fromMote,toMote,packet):
+        with self.dataLock:
+            self.transmissions  += [(fromMote,toMote,packet)]
     
     def propagate(self):
-        pass
+        
+        with self.dataLock:
+            for (fromMote,toMote,packet) in self.transmissions:
+                
+                # indicate to destination is received a packet
+                toMote.receiveIndication(fromMote,packet)
+                
+                # indicate to source transmission was successful
+                fromMote.txDone(toMote,packet)
+                
+            # clear all outstanding transmissions
+            self.transmissions    = []
