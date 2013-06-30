@@ -22,6 +22,9 @@ class Mote(object):
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
     
+    DEBUG                    = 'DEBUG'
+    WARNING                  = 'WARNING'
+    
     def __init__(self,id):
         
         # store params
@@ -72,7 +75,7 @@ class Mote(object):
     # TODO: replace direct call by packets
     def scheduleCell(self,ts,ch,dir,neighbor):
         
-        log.debug("[{0}] schedule ts={1} ch={2}".format(self.id,ts,ch))
+        self._log(self.DEBUG,"scheduleCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
         
         with self.dataLock:
             assert ts not in self.schedule.keys()
@@ -89,9 +92,9 @@ class Mote(object):
     
     #===== sendPk
     
-    def _action_activeCell(self,asn):
+    def _action_activeCell(self):
         
-        log.debug("_action_activeCell@{0} ASN={1}".format(self.id,asn))
+        self._log(self.DEBUG,"_action_activeCell")
         
         # schedule next active cell
         self._schedule_next_ActiveCell()
@@ -107,13 +110,13 @@ class Mote(object):
         with self.dataLock:
             
             if not self.schedule:
-                log.warning("empty schedule")
+                self._log(self.DEBUG,"empty schedule")
                 return
             
             tsDiffMin             = None
             for (ts,cell) in self.schedule.items():
                 if   ts==tsCurrent:
-                    pass
+                    tsDiff        = None
                 elif ts>tsCurrent:
                     tsDiff        = ts-tsCurrent
                 elif ts<tsCurrent:
@@ -121,20 +124,21 @@ class Mote(object):
                 else:
                     raise SystemError()
                 
-                if (not tsDiffMin) or (tsDiffMin>tsDiff):
+                if tsDiff and ((not tsDiffMin) or (tsDiffMin>tsDiff)):
                     tsDiffMin     = tsDiff
         
         # schedule at that ASN
         self.engine.scheduleAtAsn(
-            asn    = asn+tsDiffMin,
-            cb     = self._action_activeCell,
+            asn         = asn+tsDiffMin,
+            cb          = self._action_activeCell,
+            uniqueTag   = (self.id,'activeCell'),
         )
     
     #====- housekeeping
     
-    def _action_housekeeping(self,asn):
+    def _action_housekeeping(self):
         
-        log.debug("_action_housekeeping@{0} ASN={1}".format(self.id,asn))
+        self._log(self.DEBUG,"_action_housekeeping")
         
         with self.dataLock:
             for (n,ppgoal) in self.traffic.items():
@@ -151,7 +155,11 @@ class Mote(object):
                         self._addCellToNeighbor(n)
                     else:
                         break
-            
+        
+        # schedule next active cell
+        # Note: this is needed in case the housekeeping action modified the schedule
+        self._schedule_next_ActiveCell()
+        
         # schedule next housekeeping
         self._schedule_housekeeping()
     
@@ -190,3 +198,16 @@ class Mote(object):
     
     #======================== private =========================================
     
+    def _log(self,severity,message):
+        
+        output  = []
+        output += ['[ASN={0} id={1}] '.format(self.engine.getAsn(),self.id)]
+        output += [message]
+        output  = ''.join(output)
+        
+        if   severity==self.DEBUG:
+            logfunc = log.debug
+        elif severity==self.WARNING:
+            logfunc = log.warning
+        
+        logfunc(output)

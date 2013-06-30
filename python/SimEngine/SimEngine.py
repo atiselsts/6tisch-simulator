@@ -80,19 +80,31 @@ class SimEngine(threading.Thread):
             
             with self.dataLock: 
                 
+                '''
+                output  = []
+                output += ["events:"]
+                for (asn,cb,uniqueTag) in self.events:
+                    output += ["- asn={0} cb={1} uniqueTag={2}".format(asn,cb,uniqueTag)]
+                output  = '\n'.join(output)
+                log.debug(output)
+                '''
+                
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
                     break
                 
-                # get the next event to handle
-                (asn,cbs) = self.events.pop(0)
+                # make sure we are in the future
+                assert self.events[0][0]>self.asn
                 
                 # update the current ASN
-                self.asn = asn
+                self.asn = self.events[0][0]
                 
-                # call the callbacks
-                for cb in cbs:
-                    cb(self.asn)
+                # call all the callbacks at this ASN
+                while True:
+                    if self.events[0][0]!=self.asn:
+                        break
+                    (_,cb,_) = self.events.pop(0)
+                    cb()
                 
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
@@ -112,54 +124,34 @@ class SimEngine(threading.Thread):
             
             self.scheduleAtAsn(asn,cb)
     
-    def scheduleAtAsn(self,asn,cb):
+    def scheduleAtAsn(self,asn,cb,uniqueTag=None):
         
         with self.dataLock:
             
+            # make sure we are scheduling in the future
             assert asn>self.asn
             
-            if not self.events:
-                self.events.append([asn,[cb]])
-                return
+            # remove all events with same uniqueTag
+            if uniqueTag:
+                i = 0
+                while i<len(self.events):
+                    (a,c,t) = self.events[i]
+                    if t==uniqueTag:
+                        del self.events[i]
+                    else:
+                        i += 1
             
-            for i in range(len(self.events)):
-                if i>1:
-                    previousAsn   = self.events[i-1][0]
+            # find correct index in schedule
+            i = 0
+            found = False
+            while found==False:
+                if (i>=len(self.events) or self.events[i][0]>asn):
+                    found = True
                 else:
-                    previousAsn   = None
-                thisAsn           = self.events[i][0]
-                if i<len(self.events)-1:
-                    nextAsn       = self.events[i+1][0]
-                else:
-                    nextAsn       = None
-                if   thisAsn==asn:
-                    # something already scheduled at this ASN, add this cb
-                    self.events[i][1] += [cb]
-                    return
-                elif (
-                    # between two already schedule ASNs
-                    previousAsn        and
-                    nextAsn            and
-                    previousAsn<asn    and 
-                    asn<nextAsn
-                    ):
-                    self.events.insert(i,[asn,[cb]])
-                    return
-                elif (
-                    not previousAsn    and
-                    asn<nextAsn
-                    ):
-                    # schedule at the beginning
-                    self.events.insert(0,[asn,[cb]])
-                    return
-                elif (
-                    not nextAsn        and
-                    previousAsn<asn
-                    ):
-                    # schedule at the end
-                    self.events.append([asn,[cb]])
-                    return
-            raise SystemError()
+                    i += 1
+            
+            # add to schedule
+            self.events.insert(i,(asn,cb,uniqueTag))
     
     def getAsn(self):
         with self.dataLock:
