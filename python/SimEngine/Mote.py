@@ -66,8 +66,8 @@ class Mote(object):
         with self.dataLock:
             self.booted      = False
         
-        # schedule first housekeeping
-        self._schedule_housekeeping()
+        # schedule first monitoring
+        self._schedule_monitoring()
         
         # schedule first active cell
         self._schedule_next_ActiveCell()
@@ -304,11 +304,11 @@ class Mote(object):
             cb     = cb,
         )
     
-    #===== housekeeping
+    #===== monitoring
     
-    def _action_housekeeping(self):
+    def _action_monitoring(self):
         
-        self._log(self.DEBUG,"_action_housekeeping")
+        self._log(self.DEBUG,"_action_monitoring")
         
         with self.dataLock:
             for (n,periodGoal) in self.dataPeriod.items():
@@ -327,16 +327,16 @@ class Mote(object):
                         break
         
         # schedule next active cell
-        # Note: this is needed in case the housekeeping action modified the schedule
+        # Note: this is needed in case the monitoring action modified the schedule
         self._schedule_next_ActiveCell()
         
-        # schedule next housekeeping
-        self._schedule_housekeeping()
+        # schedule next monitoring
+        self._schedule_monitoring()
     
-    def _schedule_housekeeping(self):
+    def _schedule_monitoring(self):
         self.engine.scheduleIn(
             delay  = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
-            cb     = self._action_housekeeping,
+            cb     = self._action_monitoring,
         )
     
     def _addCellToNeighbor(self,neighbor):
