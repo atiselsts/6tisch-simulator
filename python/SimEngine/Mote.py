@@ -30,6 +30,9 @@ class Mote(object):
     
     TYPE_DATA                = 'DATA'
     
+    TX                       = 'TX'
+    RX                       = 'RX'
+    
     def __init__(self,id):
         
         # store params
@@ -42,6 +45,8 @@ class Mote(object):
         self.dataLock        = threading.RLock()
         self.x               = random.random()
         self.y               = random.random()
+        self.waitingFor      = None
+        self.radioChannel    = None
         self.dataPeriod      = {}
         self.numCells        = {}
         self.booted          = False
@@ -57,6 +62,7 @@ class Mote(object):
             self._schedule_sendData(neighbor)
     
     def boot(self):
+        
         with self.dataLock:
             self.booted      = False
         
@@ -104,9 +110,102 @@ class Mote(object):
     #===== activeCell
     
     def _action_activeCell(self):
-        
         self._log(self.DEBUG,"_action_activeCell")
         
+        asn = self.engine.getAsn()
+        
+        # get timeslotOffset of current asn
+        ts = asn%self.settings.timeslots
+        
+        with self.dataLock:
+            # make sure this is an active slot
+            # NOTE: might be relaxed when schedule is changed
+            assert ts in self.schedule
+            
+            # make sure we're not in the middle of a TX/RX operation
+            assert not self.waitingFor
+            
+            cell = self.schedule[ts]
+            
+            if   cell['dir']==self.DIR_RX:
+                
+                # start listening
+                self.propagation.startRx(
+                    mote          = self,
+                    channel       = cell['ch'],
+                )
+                
+                # indicate that we're waiting for the RX operation to finish
+                self.waitingFor   = self.RX
+            
+            elif cell['dir']==self.DIR_TX:
+                
+                # check whether packet to send
+                pktToSend = None
+                for i in range(len(self.txQueue)):
+                    if self.txQueue[i]['nextHop']==cell['neighbor']:
+                       pktToSend = self.txQueue.pop(i)
+                       break
+                
+                # send packet
+                if pktToSend:
+                    
+                    cell['numTx'] += 1
+                    
+                    self.propagation.startTx(
+                        channel   = cell['ch'],
+                        type      = pktToSend['type'],
+                        smac      = self,
+                        dmac      = pktToSend['nextHop'],
+                        payload   = pktToSend['payload'],
+                    )
+                    
+                    # indicate that we're waiting for the RX operation to finish
+                    self.waitingFor   = self.TX
+    
+    def txDone(self,success):
+        
+        asn = self.engine.getAsn()
+        
+        # get timeslotOffset of current asn
+        ts = asn%self.settings.timeslots
+        
+        with self.dataLock:
+            
+            assert ts in self.schedule
+            assert self.waitingFor==self.TX
+            
+            cell = self.schedule[ts]
+            
+            if success:
+                self.schedule[ts]['numTxAck'] += 1
+            
+            self.waitingFor = None
+            
+            # schedule next active cell
+            self._schedule_next_ActiveCell()
+    
+    def rxDone(self,type=None,smac=None,dmac=None,payload=None):
+        
+        asn = self.engine.getAsn()
+        
+        # get timeslotOffset of current asn
+        ts = asn%self.settings.timeslots
+        
+        with self.dataLock:
+            
+            assert ts in self.schedule
+            assert self.waitingFor==self.RX
+            
+            cell = self.schedule[ts]
+            
+            if smac:
+                self.schedule[ts]['numRx'] += 1
+                
+                # TODO: relay packet?
+            
+            self.waitingFor = None
+            
         # schedule next active cell
         self._schedule_next_ActiveCell()
     
@@ -156,9 +255,10 @@ class Mote(object):
         self._incrementStats('dataGenerated')
         if len(self.txQueue)<self.QUEUE_SIZE:
             self.txQueue += [{
-                'type':     self.TYPE_DATA,
                 'asn':      self.engine.getAsn(),
                 'nextHop':  neighbor,
+                'type':     self.TYPE_DATA,
+                'payload':  [],
             }]
             self._incrementStats('dataQueueOK')
         else:

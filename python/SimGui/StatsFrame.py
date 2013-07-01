@@ -53,13 +53,15 @@ class StatsFrame(Tkinter.Frame):
     
     def _updateGui(self):
         
-        self._redrawStats()
+        self._redrawInfo()
+        self._redrawCell()
+        self._redrawMote()
+        self._redrawLink()
         
         self.after(self.UPDATE_PERIOD,self._updateGui)
     
-    def _redrawStats(self):
+    def _redrawInfo(self):
         
-        # info
         asn = self.engine.getAsn()
         output  = []
         output += ["info:"]
@@ -67,27 +69,29 @@ class StatsFrame(Tkinter.Frame):
         output += ["time: {0}".format(asn*s().slotDuration)]
         output  = '\n'.join(output)
         self.info.configure(text=output)
+    
+    def _redrawCell(self):
         
-        # cell
-        selectedCell = self.guiParent.selectedCell
+        cell = self.guiParent.selectedCell
         output  = []
         output += ["Cell:"]
-        if selectedCell:
-            ts = selectedCell[0]
-            ch = selectedCell[1]
+        if cell:
+            ts = cell[0]
+            ch = cell[1]
             output += ["ts={0} ch={1}".format(ts,ch)]
         else:
             output += ["No cell selected."]
         output  = '\n'.join(output)
         self.cell.configure(text=output)
+    
+    def _redrawMote(self):
         
-        # mote
-        selectedMote = self.guiParent.selectedMote
+        mote = self.guiParent.selectedMote
         output  = []
         output += ["Mote:"]
-        if selectedMote:
-            output += ["id={0}".format(selectedMote.id)]
-            stats   = selectedMote.getStats()
+        if mote:
+            output += ["id={0}".format(mote.id)]
+            stats   = mote.getStats()
             for (k,v) in stats.items():
                 output += ["- {0}: {1}".format(k,v)]
         else:
@@ -95,13 +99,14 @@ class StatsFrame(Tkinter.Frame):
         output  = '\n'.join(output)
         self.mote.configure(text=output)
         
-        # link
-        selectedLink = self.guiParent.selectedLink
+    def _redrawLink(self):
+        
+        link = self.guiParent.selectedLink
         output  = []
         output += ["Link:"]
-        if selectedLink:
-            fromMote = selectedLink[0]
-            toMote   = selectedLink[1]
+        if link:
+            fromMote = link[0]
+            toMote   = link[1]
             output += ["{0}->{1}".format(fromMote.id,toMote.id)]
         else:
             output += ["No link selected."]

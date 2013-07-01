@@ -33,22 +33,53 @@ class Propagation(object):
         
         # variables
         self.dataLock            = threading.Lock()
+        self.receivers           = []
         self.transmissions       = []
     
-    def send(self,fromMote,toMote,packet):
+    def startRx(self,mote,channel):
         with self.dataLock:
-            self.transmissions  += [(fromMote,toMote,packet)]
+            self.receivers += [{
+                'mote':          mote,
+                'channel':       channel,
+            }]
+    
+    def startTx(self,channel,type,smac,dmac,payload):
+        with self.dataLock:
+            self.transmissions  += [{
+                'channel':        channel,
+                'type':           type,
+                'smac':           smac,
+                'dmac':           dmac,
+                'payload':        payload,
+            }]
     
     def propagate(self):
         
         with self.dataLock:
-            for (fromMote,toMote,packet) in self.transmissions:
+            
+            for transmission in self.transmissions:
                 
-                # indicate to destination is received a packet
-                toMote.receiveIndication(fromMote,packet)
+                # find matching receivers
+                i = 0
+                while i<len(self.receivers):
+                    if self.receivers[i]['channel']==['channel']:
+                        self.receivers[i]['mote'].rxDone(
+                            type       = transmission['type'],
+                            smac       = transmission['smac'],
+                            dmac       = transmission['dmac'],
+                            payload    = transmission['payload']
+                        )
+                        del self.receivers[i]
+                    else:
+                        i   += 1
                 
-                # indicate to source transmission was successful
-                fromMote.txDone(toMote,packet)
-                
+                # indicate to source packet was sent
+                transmission['smac'].txDone(True)
+            
+            # indicate no packet received from remaining receivers
+            for r in self.receivers:
+                r['mote'].rxDone()
+            
             # clear all outstanding transmissions
-            self.transmissions    = []
+            self.transmissions     = []
+            self.receivers         = []
