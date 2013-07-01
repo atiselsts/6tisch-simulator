@@ -8,6 +8,7 @@ log = logging.getLogger('Mote')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+import copy
 import random
 import threading
 
@@ -19,11 +20,15 @@ class Mote(object):
     
     HOUSEKEEPING_PERIOD      = 10
     
+    QUEUE_SIZE               = 10
+    
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
     
     DEBUG                    = 'DEBUG'
     WARNING                  = 'WARNING'
+    
+    TYPE_DATA                = 'DATA'
     
     def __init__(self,id):
         
@@ -42,13 +47,14 @@ class Mote(object):
         self.booted          = False
         self.schedule        = {}
         self.txQueue         = []
+        self._resetStats()
     
     #======================== public =========================================
     
     def setDataEngine(self,neighbor,dataPeriod):
         with self.dataLock:
             self.dataPeriod[neighbor] = dataPeriod
-            self._schedule_sendPk(neighbor)
+            self._schedule_sendData(neighbor)
     
     def boot(self):
         with self.dataLock:
@@ -67,6 +73,10 @@ class Mote(object):
     def getLocation(self):
         with self.dataLock:
             return (self.x,self.y)
+    
+    def getStats(self):
+        with self.dataLock:
+            return copy.deepcopy(self.stats)
     
     # TODO: replace direct call by packets
     def isUnusedSlot(self,ts):
@@ -111,7 +121,7 @@ class Mote(object):
         with self.dataLock:
             
             if not self.schedule:
-                self._log(self.DEBUG,"empty schedule")
+                self._log(self.WARNING,"empty schedule")
                 return
             
             tsDiffMin             = None
@@ -135,16 +145,29 @@ class Mote(object):
             uniqueTag   = (self.id,'activeCell'),
         )
     
-    #===== sendPk
+    #===== sendData
     
-    def _action_sendPk(self,neighbor):
+    def _action_sendData(self,neighbor):
         
-        self._log(self.DEBUG,"_action_sendPk to {0}".format(neighbor.id))
+        # log
+        self._log(self.DEBUG,"_action_sendData to {0}".format(neighbor.id))
         
-        # schedule next _action_sendPk
-        self._schedule_sendPk(neighbor)
+        # add to queue
+        self._incrementStats('dataGenerated')
+        if len(self.txQueue)<self.QUEUE_SIZE:
+            self.txQueue += [{
+                'type':     self.TYPE_DATA,
+                'asn':      self.engine.getAsn(),
+                'nextHop':  neighbor,
+            }]
+            self._incrementStats('dataQueueOK')
+        else:
+            self._incrementStats('dataQueueFull')
+        
+        # schedule next _action_sendData
+        self._schedule_sendData(neighbor)
     
-    def _schedule_sendPk(self,neighbor):
+    def _schedule_sendData(self,neighbor):
         
         # cancel activity if neighbor disappeared from schedule
         if neighbor not in self.dataPeriod:
@@ -154,7 +177,7 @@ class Mote(object):
         delay      = self.dataPeriod[neighbor]*(0.9+0.2*random.random())
         
         # create lambda function with destination
-        cb         = lambda x=neighbor: self._action_sendPk(x)
+        cb         = lambda x=neighbor: self._action_sendData(x)
         
         # schedule
         self.engine.scheduleIn(
@@ -239,3 +262,16 @@ class Mote(object):
             logfunc = log.warning
         
         logfunc(output)
+    
+    def _resetStats(self):
+        with self.dataLock:
+            self.stats = {
+                'dataGenerated':  0,
+                'dataQueueOK':    0,
+                'dataQueueFull':  0,
+            }
+    
+    def _incrementStats(self,name):
+        with self.dataLock:
+            self.stats[name] += 1
+        

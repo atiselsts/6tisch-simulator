@@ -25,6 +25,9 @@ class SimGui(Tkinter.Tk):
         # store params
         
         # local variables
+        self.selectedMote    = None
+        self.selectedLink    = None
+        self.selectedCell    = None
         
         # initialize the parent class
         Tkinter.Tk.__init__(self)

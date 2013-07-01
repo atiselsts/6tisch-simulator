@@ -48,7 +48,9 @@ class ScheduleFrame(Tkinter.Frame):
         for ts in range(s().timeslots):
             self.cells.append([])
             for ch in range(s().channels):
-                self.cells[ts] += [self.schedule.create_rectangle(self._cellCoordinates(ts,ch))]
+                newCell = self.schedule.create_rectangle(self._cellCoordinates(ts,ch))
+                self.schedule.tag_bind(newCell, '<ButtonPress-1>', self._cellClicked)
+                self.cells[ts] += [newCell]
     
     #======================== public ==========================================
     
@@ -75,6 +77,20 @@ class ScheduleFrame(Tkinter.Frame):
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_OK)
                 else:
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_ERROR)
+    
+    #======================== helpers =========================================
+    
+    def _cellClicked(self,event):
+        cellGui = event.widget.find_closest(event.x, event.y)[0]
+        cell    = None
+        for ts in range(len(self.cells)):
+            for ch in range(len(self.cells[ts])):
+                if self.cells[ts][ch]==cellGui:
+                    cell = (ts,ch)
+                    break
+        assert cell
+        print "selected cell {0}".format(cell)
+        self.guiParent.selectedCell = cell
     
     def _cellCoordinates(self,ts,ch):
     

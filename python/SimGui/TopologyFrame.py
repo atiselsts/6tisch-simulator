@@ -65,7 +65,9 @@ class TopologyFrame(Tkinter.Frame):
             for (ts,ch,neighbor) in mote.getTxCells():
                 if (mote,neighbor) not in self.links:
                     # create
-                    self.links[(mote,neighbor)] = self.topology.create_line(self._linkCoordinates(mote,neighbor))
+                    newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))
+                    self.topology.tag_bind(newLink, '<ButtonPress-1>', self._linkClicked)
+                    self.links[(mote,neighbor)] = newLink
                 else:
                     # move
                     self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
@@ -85,7 +87,10 @@ class TopologyFrame(Tkinter.Frame):
         for m in self.engine.motes:
             if m not in self.motes:
                 # create
-                self.motes[m] = self.topology.create_oval(self._moteCoordinates(m),fill='blue')
+                newMote = self.topology.create_oval(self._moteCoordinates(m),fill='blue')
+                self.topology.tag_bind(newMote, '<ButtonPress-1>', self._moteClicked)
+                self.motes[m] = newMote
+                
             else:
                 # move
                 self.topology.dtag(self.motes[m],"deleteMe")
@@ -96,6 +101,28 @@ class TopologyFrame(Tkinter.Frame):
             self.topology.delete(mote)
     
     #======================== helpers =========================================
+    
+    def _linkClicked(self,event):
+        linkGui = event.widget.find_closest(event.x, event.y)[0]
+        link    = None
+        for (k,v) in self.links.items():
+            if v==linkGui:
+                link = k
+                break
+        assert link
+        print "selected link {0}->{1}".format(link[0].id,link[1].id)
+        self.guiParent.selectedLink = link
+    
+    def _moteClicked(self,event):
+        moteGui = event.widget.find_closest(event.x, event.y)[0]
+        mote    = None
+        for (k,v) in self.motes.items():
+            if v==moteGui:
+                mote = k
+                break
+        assert mote
+        print "selected mote {0}".format(mote.id)
+        self.guiParent.selectedMote = mote
     
     def _moteCoordinates(self,m):
         (x,y) = m.getLocation()
