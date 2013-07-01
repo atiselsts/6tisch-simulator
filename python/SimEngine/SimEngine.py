@@ -74,7 +74,7 @@ class SimEngine(threading.Thread):
     def run(self):
         
         # log
-        log.debug("thread {0} starting".format(self.name))
+        log.info("thread {0} starting".format(self.name))
         
         while self.goOn:
             
@@ -113,7 +113,7 @@ class SimEngine(threading.Thread):
                 time.sleep(self.simDelay)
         
         # log
-        log.debug("thread {0} ends".format(self.name))
+        log.info("thread {0} ends".format(self.name))
     
     #======================== public ==========================================
     

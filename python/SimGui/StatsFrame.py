@@ -79,6 +79,12 @@ class StatsFrame(Tkinter.Frame):
             ts = cell[0]
             ch = cell[1]
             output += ["ts={0} ch={1}".format(ts,ch)]
+            for mote in self.engine.motes:
+                cellStats = mote.getCellStats(ts,ch)
+                if cellStats:
+                    output += ["mote {0}:".format(mote.id)]
+                    for (k,v) in cellStats.items():
+                        output += ["- {0}: {1}".format(k,v)]
         else:
             output += ["No cell selected."]
         output  = '\n'.join(output)

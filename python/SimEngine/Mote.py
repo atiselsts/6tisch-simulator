@@ -72,6 +72,21 @@ class Mote(object):
         # schedule first active cell
         self._schedule_next_ActiveCell()
     
+    def getCellStats(self,ts_p,ch_p):
+        returnVal = None
+        with self.dataLock:
+            for (ts,cell) in self.schedule.items():
+                if ts==ts_p and cell['ch']==ch_p:
+                    returnVal = {
+                        'dir':       cell['dir'],
+                        'neighbor':  cell['neighbor'].id,
+                        'numTx':     cell['numTx'],
+                        'numTxAck':  cell['numTxAck'],
+                        'numRx':     cell['numRx'],
+                    }
+                    break
+        return returnVal
+    
     def getTxCells(self):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
@@ -357,11 +372,15 @@ class Mote(object):
         output  = ''.join(output)
         
         if   severity==self.DEBUG:
-            logfunc = log.debug
+            if log.isEnabledFor(logging.DEBUG):
+                logfunc = log.debug
+            else:
+                logfunc = None
         elif severity==self.WARNING:
             logfunc = log.warning
         
-        logfunc(output)
+        if logfunc:
+            logfunc(output)
     
     def _resetStats(self):
         with self.dataLock:
