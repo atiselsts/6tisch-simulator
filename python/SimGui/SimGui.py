@@ -47,9 +47,9 @@ class SimGui(Tkinter.Tk):
         frame = ScheduleFrame.ScheduleFrame(self)
         frame.grid(row=0,column=0,columnspan=2)
         frame = TopologyFrame.TopologyFrame(self)
-        frame.grid(row=1,column=0,columnspan=2)
+        frame.grid(row=1,column=0,rowspan=2)
         frame = ActionFrame.ActionFrame(self)
-        frame.grid(row=2,column=0)
+        frame.grid(row=1,column=1)
         frame = StatsFrame.StatsFrame(self)
         frame.grid(row=2,column=1)
         
