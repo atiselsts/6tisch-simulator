@@ -107,6 +107,8 @@ class TopologyFrame(Tkinter.Frame):
     
     #======================== helpers =========================================
     
+    #===== handle click events
+    
     def _linkClicked(self,event):
         linkGui = event.widget.find_closest(event.x, event.y)[0]
         link    = None
@@ -128,6 +130,8 @@ class TopologyFrame(Tkinter.Frame):
         assert mote
         print "selected mote {0}".format(mote.id)
         self.guiParent.selectedMote = mote
+    
+    #===== coordinate calculation
     
     def _moteCoordinates(self,m):
         (x,y) = m.getLocation()

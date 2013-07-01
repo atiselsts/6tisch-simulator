@@ -93,6 +93,8 @@ class ScheduleFrame(Tkinter.Frame):
     
     #======================== helpers =========================================
     
+    #===== handle click events
+    
     def _cellClicked(self,event):
         cellGui = event.widget.find_closest(event.x, event.y)[0]
         cell    = None
@@ -104,6 +106,8 @@ class ScheduleFrame(Tkinter.Frame):
         assert cell
         print "selected cell {0}".format(cell)
         self.guiParent.selectedCell = cell
+    
+    #===== coordinate calculation
     
     def _cellCoordinates(self,ts,ch):
     
