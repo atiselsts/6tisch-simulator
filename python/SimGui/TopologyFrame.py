@@ -80,7 +80,7 @@ class TopologyFrame(Tkinter.Frame):
                     self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
                     # TODO:move
         
-        #===== draw motes
+        #===== draw motes and moteIds
         
         # go over all motes in the network
         for m in self.engine.motes:
