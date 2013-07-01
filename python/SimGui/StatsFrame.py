@@ -32,13 +32,17 @@ class StatsFrame(Tkinter.Frame):
         )
         
         # GUI layout
-        Tkinter.Label(self,text="ASN").grid(row=0,column=0)
-        self.asn   = Tkinter.Label(self)
-        self.asn.grid(row=0,column=1)
+        self.info   = Tkinter.Label(self,justify=Tkinter.LEFT)
+        self.info.grid(row=0,column=0)
         
-        Tkinter.Label(self,text="time").grid(row=1,column=0)
-        self.time  = Tkinter.Label(self)
-        self.time.grid(row=1,column=1)
+        self.cell  = Tkinter.Label(self,justify=Tkinter.LEFT)
+        self.cell.grid(row=0,column=1)
+        
+        self.mote  = Tkinter.Label(self,justify=Tkinter.LEFT)
+        self.mote.grid(row=0,column=2)
+        
+        self.link  = Tkinter.Label(self,justify=Tkinter.LEFT)
+        self.link.grid(row=0,column=3)
         
         # schedule first update
         self.after(self.UPDATE_PERIOD,self._updateGui)
@@ -54,6 +58,53 @@ class StatsFrame(Tkinter.Frame):
         self.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawStats(self):
+        
+        # info
         asn = self.engine.getAsn()
-        self.asn.configure(text="{0:x}".format(asn))
-        self.time.configure(text="{0}".format(asn*s().slotDuration))
+        output  = []
+        output += ["info:"]
+        output += ["ASN: {0}".format(asn)]
+        output += ["time: {0}".format(asn*s().slotDuration)]
+        output  = '\n'.join(output)
+        self.info.configure(text=output)
+        
+        # cell
+        selectedCell = self.guiParent.selectedCell
+        output  = []
+        output += ["Cell:"]
+        if selectedCell:
+            ts = selectedCell[0]
+            ch = selectedCell[1]
+            output += ["ts={0} ch={1}".format(ts,ch)]
+        else:
+            output += ["No cell selected."]
+        output  = '\n'.join(output)
+        self.cell.configure(text=output)
+        
+        # mote
+        selectedMote = self.guiParent.selectedMote
+        output  = []
+        output += ["Mote:"]
+        if selectedMote:
+            output += ["id={0}".format(selectedMote.id)]
+            stats   = selectedMote.getStats()
+            for (k,v) in stats.items():
+                output += ["- {0}: {1}".format(k,v)]
+        else:
+            output += ["No mote selected."]
+        output  = '\n'.join(output)
+        self.mote.configure(text=output)
+        
+        # link
+        selectedLink = self.guiParent.selectedLink
+        output  = []
+        output += ["Link:"]
+        if selectedLink:
+            fromMote = selectedLink[0]
+            toMote   = selectedLink[1]
+            output += ["{0}->{1}".format(fromMote.id,toMote.id)]
+        else:
+            output += ["No link selected."]
+        output  = '\n'.join(output)
+        self.link.configure(text=output)
+        
