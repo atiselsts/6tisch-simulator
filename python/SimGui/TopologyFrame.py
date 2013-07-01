@@ -55,11 +55,16 @@ class TopologyFrame(Tkinter.Frame):
     
     def _redrawTopology(self):
         
-        #===== draw links
+        #===== mark all elements to be removed
         
-        # mark all links to remove
-        for link in self.links:
-            self.topology.itemconfig(link,tags=("deleteMe",))
+        for (k,v) in self.motes.items():
+            self.topology.itemconfig(v,tags=("deleteMe"))
+        for (k,v) in self.moteIds.items():
+            self.topology.itemconfig(v,tags=("deleteMe",))
+        for (k,v) in self.links.items():
+            self.topology.itemconfig(v,tags=("deleteMe",))
+        
+        #===== draw links
         
         # go over all links in the network
         for mote in self.engine.motes:
@@ -75,15 +80,7 @@ class TopologyFrame(Tkinter.Frame):
                     self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
                     # TODO:move
         
-        # remove links still marked
-        for mote in self.topology.find_withtag("deleteMe"):
-            self.topology.delete(mote)
-        
         #===== draw motes
-        
-        # mark all motes to remove
-        for mote in self.motes:
-            self.topology.itemconfig(mote,tags=("deleteMe",))
         
         # go over all motes in the network
         for m in self.engine.motes:
@@ -97,14 +94,14 @@ class TopologyFrame(Tkinter.Frame):
                 newMoteId = self.topology.create_text(self._moteIdCoordinates(m))
                 self.topology.itemconfig(newMoteId,text=m.id)
                 self.moteIds[m] = newMoteId
-                
             else:
                 # move
                 self.topology.dtag(self.motes[m],"deleteMe")
                 self.topology.dtag(self.moteIds[m],"deleteMe")
                 # TODO: move
         
-        # remove motes still marked
+        #===== remove all elements still marked
+        
         for elem in self.topology.find_withtag("deleteMe"):
             self.topology.delete(elem)
     
