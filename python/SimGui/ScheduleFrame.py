@@ -22,6 +22,9 @@ class ScheduleFrame(Tkinter.Frame):
     COLOR_OK           = "blue"
     COLOR_ERROR        = "red"
     
+    COLOR_TX           = "green"
+    COLOR_RX           = "magenta"
+    
     def __init__(self,guiParent):
         
         # store params
@@ -67,7 +70,7 @@ class ScheduleFrame(Tkinter.Frame):
         # clear all colors
         for ts in self.cells:
             for c in ts:
-                self.schedule.itemconfig(c, fill="")
+                self.schedule.itemconfig(c, fill='', outline='black', width=1.0)
         
         # color according to usage
         for m in self.engine.motes:
@@ -77,6 +80,16 @@ class ScheduleFrame(Tkinter.Frame):
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_OK)
                 else:
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_ERROR)
+        
+        # color selected mote's cells
+        mote = self.guiParent.selectedMote
+        if mote:
+            for (ts,ch,_) in mote.getTxCells():
+                self.schedule.itemconfig(self.cells[ts][ch], outline=self.COLOR_TX)
+                self.schedule.itemconfig(self.cells[ts][ch], width=2.0)
+            for (ts,ch,_) in mote.getRxCells():
+                self.schedule.itemconfig(self.cells[ts][ch], outline=self.COLOR_RX)
+                self.schedule.itemconfig(self.cells[ts][ch], width=2.0)
     
     #======================== helpers =========================================
     

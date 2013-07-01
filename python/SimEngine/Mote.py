@@ -91,6 +91,10 @@ class Mote(object):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
     
+    def getRxCells(self):
+        with self.dataLock:
+            return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
+    
     def getLocation(self):
         with self.dataLock:
             return (self.x,self.y)
