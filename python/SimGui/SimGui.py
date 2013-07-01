@@ -8,6 +8,7 @@ log = logging.getLogger('SimGui')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+import threading
 import Tkinter
 
 import ScheduleFrame
@@ -25,11 +26,12 @@ class SimGui(Tkinter.Tk):
         # store params
         
         # local variables
-        self.selectedMote    = None
-        self.selectedLink    = None
-        self.selectedCell    = None
+        self.dataLock        = threading.Lock()
+        self._selectedCell   = None
+        self._selectedMote   = None
+        self._selectedLink   = None
         
-        # initialize the parent class
+        # initialize parent class
         Tkinter.Tk.__init__(self)
         
         # assign a title to this window
@@ -55,6 +57,36 @@ class SimGui(Tkinter.Tk):
         self.mainloop()
     
     #======================== public ==========================================
+    
+    @property
+    def selectedCell(self):
+        with self.dataLock:
+            return self._selectedCell
+    
+    @selectedCell.setter
+    def selectedCell(self, value):
+        with self.dataLock:
+            self._selectedCell = value
+    
+    @property
+    def selectedMote(self):
+        with self.dataLock:
+            return self._selectedMote
+    
+    @selectedMote.setter
+    def selectedMote(self, value):
+        with self.dataLock:
+            self._selectedMote = value
+    
+    @property
+    def selectedLink(self):
+        with self.dataLock:
+            return self._selectedLink
+    
+    @selectedLink.setter
+    def selectedLink(self, value):
+        with self.dataLock:
+            self._selectedLink = value
     
     #======================== private =========================================
     
