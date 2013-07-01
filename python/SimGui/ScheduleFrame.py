@@ -17,7 +17,7 @@ class ScheduleFrame(Tkinter.Frame):
     
     UPDATE_PERIOD      = 1000
     HEIGHT             = 200
-    WIDTH              = 1000
+    WIDTH              = 1014
     
     COLOR_OK           = "blue"
     COLOR_ERROR        = "red"
@@ -33,7 +33,7 @@ class ScheduleFrame(Tkinter.Frame):
         
         # variables
         self.cells           = []
-        self.step            = min((self.WIDTH-10)/s().timeslots,(self.HEIGHT-10)/s().channels)
+        self.step            = min((self.WIDTH-4)/s().timeslots,(self.HEIGHT-4)/s().channels)
         
         # initialize the parent class
         Tkinter.Frame.__init__(
@@ -112,8 +112,8 @@ class ScheduleFrame(Tkinter.Frame):
     def _cellCoordinates(self,ts,ch):
     
         return (
-            5+ts*self.step,
-            5+ch*self.step,
-            5+(ts+1)*self.step,
-            5+(ch+1)*self.step,
+            2+ts*self.step,
+            2+ch*self.step,
+            2+(ts+1)*self.step,
+            2+(ch+1)*self.step,
         )
