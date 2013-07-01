@@ -27,6 +27,7 @@ class TopologyFrame(Tkinter.Frame):
         
         # variables
         self.motes      = {}
+        self.moteIds    = {}
         self.links      = {}
         
         # initialize the parent class
@@ -93,14 +94,19 @@ class TopologyFrame(Tkinter.Frame):
                 self.topology.tag_bind(newMote, '<ButtonPress-1>', self._moteClicked)
                 self.motes[m] = newMote
                 
+                newMoteId = self.topology.create_text(self._moteIdCoordinates(m))
+                self.topology.itemconfig(newMoteId,text=m.id)
+                self.moteIds[m] = newMoteId
+                
             else:
                 # move
                 self.topology.dtag(self.motes[m],"deleteMe")
+                self.topology.dtag(self.moteIds[m],"deleteMe")
                 # TODO: move
         
         # remove motes still marked
-        for mote in self.topology.find_withtag("deleteMe"):
-            self.topology.delete(mote)
+        for elem in self.topology.find_withtag("deleteMe"):
+            self.topology.delete(elem)
     
     #======================== helpers =========================================
     
@@ -133,6 +139,13 @@ class TopologyFrame(Tkinter.Frame):
             self.HEIGHT*y-self.MOTE_SIZE/2,
             self.WIDTH*x+self.MOTE_SIZE/2,
             self.HEIGHT*y+self.MOTE_SIZE/2,
+        )
+    
+    def _moteIdCoordinates(self,m):
+        (x,y) = m.getLocation()
+        return (
+            self.WIDTH*x,
+            self.HEIGHT*y+self.MOTE_SIZE,
         )
     
     def _linkCoordinates(self,fromMote,toMote):
