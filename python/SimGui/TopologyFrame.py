@@ -66,6 +66,7 @@ class TopologyFrame(Tkinter.Frame):
                 if (mote,neighbor) not in self.links:
                     # create
                     newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))
+                    self.topology.itemconfig(newLink,activefill='red')
                     self.topology.tag_bind(newLink, '<ButtonPress-1>', self._linkClicked)
                     self.links[(mote,neighbor)] = newLink
                 else:
@@ -88,6 +89,7 @@ class TopologyFrame(Tkinter.Frame):
             if m not in self.motes:
                 # create
                 newMote = self.topology.create_oval(self._moteCoordinates(m),fill='blue')
+                self.topology.itemconfig(newMote,activefill='red')
                 self.topology.tag_bind(newMote, '<ButtonPress-1>', self._moteClicked)
                 self.motes[m] = newMote
                 
