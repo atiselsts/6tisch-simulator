@@ -17,7 +17,7 @@ class TopologyFrame(Tkinter.Frame):
     UPDATE_PERIOD      = 1000
     MOTE_SIZE          = 10
     HEIGHT             = 300
-    WIDTH              = 1000
+    WIDTH              = 300
     
     def __init__(self,guiParent):
         
