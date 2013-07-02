@@ -371,6 +371,7 @@ class Mote(object):
                 # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
                 self.engine.removeEvent((self.id,'activeCell'))
                 self.engine.removeEvent((max_cell[1]['neighbor'].id,'activeCell'))
+                self._incrementStats('numCellsReallocated')
                 break;
             
     def _action_monitoring(self):
@@ -477,6 +478,7 @@ class Mote(object):
                 'dataGenerated':  0,
                 'dataQueueOK':    0,
                 'dataQueueFull':  0,
+                'numCellsReallocated': 0,
             }
     
     def _incrementStats(self,name):
