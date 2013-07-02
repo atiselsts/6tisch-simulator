@@ -123,5 +123,5 @@ class Propagation(object):
             # clear all outstanding transmissions
             self.transmissions     = []
             self.receivers         = []
-            self.collisions       = []
-            self.numcollisions    = 0
+            self.collisions        = []
+            self.numcollisions     = 0

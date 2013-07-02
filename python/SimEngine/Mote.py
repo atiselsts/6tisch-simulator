@@ -33,6 +33,8 @@ class Mote(object):
     TX                       = 'TX'
     RX                       = 'RX'
     
+    PDR_THRESHOLD            = 8.0 #ratio 1/8
+    
     def __init__(self,id):
         
         # store params
@@ -125,9 +127,16 @@ class Mote(object):
                 'numTx':              0,
                 'numTxAck':           0,
                 'numRx':              0,
-                'numCollisions':     0,
+                'numCollisions':      0,
             }
-    
+            
+    def removeCell(self,ts,neighbor):
+        ''' removes a cell from the schedule '''
+        self._log(self.DEBUG,"removeCell ts={0} with {1}".format(ts,neighbor.id))
+        with self.dataLock:
+            assert ts in self.schedule.keys()
+            assert neighbor == self.schedule[ts]['neighbor']
+            del self.schedule[ts]
     #======================== actions =========================================
     
     #===== activeCell
@@ -315,6 +324,50 @@ class Mote(object):
     
     #===== monitoring
     
+
+    def rescheduleCellIfNeeded(self, node):
+        ''' finds the worst cell in each bundle. If the performance of the cell is bad compared to
+            other cells in the bundle reschedule this cell. 
+        '''
+        bundle_avg = []
+        max_cell = (None, None, None)
+        #look into all links that point to the node 
+        for ts in self.schedule.keys():
+            ce = self.schedule[ts]
+            if ce['neighbor'] == node:
+                #compute PDR to each node
+                pdr = float(1.5)
+                if ce['numTx'] > 0 and ce['numTxAck'] > 0:
+                    pdr =  float(ce['numTxAck']) / float(ce['numTx'])
+                    
+                elif (ce['numTx'] > 1 and ce['numTxAck'] == 0): 
+                    pdr=float(1/float(ce['numTx'])) #detect when  pkts are never ack
+                    
+                if max_cell == (None,None,None):
+                    max_cell = (ts, ce, pdr)
+                #find worst cell in terms of number of collisions
+                if max_cell[1]['numCollisions'] < ce['numCollisions']:
+                    max_cell = (ts, ce, pdr)
+                #this is part of a bundle of cells for that neighbor, keep
+                #the tuple ts, schedule entry, pdr
+                bundle_avg += [(ts, ce, pdr)]
+        
+        #compute the distance to the other cells in the bundle,
+        #if the worst cell is far from any of the other cells reschedule it
+        for bce in bundle_avg:
+            if max_cell[2]==0.0:
+                return
+            
+            diff = bce[2] / max_cell[2] #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
+                                        # be bigger if max_cell is very bad.
+            if diff > self.PDR_THRESHOLD:
+                #reschedule the cell -- add to avoid scheduling the same
+                print "reallocating cell ts:{0},ch:{1}".format(max_cell[0],max_cell[1]['ch'])
+                self._addCellToNeighbor(max_cell[1]['neighbor'])
+                #and delete old one
+                self._removeCellToNeighbor(max_cell[0], max_cell[1])
+                break;
+            
     def _action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
         self._log(self.DEBUG,"_action_monitoring")
@@ -334,7 +387,9 @@ class Mote(object):
                         self._addCellToNeighbor(n)
                     else:
                         break
-        
+                #find worst cell in a bundle and if it is way worst and reschedule it
+                self.rescheduleCellIfNeeded(n)
+                          
         # schedule next active cell
         # Note: this is needed in case the monitoring action modified the schedule
         self._schedule_next_ActiveCell()
@@ -378,6 +433,19 @@ class Mote(object):
                     self.numCells[neighbor]  += 1
                     #TODO count number or retries.
     
+    def _removeCellToNeighbor(self,ts,cell):
+        ''' removes a cell in the schedule of this node and the neighbor '''
+        with self.dataLock:
+            self.removeCell(
+                 ts             = ts,
+                 neighbor       = cell['neighbor'],
+                 )
+            cell['neighbor'].removeCell(
+                 ts             = ts,
+                 neighbor       = self,
+                 )
+            self.numCells[cell['neighbor']]  -= 1
+                    #TODO count number or retries.    
     #======================== private =========================================
     
     def _log(self,severity,message):
