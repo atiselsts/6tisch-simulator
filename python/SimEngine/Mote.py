@@ -363,7 +363,8 @@ class Mote(object):
                                         # be bigger if max_cell is very bad.
             if diff > self.PDR_THRESHOLD:
                 #reschedule the cell -- add to avoid scheduling the same
-                print "reallocating cell ts:{0},ch:{1}".format(max_cell[0],max_cell[1]['ch'])
+                print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(max_cell[0],max_cell[1]['ch'],self.id,max_cell[1]['neighbor'].id)
+                self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(max_cell[0],max_cell[1]['ch'],self.id,max_cell[1]['neighbor'].id))
                 self._addCellToNeighbor(max_cell[1]['neighbor'])
                 #and delete old one
                 self._removeCellToNeighbor(max_cell[0], max_cell[1])
