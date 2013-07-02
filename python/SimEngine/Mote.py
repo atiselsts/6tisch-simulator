@@ -80,11 +80,12 @@ class Mote(object):
             for (ts,cell) in self.schedule.items():
                 if ts==ts_p and cell['ch']==ch_p:
                     returnVal = {
-                        'dir':       cell['dir'],
-                        'neighbor':  cell['neighbor'].id,
-                        'numTx':     cell['numTx'],
-                        'numTxAck':  cell['numTxAck'],
-                        'numRx':     cell['numRx'],
+                        'dir':            cell['dir'],
+                        'neighbor':       cell['neighbor'].id,
+                        'numTx':          cell['numTx'],
+                        'numTxAck':       cell['numTxAck'],
+                        'numRx':          cell['numRx'],
+                        'numCollisions':  cell['numCollisions'],
                     }
                     break
         return returnVal
@@ -118,12 +119,13 @@ class Mote(object):
         with self.dataLock:
             assert ts not in self.schedule.keys()
             self.schedule[ts] = {
-                'ch':        ch,
-                'dir':       dir,
-                'neighbor':  neighbor,
-                'numTx':     0,
-                'numTxAck':  0,
-                'numRx':     0,
+                'ch':                 ch,
+                'dir':                dir,
+                'neighbor':           neighbor,
+                'numTx':              0,
+                'numTxAck':           0,
+                'numRx':              0,
+                'numCollisions':     0,
             }
     
     #======================== actions =========================================
@@ -203,6 +205,8 @@ class Mote(object):
             
             if success:
                 self.schedule[ts]['numTxAck'] += 1
+            else:
+                self.schedule[ts]['numCollisions'] += 1    
             
             self.waitingFor = None
             

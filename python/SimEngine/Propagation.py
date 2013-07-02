@@ -35,6 +35,8 @@ class Propagation(object):
         self.dataLock            = threading.Lock()
         self.receivers           = []
         self.transmissions       = []
+        self.collisions         = []
+        self.numcollisions      = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
@@ -46,14 +48,43 @@ class Propagation(object):
     
     def startTx(self,channel,type,smac,dmac,payload):
         ''' add a mote as using a ch. for tx'''
+        
+        
         with self.dataLock:
-            self.transmissions  += [{
-                'channel':        channel,
-                'type':           type,
-                'smac':           smac,
-                'dmac':           dmac,
-                'payload':        payload,
-            }]
+            collision = False
+            remove = None
+            #check that there is no transmission on that ch.
+            for trans in self.transmissions:
+                if trans['channel'] == channel:
+                    collision= True
+                    self.numcollisions = self.numcollisions + 1
+                    #print "tx collision!"
+                    if trans not in self.collisions:
+                        #add it only once
+                        self.collisions += [trans]
+                        remove = trans #keep a pointer to the element colliding in transmission so it can be removed
+                    #add the new tx into collision list
+                    self.collisions += [{
+                         'channel':        channel,
+                         'type':           type,
+                         'smac':           smac,
+                         'dmac':           dmac,
+                         'payload':        payload,
+                          }] 
+                    
+            if not collision:
+                self.transmissions  += [{
+                    'channel':        channel,
+                    'type':           type,
+                    'smac':           smac,
+                    'dmac':           dmac,
+                    'payload':        payload,
+                }]
+            else:
+                #remove the colliding element from the transmission list
+                if remove != None:
+                     self.transmissions.remove(remove)
+                
     
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
@@ -87,6 +118,11 @@ class Propagation(object):
             for r in self.receivers:
                 r['mote'].rxDone()
             
+            for c in self.collisions:
+                c['smac'].txDone(False)
+                
             # clear all outstanding transmissions
             self.transmissions     = []
             self.receivers         = []
+            self.collisions       = []
+            self.numcollisions    = 0
