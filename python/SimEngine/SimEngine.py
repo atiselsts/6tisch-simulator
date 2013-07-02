@@ -51,8 +51,10 @@ class SimEngine(threading.Thread):
         # set the mote's traffic goals
         for id in range(len(self.motes)):
             neighborId = None
+            #pick a random neighbor
             while (neighborId==None) or (neighborId==id):
                 neighborId = random.randint(0,len(self.motes)-1)
+            #initialize the traffic pattern with that neighbor    
             self.motes[id].setDataEngine(
                 self.motes[neighborId],
                 s().traffic,
@@ -72,7 +74,7 @@ class SimEngine(threading.Thread):
     #======================== thread ==========================================
     
     def run(self):
-        
+        ''' event driven simulator, this thread manages the events '''
         # log
         log.info("thread {0} starting".format(self.name))
         
@@ -118,13 +120,14 @@ class SimEngine(threading.Thread):
     #======================== public ==========================================
     
     def scheduleIn(self,delay,cb):
-        
+        ''' used to generate events. Puts an event to the queue '''    
         with self.dataLock:
             asn = int(self.asn+(float(delay)/float(s().slotDuration)))
             
             self.scheduleAtAsn(asn,cb)
     
     def scheduleAtAsn(self,asn,cb,uniqueTag=None):
+        ''' schedule an event at specific ASN '''
         
         with self.dataLock:
             

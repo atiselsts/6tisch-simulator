@@ -37,6 +37,7 @@ class Propagation(object):
         self.transmissions       = []
     
     def startRx(self,mote,channel):
+        ''' add a mote as listener on a channel'''
         with self.dataLock:
             self.receivers += [{
                 'mote':          mote,
@@ -44,6 +45,7 @@ class Propagation(object):
             }]
     
     def startTx(self,channel,type,smac,dmac,payload):
+        ''' add a mote as using a ch. for tx'''
         with self.dataLock:
             self.transmissions  += [{
                 'channel':        channel,
@@ -54,6 +56,11 @@ class Propagation(object):
             }]
     
     def propagate(self):
+        ''' simulate the propagation of pkts in a slot.
+            for each of the transmitters do:
+            for all motes listening on a channel notify them (no propagation model yet). 
+            Notify the rest with No packet so they can know that nothing happen in that slot. 
+        '''
         
         with self.dataLock:
             

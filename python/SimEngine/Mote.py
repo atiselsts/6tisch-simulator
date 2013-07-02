@@ -57,12 +57,13 @@ class Mote(object):
     #======================== public =========================================
     
     def setDataEngine(self,neighbor,dataPeriod):
+        ''' sets the period to communicate with that neighbor '''
         with self.dataLock:
             self.dataPeriod[neighbor] = dataPeriod
             self._schedule_sendData(neighbor)
     
     def boot(self):
-        
+        ''' boots the mote '''
         with self.dataLock:
             self.booted      = False
         
@@ -73,6 +74,7 @@ class Mote(object):
         self._schedule_next_ActiveCell()
     
     def getCellStats(self,ts_p,ch_p):
+        ''' retrieves cell stats '''
         returnVal = None
         with self.dataLock:
             for (ts,cell) in self.schedule.items():
@@ -110,7 +112,7 @@ class Mote(object):
     
     # TODO: replace direct call by packets
     def scheduleCell(self,ts,ch,dir,neighbor):
-        
+        ''' adds a cell to the schedule '''
         self._log(self.DEBUG,"scheduleCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
         
         with self.dataLock:
@@ -129,6 +131,9 @@ class Mote(object):
     #===== activeCell
     
     def _action_activeCell(self):
+        ''' active slot starts. Determine what todo, either RX or TX, use the propagation model to introduce
+            interference and Rx packet drops.
+        '''
         self._log(self.DEBUG,"_action_activeCell")
         
         asn = self.engine.getAsn()
@@ -183,7 +188,7 @@ class Mote(object):
                     self.waitingFor   = self.TX
     
     def txDone(self,success):
-        
+        '''end of tx slot. compute stats and schedules next action '''
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
@@ -205,7 +210,7 @@ class Mote(object):
             self._schedule_next_ActiveCell()
     
     def rxDone(self,type=None,smac=None,dmac=None,payload=None):
-        
+        '''end of rx slot. compute stats and schedules next action ''' 
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
@@ -229,7 +234,7 @@ class Mote(object):
         self._schedule_next_ActiveCell()
     
     def _schedule_next_ActiveCell(self):
-        
+        ''' called by the engine. determines the next action to be taken in case this Mote has a schedule''' 
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
@@ -266,7 +271,7 @@ class Mote(object):
     #===== sendData
     
     def _action_sendData(self,neighbor):
-        
+        ''' actual send data function. Evaluates queue length too '''
         # log
         self._log(self.DEBUG,"_action_sendData to {0}".format(neighbor.id))
         
@@ -287,7 +292,7 @@ class Mote(object):
         self._schedule_sendData(neighbor)
     
     def _schedule_sendData(self,neighbor):
-        
+        ''' create an event that is inserted into the simulator engine to send the data according to the dataPeriod'''
         # cancel activity if neighbor disappeared from schedule
         if neighbor not in self.dataPeriod:
             return
@@ -307,7 +312,7 @@ class Mote(object):
     #===== monitoring
     
     def _action_monitoring(self):
-        
+        ''' the monitoring action. allocates more cells if the objective is not met. '''
         self._log(self.DEBUG,"_action_monitoring")
         
         with self.dataLock:
@@ -334,12 +339,14 @@ class Mote(object):
         self._schedule_monitoring()
     
     def _schedule_monitoring(self):
+        ''' tells to the simulator engine to add an event to monitor the network'''
         self.engine.scheduleIn(
             delay  = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
             cb     = self._action_monitoring,
         )
     
     def _addCellToNeighbor(self,neighbor):
+        ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         with self.dataLock:
             found = False
             while not found:
@@ -365,6 +372,7 @@ class Mote(object):
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1
+                    #TODO count number or retries.
     
     #======================== private =========================================
     
