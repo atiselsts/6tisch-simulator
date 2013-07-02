@@ -118,7 +118,17 @@ class SimEngine(threading.Thread):
         log.info("thread {0} ends".format(self.name))
     
     #======================== public ==========================================
-    
+    def removeEvent(self,uniqueTag):
+        i = 0
+        with self.dataLock:
+            while i<len(self.events):
+                (a,c,t) = self.events[i]
+                if t==uniqueTag:
+                    del self.events[i]
+                i += 1
+                 
+                
+                
     def scheduleIn(self,delay,cb):
         ''' used to generate events. Puts an event to the queue '''    
         with self.dataLock:

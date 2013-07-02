@@ -155,6 +155,7 @@ class Mote(object):
         with self.dataLock:
             # make sure this is an active slot
             # NOTE: might be relaxed when schedule is changed
+               
             assert ts in self.schedule
             
             # make sure we're not in the middle of a TX/RX operation
@@ -366,6 +367,9 @@ class Mote(object):
                 self._addCellToNeighbor(max_cell[1]['neighbor'])
                 #and delete old one
                 self._removeCellToNeighbor(max_cell[0], max_cell[1])
+                # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
+                self.engine.removeEvent((self.id,'activeCell'))
+                self.engine.removeEvent((max_cell[1]['neighbor'].id,'activeCell'))
                 break;
             
     def _action_monitoring(self):
