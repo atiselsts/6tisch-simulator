@@ -125,7 +125,8 @@ class SimEngine(threading.Thread):
                 (a,c,t) = self.events[i]
                 if t==uniqueTag:
                     del self.events[i]
-                i += 1
+                else: #the list reduces its size when an element is deleted.
+                     i += 1
                  
                 
                 
