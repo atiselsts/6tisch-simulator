@@ -35,8 +35,8 @@ class Propagation(object):
         self.dataLock            = threading.Lock()
         self.receivers           = []
         self.transmissions       = []
-        self.collisions         = []
-        self.numcollisions      = 0
+        self.collisions          = []
+        self.numcollisions       = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
@@ -47,9 +47,7 @@ class Propagation(object):
             }]
     
     def startTx(self,channel,type,smac,dmac,payload):
-        ''' add a mote as using a ch. for tx'''
-        
-        
+        ''' add a mote as using a ch. for tx'''        
         with self.dataLock:
             collision = False
             remove = None
@@ -58,7 +56,8 @@ class Propagation(object):
                 if trans['channel'] == channel:
                     collision= True
                     self.numcollisions = self.numcollisions + 1
-                    #print "tx collision!"
+                    #print "tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id)
+                    log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                     if trans not in self.collisions:
                         #add it only once
                         self.collisions += [trans]
