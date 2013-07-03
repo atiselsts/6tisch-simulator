@@ -32,9 +32,11 @@ class Mote(object):
     
     TX                       = 'TX'
     RX                       = 'RX'
-    
-    PDR_THRESHOLD            = 8.0 #ratio 1/8
-    
+    #ratio 1/4 -- changing this threshold the detection of a bad cell can be tuned, if
+    #as higher the slower to detect a wrong cell but the more prone to avoid churn
+    #as lower the faster but with some chances to introduces churn due to unstable medium
+    PDR_THRESHOLD            = 4.0   
+                             
     def __init__(self,id):
         
         # store params
