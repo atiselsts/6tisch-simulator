@@ -13,6 +13,7 @@ import threading
 import random
 
 import Propagation
+import Topology
 import Mote
 from SimSettings import SimSettings as s
 
@@ -45,20 +46,13 @@ class SimEngine(threading.Thread):
         self.asn             = 0
         self.events          = []
         self.simDelay        = 0
-        self.motes           = [Mote.Mote(id) for id in range(s().numMotes)]
+        self.motes           = []
+        self.topology        = Topology.Topology()
         self.goOn            = True
         
-        # set the mote's traffic goals
-        for id in range(len(self.motes)):
-            neighborId = None
-            #pick a random neighbor
-            while (neighborId==None) or (neighborId==id):
-                neighborId = random.randint(0,len(self.motes)-1)
-            #initialize the traffic pattern with that neighbor    
-            self.motes[id].setDataEngine(
-                self.motes[neighborId],
-                s().traffic,
-            )
+        #use the topology component to create the network
+        #TODO define topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
+        self.motes=self.topology.createTopology()
         
         # boot all the motes
         for i in range(len(self.motes)):
