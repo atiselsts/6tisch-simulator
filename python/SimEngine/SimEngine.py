@@ -52,7 +52,7 @@ class SimEngine(threading.Thread):
         
         #use the topology component to create the network
         #TODO define topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        self.motes=self.topology.createTopology()
+        self.motes=self.topology.createTopology(self.topology.RANDOM)
         
         # boot all the motes
         for i in range(len(self.motes)):

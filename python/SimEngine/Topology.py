@@ -22,6 +22,13 @@ class Topology(object):
     _instance      = None
     _init          = False
     
+    RANDOM         = "RANDOM"
+    FULL_MESH      = "FULL_MESH"
+    BINARY_TREE    = "BINARY_TREE"
+    LINE           = "LINE"
+    LATTICE        = "LATTICE"
+    
+    
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(Topology,cls).__new__(cls, *args, **kwargs)
@@ -40,8 +47,25 @@ class Topology(object):
         self.dataLock            = threading.Lock()
         self.motes=[Mote.Mote(id) for id in range(s().numMotes)]
          
-    def createTopology(self):
+    def createTopology(self,type):
           # set the mote's traffic goals
+        if type == self.RANDOM:
+             self._createRandomTopology()
+        elif type == self.FULL_MESH:
+            #make sure that the traffic requirements can be met with that so demanding topology.
+            self._createFullMeshTopology()   
+        elif type == self.BINARY_TREE:
+            raise NotImplementedError('Mode {0} not implemented'.format(type))
+        elif type == self.LINE:
+            raise NotImplementedError('Mode {0} not implemented'.format(type))         
+        elif type == self.LATTICE:
+            raise NotImplementedError('Mode {0} not implemented'.format(type))
+        else: 
+            raise NotImplementedError('Mode {0} not supported'.format(type))
+                
+        return self.motes
+    
+    def _createRandomTopology(self):
         for id in range(len(self.motes)):
             neighborId = None
             #pick a random neighbor
@@ -52,4 +76,14 @@ class Topology(object):
                 self.motes[neighborId],
                 s().traffic,
             )
-        return self.motes
+            
+    def _createFullMeshTopology(self):
+        for id in range(len(self.motes)):
+            for nei in range(len(self.motes)):
+                if nei!=id:
+                    #initialize the traffic pattern with that neighbor
+                    self.motes[id].setDataEngine(
+                        self.motes[nei],
+                        s().traffic,
+                    )
+        
