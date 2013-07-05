@@ -2,10 +2,10 @@
 
 '''
  @authors:
-       Thomas Watteyne    <twatteyne@linear.com>    
+       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
        Xavier Vilajosana  <xvilajosana@uoc.edu> 
                           <xvilajosana@eecs.berkeley.edu>
- '''
+'''
 
 import logging
 class NullHandler(logging.Handler):
