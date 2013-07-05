@@ -17,6 +17,7 @@ log.addHandler(NullHandler())
 
 import threading
 import random
+import math
 
 import Propagation
 import Mote
@@ -26,15 +27,18 @@ class Topology(object):
     
      #======================== singleton pattern ===============================
     
-    _instance      = None
-    _init          = False
+    _instance       = None
+    _init           = False
     
-    RANDOM         = "RANDOM"
-    FULL_MESH      = "FULL_MESH"
-    BINARY_TREE    = "BINARY_TREE"
-    LINE           = "LINE"
-    LATTICE        = "LATTICE"
-    MIN_DISTANCE   = "MIN_DISTANCE"
+    RANDOM          = "RANDOM"
+    FULL_MESH       = "FULL_MESH"
+    BINARY_TREE     = "BINARY_TREE"
+    LINE            = "LINE"
+    LATTICE         = "LATTICE"
+    MIN_DISTANCE    = "MIN_DISTANCE"
+    RADIUS_DISTANCE = "RADIUS_DISTANCE"
+    
+    NEIGHBOR_RADIUS = 0.4
     
     
     def __new__(cls, *args, **kwargs):
@@ -69,7 +73,9 @@ class Topology(object):
         elif type == self.LATTICE:
             raise NotImplementedError('Mode {0} not implemented'.format(type))
         elif type == self.MIN_DISTANCE:
-            raise NotImplementedError('Mode {0} not implemented'.format(type))
+            self._createMinDistanceTopology()
+        elif type == self.RADIUS_DISTANCE:
+            self._createRadiusDistanceTopology()
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))
                 
@@ -115,6 +121,34 @@ class Topology(object):
                   #other child
                   self._addChild(id,2*(id+1))
                   print 'child 2 {0}'.format(2*(id+1))
+    
+    
+    def _createMinDistanceTopology(self):
+        for id in range(len(self.motes)):
+            #link to 2 min distance neighbors
+            min=10000
+            linkto=-1
+            for nei in range(len(self.motes)):
+                if nei!=id:
+                    distance=math.sqrt((self.motes[id].x - self.motes[nei].x)**2 + (self.motes[id].y - self.motes[nei].y)**2)  
+                    print "distance is {0},{1},{2}".format(id,nei,distance)
+                    if distance < min:
+                        min=distance 
+                        linkto=nei
+            if linkto!=-1:
+                self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
+                
             
-            
-            
+    def _createRadiusDistanceTopology(self):
+        for id in range(len(self.motes)):
+            #link to all neighbors with distance smaller than radius
+            for nei in range(len(self.motes)):
+                if nei!=id:
+                    distance=math.sqrt((self.motes[id].x - self.motes[nei].x)**2 + (self.motes[id].y - self.motes[nei].y)**2)  
+                    print "distance is {0}".format(distance)
+                    if distance < self.NEIGHBOR_RADIUS:
+                        print "adding neighbor {0},{1}".format(id,nei)
+                        self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
+                
+                    
+                
