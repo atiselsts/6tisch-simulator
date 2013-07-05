@@ -1,5 +1,12 @@
 #!/usr/bin/python
 
+'''
+ @authors:
+       Thomas Watteyne    <twatteyne@linear.com>    
+       Xavier Vilajosana  <xvilajosana@uoc.edu> 
+                          <xvilajosana@eecs.berkeley.edu>
+ '''
+
 import logging
 class NullHandler(logging.Handler):
     def emit(self, record):

@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+
+'''
+ @authors:
+       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
+'''
+
 import logging
 class NullHandler(logging.Handler):
     def emit(self, record):

@@ -1,5 +1,12 @@
 #!/usr/bin/python
 
+'''
+ @authors:
+       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
+       Xavier Vilajosana  <xvilajosana@uoc.edu> 
+                          <xvilajosana@eecs.berkeley.edu>
+'''
+
 import os
 import sys
 if __name__=='__main__':
