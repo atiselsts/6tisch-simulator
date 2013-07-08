@@ -17,6 +17,8 @@ log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
 import threading
+import random
+
 
 class Propagation(object):
     
@@ -44,11 +46,14 @@ class Propagation(object):
         self.receivers           = []
         self.transmissions       = []
         self.collisions          = []
-        self.numcollisions       = 0
+        self.rxcollisions        = []
+        self.numTxcollisions     = 0
+        self.numRxcollisions     = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
+            #note that we don't prevent collisions as we want to enable broadcast ch.        
             self.receivers += [{
                 'mote':          mote,
                 'channel':       channel,
@@ -63,7 +68,7 @@ class Propagation(object):
             for trans in self.transmissions:
                 if trans['channel'] == channel:
                     collision= True
-                    self.numcollisions = self.numcollisions + 1
+                    self.numTxcollisions = self.numTxcollisions + 1
                     #print "tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id)
                     log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                     if trans not in self.collisions:
@@ -91,7 +96,7 @@ class Propagation(object):
                 #remove the colliding element from the transmission list
                 if remove != None:
                      self.transmissions.remove(remove)
-                
+          
     
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
@@ -106,20 +111,46 @@ class Propagation(object):
                 
                 # find matching receivers
                 i = 0
+                success = True
+                num_receivers_ch=0
                 while i<len(self.receivers):
-                    if self.receivers[i]['channel']==['channel']:
-                        self.receivers[i]['mote'].rxDone(
-                            type       = transmission['type'],
-                            smac       = transmission['smac'],
-                            dmac       = transmission['dmac'],
-                            payload    = transmission['payload']
-                        )
-                        del self.receivers[i]
+                    if self.receivers[i]['channel']==transmission['channel']:
+                        num_receivers_ch+=1
+                         
+                        #check this is a real link --
+                        if (transmission['dmac'].id==self.receivers[i]['mote'].id):
+                            #pick a random number
+                            failure = random.randint(0,100)
+                            #get pdr to that neighbor
+                            pdr = transmission['smac'].getPDR(self.receivers[i]['mote'])
+                            #if we are lucky the packet is sent
+                            if (pdr>failure):
+                                log.debug("send with pdr {0},{1}".format(pdr,failure))
+                                self.receivers[i]['mote'].rxDone(
+                                    type       = transmission['type'],
+                                    smac       = transmission['smac'],
+                                    dmac       = transmission['dmac'],
+                                    payload    = transmission['payload']
+                                )
+                                del self.receivers[i]
+                                success=True
+                            else:
+                                success=False   
+                                log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr,failure,transmission['smac'].id,self.receivers[i]['mote'].id))
+                                i   += 1   
+                        else:
+                            #not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
+                            log.debug("rx collision {0},{1}, sender {2}".format(transmission['dmac'].id,self.receivers[i]['mote'].id,transmission['smac'].id))
+                            self.numRxcollisions+=1
+                            self.rxcollisions+=[self.receivers[i]] #add it to rx collisions
+                            del self.receivers[i] 
+                            #count as rx collision and notify failure.
                     else:
                         i   += 1
                 
                 # indicate to source packet was sent
-                transmission['smac'].txDone(True)
+                log.debug(" num listeners per transmitter {0}".format(num_receivers_ch))
+                transmission['smac'].txDone(success)
             
             # indicate no packet received from remaining receivers
             for r in self.receivers:
@@ -127,9 +158,14 @@ class Propagation(object):
             
             for c in self.collisions:
                 c['smac'].txDone(False)
-                
+            
+            #notify rx collisions
+            for c in self.rxcollisions:
+                c['mote'].rxDone(collision=True)
             # clear all outstanding transmissions
             self.transmissions     = []
             self.receivers         = []
             self.collisions        = []
-            self.numcollisions     = 0
+            self.rxcollisions      = []
+            self.numTxcollisions   = 0
+            self.numRxcollisions   = 0

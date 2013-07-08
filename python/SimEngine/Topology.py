@@ -18,6 +18,7 @@ log.addHandler(NullHandler())
 import threading
 import random
 import math
+import scipy.constants as co
 
 import Propagation
 import Mote
@@ -39,7 +40,8 @@ class Topology(object):
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     
     NEIGHBOR_RADIUS = 0.4
-    
+    TWO_DOT_FOUR_GHZ = 2400000 #in hertz
+    PISTER_HACK_LOWER_SHIFT = 40 #-40 db     
     
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -92,6 +94,9 @@ class Topology(object):
                 self.motes[neighborId],
                 s().traffic,
             )
+            self.motes[id].setPDR(self.motes[neighborId],
+                                  self.computePDR(id,neighborId)
+                                  )
             
     def _createFullMeshTopology(self):
         for id in range(len(self.motes)):
@@ -150,5 +155,31 @@ class Topology(object):
                         print "adding neighbor {0},{1}".format(id,nei)
                         self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                 
-                    
+    
+    def computePDR(self,node,neighbor): 
+        ''' computes pdr according to Pister hack model'''
+        #determine PDR between this two nodes.
+        distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
+        #x and y values are between [0,1), in order to get a reasonable free space model we need to multiply them by 10^4 so
+        # Prx has a realistic value. 
+        distance = distance*10000.0
+        
+        fspl=(co.speed_of_light/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
+        #simple friis equation in   Pr=Pt+Gt+Gr+20log10(c/4piR)   
+        pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
+        #according to the receiver power (RSSI) we can apply the Pister hack model.
+        mu=pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
+        #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40 -- can be uniform too
+        rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+
+        if rssi < -85 and rssi > self.motes[neighbor].radioSensitivity:
+            pdr=(rssi-self.motes[neighbor].radioSensitivity)*6.25
+        elif rssi <= self.motes[neighbor].radioSensitivity:
+            pdr=0.0
+        elif rssi > -85:
+            pdr=100.0
+            
+        print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)
+        log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)) 
+        return pdr 
                 

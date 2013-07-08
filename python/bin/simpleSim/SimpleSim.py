@@ -40,7 +40,7 @@ def parseCliOptions():
     parser.add_option( '--nm',
         dest       = 'numMotes',
         type       = 'int',
-        default    = 50,
+        default    = 10,
     )
     
     parser.add_option( '-d',

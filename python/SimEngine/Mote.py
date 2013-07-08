@@ -54,15 +54,20 @@ class Mote(object):
         self.engine          = SimEngine.SimEngine()
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
-        self.x               = random.random()
-        self.y               = random.random()
+        self.x               = random.random() # * 10^4 to represent meters
+        self.y               = random.random() # * 10^4 to represent meters (this are cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
+        self.PDR             = {} #indexed by neighbor
         self.numCells        = {}
         self.booted          = False
         self.schedule        = {}
         self.txQueue         = []
+        self.tPower          = 0
+        self.antennaGain     = 0
+        self.radioSensitivity = -101
+        
         self._resetStats()
     
     #======================== public =========================================
@@ -72,6 +77,17 @@ class Mote(object):
         with self.dataLock:
             self.dataPeriod[neighbor] = dataPeriod
             self._schedule_sendData(neighbor)
+    
+    def setPDR(self,neighbor,pdr):
+        ''' sets the pdr to that neighbor'''
+        with self.dataLock:
+            self.PDR[neighbor] = pdr
+            
+    def getPDR(self,neighbor):
+        ''' returns the pdr to that neighbor'''
+        with self.dataLock:
+            return self.PDR[neighbor]
+        
     
     def boot(self):
         ''' boots the mote '''
@@ -96,7 +112,8 @@ class Mote(object):
                         'numTx':          cell['numTx'],
                         'numTxAck':       cell['numTxAck'],
                         'numRx':          cell['numRx'],
-                        'numCollisions':  cell['numCollisions'],
+                        'numTxCollisions':  cell['numTxCollisions'],
+                        'numRxCollisions':  cell['numRxCollisions'],
                     }
                     break
         return returnVal
@@ -136,7 +153,8 @@ class Mote(object):
                 'numTx':              0,
                 'numTxAck':           0,
                 'numRx':              0,
-                'numCollisions':      0,
+                'numTxCollisions':    0,
+                'numRxCollisions':    0,
             }
             
     def removeCell(self,ts,neighbor):
@@ -225,14 +243,14 @@ class Mote(object):
             if success:
                 self.schedule[ts]['numTxAck'] += 1
             else:
-                self.schedule[ts]['numCollisions'] += 1    
+                self.schedule[ts]['numTxCollisions'] += 1    
             
             self.waitingFor = None
             
             # schedule next active cell
             self._schedule_next_ActiveCell()
     
-    def rxDone(self,type=None,smac=None,dmac=None,payload=None):
+    def rxDone(self,type=None,smac=None,dmac=None,payload=None,collision=False):
         '''end of rx slot. compute stats and schedules next action ''' 
         asn = self.engine.getAsn()
         
@@ -248,6 +266,8 @@ class Mote(object):
             
             if smac:
                 self.schedule[ts]['numRx'] += 1
+            if collision:
+                self.schedule[ts]['numRxCollisions'] += 1
                 
                 # TODO: relay packet?
             
@@ -356,7 +376,7 @@ class Mote(object):
                 if max_cell == (None,None,None):
                     max_cell = (ts, ce, pdr)
                 #find worst cell in terms of number of collisions
-                if max_cell[1]['numCollisions'] < ce['numCollisions']:
+                if max_cell[1]['numTxCollisions'] < ce['numTxCollisions']:
                     max_cell = (ts, ce, pdr)
                 #this is part of a bundle of cells for that neighbor, keep
                 #the tuple ts, schedule entry, pdr
