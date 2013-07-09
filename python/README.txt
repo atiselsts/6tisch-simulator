@@ -22,8 +22,8 @@ Requirements
 
 Install:
     *Install python
-	*Clone simulator code. 
-	    Find url here: https://bitbucket.org/6tsch/simulator
+	*Clone simulator code.
+	    -Find url here: https://bitbucket.org/6tsch/simulator
 
 Run it:
     *Execute:
