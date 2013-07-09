@@ -47,4 +47,4 @@ V0.0 changeset:
 Issues and future contributions.
        *Add spanning tree topology (dijkstra)
 	   *Add network trend and overall information using charts.
-    https://bitbucket.org/6tsch/simulator/issues
+	   *More at:  https://bitbucket.org/6tsch/simulator/issues
