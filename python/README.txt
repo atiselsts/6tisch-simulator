@@ -10,7 +10,7 @@ June 2013.
 
 This work has been carried out by:
     Thomas Watteyne (watteyne@eecs.berkeley.edu)
-	Xavier Vilajosana (xvilajosana@eecs.berkeley.edu,
+    Xavier Vilajosana (xvilajosana@eecs.berkeley.edu,
 	                   xvilajosana@uoc.edu) 
 
 Brief:
