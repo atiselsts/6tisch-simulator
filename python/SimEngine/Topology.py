@@ -18,7 +18,6 @@ log.addHandler(NullHandler())
 import threading
 import random
 import math
-import scipy.constants as co
 
 import Propagation
 import Mote
@@ -42,6 +41,8 @@ class Topology(object):
     NEIGHBOR_RADIUS = 0.4
     TWO_DOT_FOUR_GHZ = 2400000 #in hertz
     PISTER_HACK_LOWER_SHIFT = 40 #-40 db     
+    SPEED_OF_LIGHT = 299792458 
+    
     
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -164,7 +165,7 @@ class Topology(object):
         # Prx has a realistic value. 
         distance = distance*10000.0
         
-        fspl=(co.speed_of_light/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
+        fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
         #simple friis equation in   Pr=Pt+Gt+Gr+20log10(c/4piR)   
         pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
         #according to the receiver power (RSSI) we can apply the Pister hack model.
