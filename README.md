@@ -1,4 +1,4 @@
-6TSCH simulator
-===============
+6TiSCH simulator
+================
 
-Back-of-the-envelope simulations of 6TSCH ideas
+Back-of-the-envelope simulations of 6TiSCH ideas
