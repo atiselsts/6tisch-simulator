@@ -428,15 +428,12 @@ class Mote(object):
                         break
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
+                #KM Neighbor also has to update next active cell 
+                n._schedule_next_ActiveCell()
                           
         # schedule next active cell
         # Note: this is needed in case the monitoring action modified the schedule
         self._schedule_next_ActiveCell()
-
-        #KM Neighbor also has to update next active cell             
-        for (ts,cell) in self.schedule.items():
-            n = cell['neighbor']
-            n._schedule_next_ActiveCell()            
                 
         # schedule next monitoring
         self._schedule_monitoring()
