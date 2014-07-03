@@ -27,7 +27,7 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    SLOT_DURATION  = 0.015
+    SLOT_DURATION  = 0.01 #KM 0.015
     
     #======================== singleton pattern ===============================
     
@@ -60,7 +60,11 @@ class SimEngine(threading.Thread):
         
         #use the topology component to create the network
         #TODO define topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        self.motes=self.topology.createTopology(self.topology.RANDOM)
+        
+        #self.motes=self.topology.createTopology(self.topology.RANDOM)
+        #self.motes=self.topology.createTopology(self.topology.FULL_MESH)
+        self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
+        #self.motes=self.topology.createTopology(self.topology.MIN_DISTANCE)
         
         # boot all the motes
         for i in range(len(self.motes)):

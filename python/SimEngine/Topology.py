@@ -38,8 +38,11 @@ class Topology(object):
     MIN_DISTANCE    = "MIN_DISTANCE"
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     
-    NEIGHBOR_RADIUS = 0.4
-    TWO_DOT_FOUR_GHZ = 2400000 #in hertz
+    
+    NEIGHBOR_RADIUS = 0.5 #KM in km 
+    
+    #KM TWO_DOT_FOUR_GHZ = 2400000 #in hertz 
+    TWO_DOT_FOUR_GHZ = 2400000000 #in hertz
     PISTER_HACK_LOWER_SHIFT = 40 #-40 db     
     SPEED_OF_LIGHT = 299792458 
     
@@ -108,6 +111,11 @@ class Topology(object):
                         self.motes[nei],
                         s().traffic,
                     )
+                    #KM 
+                    self.motes[id].setPDR(
+                        self.motes[nei],
+                        self.computePDR(id,nei)
+                    )
                     
 
     def _addChild(self, id,child):
@@ -143,6 +151,8 @@ class Topology(object):
                         linkto=nei
             if linkto!=-1:
                 self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
+                #KM
+                self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
                 
             
     def _createRadiusDistanceTopology(self):
@@ -155,15 +165,21 @@ class Topology(object):
                     if distance < self.NEIGHBOR_RADIUS:
                         print "adding neighbor {0},{1}".format(id,nei)
                         self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
-                
+                        #KM
+                        self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
+               
     
     def computePDR(self,node,neighbor): 
         ''' computes pdr according to Pister hack model'''
         #determine PDR between this two nodes.
         distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
+        
         #x and y values are between [0,1), in order to get a reasonable free space model we need to multiply them by 10^4 so
         # Prx has a realistic value. 
-        distance = distance*10000.0
+        #distance = distance*10000.0
+        
+        #KM modified to multiply 1000, which convert km to m
+        distance = distance*1000.0
         
         fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
         #simple friis equation in   Pr=Pt+Gt+Gr+20log10(c/4piR)   
@@ -180,7 +196,11 @@ class Topology(object):
         elif rssi > -85:
             pdr=100.0
             
-        print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)
-        log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)) 
+        #KM print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)
+        print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)
+
+        #KM log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)) 
+        log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)) 
+
         return pdr 
                 

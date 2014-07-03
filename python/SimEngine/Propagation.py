@@ -124,7 +124,7 @@ class Propagation(object):
                             #get pdr to that neighbor
                             pdr = transmission['smac'].getPDR(self.receivers[i]['mote'])
                             #if we are lucky the packet is sent
-                            if (pdr>failure):
+                            if (pdr>=failure):
                                 log.debug("send with pdr {0},{1}".format(pdr,failure))
                                 self.receivers[i]['mote'].rxDone(
                                     type       = transmission['type'],

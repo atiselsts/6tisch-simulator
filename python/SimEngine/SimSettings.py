@@ -35,7 +35,7 @@ class SimSettings(object):
         self._init = True
         
         # store params
-        self.slotDuration    = 0.015
+        self.slotDuration    = 0.01 #KM 0.015
         self.numMotes        = None
         self.degree          = None
         self.channels        = None

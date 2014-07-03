@@ -27,7 +27,7 @@ class Mote(object):
     
     HOUSEKEEPING_PERIOD      = 10
     
-    QUEUE_SIZE               = 10
+    QUEUE_SIZE               = 100
     
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
@@ -54,8 +54,8 @@ class Mote(object):
         self.engine          = SimEngine.SimEngine()
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
-        self.x               = random.random() # * 10^4 to represent meters
-        self.y               = random.random() # * 10^4 to represent meters (this are cm so it can be plotted)
+        self.x               = random.random()*0.2 #KM in km, * 10^3 to represent meters
+        self.y               = random.random()*0.2 #KM in km, * 10^3 to represent meters (these are cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
@@ -95,7 +95,9 @@ class Mote(object):
             self.booted      = False
         
         # schedule first monitoring
-        self._schedule_monitoring()
+        self._schedule_monitoring(delay = 0.05)
+        #KM
+        #self._schedule_monitoring()
         
         # schedule first active cell
         self._schedule_next_ActiveCell()
@@ -293,7 +295,8 @@ class Mote(object):
             tsDiffMin             = None
             for (ts,cell) in self.schedule.items():
                 if   ts==tsCurrent:
-                    tsDiff        = None
+                    #KM tsDiff        = None
+                    tsDiff        = self.settings.timeslots
                 elif ts>tsCurrent:
                     tsDiff        = ts-tsCurrent
                 elif ts<tsCurrent:
@@ -301,7 +304,8 @@ class Mote(object):
                 else:
                     raise SystemError()
                 
-                if tsDiff and ((not tsDiffMin) or (tsDiffMin>tsDiff)):
+                #KM if tsDiff and ((not tsDiffMin) or (tsDiffMin>tsDiff)):
+                if (not tsDiffMin) or (tsDiffMin>tsDiff):
                     tsDiffMin     = tsDiff
         
         # schedule at that ASN
@@ -406,7 +410,7 @@ class Mote(object):
     def _action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
         self._log(self.DEBUG,"_action_monitoring")
-        
+                
         with self.dataLock:
             for (n,periodGoal) in self.dataPeriod.items():
                 while True:
@@ -428,14 +432,22 @@ class Mote(object):
         # schedule next active cell
         # Note: this is needed in case the monitoring action modified the schedule
         self._schedule_next_ActiveCell()
-        
+
+        #KM Neighbor also has to update next active cell             
+        for (ts,cell) in self.schedule.items():
+            n = cell['neighbor']
+            n._schedule_next_ActiveCell()            
+                
         # schedule next monitoring
         self._schedule_monitoring()
     
-    def _schedule_monitoring(self):
+    #KM modified so that different delay can be set
+    #def _schedule_monitoring(self):
+    def _schedule_monitoring(self, delay = HOUSEKEEPING_PERIOD):
         ''' tells to the simulator engine to add an event to monitor the network'''
         self.engine.scheduleIn(
-            delay  = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
+            #delay  = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
+            delay  = delay*(0.9+0.2*random.random()),
             cb     = self._action_monitoring,
         )
     

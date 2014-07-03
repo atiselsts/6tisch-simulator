@@ -40,7 +40,7 @@ def parseCliOptions():
     parser.add_option( '--nm',
         dest       = 'numMotes',
         type       = 'int',
-        default    = 10,
+        default    = 4,
     )
     
     parser.add_option( '-d',
@@ -64,13 +64,13 @@ def parseCliOptions():
     parser.add_option( '--traffic',
         dest       = 'traffic',
         type       = 'int',
-        default    = 0.100,
+        default    = 2.000,
     )
     
     parser.add_option( '--op',
         dest       = 'overprovisioning',
         type       = 'float',
-        default    = 3.0,
+        default    = 1.0,#3.0,
     )
     
     (opts, args)  = parser.parse_args()
