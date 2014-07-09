@@ -13,7 +13,7 @@ class NullHandler(logging.Handler):
     def emit(self, record):
         pass
 log = logging.getLogger('Propagation')
-log.setLevel(logging.ERROR)
+log.setLevel(logging.DEBUG)
 log.addHandler(NullHandler())
 
 import threading
@@ -45,10 +45,20 @@ class Propagation(object):
         self.dataLock            = threading.Lock()
         self.receivers           = []
         self.transmissions       = []
+        self.notransmissions       = []
         self.collisions          = []
         self.rxcollisions        = []
         self.numTxcollisions     = 0
         self.numRxcollisions     = 0
+        
+        self.numTxcollisionsCycle = 0
+        self.numRxcollisionsCycle = 0
+        
+    def initStatsCycle(self):
+        ''' initialize stats at each cycle'''
+        with self.dataLock:
+            self.numTxcollisionsCycle = 0
+            self.numRxcollisionsCycle = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
@@ -64,7 +74,8 @@ class Propagation(object):
         with self.dataLock:
             collision = False
             remove = None
-            #check that there is no transmission on that ch.
+
+            #check that there is no transmission on that ch in transmissions
             for trans in self.transmissions:
                 if trans['channel'] == channel:
                     collision= True
@@ -83,6 +94,25 @@ class Propagation(object):
                          'dmac':           dmac,
                          'payload':        payload,
                           }] 
+            
+            #check that there is no transmission on that ch in collisions set
+            if(collision==False):
+                for trans in self.collisions:
+                    if trans['channel'] == channel:
+                        collision= True
+                        # When n nodes collide, increase numTxcollisions by (n-1) 
+                        self.numTxcollisions = self.numTxcollisions + 1
+
+                        log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
+                        # add the new tx into collision list
+                        self.collisions += [{
+                             'channel':        channel,
+                             'type':           type,
+                             'smac':           smac,
+                             'dmac':           dmac,
+                             'payload':        payload,
+                              }] 
+                        break
                     
             if not collision:
                 self.transmissions  += [{
@@ -97,6 +127,15 @@ class Propagation(object):
                 if remove != None:
                      self.transmissions.remove(remove)
           
+    def noTx(self,channel,smac,dmac):
+        ''' add a tx mote without data (for debug puropose) '''        
+        with self.dataLock:
+            
+            self.notransmissions  += [{
+                'channel':        channel,
+                'smac':           smac,
+                'dmac':           dmac,
+            }]
     
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
@@ -140,6 +179,7 @@ class Propagation(object):
                                 i   += 1   
                         else:
                             #not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
+                            #this also happens when a cell is allocated to two tx, but one of them does not have data in its queue  
                             log.debug("rx collision {0},{1}, sender {2}".format(transmission['dmac'].id,self.receivers[i]['mote'].id,transmission['smac'].id))
                             self.numRxcollisions+=1
                             self.rxcollisions+=[self.receivers[i]] #add it to rx collisions
@@ -162,8 +202,14 @@ class Propagation(object):
             #notify rx collisions
             for c in self.rxcollisions:
                 c['mote'].rxDone(collision=True)
+            
+            # update at each slot, clear at the end of slotframe
+            self.numTxcollisionsCycle += self.numTxcollisions
+            self.numRxcollisionsCycle += self.numRxcollisions
+            
             # clear all outstanding transmissions
             self.transmissions     = []
+            self.notransmissions   = []
             self.receivers         = []
             self.collisions        = []
             self.rxcollisions      = []

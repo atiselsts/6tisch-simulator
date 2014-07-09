@@ -40,13 +40,13 @@ def parseCliOptions():
     parser.add_option( '--nm',
         dest       = 'numMotes',
         type       = 'int',
-        default    = 4,
+        default    = 8,
     )
     
     parser.add_option( '-d',
         dest       = 'degree',
         type       = 'int',
-        default    = 10,
+        default    = 5,
     )
     
     parser.add_option( '-c',
@@ -64,13 +64,13 @@ def parseCliOptions():
     parser.add_option( '--traffic',
         dest       = 'traffic',
         type       = 'int',
-        default    = 2.000,
+        default    = 0.5,
     )
     
     parser.add_option( '--op',
         dest       = 'overprovisioning',
         type       = 'float',
-        default    = 1.0,#3.0,
+        default    = 1.0,
     )
     
     (opts, args)  = parser.parse_args()
@@ -81,7 +81,7 @@ def main():
     
     logging.config.fileConfig('logging.conf')
     
-    # retrievet the command line args
+    # retrieve the command line args
     args      = parseCliOptions()
     
     # instantiate a SimSettings
@@ -89,11 +89,17 @@ def main():
     for (k,v) in args.items():
         setattr(settings,k,v)
     
-    # instantiate a SimEngine object
-    simengine = SimEngine.SimEngine()
     
+    for runNum in range(1):
+        # instantiate a SimEngine object
+        print('start run num: {0}'.format(runNum))
+        simengine = SimEngine.SimEngine()
+        simengine.join()
+        simengine._instance      = None
+        simengine._init          = False
+        print('end run num: {0}'.format(runNum))    
     # instantiate the GUI interface
-    gui       = SimGui.SimGui()
+    #gui       = SimGui.SimGui()
 
 if __name__=="__main__":
     main()

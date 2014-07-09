@@ -39,9 +39,8 @@ class Topology(object):
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     
     
-    NEIGHBOR_RADIUS = 0.5 #KM in km 
+    NEIGHBOR_RADIUS = 0.5 # in km 
     
-    #KM TWO_DOT_FOUR_GHZ = 2400000 #in hertz 
     TWO_DOT_FOUR_GHZ = 2400000000 #in hertz
     PISTER_HACK_LOWER_SHIFT = 40 #-40 db     
     SPEED_OF_LIGHT = 299792458 
@@ -111,7 +110,6 @@ class Topology(object):
                         self.motes[nei],
                         s().traffic,
                     )
-                    #KM 
                     self.motes[id].setPDR(
                         self.motes[nei],
                         self.computePDR(id,nei)
@@ -151,7 +149,6 @@ class Topology(object):
                         linkto=nei
             if linkto!=-1:
                 self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
-                #KM
                 self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
                 
             
@@ -165,7 +162,6 @@ class Topology(object):
                     if distance < self.NEIGHBOR_RADIUS:
                         print "adding neighbor {0},{1}".format(id,nei)
                         self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
-                        #KM
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
                
     
@@ -178,7 +174,7 @@ class Topology(object):
         # Prx has a realistic value. 
         #distance = distance*10000.0
         
-        #KM modified to multiply 1000, which convert km to m
+        # Convert km to m
         distance = distance*1000.0
         
         fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
@@ -196,10 +192,8 @@ class Topology(object):
         elif rssi > -85:
             pdr=100.0
             
-        #KM print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)
         print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)
 
-        #KM log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance/100,rssi,pdr,pr)) 
         log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)) 
 
         return pdr 

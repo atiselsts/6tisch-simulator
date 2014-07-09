@@ -27,8 +27,9 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    SLOT_DURATION  = 0.01 #KM 0.015
-    
+    SLOT_DURATION  = 0.01
+    OUTPUT_FILE = "output.dat"
+      
     #======================== singleton pattern ===============================
     
     _instance      = None
@@ -84,6 +85,11 @@ class SimEngine(threading.Thread):
         # log
         log.info("thread {0} starting".format(self.name))
         
+        f = open(self.OUTPUT_FILE,'a')
+        self.fileInit(f)
+        
+        startTime = time.time()
+        
         while self.goOn:
             
             with self.dataLock: 
@@ -119,7 +125,21 @@ class SimEngine(threading.Thread):
                 
                 # wait a bit
                 time.sleep(self.simDelay)
-        
+
+              
+                currentCycle = int(self.asn/s().timeslots)
+                nextCycle = int(self.events[0][0]/s().timeslots)
+                if currentCycle < nextCycle: # last event in current cycle
+                    f.write('{0},{1},{2}\n'.format(currentCycle,
+                                                   self.propagation.numTxcollisionsCycle,
+                                                   self.propagation.numRxcollisionsCycle))
+                    self.propagation.initStatsCycle() 
+                    
+                # Terminate condition
+                if currentCycle == 200:
+                    f.write('\n')
+                    f.close()
+                    self.goOn=False        
         # log
         log.info("thread {0} ends".format(self.name))
     
@@ -188,4 +208,13 @@ class SimEngine(threading.Thread):
     def close(self):
         self.goOn = False
     
+    def fileInit(self, file):
+        file.write('slotDuration = {0}\n'.format(s().slotDuration))        
+        file.write('numMotes = {0}\n'.format(s().numMotes))        
+        file.write('degree = {0}\n'.format(s().degree))        
+        file.write('channels = {0}\n'.format(s().channels))        
+        file.write('timeslots = {0}\n'.format(s().timeslots))        
+        file.write('traffic = {0}\n'.format(s().traffic))        
+        file.write('# Cycle, Tx Collision, Rx Collision\n')
+        
     #======================== private =========================================

@@ -12,7 +12,7 @@ class NullHandler(logging.Handler):
     def emit(self, record):
         pass
 log = logging.getLogger('Mote')
-log.setLevel(logging.ERROR)
+log.setLevel(logging.DEBUG)
 log.addHandler(NullHandler())
 
 import copy
@@ -26,7 +26,6 @@ import SimSettings
 class Mote(object):
     
     HOUSEKEEPING_PERIOD      = 10
-    
     QUEUE_SIZE               = 100
     
     DIR_TX                   = 'TX'
@@ -54,8 +53,8 @@ class Mote(object):
         self.engine          = SimEngine.SimEngine()
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
-        self.x               = random.random()*0.2 #KM in km, * 10^3 to represent meters
-        self.y               = random.random()*0.2 #KM in km, * 10^3 to represent meters (these are cm so it can be plotted)
+        self.x               = random.random()*0.2 #in km, * 10^3 to represent meters
+        self.y               = random.random()*0.2 #in km, * 10^3 to represent meters (these are cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
@@ -67,6 +66,11 @@ class Mote(object):
         self.tPower          = 0
         self.antennaGain     = 0
         self.radioSensitivity = -101
+
+        # set _action_monitoring after all traffic generated (1.1 * slot frame duration assumed)
+        # so that cell scheduling can start
+        # this setting also prevents that _action_activeCell can be called without no data at queue
+        self.firstHousekeepinPeriod = 1.1 * self.settings.slotDuration*self.settings.timeslots 
         
         self._resetStats()
     
@@ -95,9 +99,8 @@ class Mote(object):
             self.booted      = False
         
         # schedule first monitoring
-        self._schedule_monitoring(delay = 0.05)
-        #KM
-        #self._schedule_monitoring()
+        self._schedule_monitoring(delay = self.firstHousekeepinPeriod)
+
         
         # schedule first active cell
         self._schedule_next_ActiveCell()
@@ -192,7 +195,7 @@ class Mote(object):
             
             cell = self.schedule[ts]
             
-            if   cell['dir']==self.DIR_RX:
+            if  cell['dir']==self.DIR_RX:
                 
                 # start listening
                 self.propagation.startRx(
@@ -227,7 +230,17 @@ class Mote(object):
                     
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor   = self.TX
-    
+                else:
+                    # debug purpose to check 
+                    self.propagation.noTx(
+                        channel   = cell['ch'],
+                        smac      = self,
+                        dmac      = cell['neighbor']
+                    )
+                    # schedule next active cell
+
+                    self._schedule_next_ActiveCell()
+                       
     def txDone(self,success):
         '''end of tx slot. compute stats and schedules next action '''
         asn = self.engine.getAsn()
@@ -245,6 +258,7 @@ class Mote(object):
             if success:
                 self.schedule[ts]['numTxAck'] += 1
             else:
+                # also includes failure due to low PDR even if there is no collision
                 self.schedule[ts]['numTxCollisions'] += 1    
             
             self.waitingFor = None
@@ -295,7 +309,6 @@ class Mote(object):
             tsDiffMin             = None
             for (ts,cell) in self.schedule.items():
                 if   ts==tsCurrent:
-                    #KM tsDiff        = None
                     tsDiff        = self.settings.timeslots
                 elif ts>tsCurrent:
                     tsDiff        = ts-tsCurrent
@@ -304,7 +317,6 @@ class Mote(object):
                 else:
                     raise SystemError()
                 
-                #KM if tsDiff and ((not tsDiffMin) or (tsDiffMin>tsDiff)):
                 if (not tsDiffMin) or (tsDiffMin>tsDiff):
                     tsDiffMin     = tsDiff
         
@@ -364,46 +376,47 @@ class Mote(object):
             other cells in the bundle reschedule this cell. 
         '''
         bundle_avg = []
-        max_cell = (None, None, None)
+        worst_cell = (None, None, None)
+        numTxSufficient = 30 # sufficient num. of tx for pdr calculation 
+        
         #look into all links that point to the node 
         for ts in self.schedule.keys():
             ce = self.schedule[ts]
             if ce['neighbor'] == node:
-                #compute PDR to each node
-                pdr = float(1.5)
-                if ce['numTx'] > 0 and ce['numTxAck'] > 0:
+
+                #compute PDR to each node with sufficient num of tx
+                if ce['numTx'] >= numTxSufficient:
                     pdr =  float(ce['numTxAck']) / float(ce['numTx'])
                     
-                elif (ce['numTx'] > 1 and ce['numTxAck'] == 0): 
-                    pdr=float(1/float(ce['numTx'])) #detect when  pkts are never ack
+                    if worst_cell == (None,None,None):
+                        worst_cell = (ts, ce, pdr)
+                    #find worst cell in terms of number of collisions
+                    if pdr < worst_cell[2]:
+                        worst_cell = (ts, ce, pdr)
+                        
+                    #this is part of a bundle of cells for that neighbor, keep
+                    #the tuple ts, schedule entry, pdr
+                    bundle_avg += [(ts, ce, pdr)]
                     
-                if max_cell == (None,None,None):
-                    max_cell = (ts, ce, pdr)
-                #find worst cell in terms of number of collisions
-                if max_cell[1]['numTxCollisions'] < ce['numTxCollisions']:
-                    max_cell = (ts, ce, pdr)
-                #this is part of a bundle of cells for that neighbor, keep
-                #the tuple ts, schedule entry, pdr
-                bundle_avg += [(ts, ce, pdr)]
-        
+                            
         #compute the distance to the other cells in the bundle,
         #if the worst cell is far from any of the other cells reschedule it
         for bce in bundle_avg:
-            if max_cell[2]==0.0:
+            if worst_cell[2]==0.0:
                 return
             
-            diff = bce[2] / max_cell[2] #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
-                                        # be bigger if max_cell is very bad.
+            diff = bce[2] / worst_cell[2] #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
+                                        # be bigger if worst_cell is very bad.
             if diff > self.PDR_THRESHOLD:
                 #reschedule the cell -- add to avoid scheduling the same
-                print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(max_cell[0],max_cell[1]['ch'],self.id,max_cell[1]['neighbor'].id)
-                self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(max_cell[0],max_cell[1]['ch'],self.id,max_cell[1]['neighbor'].id))
-                self._addCellToNeighbor(max_cell[1]['neighbor'])
+                print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id)
+                self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
+                self._addCellToNeighbor(worst_cell[1]['neighbor'])
                 #and delete old one
-                self._removeCellToNeighbor(max_cell[0], max_cell[1])
+                self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
                 # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
                 self.engine.removeEvent((self.id,'activeCell'))
-                self.engine.removeEvent((max_cell[1]['neighbor'].id,'activeCell'))
+                self.engine.removeEvent((worst_cell[1]['neighbor'].id,'activeCell'))
                 self._incrementStats('numCellsReallocated')
                 break;
             
@@ -428,7 +441,7 @@ class Mote(object):
                         break
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
-                #KM Neighbor also has to update next active cell 
+                # Neighbor also has to update its next active cell 
                 n._schedule_next_ActiveCell()
                           
         # schedule next active cell
@@ -438,15 +451,19 @@ class Mote(object):
         # schedule next monitoring
         self._schedule_monitoring()
     
-    #KM modified so that different delay can be set
-    #def _schedule_monitoring(self):
     def _schedule_monitoring(self, delay = HOUSEKEEPING_PERIOD):
         ''' tells to the simulator engine to add an event to monitor the network'''
-        self.engine.scheduleIn(
-            #delay  = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
-            delay  = delay*(0.9+0.2*random.random()),
-            cb     = self._action_monitoring,
-        )
+        if delay == self.HOUSEKEEPING_PERIOD:
+            self.engine.scheduleIn(
+                delay  = delay*(0.9+0.2*random.random()),
+                cb     = self._action_monitoring,
+            )
+        else:
+            self.engine.scheduleIn(
+                delay  = delay,
+                cb     = self._action_monitoring,
+            )
+            
     
     def _addCellToNeighbor(self,neighbor):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
