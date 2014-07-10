@@ -209,12 +209,12 @@ class SimEngine(threading.Thread):
         self.goOn = False
     
     def fileInit(self, file):
-        file.write('slotDuration = {0}\n'.format(s().slotDuration))        
-        file.write('numMotes = {0}\n'.format(s().numMotes))        
-        file.write('degree = {0}\n'.format(s().degree))        
-        file.write('channels = {0}\n'.format(s().channels))        
-        file.write('timeslots = {0}\n'.format(s().timeslots))        
-        file.write('traffic = {0}\n'.format(s().traffic))        
+        file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
+        file.write('# numMotes = {0}\n'.format(s().numMotes))        
+        file.write('# degree = {0}\n'.format(s().degree))        
+        file.write('# channels = {0}\n'.format(s().channels))        
+        file.write('# timeslots = {0}\n'.format(s().timeslots))        
+        file.write('# traffic = {0}\n'.format(s().traffic))        
         file.write('# Cycle, Tx Collision, Rx Collision\n')
         
     #======================== private =========================================

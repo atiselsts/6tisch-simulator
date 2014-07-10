@@ -386,14 +386,17 @@ class Mote(object):
 
                 #compute PDR to each node with sufficient num of tx
                 if ce['numTx'] >= numTxSufficient:
-                    pdr =  float(ce['numTxAck']) / float(ce['numTx'])
+                    if ce['numTxAck'] == 0:
+                        pdr = float(1/float(ce['numTx'])) # set a small non-zero value when pkts are never ack
+                    else:    
+                        pdr = float(ce['numTxAck']) / float(ce['numTx'])
                     
                     if worst_cell == (None,None,None):
                         worst_cell = (ts, ce, pdr)
                     #find worst cell in terms of number of collisions
                     if pdr < worst_cell[2]:
                         worst_cell = (ts, ce, pdr)
-                        
+                                     
                     #this is part of a bundle of cells for that neighbor, keep
                     #the tuple ts, schedule entry, pdr
                     bundle_avg += [(ts, ce, pdr)]
@@ -402,11 +405,8 @@ class Mote(object):
         #compute the distance to the other cells in the bundle,
         #if the worst cell is far from any of the other cells reschedule it
         for bce in bundle_avg:
-            if worst_cell[2]==0.0:
-                return
-            
             diff = bce[2] / worst_cell[2] #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
-                                        # be bigger if worst_cell is very bad.
+                                              # be bigger if worst_cell is very bad.     
             if diff > self.PDR_THRESHOLD:
                 #reschedule the cell -- add to avoid scheduling the same
                 print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id)
