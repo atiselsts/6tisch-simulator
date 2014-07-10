@@ -64,13 +64,20 @@ def parseCliOptions():
     parser.add_option( '--traffic',
         dest       = 'traffic',
         type       = 'int',
-        default    = 0.5,
+        default    = 0.1,
     )
     
     parser.add_option( '--op',
         dest       = 'overprovisioning',
         type       = 'float',
         default    = 1.0,
+    )
+
+    # a side of area in km, * 10^3 to represent meters (This can be treated as cm when plotted)
+    parser.add_option( '--side',
+        dest       = 'side',
+        type       = 'float',
+        default    = 0.2, 
     )
     
     (opts, args)  = parser.parse_args()
@@ -79,7 +86,7 @@ def parseCliOptions():
 
 def main():
 
-    maxRunNum = 2
+    maxRunNum = 3
     
     logging.config.fileConfig('logging.conf')
     
@@ -91,17 +98,25 @@ def main():
     for (k,v) in args.items():
         setattr(settings,k,v)
     
+    # For multiple runs of simulation
+    '''
     for runNum in range(maxRunNum):
         # instantiate a SimEngine object
         print('start run num: {0}'.format(runNum))
-        SimEngine.SimEngine.setCount()
         simengine = SimEngine.SimEngine()
         simengine.join()
+        SimEngine.SimEngine.setCount()
         simengine._instance      = None
         simengine._init          = False
         print('end run num: {0}'.format(runNum))    
+    
+    '''
+    # For single run with GUI
+    #'''
+    simengine = SimEngine.SimEngine() 
     # instantiate the GUI interface
-    #gui       = SimGui.SimGui()
-
+    gui       = SimGui.SimGui()
+    #'''
+    
 if __name__=="__main__":
     main()

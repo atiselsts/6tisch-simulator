@@ -39,7 +39,7 @@ class Topology(object):
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     
     
-    NEIGHBOR_RADIUS = 0.5 # in km 
+    NEIGHBOR_RADIUS = 0.05 # in km 
     
     TWO_DOT_FOUR_GHZ = 2400000000 #in hertz
     PISTER_HACK_LOWER_SHIFT = 40 #-40 db     

@@ -53,8 +53,8 @@ class Mote(object):
         self.engine          = SimEngine.SimEngine()
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
-        self.x               = random.random()*0.2 #in km, * 10^3 to represent meters
-        self.y               = random.random()*0.2 #in km, * 10^3 to represent meters (these are cm so it can be plotted)
+        self.x               = random.random()*self.settings.side #in km, * 10^3 to represent meters
+        self.y               = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
@@ -377,7 +377,7 @@ class Mote(object):
         '''
         bundle_avg = []
         worst_cell = (None, None, None)
-        numTxSufficient = 30 # sufficient num. of tx for pdr calculation 
+        numTxSufficient = 10 # sufficient num. of tx for pdr calculation 
         
         #look into all links that point to the node 
         for ts in self.schedule.keys():
@@ -393,7 +393,8 @@ class Mote(object):
                     
                     if worst_cell == (None,None,None):
                         worst_cell = (ts, ce, pdr)
-                    #find worst cell in terms of number of collisions
+                    
+                    #find worst cell in terms of pdr
                     if pdr < worst_cell[2]:
                         worst_cell = (ts, ce, pdr)
                                      
