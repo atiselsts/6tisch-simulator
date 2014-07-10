@@ -29,7 +29,7 @@ class SimEngine(threading.Thread):
     
     SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"
-      
+    count = -1  
     #======================== singleton pattern ===============================
     
     _instance      = None
@@ -40,6 +40,10 @@ class SimEngine(threading.Thread):
             cls._instance = super(SimEngine,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
+    @classmethod
+    def setCount(cls):
+        cls.count+=1
+
     def __init__(self):
         
         # don't re-initialize an instance (needed because singleton)
@@ -78,6 +82,7 @@ class SimEngine(threading.Thread):
         # start thread
         self.start()
     
+            
     #======================== thread ==========================================
     
     def run(self):
@@ -130,13 +135,14 @@ class SimEngine(threading.Thread):
                 currentCycle = int(self.asn/s().timeslots)
                 nextCycle = int(self.events[0][0]/s().timeslots)
                 if currentCycle < nextCycle: # last event in current cycle
-                    f.write('{0},{1},{2}\n'.format(currentCycle,
-                                                   self.propagation.numTxcollisionsCycle,
-                                                   self.propagation.numRxcollisionsCycle))
-                    self.propagation.initStatsCycle() 
+                    f.write('{0},{1},{2},{3}\n'.format(self.count,
+                                                   currentCycle,
+                                                   self.propagation.numAccumTxcollisions,
+                                                   self.propagation.numAccumRxcollisions))
+                    self.propagation.initStats() 
                     
                 # Terminate condition
-                if currentCycle == 200:
+                if currentCycle == 10:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
@@ -209,12 +215,13 @@ class SimEngine(threading.Thread):
         self.goOn = False
     
     def fileInit(self, file):
-        file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
-        file.write('# numMotes = {0}\n'.format(s().numMotes))        
-        file.write('# degree = {0}\n'.format(s().degree))        
-        file.write('# channels = {0}\n'.format(s().channels))        
-        file.write('# timeslots = {0}\n'.format(s().timeslots))        
-        file.write('# traffic = {0}\n'.format(s().traffic))        
-        file.write('# Cycle, Tx Collision, Rx Collision\n')
+        if self.count == 0:
+            file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
+            file.write('# numMotes = {0}\n'.format(s().numMotes))        
+            file.write('# degree = {0}\n'.format(s().degree))        
+            file.write('# channels = {0}\n'.format(s().channels))        
+            file.write('# timeslots = {0}\n'.format(s().timeslots))        
+            file.write('# traffic = {0}\n'.format(s().traffic))        
+            file.write('# Run num, Cycle, Tx Collision, Rx Collision\n\n')
         
     #======================== private =========================================

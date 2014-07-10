@@ -51,14 +51,14 @@ class Propagation(object):
         self.numTxcollisions     = 0
         self.numRxcollisions     = 0
         
-        self.numTxcollisionsCycle = 0
-        self.numRxcollisionsCycle = 0
+        self.numAccumTxcollisions = 0
+        self.numAccumRxcollisions = 0
         
-    def initStatsCycle(self):
+    def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
-            self.numTxcollisionsCycle = 0
-            self.numRxcollisionsCycle = 0
+            self.numAccumTxcollisions = 0
+            self.numAccumRxcollisions = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
@@ -204,8 +204,8 @@ class Propagation(object):
                 c['mote'].rxDone(collision=True)
             
             # update at each slot, clear at the end of slotframe
-            self.numTxcollisionsCycle += self.numTxcollisions
-            self.numRxcollisionsCycle += self.numRxcollisions
+            self.numAccumTxcollisions += self.numTxcollisions
+            self.numAccumRxcollisions += self.numRxcollisions
             
             # clear all outstanding transmissions
             self.transmissions     = []

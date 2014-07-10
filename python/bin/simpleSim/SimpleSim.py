@@ -78,6 +78,8 @@ def parseCliOptions():
     return opts.__dict__
 
 def main():
+
+    maxRunNum = 2
     
     logging.config.fileConfig('logging.conf')
     
@@ -89,10 +91,10 @@ def main():
     for (k,v) in args.items():
         setattr(settings,k,v)
     
-    
-    for runNum in range(1):
+    for runNum in range(maxRunNum):
         # instantiate a SimEngine object
         print('start run num: {0}'.format(runNum))
+        SimEngine.SimEngine.setCount()
         simengine = SimEngine.SimEngine()
         simengine.join()
         simengine._instance      = None
