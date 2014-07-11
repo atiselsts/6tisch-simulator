@@ -40,7 +40,7 @@ def parseCliOptions():
     parser.add_option( '--nm',
         dest       = 'numMotes',
         type       = 'int',
-        default    = 10,
+        default    = 20,
     )
     
     parser.add_option( '-d',
@@ -73,11 +73,11 @@ def parseCliOptions():
         default    = 1.0,
     )
 
-    # a side of area in km, * 10^3 to represent meters (This can be treated as cm when plotted)
+    # a side of area in km (This can be treated as cm when plotted)
     parser.add_option( '--side',
         dest       = 'side',
         type       = 'float',
-        default    = 0.2, 
+        default    = 1.0,#0.2, 
     )
     
     (opts, args)  = parser.parse_args()
@@ -86,7 +86,7 @@ def parseCliOptions():
 
 def main():
 
-    maxRunNum = 3
+    maxRunNum = 10
     
     logging.config.fileConfig('logging.conf')
     
@@ -99,24 +99,25 @@ def main():
         setattr(settings,k,v)
     
     # For multiple runs of simulation
-    '''
+    #'''
     for runNum in range(maxRunNum):
         # instantiate a SimEngine object
-        print('start run num: {0}'.format(runNum))
+        print('start run num: {0}\n'.format(runNum))
         simengine = SimEngine.SimEngine()
         simengine.join()
         SimEngine.SimEngine.setCount()
         simengine._instance      = None
         simengine._init          = False
-        print('end run num: {0}'.format(runNum))    
+        print('end run num: {0}\n'.format(runNum))    
     
-    '''
-    # For single run with GUI
     #'''
+    
+    # For single run with GUI
+    '''
     simengine = SimEngine.SimEngine() 
     # instantiate the GUI interface
     gui       = SimGui.SimGui()
-    #'''
+    '''
     
 if __name__=="__main__":
     main()

@@ -37,6 +37,7 @@ class Topology(object):
     LATTICE         = "LATTICE"
     MIN_DISTANCE    = "MIN_DISTANCE"
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
+    MAX_RSSI        = "MAX_RSSI"
     
     
     NEIGHBOR_RADIUS = 0.05 # in km 
@@ -81,6 +82,8 @@ class Topology(object):
             self._createMinDistanceTopology()
         elif type == self.RADIUS_DISTANCE:
             self._createRadiusDistanceTopology()
+        elif type == self.MAX_RSSI:
+            self._createMaxRssiTopology()        
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))
                 
@@ -164,6 +167,28 @@ class Topology(object):
                         self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
                
+    def _createMaxRssiTopology(self):
+        for id in range(len(self.motes)):
+            #link to a neighbor with max RSSI (PDR used)
+            maxPdr = None
+            maxNei = None
+            
+            for nei in range(len(self.motes)):
+                if nei!=id:
+                    pdr = self.computePDR(id,nei)
+                    if maxPdr == None:
+                        maxPdr = pdr
+                        maxNei = nei
+                    if pdr > maxPdr:
+                        maxPdr = pdr
+                        maxNei = nei
+                    if pdr == maxPdr:
+                        maxPdr = pdr
+                        maxNei = nei
+                        
+            print "adding neighbor {0},{1}".format(id,maxNei)
+            self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
+            self.motes[id].setPDR(self.motes[maxNei],maxPdr)
     
     def computePDR(self,node,neighbor): 
         ''' computes pdr according to Pister hack model'''
@@ -182,8 +207,12 @@ class Topology(object):
         pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
         #according to the receiver power (RSSI) we can apply the Pister hack model.
         mu=pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
-        #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40 -- can be uniform too
-        rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+        
+        #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40
+        #rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+
+        #the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
+        rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
 
         if rssi < -85 and rssi > self.motes[neighbor].radioSensitivity:
             pdr=(rssi-self.motes[neighbor].radioSensitivity)*6.25

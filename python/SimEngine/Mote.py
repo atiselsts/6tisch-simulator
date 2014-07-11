@@ -25,9 +25,12 @@ import SimSettings
 
 class Mote(object):
     
-    HOUSEKEEPING_PERIOD      = 10
-    QUEUE_SIZE               = 100
+    HOUSEKEEPING_PERIOD      = 1#10
+    QUEUE_SIZE               = 10
     
+    # sufficient num. of tx to estimate pdr by ACK
+    NUM_SUFFICIENT_TX        = 10  
+
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
     
@@ -377,7 +380,6 @@ class Mote(object):
         '''
         bundle_avg = []
         worst_cell = (None, None, None)
-        numTxSufficient = 10 # sufficient num. of tx for pdr calculation 
         
         #look into all links that point to the node 
         for ts in self.schedule.keys():
@@ -385,7 +387,7 @@ class Mote(object):
             if ce['neighbor'] == node:
 
                 #compute PDR to each node with sufficient num of tx
-                if ce['numTx'] >= numTxSufficient:
+                if ce['numTx'] >= self.NUM_SUFFICIENT_TX:
                     if ce['numTxAck'] == 0:
                         pdr = float(1/float(ce['numTx'])) # set a small non-zero value when pkts are never ack
                     else:    

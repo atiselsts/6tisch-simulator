@@ -56,12 +56,22 @@ class SimEngine(threading.Thread):
         
         # variables
         self.dataLock        = threading.RLock()
+        
+        # initialize propagation at start of each run 
+        Propagation.Propagation._instance = None
+        Propagation.Propagation._init     = False        
         self.propagation     = Propagation.Propagation()
+        
         self.asn             = 0
         self.events          = []
         self.simDelay        = 0
         self.motes           = []
+
+        # initialize topology at start of each run         
+        Topology.Topology._instance = None
+        Topology.Topology._init     = False
         self.topology        = Topology.Topology()
+        
         self.goOn            = True
         
         #use the topology component to create the network
@@ -69,8 +79,9 @@ class SimEngine(threading.Thread):
         
         #self.motes=self.topology.createTopology(self.topology.RANDOM)
         #self.motes=self.topology.createTopology(self.topology.FULL_MESH)
-        self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
+        #self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
         #self.motes=self.topology.createTopology(self.topology.MIN_DISTANCE)
+        self.motes=self.topology.createTopology(self.topology.MAX_RSSI)
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -136,6 +147,7 @@ class SimEngine(threading.Thread):
                 currentCycle = int(self.asn/s().timeslots)
                 nextCycle = int(self.events[0][0]/s().timeslots)
                 if currentCycle < nextCycle: # last event in current cycle
+                    print('cycle: {0}'.format(currentCycle))
                     f.write('{0},{1},{2},{3}\n'.format(self.count,
                                                    currentCycle,
                                                    self.propagation.numAccumTxcollisions,
