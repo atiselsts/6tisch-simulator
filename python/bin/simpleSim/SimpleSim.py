@@ -86,7 +86,7 @@ def parseCliOptions():
 
 def main():
 
-    maxRunNum = 10
+    maxRunNum = 2
     
     logging.config.fileConfig('logging.conf')
     

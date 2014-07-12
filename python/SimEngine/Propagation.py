@@ -48,16 +48,16 @@ class Propagation(object):
         self.notransmissions       = []
         self.collisions          = []
         self.rxcollisions        = []
-        self.numTxcollisions     = 0
+        self.numPktcollisions     = 0
         self.numRxcollisions     = 0
         
-        self.numAccumTxcollisions = 0
+        self.numAccumPktcollisions = 0
         self.numAccumRxcollisions = 0
         
     def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
-            self.numAccumTxcollisions = 0
+            self.numAccumPktcollisions = 0
             self.numAccumRxcollisions = 0
     
     def startRx(self,mote,channel):
@@ -79,9 +79,9 @@ class Propagation(object):
             for trans in self.transmissions:
                 if trans['channel'] == channel:
                     collision= True
-                    self.numTxcollisions = self.numTxcollisions + 1
+                    self.numPktcollisions = self.numPktcollisions + 1
                     #print "tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id)
-                    log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
+                    log.debug("Pkt collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                     if trans not in self.collisions:
                         #add it only once
                         self.collisions += [trans]
@@ -100,8 +100,7 @@ class Propagation(object):
                 for trans in self.collisions:
                     if trans['channel'] == channel:
                         collision= True
-                        # When n nodes collide, increase numTxcollisions by (n-1) 
-                        self.numTxcollisions = self.numTxcollisions + 1
+                        # do not increment numPktcollision as already incremented 
 
                         log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                         # add the new tx into collision list
@@ -178,8 +177,8 @@ class Propagation(object):
                                 log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr,failure,transmission['smac'].id,self.receivers[i]['mote'].id))
                                 i   += 1   
                         else:
-                            #not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
-                            #this also happens when a cell is allocated to two tx, but one of them does not have data in its queue  
+                            # not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
+                            # TODO numRxcollisions will be renamed as numRxbroadcast to count success rx of broadcast  
                             log.debug("rx collision {0},{1}, sender {2}".format(transmission['dmac'].id,self.receivers[i]['mote'].id,transmission['smac'].id))
                             self.numRxcollisions+=1
                             self.rxcollisions+=[self.receivers[i]] #add it to rx collisions
@@ -204,7 +203,7 @@ class Propagation(object):
                 c['mote'].rxDone(collision=True)
             
             # update at each slot, clear at the end of slotframe
-            self.numAccumTxcollisions += self.numTxcollisions
+            self.numAccumPktcollisions += self.numPktcollisions
             self.numAccumRxcollisions += self.numRxcollisions
             
             # clear all outstanding transmissions
@@ -213,5 +212,5 @@ class Propagation(object):
             self.receivers         = []
             self.collisions        = []
             self.rxcollisions      = []
-            self.numTxcollisions   = 0
+            self.numPktcollisions  = 0
             self.numRxcollisions   = 0

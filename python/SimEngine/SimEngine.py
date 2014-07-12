@@ -125,10 +125,14 @@ class SimEngine(threading.Thread):
                     break
                 
                 # make sure we are in the future
-                assert self.events[0][0]>self.asn
+                assert self.events[0][0] >= self.asn
                 
+                # initialize at start of each cycle
+                if self.asn % s().timeslots == 0: 
+                    numAccumScheduledCollisions = 0
+                        
                 # update the current ASN
-                self.asn = self.events[0][0]
+                #self.asn = self.events[0][0]
                 
                 # call all the callbacks at this ASN
                 while True:
@@ -143,22 +147,33 @@ class SimEngine(threading.Thread):
                 # wait a bit
                 time.sleep(self.simDelay)
 
-              
+                
+                # Accumulate num of scheduled collision at each asn
+                numAccumScheduledCollisions += self.countScheduleCollision()
+
                 currentCycle = int(self.asn/s().timeslots)
-                nextCycle = int(self.events[0][0]/s().timeslots)
-                if currentCycle < nextCycle: # last event in current cycle
-                    print('cycle: {0}'.format(currentCycle))
+                #nextCycle = int(self.events[0][0]/s().timeslots)
+                #if currentCycle < nextCycle: # last event in current cycle
+                if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
+
+                    print('Run num: {0} cycle: {1}'.format(self.count, currentCycle))
                     f.write('{0},{1},{2},{3}\n'.format(self.count,
                                                    currentCycle,
-                                                   self.propagation.numAccumTxcollisions,
-                                                   self.propagation.numAccumRxcollisions))
+                                                   self.propagation.numAccumPktcollisions,
+                                                   numAccumScheduledCollisions))
                     self.propagation.initStats() 
-                    
+                
+                
+                                    
                 # Terminate condition
-                if currentCycle == 200:
+                if currentCycle == 50:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
+        
+                
+                # update the current ASN
+                self.asn += 1        
         # log
         log.info("thread {0} ends".format(self.name))
     
@@ -227,6 +242,23 @@ class SimEngine(threading.Thread):
     def close(self):
         self.goOn = False
     
+    def countScheduleCollision(self):
+        # countScheduleCollision at current asn
+        
+        with self.dataLock:
+            scheduledCells = set()
+            collisionCells = set()
+            currentTs = self.asn % s().timeslots
+            for mote in self.motes:
+                for (ts,ch,_) in mote.getTxCells():
+                    if ts == currentTs:
+                        if (ts,ch) not in scheduledCells:
+                            scheduledCells.add((ts,ch))
+                        else:
+                            collisionCells.add((ts,ch))
+            return len(collisionCells)
+                
+    
     def fileInit(self, file):
         if self.INIT_FILE == False:
             self.INIT_FILE = True
@@ -237,6 +269,6 @@ class SimEngine(threading.Thread):
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
             file.write('# side = {0}\n'.format(s().side))        
-            file.write('# Run num, Cycle, Tx Collision, Rx Collision\n\n')
+            file.write('# Run num, Cycle, Packet Collision, Schedule Collision\n\n')
         
     #======================== private =========================================
