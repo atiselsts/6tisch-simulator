@@ -62,6 +62,7 @@ class Mote(object):
         self.radioChannel    = None
         self.dataPeriod      = {}
         self.PDR             = {} #indexed by neighbor
+        self.RSSI            = {} #indexed by neighbor        
         self.numCells        = {}
         self.booted          = False
         self.schedule        = {}
@@ -95,6 +96,15 @@ class Mote(object):
         with self.dataLock:
             return self.PDR[neighbor]
         
+    def setRSSI(self,neighbor,rssi):
+        ''' sets the RSSI to that neighbor'''
+        with self.dataLock:
+            self.RSSI[neighbor] = rssi
+
+    def getRSSI(self,neighbor):
+        ''' returns the RSSI to that neighbor'''
+        with self.dataLock:
+            return self.RSSI[neighbor]
     
     def boot(self):
         ''' boots the mote '''

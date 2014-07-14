@@ -66,7 +66,11 @@ class Topology(object):
         self.motes=[Mote.Mote(id) for id in range(s().numMotes)]
          
     def createTopology(self,type):
-          # set the mote's traffic goals
+        
+        # set RSSI between any two nodes
+        self.computeRSSI()
+        
+        # set the mote's traffic goals
         if type == self.RANDOM:
              self._createRandomTopology()
         elif type == self.FULL_MESH:
@@ -169,50 +173,27 @@ class Topology(object):
                
     def _createMaxRssiTopology(self):
         for id in range(len(self.motes)):
-            #link to a neighbor with max RSSI (PDR used)
-            maxPdr = None
-            maxNei = None
-            
+            #link to a neighbor with max RSSI (PDR used)            
+            maxNei  = None
+            maxRSSI = None
             for nei in range(len(self.motes)):
                 if nei!=id:
-                    pdr = self.computePDR(id,nei)
-                    if maxPdr == None:
-                        maxPdr = pdr
-                        maxNei = nei
-                    if pdr > maxPdr:
-                        maxPdr = pdr
-                        maxNei = nei
-                    if pdr == maxPdr:
-                        maxPdr = pdr
+                    rssi = self.motes[id].getRSSI(nei) 
+                    if maxRSSI == None:
+                        maxRSSI = rssi
+                        maxNei = nei                        
+                    if  rssi > maxRSSI:
+                        maxRSSI = rssi
                         maxNei = nei
                         
             print "adding neighbor {0},{1}".format(id,maxNei)
             self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
-            self.motes[id].setPDR(self.motes[maxNei],maxPdr)
+            self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
     
     def computePDR(self,node,neighbor): 
-        ''' computes pdr according to Pister hack model'''
-        #determine PDR between this two nodes.
-        distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
-        
-        #x and y values are between [0,1), in order to get a reasonable free space model we need to multiply them by 10^4 so
-        # Prx has a realistic value. 
-        #distance = distance*10000.0
-        
-        # Convert km to m
-        distance = distance*1000.0
-        
-        fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) # sqrt and inverse of the free space path loss
-        #simple friis equation in   Pr=Pt+Gt+Gr+20log10(c/4piR)   
-        pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
-        #according to the receiver power (RSSI) we can apply the Pister hack model.
-        mu=pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
-        
-        #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40
-        #rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+        ''' computes pdr to neighbor according to RSSI'''
 
-        #the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
-        rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
+        rssi = self.motes[node].getRSSI(neighbor)
 
         if rssi < -85 and rssi > self.motes[neighbor].radioSensitivity:
             pdr=(rssi-self.motes[neighbor].radioSensitivity)*6.25
@@ -221,9 +202,37 @@ class Topology(object):
         elif rssi > -85:
             pdr=100.0
             
-        print "distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)
+        print "node {0}, neighbor {1}, rssi {2}, pdr {3}".format(node, neighbor, rssi, pdr)
 
-        log.debug("distance {0}, pr {3}, rssi {1}, pdr {2}".format(distance,rssi,pdr,pr)) 
+        log.debug("node {0}, neighbor {1}, rssi {2}, pdr {3}".format(node, neighbor, rssi, pdr)) 
 
         return pdr 
+
+    def computeRSSI(self): 
+        ''' computes RSSI between any two nodes (not only neighbor) according to Pister hack model'''
+
+        for node in range(len(self.motes)):
+            for neighbor in range(node+1, len(self.motes)):
+
+                #x and y values are between [0,1) in km
+                distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
+                     
+                # Convert km to m
+                distance = distance*1000.0
+        
+                # sqrt and inverse of the free space path loss
+                fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
+                #simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
+                pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
+                #according to the receiver power (RSSI) we can apply the Pister hack model.
+                mu=pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
+        
+                #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40
+                #rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+
+                #the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
+                rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
+                
+                self.motes[node].setRSSI(neighbor, rssi)
+                self.motes[neighbor].setRSSI(node, rssi)
                 
