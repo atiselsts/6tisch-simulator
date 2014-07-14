@@ -45,21 +45,28 @@ class Propagation(object):
         self.dataLock            = threading.Lock()
         self.receivers           = []
         self.transmissions       = []
-        self.notransmissions       = []
+        self.notransmissions     = []
         self.collisions          = []
         self.rxcollisions        = []
-        self.numPktcollisions     = 0
-        self.numRxcollisions     = 0
         
+        # Tx trial in schedule collision cells
+        self.numTxTrialcollisions = 0
+        # Packet collision         
+        self.numPktcollisions     = 0
+        # TODO modify for broadcast or delete 
+        self.numRxcollisions      = 0
+                
+        self.numAccumTxTrialcollisions = 0
         self.numAccumPktcollisions = 0
-        self.numAccumRxcollisions = 0
+        self.numAccumRxcollisions  = 0
         
     def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
+            self.numAccumTxTrialcollisions = 0
             self.numAccumPktcollisions = 0
             self.numAccumRxcollisions = 0
-    
+         
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
@@ -79,7 +86,11 @@ class Propagation(object):
             for trans in self.transmissions:
                 if trans['channel'] == channel:
                     collision= True
-                    self.numPktcollisions = self.numPktcollisions + 1
+
+                    # count Tx in schedule collision cell
+                    self.numTxTrialcollisions = 2 
+                    self.numPktcollisions = 2
+                    
                     #print "tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id)
                     log.debug("Pkt collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                     if trans not in self.collisions:
@@ -100,8 +111,12 @@ class Propagation(object):
                 for trans in self.collisions:
                     if trans['channel'] == channel:
                         collision= True
+                        
+                        # count Tx in schedule collision cell 
+                        self.numTxTrialcollisions += 1
+                        self.numPktcollisions += 1
                         # do not increment numPktcollision as already incremented 
-
+                        
                         log.debug("tx collision! ch: {0} type: {1}, src mote id {2}, dest mote id {3}".format(channel,type,smac.id, dmac.id))
                         # add the new tx into collision list
                         self.collisions += [{
@@ -144,6 +159,7 @@ class Propagation(object):
         '''
         
         with self.dataLock:
+            
             
             for transmission in self.transmissions:
                 
@@ -203,6 +219,7 @@ class Propagation(object):
                 c['mote'].rxDone(collision=True)
             
             # update at each slot, clear at the end of slotframe
+            self.numAccumTxTrialcollisions += self.numTxTrialcollisions
             self.numAccumPktcollisions += self.numPktcollisions
             self.numAccumRxcollisions += self.numRxcollisions
             
@@ -214,3 +231,5 @@ class Propagation(object):
             self.rxcollisions      = []
             self.numPktcollisions  = 0
             self.numRxcollisions   = 0
+            self.numTxTrialcollisions = 0
+            

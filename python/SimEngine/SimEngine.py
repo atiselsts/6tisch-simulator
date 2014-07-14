@@ -27,6 +27,8 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
+    CYCLE_END = 200
+    
     SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"
     INIT_FILE = False
@@ -157,8 +159,9 @@ class SimEngine(threading.Thread):
                 if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
 
                     print('Run num: {0} cycle: {1}'.format(self.count, currentCycle))
-                    f.write('{0},{1},{2},{3}\n'.format(self.count,
+                    f.write('{0},{1},{2},{3},{4}\n'.format(self.count,
                                                    currentCycle,
+                                                   self.propagation.numAccumTxTrialcollisions,
                                                    self.propagation.numAccumPktcollisions,
                                                    numAccumScheduledCollisions))
                     self.propagation.initStats() 
@@ -166,7 +169,7 @@ class SimEngine(threading.Thread):
                 
                                     
                 # Terminate condition
-                if currentCycle == 50:
+                if currentCycle == self.CYCLE_END:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
@@ -269,6 +272,6 @@ class SimEngine(threading.Thread):
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
             file.write('# side = {0}\n'.format(s().side))        
-            file.write('# Run num, Cycle, Packet Collision, Schedule Collision\n\n')
+            file.write('# Run num, Cycle, Tx Trial in Collision, Packet Collision, Schedule Collision\n\n')
         
     #======================== private =========================================
