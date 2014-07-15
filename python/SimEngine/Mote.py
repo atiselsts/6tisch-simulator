@@ -112,9 +112,7 @@ class Mote(object):
             self.booted      = False
         
         # schedule first monitoring
-        self._schedule_monitoring(delay = self.firstHousekeepinPeriod)
-
-        
+        self._schedule_monitoring(delay = self.firstHousekeepinPeriod)        
         # schedule first active cell
         self._schedule_next_ActiveCell()
     
@@ -130,8 +128,8 @@ class Mote(object):
                         'numTx':          cell['numTx'],
                         'numTxAck':       cell['numTxAck'],
                         'numRx':          cell['numRx'],
-                        'numTxCollisions':  cell['numTxCollisions'],
-                        'numRxCollisions':  cell['numRxCollisions'],
+                        'numTxFailures':  cell['numTxFailures'],
+                        'numRxFailures':  cell['numRxFailures'],
                     }
                     break
         return returnVal
@@ -171,8 +169,8 @@ class Mote(object):
                 'numTx':              0,
                 'numTxAck':           0,
                 'numRx':              0,
-                'numTxCollisions':    0,
-                'numRxCollisions':    0,
+                'numTxFailures':    0,
+                'numRxFailures':    0,
             }
             
     def removeCell(self,ts,neighbor):
@@ -271,15 +269,15 @@ class Mote(object):
             if success:
                 self.schedule[ts]['numTxAck'] += 1
             else:
-                # also includes failure due to low PDR even if there is no collision
-                self.schedule[ts]['numTxCollisions'] += 1    
+                # failure include collision and normal packet error
+                self.schedule[ts]['numTxFailures'] += 1    
             
             self.waitingFor = None
             
             # schedule next active cell
             self._schedule_next_ActiveCell()
     
-    def rxDone(self,type=None,smac=None,dmac=None,payload=None,collision=False):
+    def rxDone(self,type=None,smac=None,dmac=None,payload=None,failure=False):
         '''end of rx slot. compute stats and schedules next action ''' 
         asn = self.engine.getAsn()
         
@@ -295,8 +293,8 @@ class Mote(object):
             
             if smac:
                 self.schedule[ts]['numRx'] += 1
-            if collision:
-                self.schedule[ts]['numRxCollisions'] += 1
+            if failure:
+                self.schedule[ts]['numRxFailures'] += 1
                 
                 # TODO: relay packet?
             

@@ -99,7 +99,7 @@ def main():
         setattr(settings,k,v)
     
     # For multiple runs of simulation
-    #'''
+    '''
     for runNum in range(maxRunNum):
         # instantiate a SimEngine object
         print('start run num: {0}\n'.format(runNum))
@@ -110,14 +110,14 @@ def main():
         simengine._init          = False
         print('end run num: {0}\n'.format(runNum))    
     
-    #'''
+    '''
     
     # For single run with GUI
-    '''
+    #'''
     simengine = SimEngine.SimEngine() 
     # instantiate the GUI interface
     gui       = SimGui.SimGui()
-    '''
+    #'''
     
 if __name__=="__main__":
     main()
