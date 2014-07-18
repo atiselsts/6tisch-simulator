@@ -38,7 +38,7 @@ class Topology(object):
     MIN_DISTANCE    = "MIN_DISTANCE"
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     MAX_RSSI        = "MAX_RSSI"
-    
+    DODAG_TOPOLOGY  = "DODAG_TOPOLOGY"
     
     NEIGHBOR_RADIUS = 0.05 # in km 
     
@@ -87,7 +87,9 @@ class Topology(object):
         elif type == self.RADIUS_DISTANCE:
             self._createRadiusDistanceTopology()
         elif type == self.MAX_RSSI:
-            self._createMaxRssiTopology()        
+            self._createMaxRssiTopology()
+        elif type == self.DODAG_TOPOLOGY:
+            self._createDodagTopology()        
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))
                 
@@ -173,7 +175,7 @@ class Topology(object):
                
     def _createMaxRssiTopology(self):
         for id in range(len(self.motes)):
-            #link to a neighbor with max RSSI (PDR used)            
+            #link to a neighbor with max RSSI           
             maxNei  = None
             maxRSSI = None
             for nei in range(len(self.motes)):
@@ -189,6 +191,65 @@ class Topology(object):
             print "adding neighbor {0},{1}".format(id,maxNei)
             self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
+
+    def _createDodagTopology(self):
+        # find DAG root
+        for id in range(len(self.motes)):
+            if self.motes[id].dagRoot == True:
+                dagRoot = id
+                
+        # check whether all the nodes have path to DAG root
+        
+        while(True):
+            # start or restart with new locations and RSSI set
+            for id in range(len(self.motes)):
+                if (id != dagRoot):
+                
+                    findDagroot = False
+                    paths = set()
+                    checkedNodes = set()
+                    candidate = id
+                    while(True):
+                        neighbors = set()
+                        for j in range(len(self.motes)):
+                            if j != candidate:
+                                if self.motes[candidate].getRSSI(j) > self.motes[candidate].radioSensitivity:
+                                    neighbors.add(j) 
+                        if dagRoot in neighbors:
+                            findDagroot = True
+                            break
+                        else:
+                            paths = paths | neighbors
+                            checkedNodes.add(candidate)
+                            nextCandidates = paths - checkedNodes
+                            if len(nextCandidates) > 0: 
+                                candidate = nextCandidates.pop()
+                            else:
+                                break
+                    if(findDagroot == False):
+                        # No path to DAG root. Need to reset locations and RSSI of all the motes
+                        print "reset location and RSSI"
+                        for j in range(len(self.motes)):
+                            self.motes[j].setLocation()
+                        self.computeRSSI()
+                        break
+                         
+            # All the nodes have paths to DAG root
+            if(findDagroot == True):
+                break     
+            
+        for id in range(len(self.motes)):
+            #link to a neighbor with higher RSSI than threshold             
+            neighbors = []
+            for j in range(len(self.motes)):
+                if j != id:
+                    if self.motes[id].getRSSI(j) > self.motes[id].radioSensitivity:
+                        neighbors.append(j) 
+
+            for nei in neighbors:
+                self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
+                self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
+
     
     def computePDR(self,node,neighbor): 
         ''' computes pdr to neighbor according to RSSI'''

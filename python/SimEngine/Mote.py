@@ -30,7 +30,11 @@ class Mote(object):
     
     # sufficient num. of tx to estimate pdr by ACK
     NUM_SUFFICIENT_TX        = 10  
-
+    
+    initDagRoot              = True
+    PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX. 
+    MIN_HOP_RANK_INCREASE    = 256
+    
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
     
@@ -51,13 +55,15 @@ class Mote(object):
         # store params
         self.id              = id
         
+        self.dagRoot         = False
         # variables
         self.settings        = SimSettings.SimSettings()
         self.engine          = SimEngine.SimEngine()
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
-        self.x               = random.random()*self.settings.side #in km, * 10^3 to represent meters
-        self.y               = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are cm so it can be plotted)
+        self.setLocation()
+        #self.x               = random.random()*self.settings.side #in km, * 10^3 to represent meters
+        #self.y               = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are in cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
@@ -70,13 +76,34 @@ class Mote(object):
         self.tPower          = 0
         self.antennaGain     = 0
         self.radioSensitivity = -101
+        
 
         # set _action_monitoring after all traffic generated (1.1 * slot frame duration assumed)
         # so that cell scheduling can start
         # this setting also prevents that _action_activeCell can be called without no data at queue
         self.firstHousekeepinPeriod = 1.1 * self.settings.slotDuration*self.settings.timeslots 
         
+        # set DIO period as 1 cycle of slotframe
+        self.dioPeriod = self.settings.timeslots
+        
         self._resetStats()
+        
+        # RPL initialization
+        self.ranks           = {} #indexed by neighbor
+        self.dagRanks        = {} #indexed by neighbor
+        
+        if Mote.initDagRoot == True:
+           self.dagRoot = True
+           self.rank    = 0
+           self.dagRank = 0
+           self.parent  = self
+           Mote.initDagRoot = False
+        else:
+           self.dagRoot = False
+           self.rank    = 100*self.MIN_HOP_RANK_INCREASE # Large value not to be chosen as a parent at the beginning
+           self.dagRank = 100 
+           self.parent  = None    
+           
     
     #======================== public =========================================
     
@@ -115,6 +142,8 @@ class Mote(object):
         self._schedule_monitoring(delay = self.firstHousekeepinPeriod)        
         # schedule first active cell
         self._schedule_next_ActiveCell()
+        # schedule DIO
+        self._schedule_DIO()
     
     def getCellStats(self,ts_p,ch_p):
         ''' retrieves cell stats '''
@@ -142,6 +171,11 @@ class Mote(object):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
     
+    def setLocation(self):
+        with self.dataLock:
+            self.x = random.random()*self.settings.side #in km, * 10^3 to represent meters
+            self.y = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are in cm so it can be plotted)
+
     def getLocation(self):
         with self.dataLock:
             return (self.x,self.y)
@@ -180,7 +214,120 @@ class Mote(object):
             assert ts in self.schedule.keys()
             assert neighbor == self.schedule[ts]['neighbor']
             del self.schedule[ts]
+    
+    def setRank(self):
+        with self.dataLock:
+            if self.dagRoot == True:
+                self.rank = 0
+                self.dagRank = 0 
+            elif self.parent != None:
+                self.rank = self.ranks[self.parent] + self.computeRankIncrease(self.parent)
+                self.dagRank = int(self.rank/self.MIN_HOP_RANK_INCREASE) 
+    
+    def setParent(self):
+        with self.dataLock:
+    
+            if self.dagRoot == False:
+                
+                if self.parent != None:
+                    # parent is already set
+                    self.setRank()            
+                    minRank = self.rank
+                    minNeighbor = self.parent
+                    rankIncrease = self.computeRankIncrease(self.parent)
+                
+                    for (neighbor, dagRank) in self.dagRanks.items():
+                        # compare dagRank of neighbor with that of current parent
+                        if dagRank < self.dagRank:                    
+                            neighborRankIncrease = self.computeRankIncrease(neighbor)
+                            neighborTotalRank = self.ranks[neighbor] + neighborRankIncrease
+                            
+                            # compare rank of neighbor with that of current parent 
+                            if self.rank - neighborTotalRank > self.PARENT_SWITCH_THRESHOLD:                                   
+                                if minRank > neighborTotalRank:
+                                    minRank = neighborTotalRank
+                                    minNeighbor = neighbor
+    
+                    if self.parent != minNeighbor:
+                        print "a parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, minNeighbor.id) 
+                    self.parent = minNeighbor
+                    self.setRank()
+                        
+                elif self.dagRanks != {}:
+                    # parent is first set
+                    initial = True
+                    for (neighbor, dagRank) in self.dagRanks.items():
+                        if (initial == True) or (minRank > dagRank):
+                            initial = False
+                            minRank = dagRank
+                            minNeighbor = neighbor
+                            
+                    self.parent = minNeighbor
+                    self.setRank()                    
+    
+                    
+            
+    def computeRankIncrease(self, neighbor):
+        # calculate rank increase to neighbor
+        with self.dataLock:    
+            numTx = 0
+            numTxAck = 0
+            for (_,cell) in self.schedule.items():
+                if (cell['neighbor'] == neighbor) and (cell['dir'] == self.TX):
+                    numTx += cell['numTx']
+                    numTxAck += cell['numTxAck']
+            
+            # calculate ETX            
+            if numTx >= self.NUM_SUFFICIENT_TX:
+                if numTxAck > 0:
+                    etx = float(numTx)/float(numTxAck)            
+                else:
+                    etx = float(numTx)/0.1
+            else:
+                # At the beginning, we set ETX = 1
+                etx = 1
+                
+            return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
+        
     #======================== actions =========================================
+    
+    #===== RPL
+    
+    def _schedule_DIO(self):
+        ''' tells to the simulator engine to add an event of DIO 
+        '''
+        with self.dataLock:  
+            asn = self.engine.getAsn()
+                    
+            # get timeslotOffset of current asn
+            ts = asn%self.settings.timeslots
+            
+            # schedule at the start of next cycle
+            self.engine.scheduleAtAsn(
+                asn         = asn-ts+self.dioPeriod, 
+                cb          = self._action_DIO,
+                uniqueTag   = (self.id,'DIO'),
+            )
+
+
+    def _action_DIO(self):
+        ''' Broadcast DIO to neighbors. Current implementation assumes DIO can be sent out of band.
+        '''
+        self._log(self.DEBUG,"_action_DIO")
+        
+        with self.dataLock:
+
+            # update rank
+            self.setRank()
+            
+            for (neighbor, _) in self.PDR.items():
+                if neighbor.dagRoot == False:
+                    neighbor.dagRanks[self] = self.dagRank
+                    neighbor.ranks[self] = self.rank
+                    neighbor.setParent()
+                    #neighbor._schedule_DIO()
+            self._schedule_DIO()                
+            
     
     #===== activeCell
     

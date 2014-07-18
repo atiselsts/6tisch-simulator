@@ -27,7 +27,7 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    CYCLE_END = 200
+    CYCLE_END = 300
     
     SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"
@@ -83,7 +83,8 @@ class SimEngine(threading.Thread):
         #self.motes=self.topology.createTopology(self.topology.FULL_MESH)
         #self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
         #self.motes=self.topology.createTopology(self.topology.MIN_DISTANCE)
-        self.motes=self.topology.createTopology(self.topology.MAX_RSSI)
+        #self.motes=self.topology.createTopology(self.topology.MAX_RSSI)
+        self.motes=self.topology.createTopology(self.topology.DODAG_TOPOLOGY)
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -213,7 +214,8 @@ class SimEngine(threading.Thread):
                 i = 0
                 while i<len(self.events):
                     (a,c,t) = self.events[i]
-                    if t==uniqueTag:
+                    # remove the future event but do not remove events at the current asn  
+                    if (t==uniqueTag) and (asn > self.asn):
                         del self.events[i]
                     else:
                         i += 1

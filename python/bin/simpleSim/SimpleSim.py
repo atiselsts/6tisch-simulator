@@ -40,7 +40,7 @@ def parseCliOptions():
     parser.add_option( '--nm',
         dest       = 'numMotes',
         type       = 'int',
-        default    = 20,
+        default    = 5,
     )
     
     parser.add_option( '-d',
@@ -86,7 +86,7 @@ def parseCliOptions():
 
 def main():
 
-    maxRunNum = 100
+    maxRunNum = 1000
     
     logging.config.fileConfig('logging.conf')
     
