@@ -193,6 +193,9 @@ class Topology(object):
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
 
     def _createDodagTopology(self):
+        # Create topology that all the nodes have at least one path to DAG root. 
+        # If there is no path, location and RSSI of the nodes are reset.
+        
         # find DAG root
         for id in range(len(self.motes)):
             if self.motes[id].dagRoot == True:
@@ -247,7 +250,9 @@ class Topology(object):
                         neighbors.append(j) 
 
             for nei in neighbors:
-                self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
+                # DAG root does not generate data
+                if self.motes[id].dagRoot == False:
+                    self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                 self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
 
     

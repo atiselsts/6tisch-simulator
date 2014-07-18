@@ -263,7 +263,12 @@ class Mote(object):
                             minNeighbor = neighbor
                             
                     self.parent = minNeighbor
-                    self.setRank()                    
+                    self.setRank()
+                    # stop to send data to neighbors other than the parent
+                    for (neighbor, _) in self.PDR.items():
+                        if neighbor != self.parent:
+                            self.engine.removeEvent((self.id, neighbor.id,'sendData'))
+                            del self.dataPeriod[neighbor]                    
     
                     
             
@@ -447,6 +452,21 @@ class Mote(object):
             
             self.waitingFor = None
             
+            if self.dagRoot == False and self.parent != None:
+                # add to queue
+                self._incrementStats('dataRelayed')
+                if len(self.txQueue)<self.QUEUE_SIZE:
+                    self.txQueue += [{
+                        'asn':      self.engine.getAsn(),
+                        'nextHop':  self.parent,
+                        'type':     type,
+                        'payload':  payload,
+                    }]
+                    self._incrementStats('dataQueueOK')
+                else:
+                    self._incrementStats('dataQueueFull')
+        
+                
         # schedule next active cell
         self._schedule_next_ActiveCell()
     
@@ -522,8 +542,9 @@ class Mote(object):
         
         # schedule
         self.engine.scheduleIn(
-            delay  = delay,
-            cb     = cb,
+            delay     = delay,
+            cb        = cb,
+            uniqueTag = (self.id,neighbor.id,'sendData')
         )
     
     #===== monitoring
@@ -689,6 +710,7 @@ class Mote(object):
         with self.dataLock:
             self.stats = {
                 'dataGenerated':  0,
+                'dataRelayed':  0,                
                 'dataQueueOK':    0,
                 'dataQueueFull':  0,
                 'numCellsReallocated': 0,

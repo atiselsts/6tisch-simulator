@@ -194,12 +194,12 @@ class SimEngine(threading.Thread):
                  
                 
                 
-    def scheduleIn(self,delay,cb):
+    def scheduleIn(self,delay,cb,uniqueTag=None):
         ''' used to generate events. Puts an event to the queue '''    
         with self.dataLock:
             asn = int(self.asn+(float(delay)/float(s().slotDuration)))
             
-            self.scheduleAtAsn(asn,cb)
+            self.scheduleAtAsn(asn,cb,uniqueTag)
     
     def scheduleAtAsn(self,asn,cb,uniqueTag=None):
         ''' schedule an event at specific ASN '''
