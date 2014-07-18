@@ -31,6 +31,8 @@ class Mote(object):
     # sufficient num. of tx to estimate pdr by ACK
     NUM_SUFFICIENT_TX        = 10  
     
+    # sufficient num. of DIO to determine parent is stable
+    NUM_SUFFICIENT_DIO       = 5
     initDagRoot              = True
     PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX. 
     MIN_HOP_RANK_INCREASE    = 256
@@ -85,6 +87,9 @@ class Mote(object):
         
         # set DIO period as 1 cycle of slotframe
         self.dioPeriod = self.settings.timeslots
+        # number of received DIOs
+        self.numRxDIO = {} #indexed by neighbor
+        self.stableParent = False
         
         self._resetStats()
         
@@ -264,11 +269,22 @@ class Mote(object):
                             
                     self.parent = minNeighbor
                     self.setRank()
-                    # stop to send data to neighbors other than the parent
-                    for (neighbor, _) in self.PDR.items():
-                        if neighbor != self.parent:
-                            self.engine.removeEvent((self.id, neighbor.id,'sendData'))
-                            del self.dataPeriod[neighbor]                    
+
+                
+                if self.stableParent == False:
+                    # if parent become stable, stop to send data to neighbors other than the parent
+                    count = 0
+                    for dio in self.numRxDIO.values():
+                        if dio >= self.NUM_SUFFICIENT_DIO:
+                            count += 1
+                            
+                    if count == len(self.numRxDIO):
+                        self.stableParent = True                            
+                        # stop to send data to neighbors other than the parent
+                        for (neighbor, _) in self.PDR.items():
+                            if neighbor != self.parent:
+                                self.engine.removeEvent((self.id, neighbor.id,'sendData'))
+                                del self.dataPeriod[neighbor]                    
     
                     
             
@@ -327,10 +343,19 @@ class Mote(object):
             
             for (neighbor, _) in self.PDR.items():
                 if neighbor.dagRoot == False:
+                    # neighbor stores DAG rank and rank from the sender
                     neighbor.dagRanks[self] = self.dagRank
                     neighbor.ranks[self] = self.rank
+                    
+                    # count num of DIO received to determine whether current parent is stable
+                    if self in neighbor.numRxDIO:
+                        neighbor.numRxDIO[self] += 1
+                    else:
+                        neighbor.numRxDIO[self] = 0
+                    
+                    # neighbor updates its parent
                     neighbor.setParent()
-                    #neighbor._schedule_DIO()
+                    
             self._schedule_DIO()                
             
     
@@ -668,6 +693,7 @@ class Mote(object):
                         dir            = self.DIR_RX,
                         neighbor       = self,
                     )
+                    print '(ts,ch) = ({0},{1}) allocated to Tx:{2},Rx:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1
