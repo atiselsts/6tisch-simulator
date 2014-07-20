@@ -32,10 +32,13 @@ class Mote(object):
     NUM_SUFFICIENT_TX        = 10  
     
     # sufficient num. of DIO to determine parent is stable
-    NUM_SUFFICIENT_DIO       = 5
+    NUM_SUFFICIENT_DIO       = 1
     initDagRoot              = True
     PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX. 
     MIN_HOP_RANK_INCREASE    = 256
+    MAX_LINK_METRIC          = 4*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
+    MAX_PATH_COST            = 256*MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
+    PARENT_SET_SIZE          = 3
     
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
@@ -64,8 +67,6 @@ class Mote(object):
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
         self.setLocation()
-        #self.x               = random.random()*self.settings.side #in km, * 10^3 to represent meters
-        #self.y               = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are in cm so it can be plotted)
         self.waitingFor      = None
         self.radioChannel    = None
         self.dataPeriod      = {}
@@ -89,7 +90,8 @@ class Mote(object):
         self.dioPeriod = self.settings.timeslots
         # number of received DIOs
         self.numRxDIO = {} #indexed by neighbor
-        self.stableParent = False
+        self.collectDIO = False
+        self.reliableStats = False
         
         self._resetStats()
         
@@ -106,9 +108,9 @@ class Mote(object):
         else:
            self.dagRoot = False
            self.rank    = 100*self.MIN_HOP_RANK_INCREASE # Large value not to be chosen as a parent at the beginning
-           self.dagRank = 100 
-           self.parent  = None    
-           
+           self.dagRank = 100
+           self.parent  = None # preferred parent    
+           self.parents = [] # set of parents
     
     #======================== public =========================================
     
@@ -117,7 +119,64 @@ class Mote(object):
         with self.dataLock:
             self.dataPeriod[neighbor] = dataPeriod
             self._schedule_sendData(neighbor)
-    
+
+    def setDataEngineAll(self):
+        ''' sets the period to communicate for all neighbors/parents '''
+        with self.dataLock:
+            
+            # if statistics of all neighbors become reliable, set self.reliableStats = True
+            if self.reliableStats == False:                                        
+                self.reliableStats = True
+                # if one of neighbors lacks sufficient num of Tx, self.reliableStats is set to False
+                for (neighbor, _) in self.PDR.items():
+                    numTx = 0
+                    for (_,cell) in self.schedule.items():
+                        if (cell['neighbor'] == neighbor) and (cell['dir'] == self.TX):
+                            numTx += cell['numTx']
+                    if numTx < self.NUM_SUFFICIENT_TX:
+                        self.reliableStats = False
+                        break
+            
+            # if DIO from all neighbors are collected, set self.collectDIO = True            
+            if self.collectDIO == False:                
+                self.collectDIO = True
+                for (neighbor, _) in self.PDR.items():
+                    if self.numRxDIO.has_key(neighbor):
+                        if self.numRxDIO[neighbor] < self.NUM_SUFFICIENT_DIO:
+                            self.collectDIO = False
+                            break            
+                    else:
+                        self.collectDIO = False
+                        break            
+                        
+            # at initial phase, sends data to all neighbors    
+            if self.reliableStats == False or self.collectDIO == False:
+                # divides data portion equally to all neighbors
+                for (neighbor, _) in self.PDR.items():
+                    portion = 1.0/len(self.PDR.items())
+                    period = self.settings.traffic/portion                    
+                    self.dataPeriod[neighbor] = period
+                    self._schedule_sendData(neighbor)           
+            
+            # after statistics become reliable, sends data to parents   
+            else:
+                # divides data portion to parents in inverse ratio to DagRank
+                sum = 0.0
+                resultingRanks = {}
+                for p in self.parents:
+                    resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
+                    sum += 1.0/resultingRanks[p]
+                for p in self.parents:
+                    portion = (1.0/resultingRanks[p])/sum
+                    period = self.settings.traffic/portion                    
+                    self.dataPeriod[p] = period           
+                    self._schedule_sendData(p)
+                for (neighbor, _) in self.PDR.items():
+                    # remove sendData of neighbor which is not selected as a parent 
+                    if neighbor not in self.parents and neighbor in self.dataPeriod.keys():
+                        self.engine.removeEvent((self.id, neighbor.id,'sendData'))
+                        del self.dataPeriod[neighbor]
+                    
     def setPDR(self,neighbor,pdr):
         ''' sets the pdr to that neighbor'''
         with self.dataLock:
@@ -235,58 +294,86 @@ class Mote(object):
             if self.dagRoot == False:
                 
                 if self.parent != None:
-                    # parent is already set
+                    # a preferred parent is already set
                     self.setRank()            
-                    minRank = self.rank
-                    minNeighbor = self.parent
                     rankIncrease = self.computeRankIncrease(self.parent)
-                
-                    for (neighbor, dagRank) in self.dagRanks.items():
-                        # compare dagRank of neighbor with that of current parent
-                        if dagRank < self.dagRank:                    
-                            neighborRankIncrease = self.computeRankIncrease(neighbor)
-                            neighborTotalRank = self.ranks[neighbor] + neighborRankIncrease
-                            
-                            # compare rank of neighbor with that of current parent 
-                            if self.rank - neighborTotalRank > self.PARENT_SWITCH_THRESHOLD:                                   
-                                if minRank > neighborTotalRank:
-                                    minRank = neighborTotalRank
-                                    minNeighbor = neighbor
-    
-                    if self.parent != minNeighbor:
-                        print "a parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, minNeighbor.id) 
-                    self.parent = minNeighbor
-                    self.setRank()
-                        
-                elif self.dagRanks != {}:
-                    # parent is first set
-                    initial = True
-                    for (neighbor, dagRank) in self.dagRanks.items():
-                        if (initial == True) or (minRank > dagRank):
-                            initial = False
-                            minRank = dagRank
-                            minNeighbor = neighbor
-                            
-                    self.parent = minNeighbor
-                    self.setRank()
-
-                
-                if self.stableParent == False:
-                    # if parent become stable, stop to send data to neighbors other than the parent
-                    count = 0
-                    for dio in self.numRxDIO.values():
-                        if dio >= self.NUM_SUFFICIENT_DIO:
-                            count += 1
-                            
-                    if count == len(self.numRxDIO):
-                        self.stableParent = True                            
-                        # stop to send data to neighbors other than the parent
-                        for (neighbor, _) in self.PDR.items():
-                            if neighbor != self.parent:
-                                self.engine.removeEvent((self.id, neighbor.id,'sendData'))
-                                del self.dataPeriod[neighbor]                    
-    
                     
+                    # Reset the preferred parent if it does not satisfy the requirements
+                    # if rankIncrease > self.MAX_LINK_METRIC or self.rank > self.MAX_PATH_COST:
+                    # condition of MAX_LINK_METRIC excluded to avoid loop   
+                    if self.rank > self.MAX_PATH_COST:
+                        self.parent = None
+                    
+                    # initialize a set of parents
+                    self.parents = []
+                    resultingRanks = {}
+                    for (neighbor, dagRank) in self.dagRanks.items():
+                                                
+                        # compare dagRank of neighbor with that of current parent
+                        neighborRankInc = self.computeRankIncrease(neighbor)
+                        neighborResultingRank = self.ranks[neighbor] + neighborRankInc
+                                                                            
+                        # check requirements for a set of parents
+                        if (dagRank < self.dagRank 
+                            #and neighborRankInc <= self.MAX_LINK_METRIC # condition of MAX_LINK_METRIC excluded to avoid loop
+                            and neighborResultingRank <= self.MAX_PATH_COST):                                                                            
+                            resultingRanks[neighbor] = neighborResultingRank
+                            
+                    ranks = sorted(resultingRanks.items(), key = lambda x:x[1])
+                    self.parents = [nei for (nei,_) in ranks]
+                    self.parents = self.parents[0:self.PARENT_SET_SIZE]
+                                                
+                    if len(self.parents) != 0:
+                        if self.parent in self.parents:                            
+                            # check requirement if changing a preferred parent 
+                            if self.rank - resultingRanks[self.parents[0]] > self.PARENT_SWITCH_THRESHOLD:
+                                print "a preferred parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, self.parents[0].id) 
+                                self.parent = self.parents[0]
+                                self.setRank()
+                                # DAG rank of a parent has to be lower than DAG rank of a child 
+                                for p in self.parents[1:self.PARENT_SET_SIZE]:
+                                    if self.dagRanks[p] >= self.dagRank:
+                                        self.parents.remove(p) 
+                                                                
+                        else:
+                            print "a preferred parent of {0} is reset to {1}".format(self.id, self.parents[0].id) 
+                            self.parent = self.parents[0]
+                            self.setRank()
+                            for p in self.parents[1:self.PARENT_SET_SIZE]:
+                                if self.dagRanks[p] >= self.dagRank:
+                                    self.parents.remove(p) 
+
+                    else: # case that no neighbors satisfy the parent requirements
+                        # find tentative parents with low resulting rank
+                        resultingRanks = {}
+                        for (neighbor, _) in self.dagRanks.items():
+                            resultingRanks[neighbor] = self.ranks[neighbor] + self.computeRankIncrease(neighbor)
+                        ranks = sorted(resultingRanks.items(), key = lambda x:x[1])
+                        self.parents = [nei for (nei,_) in ranks]
+                        self.parents = self.parents[0:self.PARENT_SET_SIZE]
+                        self.parent = self.parents[0]
+                        self.setRank()
+                        print "no neighbors satisfy the parent requirements for {0}; tentatively set {1} as a preferred parent".format(self.id, self.parent.id) 
+                        for p in self.parents[1:self.PARENT_SET_SIZE]:
+                            if self.dagRanks[p] >= self.dagRank:
+                                self.parents.remove(p) 
+                                                
+                elif self.dagRanks != {}:
+                    # first parent setting
+                    # len(self.dagRanks) == 1 as the setParent() is called soon after the first neighbor is inserted in dagRanks
+                    
+                    (minRank, minNeighbor) = min((v,k) for (k,v) in self.dagRanks.items())                    
+                    rankIncrease = self.computeRankIncrease(minNeighbor)
+                    resultingRank = self.ranks[minNeighbor] + rankIncrease                        
+                    
+                    # condition of MAX_LINK_METRIC excluded to avoid loop
+                    #if (rankIncrease <= self.MAX_LINK_METRIC and resultingRank <= self.MAX_PATH_COST):                              
+                    if (resultingRank <= self.MAX_PATH_COST):                              
+                        self.parent = minNeighbor
+                        self.setRank()
+                        self.parents.append(minNeighbor)
+                        print "a preferred parent of {0} is set to {1}".format(self.id, self.parent.id) 
+                
             
     def computeRankIncrease(self, neighbor):
         # calculate rank increase to neighbor
@@ -307,7 +394,7 @@ class Mote(object):
             else:
                 # At the beginning, we set ETX = 1
                 etx = 1
-                
+            # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
         
     #======================== actions =========================================
@@ -338,23 +425,25 @@ class Mote(object):
         
         with self.dataLock:
 
-            # update rank
-            self.setRank()
+            if self.parent != None:
             
-            for (neighbor, _) in self.PDR.items():
-                if neighbor.dagRoot == False:
-                    # neighbor stores DAG rank and rank from the sender
-                    neighbor.dagRanks[self] = self.dagRank
-                    neighbor.ranks[self] = self.rank
-                    
-                    # count num of DIO received to determine whether current parent is stable
-                    if self in neighbor.numRxDIO:
-                        neighbor.numRxDIO[self] += 1
-                    else:
-                        neighbor.numRxDIO[self] = 0
-                    
-                    # neighbor updates its parent
-                    neighbor.setParent()
+                # update rank
+                self.setRank()
+                
+                for (neighbor, _) in self.PDR.items():
+                    if neighbor.dagRoot == False:
+                        # neighbor stores DAG rank and rank from the sender
+                        neighbor.dagRanks[self] = self.dagRank
+                        neighbor.ranks[self] = self.rank
+                        
+                        # count num of DIO received
+                        if self in neighbor.numRxDIO:
+                            neighbor.numRxDIO[self] += 1
+                        else:
+                            neighbor.numRxDIO[self] = 0
+                        
+                        # neighbor updates its parent
+                        neighbor.setParent()
                     
             self._schedule_DIO()                
             
@@ -551,7 +640,10 @@ class Mote(object):
             self._incrementStats('dataQueueFull')
         
         # schedule next _action_sendData
-        self._schedule_sendData(neighbor)
+        #self._schedule_sendData(neighbor)
+        
+        # update data periods of destinations and schedule next _action_sendData
+        self.setDataEngineAll()
     
     def _schedule_sendData(self,neighbor):
         ''' create an event that is inserted into the simulator engine to send the data according to the dataPeriod'''
@@ -693,7 +785,7 @@ class Mote(object):
                         dir            = self.DIR_RX,
                         neighbor       = self,
                     )
-                    print '(ts,ch) = ({0},{1}) allocated to Tx:{2},Rx:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
+                    print 'allocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1

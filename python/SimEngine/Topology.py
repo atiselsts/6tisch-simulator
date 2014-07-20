@@ -102,26 +102,26 @@ class Topology(object):
             while (neighborId==None) or (neighborId==id):
                 neighborId = random.randint(0,len(self.motes)-1)
             #initialize the traffic pattern with that neighbor    
+            self.motes[id].setPDR(self.motes[neighborId],
+                                  self.computePDR(id,neighborId)
+                                  )
             self.motes[id].setDataEngine(
                 self.motes[neighborId],
                 s().traffic,
             )
-            self.motes[id].setPDR(self.motes[neighborId],
-                                  self.computePDR(id,neighborId)
-                                  )
             
     def _createFullMeshTopology(self):
         for id in range(len(self.motes)):
             for nei in range(len(self.motes)):
                 if nei!=id:
+                    self.motes[id].setPDR(
+                        self.motes[nei],
+                        self.computePDR(id,nei)
+                    )
                     #initialize the traffic pattern with that neighbor
                     self.motes[id].setDataEngine(
                         self.motes[nei],
                         s().traffic,
-                    )
-                    self.motes[id].setPDR(
-                        self.motes[nei],
-                        self.computePDR(id,nei)
                     )
                     
 
@@ -157,8 +157,8 @@ class Topology(object):
                         min=distance 
                         linkto=nei
             if linkto!=-1:
-                self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
                 self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
+                self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
                 
             
     def _createRadiusDistanceTopology(self):
@@ -170,8 +170,8 @@ class Topology(object):
                     print "distance is {0}".format(distance)
                     if distance < self.NEIGHBOR_RADIUS:
                         print "adding neighbor {0},{1}".format(id,nei)
-                        self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
+                        self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                
     def _createMaxRssiTopology(self):
         for id in range(len(self.motes)):
@@ -189,8 +189,8 @@ class Topology(object):
                         maxNei = nei
                         
             print "adding neighbor {0},{1}".format(id,maxNei)
-            self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
+            self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
 
     def _createDodagTopology(self):
         # Create topology that all the nodes have at least one path to DAG root. 
@@ -250,10 +250,11 @@ class Topology(object):
                         neighbors.append(j) 
 
             for nei in neighbors:
-                # DAG root does not generate data
-                if self.motes[id].dagRoot == False:
-                    self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                 self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
+            # DAG root does not generate data
+            if self.motes[id].dagRoot == False:
+                self.motes[id].setDataEngineAll() 
+                
 
     
     def computePDR(self,node,neighbor): 
