@@ -27,7 +27,7 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    CYCLE_END = 300
+    CYCLE_END = 100
     
     SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"

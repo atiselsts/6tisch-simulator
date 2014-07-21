@@ -33,7 +33,7 @@ class Mote(object):
     
     # sufficient num. of DIO to determine parent is stable
     NUM_SUFFICIENT_DIO       = 1
-    initDagRoot              = True
+    
     PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX. 
     MIN_HOP_RANK_INCREASE    = 256
     MAX_LINK_METRIC          = 4*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
@@ -99,16 +99,15 @@ class Mote(object):
         self.ranks           = {} #indexed by neighbor
         self.dagRanks        = {} #indexed by neighbor
         
-        if Mote.initDagRoot == True:
+        if self.id == 0: # mote with id 0 becomes a DAG root  
            self.dagRoot = True
            self.rank    = 0
            self.dagRank = 0
            self.parent  = self
-           Mote.initDagRoot = False
         else:
            self.dagRoot = False
-           self.rank    = 100*self.MIN_HOP_RANK_INCREASE # Large value not to be chosen as a parent at the beginning
-           self.dagRank = 100
+           self.rank    = None#100*self.MIN_HOP_RANK_INCREASE # Large value not to be chosen as a parent at the beginning
+           self.dagRank = None#100
            self.parent  = None # preferred parent    
            self.parents = [] # set of parents
     
