@@ -38,7 +38,7 @@ class Topology(object):
     MIN_DISTANCE    = "MIN_DISTANCE"
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     MAX_RSSI        = "MAX_RSSI"
-    DODAG_TOPOLOGY  = "DODAG_TOPOLOGY"
+    DODAG           = "DODAG"
     
     NEIGHBOR_RADIUS = 0.05 # in km 
     
@@ -88,7 +88,7 @@ class Topology(object):
             self._createRadiusDistanceTopology()
         elif type == self.MAX_RSSI:
             self._createMaxRssiTopology()
-        elif type == self.DODAG_TOPOLOGY:
+        elif type == self.DODAG:
             self._createDodagTopology()        
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))

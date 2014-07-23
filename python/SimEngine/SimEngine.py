@@ -59,6 +59,13 @@ class SimEngine(threading.Thread):
         # variables
         self.dataLock        = threading.RLock()
         
+        self.scheduledCells = set()
+        self.collisionCells = set()
+        self.inactivatedCells = set()
+
+        self.numAccumScheduledCells = 0        
+        self.numAccumScheduledCollisions = 0
+        
         # initialize propagation at start of each run 
         Propagation.Propagation._instance = None
         Propagation.Propagation._init     = False        
@@ -84,7 +91,7 @@ class SimEngine(threading.Thread):
         #self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
         #self.motes=self.topology.createTopology(self.topology.MIN_DISTANCE)
         #self.motes=self.topology.createTopology(self.topology.MAX_RSSI)
-        self.motes=self.topology.createTopology(self.topology.DODAG_TOPOLOGY)
+        self.motes=self.topology.createTopology(self.topology.DODAG)
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -129,48 +136,47 @@ class SimEngine(threading.Thread):
                 
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
-                
-                # initialize at start of each cycle
-                if self.asn % s().timeslots == 0: 
-                    numAccumScheduledCollisions = 0
-                        
-                # update the current ASN
-                #self.asn = self.events[0][0]
-                
+
                 # call all the callbacks at this ASN
                 while True:
                     if self.events[0][0]!=self.asn:
                         break
                     (_,cb,_) = self.events.pop(0)
                     cb()
-                
+
+                # count scheduled cells and schedule collisions after call back functions called
+                self.countSchedule()
+                                
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
                 
                 # wait a bit
                 time.sleep(self.simDelay)
 
-                
-                # Accumulate num of scheduled collision at each asn
-                numAccumScheduledCollisions += self.countScheduleCollision()
-
-                currentCycle = int(self.asn/s().timeslots)
-                #nextCycle = int(self.events[0][0]/s().timeslots)
-                #if currentCycle < nextCycle: # last event in current cycle
+                cycle = int(self.asn/s().timeslots)
                 if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
-
-                    print('Run num: {0} cycle: {1}'.format(self.count, currentCycle))
-                    f.write('{0},{1},{2},{3},{4}\n'.format(self.count,
-                                                   currentCycle,
-                                                   self.propagation.numAccumTxTrialcollisions,
-                                                   self.propagation.numAccumPktcollisions,
-                                                   numAccumScheduledCollisions))
+                    if cycle == 0:
+                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\n\n')
+                    print('Run num: {0} cycle: {1}'.format(self.count, cycle))
+                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\n'.format(
+                                                               self.count,
+                                                               cycle,
+                                                               self.numAccumScheduledCells,
+                                                               self.numAccumScheduledCells - self.numAccumScheduledCollisions,
+                                                               self.propagation.numAccumNoPktAtNSC,
+                                                               self.propagation.numAccumPktAtNSC,
+                                                               self.numAccumScheduledCollisions,                                                               
+                                                               self.propagation.numAccumNoPktAtSC,
+                                                               self.propagation.numAccumPktCollisions,
+                                                               self.propagation.numAccumNoPktCollisions,
+                                                               self.propagation.numAccumSuccess,
+                                                               ))
                     self.propagation.initStats() 
                 
                 
                                     
                 # Terminate condition
-                if currentCycle == self.CYCLE_END:
+                if cycle == self.CYCLE_END:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
@@ -215,7 +221,7 @@ class SimEngine(threading.Thread):
                 while i<len(self.events):
                     (a,c,t) = self.events[i]
                     # remove the future event but do not remove events at the current asn  
-                    if (t==uniqueTag) and (asn > self.asn):
+                    if (t==uniqueTag) and (a > self.asn):
                         del self.events[i]
                     else:
                         i += 1
@@ -247,21 +253,44 @@ class SimEngine(threading.Thread):
     def close(self):
         self.goOn = False
     
-    def countScheduleCollision(self):
-        # countScheduleCollision at current asn
+    def countSchedule(self):
+        # count scheduled cells and schedule collision at each asn
         
         with self.dataLock:
-            scheduledCells = set()
-            collisionCells = set()
+            
+            # initialize at start of each cycle
             currentTs = self.asn % s().timeslots
-            for mote in self.motes:
+            if currentTs == 0: 
+                self.numAccumScheduledCells = 0        
+                self.numAccumScheduledCollisions = 0
+
+            self.scheduledCells.clear()
+            self.collisionCells.clear()
+            self.inactivatedCells.clear() # store cells recently added by monitoring function but not activated yet 
+            for mote in self.motes:                
                 for (ts,ch,_) in mote.getTxCells():
                     if ts == currentTs:
-                        if (ts,ch) not in scheduledCells:
-                            scheduledCells.add((ts,ch))
+                                                
+                        activated = False
+                        # check whether this cell is already activated
+                        for tx in self.propagation.transmissions:
+                            if tx['smac'] == mote:
+                                activated = True
+                                break
+                        for no in self.propagation.notransmissions:
+                            if no['smac'] == mote:
+                                activated = True
+                                break
+                        
+                        if not activated:
+                            self.inactivatedCells.add((ts,ch))
+                        elif (ts,ch) not in self.scheduledCells:
+                            self.scheduledCells.add((ts,ch))
                         else:
-                            collisionCells.add((ts,ch))
-            return len(collisionCells)
+                            self.collisionCells.add((ts,ch))
+
+            self.numAccumScheduledCells += len(self.scheduledCells)
+            self.numAccumScheduledCollisions += len(self.collisionCells)
                 
     
     def fileInit(self, file):
@@ -273,7 +302,8 @@ class SimEngine(threading.Thread):
             file.write('# channels = {0}\n'.format(s().channels))        
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
-            file.write('# side = {0}\n'.format(s().side))        
-            file.write('# Run num, Cycle, Tx Trial in Collision, Packet Collision, Schedule Collision\n\n')
+            file.write('# side = {0}\n'.format(s().side))
+            file.write('# SC = Schedule Collision, PC = Packet Collision\n')        
+            
         
     #======================== private =========================================

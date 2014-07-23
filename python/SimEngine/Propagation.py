@@ -19,6 +19,7 @@ log.addHandler(NullHandler())
 import threading
 import random
 
+import SimEngine
 
 class Propagation(object):
     
@@ -48,17 +49,38 @@ class Propagation(object):
         self.notransmissions     = []
         self.collisions          = []        
         self.rxFailures          = []
-        self.numTxTrialcollisions = 0 # Tx trial in schedule collision cells         
-        self.numPktcollisions     = 0 # Packet collision
-        self.numAccumTxTrialcollisions = 0
-        self.numAccumPktcollisions = 0
+        
+        self.numPktCollisions          = 0 # Packet collision at schedule collision cells
+        self.numNoPktCollisions        = 0 # No Packet collision at schedule collision cells
+        self.numNoPktAtSC              = 0 # No Packet at schedule collision cells
+
+        self.numPktAtNSC               = 0 # packets at non schedule collision cells
+        self.numNoPktAtNSC             = 0 # no packets at non schedule collision cells
+        self.numSuccess                = 0 # success transmissions at both NSC and SC 
+        
+        self.numAccumPktCollisions     = 0
+        self.numAccumNoPktCollisions   = 0 
+        self.numAccumNoPktAtSC         = 0 
+
+        self.numAccumPktAtNSC          = 0 
+        self.numAccumNoPktAtNSC        = 0 
+        self.numAccumSuccess           = 0
+        
+        # for debug
+        self.engine          = SimEngine.SimEngine()
         
     def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
-            self.numAccumTxTrialcollisions = 0
-            self.numAccumPktcollisions = 0
-         
+            self.numAccumPktCollisions     = 0
+            self.numAccumNoPktCollisions   = 0 
+            self.numAccumNoPktAtSC         = 0
+            self.numAccumPktAtNSC          = 0 
+            self.numAccumNoPktAtNSC        = 0
+            self.numAccumSuccess           = 0
+
+
+            
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
@@ -80,7 +102,7 @@ class Propagation(object):
                  }]
                     
     def noTx(self,channel,smac,dmac):
-        ''' add a tx mote without data (for debug puropose) '''        
+        ''' add a tx mote without data (for debug purpose) '''        
         with self.dataLock:
             
             self.notransmissions  += [{
@@ -98,15 +120,16 @@ class Propagation(object):
         
         with self.dataLock:
             
+            scheduleCollisionChs = set()
             
             for transmission in self.transmissions:
                 
                 # find matching receivers
                 i = 0
                 success = True # success in packet delivery
-                scheduleCollision = False
                 pktCollision = False
-
+                scheduleCollision = False
+                
                 num_receivers_ch = 0
                 while i<len(self.receivers):
                     if self.receivers[i]['channel'] == transmission['channel']:
@@ -115,33 +138,49 @@ class Propagation(object):
                         #check this is a real link --
                         if self.receivers[i]['mote'].id == transmission['dmac'].id:
                             
-                            # Check schedule collision and packet collision
+                            # Check packet collision and schedule collision with other packets
                             for otherPacket in self.transmissions:
                                 if (otherPacket != transmission) and (otherPacket['channel'] == transmission['channel']):                                    
                                     if scheduleCollision == False:
-                                        # increase only 1 at each schedule collided transmission
-                                        self.numTxTrialcollisions += 1
                                         scheduleCollision = True
+                                        scheduleCollisionChs.add(transmission['channel'])
                                     
                                     if otherPacket['smac'].getRSSI(transmission['dmac'].id) > self.RADIO_SENSITIVITY:
                                         if pktCollision == False:
                                             pktCollision = True
                                             success = False
-                                            self.numPktcollisions += 1                                            
                                             self.rxFailures += [self.receivers[i]]
                                             del self.receivers[i]                                            
                                             self.collisions += [transmission] # store collided packet for debug purpose
                                             break
 
-                            if pktCollision == False:                                                            
-                                # test whether a packet can be delivered                                        
+                            # Check schedule collision between Tx and no Tx
+                            if scheduleCollision == False: 
+                                for noTx in self.notransmissions:
+                                    if noTx['channel'] == transmission['channel']:
+                                        scheduleCollision = True
+                                        scheduleCollisionChs.add(transmission['channel'])
+                                        break
+                            
+                            if scheduleCollision == False:
+                                self.numPktAtNSC += 1
+
+                            if scheduleCollision == True and pktCollision == True:
+                                self.numPktCollisions += 1
+                            
+                            if scheduleCollision == True and pktCollision == False:
+                                self.numNoPktCollisions += 1
+                            
+                            # test whether a packet can be delivered   
+                            if pktCollision == False:                                                                                                                                
                                 # pick a random number
                                 failure = random.randint(0,100)
                                 # get pdr to that neighbor
                                 pdr = transmission['smac'].getPDR(transmission['dmac'])                                
                                 # if we are lucky the packet is sent
                                 if (pdr>=failure):
-                                    success = True                                                
+                                    success = True
+                                    self.numSuccess += 1                                                
                                     log.debug("send with pdr {0},{1}".format(pdr,failure))
                                     self.receivers[i]['mote'].rxDone(
                                         type       = transmission['type'],
@@ -175,17 +214,39 @@ class Propagation(object):
             # indicate no packet received
             for r in self.receivers:
                 r['mote'].rxDone()
-                        
+            
+            # check schedule collision between no Txs and store channel
+            for n in self.notransmissions:
+                for otherNoTx in self.notransmissions:
+                    if (otherNoTx != n) and (otherNoTx['channel'] == n['channel']):
+                        scheduleCollisionChs.add(n['channel'])       
+            
+            # count no packets at both SC and NSC
+            for n in self.notransmissions:
+                if n['channel'] in scheduleCollisionChs:            
+                    self.numNoPktAtSC  += 1
+                else:
+                    self.numNoPktAtNSC += 1                                                            
+
+            
             # update at each slot, clear at the end of slotframe
-            self.numAccumTxTrialcollisions += self.numTxTrialcollisions
-            self.numAccumPktcollisions += self.numPktcollisions
+            self.numAccumPktCollisions     += self.numPktCollisions
+            self.numAccumNoPktCollisions   += self.numNoPktCollisions 
+            self.numAccumNoPktAtSC         += self.numNoPktAtSC
+            self.numAccumPktAtNSC          += self.numPktAtNSC
+            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC
+            self.numAccumSuccess           += self.numSuccess
             
             # clear all outstanding transmissions
-            self.transmissions     = []
-            self.notransmissions   = []
-            self.receivers         = []
-            self.collisions        = []
-            self.rxFailures        = []
-            self.numPktcollisions  = 0
-            self.numTxTrialcollisions = 0
+            self.transmissions      = []
+            self.notransmissions    = []
+            self.receivers          = []
+            self.collisions         = []
+            self.rxFailures         = []
+            self.numPktCollisions   = 0
+            self.numNoPktCollisions = 0
+            self.numNoPktAtSC       = 0
+            self.numPktAtNSC        = 0
+            self.numNoPktAtNSC      = 0
+            self.numSuccess         = 0
             
