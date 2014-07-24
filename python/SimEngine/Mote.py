@@ -389,13 +389,31 @@ class Mote(object):
                 if numTxAck > 0:
                     etx = float(numTx)/float(numTxAck)            
                 else:
-                    etx = float(numTx)/0.1
+                    etx = float(numTx)/0.1 # to avoid division by zero
             else:
                 # At the beginning, we set ETX = 1
                 etx = 1
             # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
         
+    def selectNextHop(self):
+        # select next hop to relay a packet based on the current traffic allotment
+        with self.dataLock:
+            portion = {}
+            for neighbor in self.dataPeriod.keys():
+                portion[neighbor] = self.settings.traffic/self.dataPeriod[neighbor]
+            # summation of portions in dataPeriod should be 1.0
+            # randomly select neighbor based on portion
+            r = random.random()
+            upper = 0.0
+            for neighbor in portion.keys():
+                upper += portion[neighbor]
+                if r <= upper:
+                    return neighbor
+                
+            
+              
+    
     #======================== actions =========================================
     
     #===== RPL
@@ -568,10 +586,11 @@ class Mote(object):
             if self.dagRoot == False and self.parent != None:
                 # add to queue
                 self._incrementStats('dataRelayed')
+                nextHop = self.selectNextHop()
                 if len(self.txQueue)<self.QUEUE_SIZE:
                     self.txQueue += [{
                         'asn':      self.engine.getAsn(),
-                        'nextHop':  self.parent,
+                        'nextHop':  nextHop,
                         'type':     type,
                         'payload':  payload,
                     }]
