@@ -121,15 +121,6 @@ class SimEngine(threading.Thread):
             
             with self.dataLock: 
                 
-                '''
-                output  = []
-                output += ["events:"]
-                for (asn,cb,uniqueTag) in self.events:
-                    output += ["- asn={0} cb={1} uniqueTag={2}".format(asn,cb,uniqueTag)]
-                output  = '\n'.join(output)
-                log.debug(output)
-                '''
-                
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
                     break
@@ -137,19 +128,31 @@ class SimEngine(threading.Thread):
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
 
-                # call all the callbacks at this ASN
+                # call callbacks at this ASN other than monitoring
+                i = 0
                 while True:
-                    if self.events[0][0]!=self.asn:
+                    if self.events[i][0] != self.asn:
                         break
-                    (_,cb,_) = self.events.pop(0)
-                    cb()
-
-                # count scheduled cells and schedule collisions after call back functions called
+                    # last element in tuple of uniqueTag is 'monitoring'/'sendData'/'DIO'/activeCell'
+                    if self.events[i][2][-1] != 'monitoring':
+                        (_,cb,_) = self.events.pop(i)
+                        cb()
+                    else:
+                        i += 1
+                    
+                # count scheduled cells and schedule collisions after 'activeCell' called
                 self.countSchedule()
                                 
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
-                
+
+                # call remained callbacks (i.e. monitoring) 
+                while True:                    
+                    if self.events[0][0]!=self.asn:
+                        break
+                    (_,cb,_) = self.events.pop(0)
+                    cb()
+                                    
                 # wait a bit
                 time.sleep(self.simDelay)
 
@@ -188,15 +191,22 @@ class SimEngine(threading.Thread):
         log.info("thread {0} ends".format(self.name))
     
     #======================== public ==========================================
-    def removeEvent(self,uniqueTag):
+    def removeEvent(self,uniqueTag,exceptCurrentASN=False):
         i = 0
         with self.dataLock:
             while i<len(self.events):
                 (a,c,t) = self.events[i]
-                if t==uniqueTag:
-                    del self.events[i]
-                else: #the list reduces its size when an element is deleted.
-                     i += 1
+                if not exceptCurrentASN:
+                    if t==uniqueTag:
+                        del self.events[i]
+                    else: #the list reduces its size when an element is deleted.
+                         i += 1
+                else: # events at current asn are not removed 
+                    if t==uniqueTag and a > self.asn:
+                        del self.events[i]
+                    else: #the list reduces its size when an element is deleted.
+                         i += 1
+                    
                  
                 
                 
