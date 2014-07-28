@@ -18,7 +18,7 @@ log.addHandler(NullHandler())
 import copy
 import random
 import threading
-
+import math
 import SimEngine
 import Propagation
 import SimSettings
@@ -36,9 +36,12 @@ class Mote(object):
     
     PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX. 
     MIN_HOP_RANK_INCREASE    = 256
-    MAX_LINK_METRIC          = 4*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
+    MAX_ETX                  = 4
+    MAX_LINK_METRIC          = MAX_ETX*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
     MAX_PATH_COST            = 256*MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
     PARENT_SET_SIZE          = 3
+    
+    SMOOTHING                = 0.5
     
     DIR_TX                   = 'TX'
     DIR_RX                   = 'RX'
@@ -93,8 +96,6 @@ class Mote(object):
         self.collectDIO = False
         self.reliableStats = False
         
-        self._resetStats()
-        
         # RPL initialization
         self.ranks           = {} #indexed by neighbor
         self.dagRanks        = {} #indexed by neighbor
@@ -110,7 +111,13 @@ class Mote(object):
            self.dagRank = None#100
            self.parent  = None # preferred parent    
            self.parents = [] # set of parents
-    
+
+        self._resetStats()
+
+        self.incomingTraffics = {} #indexed by neighbor
+        self.averageIncomingTraffics = {}#indexed by neighbor
+        
+        
     #======================== public =========================================
     
     def setDataEngine(self,neighbor,dataPeriod):
@@ -207,6 +214,8 @@ class Mote(object):
         self._schedule_next_ActiveCell()
         # schedule DIO
         self._schedule_DIO()
+        # reset traffic stats
+        self._resetIncomingTraffics()
     
     def getCellStats(self,ts_p,ch_p):
         ''' retrieves cell stats '''
@@ -410,9 +419,32 @@ class Mote(object):
                 upper += portion[neighbor]
                 if r <= upper:
                     return neighbor
+
+    def estimateETX(self,neighbor):
+        # estimate ETX from self to neighbor by averaging the all Tx cells
+        with self.dataLock:
                 
+            numTx  = 0
+            numAck = 0
+            for ts in self.schedule.keys():
+                ce = self.schedule[ts]
+                if ce['neighbor'] == neighbor:
+                    numTx  += ce['numTx']
+                    numAck += ce['numTxAck']
+                    
+            #estimate PDR if sufficient num of tx is available
+            if numTx >= self.NUM_SUFFICIENT_TX:
+                if numAck == 0:
+                    etx = float(numTx) # set a large value when pkts are never ack
+                else:    
+                    etx = float(numTx) / float(numAck)        
+            else:
+                etx = 1.0
             
-              
+            if numTx > self.MAX_ETX: # to avoid large ETX consumes too many cells
+                etx = self.MAX_ETX
+            
+            return etx  
     
     #======================== actions =========================================
     
@@ -579,11 +611,14 @@ class Mote(object):
             if failure:
                 self.schedule[ts]['numRxFailures'] += 1
                 
-                # TODO: relay packet?
+            
             
             self.waitingFor = None
             
-            if self.dagRoot == False and self.parent != None:
+            if self.dagRoot == False and self.parent != None and smac != None:
+                
+                # count incoming traffic for each node
+                self._incrementIncomingTraffics(smac)
                 # add to queue
                 self._incrementStats('dataRelayed')
                 nextHop = self.selectNextHop()
@@ -729,53 +764,126 @@ class Mote(object):
                 #and delete old one
                 self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
                 # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
-                self.engine.removeEvent((self.id,'activeCell'))
-                self.engine.removeEvent((worst_cell[1]['neighbor'].id,'activeCell'))
+                self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
+                self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
                 self._incrementStats('numCellsReallocated')
                 break;
+
+    def _removeWorstCellToNeighbor(self, node):
+        ''' finds the worst cell in each bundle and remove it from schedule 
+        '''
+        worst_cell = (None, None, None)
+        count = 0 # for debug
+        #look into all links that point to the node 
+        for ts in self.schedule.keys():
+            ce = self.schedule[ts]
+            if ce['neighbor'] == node:
+                
+                #compute PDR to each node
+                count += 1
+                if ce['numTx'] == 0: # we don't select unused cells
+                    pdr = 1.0
+                elif ce['numTxAck'] == 0:
+                    pdr = float(0.1/float(ce['numTx'])) # this enables to decide e.g. (Tx,Ack) = (10,0) is worse than (1,0)    
+                else:    
+                    pdr = float(ce['numTxAck']) / float(ce['numTx'])
+                
+                if worst_cell == (None,None,None):
+                    worst_cell = (ts, ce, pdr)
+                
+                #find worst cell in terms of pdr
+                if pdr < worst_cell[2]:
+                    worst_cell = (ts, ce, pdr)
+        
+        if worst_cell != (None,None,None):
+            # remove the worst cell                                        
+            #print "remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0], worst_cell[1]['ch'], self.id, worst_cell[1]['neighbor'].id)
+            self._log(self.DEBUG, "remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
+            self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
+            # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
+            self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
+            self._schedule_next_ActiveCell()
+            self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
+            worst_cell[1]['neighbor']._schedule_next_ActiveCell()
             
     def _action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
         self._log(self.DEBUG,"_action_monitoring")
                 
         with self.dataLock:
-            for (n,periodGoal) in self.dataPeriod.items():
-                while True:
+            
+            # calculate incoming traffic stats
+            self._averageIncomingTraffics()
+            self._resetIncomingTraffics()
+            
+            # calculate total traffic (pkt/sec) to be sent
+            totalTraffic = 1.0/self.settings.traffic*self.settings.timeslots*self.settings.slotDuration # converts from (sec/pkt) to (pkt/cycle)
+            for (n,_) in self.PDR.items():
+                if self.averageIncomingTraffics.has_key(n):
+                    totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.timeslots*self.settings.slotDuration
+                        
+            for (n,period) in self.dataPeriod.items():
                 
-                    # calculate the actual dataPeriod
-                    if self.numCells.get(n):
-                        periodActual   = (self.settings.timeslots*self.settings.slotDuration)/self.numCells[n]
-                    else:
-                        periodActual   = None
-                    
-                    # schedule another cell if needed
-                    if not periodActual or periodActual>periodGoal:
+                # calculate outgoing traffic
+                portion = self.settings.traffic/period
+                reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
+                #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
+                
+                # Compare outgoing traffic with total traffic to be sent 
+                while True:                
+                    numCell = self.numCells.get(n)
+
+                    if reqNumCell > numCell:
+                        # schedule another cell if needed
                         self._addCellToNeighbor(n)
-                    else:
+                        if numCell == self.numCells.get(n): # cannot find free time slot
+                            break
+                    elif reqNumCell < numCell:
+                        self._removeWorstCellToNeighbor(n)
+                        if numCell == self.numCells.get(n): # cannot find worst cell due to insufficient tx
+                            break
+                        
+                    else: # reqNumCell = numCell
                         break
+                
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
                 # Neighbor also has to update its next active cell 
                 n._schedule_next_ActiveCell()
                           
-        # schedule next active cell
-        # Note: this is needed in case the monitoring action modified the schedule
-        self._schedule_next_ActiveCell()
-                
-        # schedule next monitoring
-        self._schedule_monitoring()
+            
+            # remove scheduled cells if its destination is not a parent        
+            if len(self.dataPeriod) != 0: # after data setting
+                for (n,_) in self.PDR.items(): # for all neighbors
+                    if not self.dataPeriod.has_key(n): 
+                        remove = False
+                        for (ts,cell) in self.schedule.items():
+                            if cell['neighbor'] == n and cell['dir'] == self.TX:
+                                remove = True
+                                self._removeCellToNeighbor(ts,cell)
+                        if remove == True: # if at least one cell is removed, then updade next active cell
+                            n._schedule_next_ActiveCell()       
+            
+            # schedule next active cell
+            # Note: this is needed in case the monitoring action modified the schedule
+            self._schedule_next_ActiveCell()
+                    
+            # schedule next monitoring
+            self._schedule_monitoring()
     
     def _schedule_monitoring(self, delay = HOUSEKEEPING_PERIOD):
         ''' tells to the simulator engine to add an event to monitor the network'''
         if delay == self.HOUSEKEEPING_PERIOD:
             self.engine.scheduleIn(
-                delay  = delay*(0.9+0.2*random.random()),
-                cb     = self._action_monitoring,
+                delay     = delay*(0.9+0.2*random.random()),
+                cb        = self._action_monitoring,
+                uniqueTag = (self.id,'monitoring')
             )
         else:
             self.engine.scheduleIn(
-                delay  = delay,
-                cb     = self._action_monitoring,
+                delay     = delay,
+                cb        = self._action_monitoring,
+                uniqueTag = (self.id,'monitoring')
             )
             
     
@@ -783,9 +891,16 @@ class Mote(object):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         with self.dataLock:
             found = False
+            trial = 0
             while not found:
                 candidateTimeslot      = random.randint(0,self.settings.timeslots-1)
                 candidateChannel       = random.randint(0,self.settings.channels-1)
+                
+                if trial==10000:
+                    print'try {0} times but cannot find a empty time slot for both nodes'.format(trial)
+                    break
+                trial += 1
+
                 if (
                         self.isUnusedSlot(candidateTimeslot) and
                         neighbor.isUnusedSlot(candidateTimeslot)
@@ -803,7 +918,7 @@ class Mote(object):
                         dir            = self.DIR_RX,
                         neighbor       = self,
                     )
-                    print 'allocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
+                    #print 'allocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1
@@ -855,4 +970,23 @@ class Mote(object):
     def _incrementStats(self,name):
         with self.dataLock:
             self.stats[name] += 1
+    
+    def _resetIncomingTraffics(self):
+        with self.dataLock:
+            for (neighbor, _) in self.PDR.items():
+                self.incomingTraffics[neighbor] = 0
+
+    def _incrementIncomingTraffics(self,neighbor):
+        with self.dataLock:
+            self.incomingTraffics[neighbor] += 1
+
+    def _averageIncomingTraffics(self):
+        with self.dataLock:
+            for (neighbor, _) in self.PDR.items():
+                if self.averageIncomingTraffics.has_key(neighbor):
+                    self.averageIncomingTraffics[neighbor] = self.SMOOTHING*self.incomingTraffics[neighbor] \
+                    + (1-self.SMOOTHING)*self.averageIncomingTraffics[neighbor]
+                elif self.incomingTraffics[neighbor] != 0:
+                    self.averageIncomingTraffics[neighbor] = self.incomingTraffics[neighbor]
+                    
         
