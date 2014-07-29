@@ -137,7 +137,7 @@ class Mote(object):
                 for (neighbor, _) in self.PDR.items():
                     numTx = 0
                     for (_,cell) in self.schedule.items():
-                        if (cell['neighbor'] == neighbor) and (cell['dir'] == self.TX):
+                        if cell['neighbor'] == neighbor and cell['dir'] == self.TX:
                             numTx += cell['numTx']
                     if numTx < self.NUM_SUFFICIENT_TX:
                         self.reliableStats = False
@@ -408,17 +408,37 @@ class Mote(object):
     def selectNextHop(self):
         # select next hop to relay a packet based on the current traffic allotment
         with self.dataLock:
-            portion = {}
-            for neighbor in self.dataPeriod.keys():
-                portion[neighbor] = self.settings.traffic/self.dataPeriod[neighbor]
-            # summation of portions in dataPeriod should be 1.0
-            # randomly select neighbor based on portion
-            r = random.random()
-            upper = 0.0
-            for neighbor in portion.keys():
-                upper += portion[neighbor]
-                if r <= upper:
-                    return neighbor
+            
+            numNeighborInQueue = {}            
+            for (neighbor, _) in self.PDR.items():
+                numNeighborInQueue[neighbor] = 0
+                    
+            # count num of packets in queue per neighbor 
+            for i in range(len(self.txQueue)):
+                neighbor = self.txQueue[i]['nextHop']
+                numNeighborInQueue[neighbor] += 1
+
+            asn = self.engine.getAsn()                    
+            # get timeslotOffset of current asn
+            ts = asn%self.settings.timeslots
+            
+            txCells = self.getTxCells()
+            # finally returns the neighbor which does not have a packet to send in queue
+            i = 1
+            while True:
+                scan = (ts+i) % self.settings.timeslots # search starts from next asn (ts+1)
+                for j in range(len(txCells)):
+                    if scan == txCells[j][0]:
+                        neighbor = txCells[j][2]
+                        numNeighborInQueue[neighbor] -= 1
+                        if numNeighborInQueue[neighbor] < 0:
+                            return neighbor
+                        else:
+                            i += 1
+                            break
+                i += 1
+            
+                
 
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
@@ -826,8 +846,9 @@ class Mote(object):
                 
                 # calculate outgoing traffic
                 portion = self.settings.traffic/period
-                reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
-                #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
+                # ETX acts as overprovision
+                #reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
+                reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
                 
                 # Compare outgoing traffic with total traffic to be sent 
                 while True:                
