@@ -44,10 +44,11 @@ def parseCliOptions():
         default    = 10,
     )
     
+    # not used
     parser.add_option( '-d',
         dest       = 'degree',
         type       = 'int',
-        default    = 5,
+        default    = 1,
     )
     
     parser.add_option( '-c',
@@ -68,6 +69,7 @@ def parseCliOptions():
         default    = 0.1,
     )
     
+    # not used
     parser.add_option( '--op',
         dest       = 'overprovisioning',
         type       = 'float',
@@ -99,7 +101,7 @@ def main():
     for (k,v) in args.items():
         setattr(settings,k,v)
     
-    # For multiple runs of simulation
+    # For multiple runs of simulation w/o GUI
     #'''
     for runNum in range(maxRunNum):
         # instantiate a SimEngine object

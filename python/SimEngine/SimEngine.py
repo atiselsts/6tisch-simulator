@@ -85,13 +85,7 @@ class SimEngine(threading.Thread):
         
         #use the topology component to create the network
         #TODO define topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        
-        #self.motes=self.topology.createTopology(self.topology.RANDOM)
-        #self.motes=self.topology.createTopology(self.topology.FULL_MESH)
-        #self.motes=self.topology.createTopology(self.topology.RADIUS_DISTANCE)
-        #self.motes=self.topology.createTopology(self.topology.MIN_DISTANCE)
-        #self.motes=self.topology.createTopology(self.topology.MAX_RSSI)
-        self.motes=self.topology.createTopology(self.topology.DODAG)
+        self.motes=self.topology.createTopology(self.topology.CONNECTED)
         
         # boot all the motes
         for i in range(len(self.motes)):

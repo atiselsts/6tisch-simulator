@@ -38,7 +38,7 @@ class Topology(object):
     MIN_DISTANCE    = "MIN_DISTANCE"
     RADIUS_DISTANCE = "RADIUS_DISTANCE"
     MAX_RSSI        = "MAX_RSSI"
-    DODAG           = "DODAG"
+    CONNECTED       = "CONNECTED"
     
     NEIGHBOR_RADIUS = 0.05 # in km 
     
@@ -46,6 +46,7 @@ class Topology(object):
     PISTER_HACK_LOWER_SHIFT = 40 #-40 db     
     SPEED_OF_LIGHT = 299792458 
     
+    MIN_RSSI        = -93 # in dBm, corresponds to PDR = 0.5
     
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -61,35 +62,40 @@ class Topology(object):
         
         # store params
         
-        # variables
+         # variables
         self.dataLock            = threading.Lock()
         self.motes=[Mote.Mote(id) for id in range(s().numMotes)]
          
     def createTopology(self,type):
         
-        # set RSSI between any two nodes
-        self.computeRSSI()
-        
         # set the mote's traffic goals
         if type == self.RANDOM:
-             self._createRandomTopology()
+            self.computeRssiAll()
+            self._createRandomTopology()
         elif type == self.FULL_MESH:
             #make sure that the traffic requirements can be met with that so demanding topology.
+            self.computeRssiAll()
             self._createFullMeshTopology()   
         elif type == self.BINARY_TREE:
+            self.computeRssiAll()
             self._createBTreeTopology()
         elif type == self.LINE:
+            self.computeRssiAll()
             raise NotImplementedError('Mode {0} not implemented'.format(type))         
         elif type == self.LATTICE:
+            self.computeRssiAll()
             raise NotImplementedError('Mode {0} not implemented'.format(type))
         elif type == self.MIN_DISTANCE:
+            self.computeRssiAll()
             self._createMinDistanceTopology()
         elif type == self.RADIUS_DISTANCE:
+            self.computeRssiAll()
             self._createRadiusDistanceTopology()
         elif type == self.MAX_RSSI:
+            self.computeRssiAll()
             self._createMaxRssiTopology()
-        elif type == self.DODAG:
-            self._createDodagTopology()        
+        elif type == self.CONNECTED:
+            self._createConnectedTopology()        
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))
                 
@@ -192,55 +198,31 @@ class Topology(object):
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
             self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
 
-    def _createDodagTopology(self):
-        # Create topology that all the nodes have at least one path to DAG root. 
-        # If there is no path, location and RSSI of the nodes are reset.
+    
+    def _createConnectedTopology(self):
+        # Create topology that all the nodes have at least one path with enough RSSI to DAG root. 
+        # If the mote does not have a link with enough RSSI, reset the location of the mote
         
         # find DAG root
         for id in range(len(self.motes)):
             if self.motes[id].dagRoot == True:
                 dagRoot = id
-                
-        # check whether all the nodes have path to DAG root
         
-        while(True):
-            # start or restart with new locations and RSSI set
-            for id in range(len(self.motes)):
-                if (id != dagRoot):
-                
-                    findDagroot = False
-                    paths = set()
-                    checkedNodes = set()
-                    candidate = id
-                    while(True):
-                        neighbors = set()
-                        for j in range(len(self.motes)):
-                            if j != candidate:
-                                if self.motes[candidate].getRSSI(j) > self.motes[candidate].radioSensitivity:
-                                    neighbors.add(j) 
-                        if dagRoot in neighbors:
-                            findDagroot = True
-                            break
-                        else:
-                            paths = paths | neighbors
-                            checkedNodes.add(candidate)
-                            nextCandidates = paths - checkedNodes
-                            if len(nextCandidates) > 0: 
-                                candidate = nextCandidates.pop()
-                            else:
-                                break
-                    if(findDagroot == False):
-                        # No path to DAG root. Need to reset locations and RSSI of all the motes
-                        print "reset location and RSSI"
-                        for j in range(len(self.motes)):
-                            self.motes[j].setLocation()
-                        self.computeRSSI()
-                        break
-                         
-            # All the nodes have paths to DAG root
-            if(findDagroot == True):
-                break     
-            
+        # set RSSI so that at least one link has enough RSSI        
+        checkedNodes = set([dagRoot])        
+        for id in range(len(self.motes)):
+            if (id != dagRoot):
+
+                connected = False
+                while not connected:
+                    for chk in list(checkedNodes):
+                        self.motes[id].setLocation()
+                        self.computeRSSI(id, chk)
+                        if self.motes[id].getRSSI(chk) > self.MIN_RSSI:
+                            connected = True
+                 
+                checkedNodes.add(id)                       
+                        
         for id in range(len(self.motes)):
             #link to a neighbor with higher RSSI than threshold             
             neighbors = []
@@ -251,11 +233,12 @@ class Topology(object):
 
             for nei in neighbors:
                 self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
+            
             # DAG root does not generate data
             if self.motes[id].dagRoot == False:
                 self.motes[id].setDataEngineAll() 
-                
-
+        
+            
     
     def computePDR(self,node,neighbor): 
         ''' computes pdr to neighbor according to RSSI'''
@@ -275,31 +258,35 @@ class Topology(object):
 
         return pdr 
 
-    def computeRSSI(self): 
+    def computeRSSI(self,node,neighbor): 
         ''' computes RSSI between any two nodes (not only neighbor) according to Pister hack model'''
 
+        #x and y values are between [0,1) in km
+        distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
+             
+        # Convert km to m
+        distance = distance*1000.0
+    
+        # sqrt and inverse of the free space path loss
+        fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
+        #simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
+        pr = self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
+        #according to the receiver power (RSSI) we can apply the Pister hack model.
+        mu = pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
+    
+        # the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40
+        #rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
+    
+        # the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
+        rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
+        
+        self.motes[node].setRSSI(neighbor, rssi)
+        self.motes[neighbor].setRSSI(node, rssi)
+                    
+
+    def computeRssiAll(self): 
+        #computes RSSI between any two nodes (not only neighbor) according to Pister hack model
         for node in range(len(self.motes)):
             for neighbor in range(node+1, len(self.motes)):
-
-                #x and y values are between [0,1) in km
-                distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
-                     
-                # Convert km to m
-                distance = distance*1000.0
-        
-                # sqrt and inverse of the free space path loss
-                fspl=(self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
-                #simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
-                pr=self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
-                #according to the receiver power (RSSI) we can apply the Pister hack model.
-                mu=pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
-        
-                #the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40
-                #rssi=random.gauss(mu,self.PISTER_HACK_LOWER_SHIFT/2)
-
-                #the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
-                rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
-                
-                self.motes[node].setRSSI(neighbor, rssi)
-                self.motes[neighbor].setRSSI(node, rssi)
-                
+                self.computeRSSI(node, neighbor) 
+    
