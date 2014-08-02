@@ -207,7 +207,7 @@ class Propagation(object):
                 log.debug(" num listeners per transmitter {0}".format(num_receivers_ch))
                 transmission['smac'].txDone(success)
             
-            # indicate collision
+            # indicate collision and packet error
             for r in self.rxFailures:
                 r['mote'].rxDone(failure=True)
 

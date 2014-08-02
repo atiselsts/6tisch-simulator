@@ -130,19 +130,7 @@ class Mote(object):
         ''' sets the period to communicate for all neighbors/parents '''
         with self.dataLock:
             
-            # if statistics of all neighbors become reliable, set self.reliableStats = True
-            if self.reliableStats == False:                                        
-                self.reliableStats = True
-                # if one of neighbors lacks sufficient num of Tx, self.reliableStats is set to False
-                for (neighbor, _) in self.PDR.items():
-                    numTx = 0
-                    for (_,cell) in self.schedule.items():
-                        if cell['neighbor'] == neighbor and cell['dir'] == self.TX:
-                            numTx += cell['numTx']
-                    if numTx < self.NUM_SUFFICIENT_TX:
-                        self.reliableStats = False
-                        break
-            
+            '''
             # if DIO from all neighbors are collected, set self.collectDIO = True            
             if self.collectDIO == False:                
                 self.collectDIO = True
@@ -156,14 +144,15 @@ class Mote(object):
                         break            
                         
             # at initial phase, sends data to all neighbors    
-            if self.reliableStats == False or self.collectDIO == False:
+            if self.collectDIO == False:
+
                 # divides data portion equally to all neighbors
                 for (neighbor, _) in self.PDR.items():
                     portion = 1.0/len(self.PDR.items())
                     period = self.settings.traffic/portion                    
                     self.dataPeriod[neighbor] = period
                     self._schedule_sendData(neighbor)           
-            
+                    
             # after statistics become reliable, sends data to parents   
             else:
                 # divides data portion to parents in inverse ratio to DagRank
@@ -182,6 +171,23 @@ class Mote(object):
                     if neighbor not in self.parents and neighbor in self.dataPeriod.keys():
                         self.engine.removeEvent((self.id, neighbor.id,'sendData'))
                         del self.dataPeriod[neighbor]
+            '''
+            # divides data portion to parents in inverse ratio to DagRank
+            sum = 0.0
+            resultingRanks = {}
+            for p in self.parents:
+                resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
+                sum += 1.0/resultingRanks[p]
+            for p in self.parents:
+                portion = (1.0/resultingRanks[p])/sum
+                period = self.settings.traffic/portion                    
+                self.dataPeriod[p] = period           
+                self._schedule_sendData(p)
+            for (neighbor, _) in self.PDR.items():
+                # remove sendData of neighbor which is not selected as a parent 
+                if neighbor not in self.parents and neighbor in self.dataPeriod.keys():
+                    self.engine.removeEvent((self.id, neighbor.id,'sendData'))
+                    del self.dataPeriod[neighbor]
                     
     def setPDR(self,neighbor,pdr):
         ''' sets the pdr to that neighbor'''
@@ -386,22 +392,23 @@ class Mote(object):
     def computeRankIncrease(self, neighbor):
         # calculate rank increase to neighbor
         with self.dataLock:    
-            numTx = 0
-            numTxAck = 0
+            
+            # set initial values for numTx and numTxAck assuming PDR is exactly estimated
+            pdr = self.getPDR(neighbor)/100.0
+            numTx = self.NUM_SUFFICIENT_TX
+            numTxAck = math.floor(pdr*numTx)
+                    
             for (_,cell) in self.schedule.items():
                 if (cell['neighbor'] == neighbor) and (cell['dir'] == self.TX):
                     numTx += cell['numTx']
                     numTxAck += cell['numTxAck']
             
             # calculate ETX            
-            if numTx >= self.NUM_SUFFICIENT_TX:
-                if numTxAck > 0:
-                    etx = float(numTx)/float(numTxAck)            
-                else:
-                    etx = float(numTx)/0.1 # to avoid division by zero
+            if numTxAck > 0:
+                etx = float(numTx)/float(numTxAck)            
             else:
-                # At the beginning, we set ETX = 1
-                etx = 1
+                etx = float(numTx)/0.1 # to avoid division by zero
+
             # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
         
@@ -443,23 +450,23 @@ class Mote(object):
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
         with self.dataLock:
-                
-            numTx  = 0
-            numAck = 0
+
+            # set initial values for numTx and numTxAck assuming PDR is exactly estimated
+            pdr = self.getPDR(neighbor)/100.0
+            numTx = self.NUM_SUFFICIENT_TX
+            numAck = math.floor(pdr*numTx)
+
             for ts in self.schedule.keys():
                 ce = self.schedule[ts]
-                if ce['neighbor'] == neighbor:
+                if ce['neighbor'] == neighbor and ce['dir'] == self.TX:
                     numTx  += ce['numTx']
                     numAck += ce['numTxAck']
                     
             #estimate PDR if sufficient num of tx is available
-            if numTx >= self.NUM_SUFFICIENT_TX:
-                if numAck == 0:
-                    etx = float(numTx) # set a large value when pkts are never ack
-                else:    
-                    etx = float(numTx) / float(numAck)        
-            else:
-                etx = 1.0
+            if numAck == 0:
+                etx = float(numTx) # set a large value when pkts are never ack
+            else:    
+                etx = float(numTx) / float(numAck)        
             
             if numTx > self.MAX_ETX: # to avoid large ETX consumes too many cells
                 etx = self.MAX_ETX
@@ -626,8 +633,10 @@ class Mote(object):
             
             cell = self.schedule[ts]
             
+            # successfully received
             if smac:
                 self.schedule[ts]['numRx'] += 1
+            # collision
             if failure:
                 self.schedule[ts]['numRxFailures'] += 1
                 
@@ -635,7 +644,7 @@ class Mote(object):
             
             self.waitingFor = None
             
-            if self.dagRoot == False and self.parent != None and smac != None:
+            if self.dagRoot == False and self.parent != None and smac != None and self.getTxCells()!=[]:
                 
                 # count incoming traffic for each node
                 self._incrementIncomingTraffics(smac)
@@ -832,6 +841,22 @@ class Mote(object):
                 
         with self.dataLock:
             
+            # if DIO from all neighbors are collected, set self.collectDIO = True            
+            if self.collectDIO == False:                
+                self.collectDIO = True
+                for (neighbor, _) in self.PDR.items():
+                    if self.numRxDIO.has_key(neighbor):
+                        if self.numRxDIO[neighbor] < self.NUM_SUFFICIENT_DIO:
+                            self.collectDIO = False
+                            break            
+                    else:
+                        self.collectDIO = False
+                        break            
+
+            # data generation starts if DIOs are received from all the neighbors            
+            if self.collectDIO == True and self.dagRoot == False:
+                self.setDataEngineAll()
+            
             # calculate incoming traffic stats
             self._averageIncomingTraffics()
             self._resetIncomingTraffics()
@@ -943,6 +968,7 @@ class Mote(object):
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1
+                    
                     #TODO count number or retries.
     
     def _removeCellToNeighbor(self,ts,cell):

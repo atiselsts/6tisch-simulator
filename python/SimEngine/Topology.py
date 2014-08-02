@@ -235,8 +235,8 @@ class Topology(object):
                 self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
             
             # DAG root does not generate data
-            if self.motes[id].dagRoot == False:
-                self.motes[id].setDataEngineAll() 
+            # if self.motes[id].dagRoot == False:
+            #    self.motes[id].setDataEngineAll() 
         
             
     
