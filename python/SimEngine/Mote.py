@@ -757,35 +757,38 @@ class Mote(object):
         worst_cell = (None, None, None)
         
         #look into all links that point to the node 
+        numTxTotal  = 0
+        numAckTotal = 0
         for ts in self.schedule.keys():
             ce = self.schedule[ts]
-            if ce['neighbor'] == node:
+            if ce['neighbor'] == node and ce['numTx'] >= self.NUM_SUFFICIENT_TX:
+
+                numTxTotal += ce['numTx']
+                numAckTotal += ce['numTxAck']
 
                 #compute PDR to each node with sufficient num of tx
-                if ce['numTx'] >= self.NUM_SUFFICIENT_TX:
-                    if ce['numTxAck'] == 0:
-                        pdr = float(1/float(ce['numTx'])) # set a small non-zero value when pkts are never ack
-                    else:    
-                        pdr = float(ce['numTxAck']) / float(ce['numTx'])
-                    
-                    if worst_cell == (None,None,None):
-                        worst_cell = (ts, ce, pdr)
-                    
-                    #find worst cell in terms of pdr
-                    if pdr < worst_cell[2]:
-                        worst_cell = (ts, ce, pdr)
-                                     
-                    #this is part of a bundle of cells for that neighbor, keep
-                    #the tuple ts, schedule entry, pdr
-                    bundle_avg += [(ts, ce, pdr)]
+                pdr = float(ce['numTxAck']) / float(ce['numTx'])
+                
+                
+                if worst_cell == (None,None,None):
+                    worst_cell = (ts, ce, pdr)
+                
+                #find worst cell in terms of pdr
+                if pdr < worst_cell[2]:
+                    worst_cell = (ts, ce, pdr)
+                                 
+                #this is part of a bundle of cells for that neighbor, keep
+                #the tuple ts, schedule entry, pdr
+                bundle_avg += [(ts, ce, pdr)]
                     
                             
         #compute the distance to the other cells in the bundle,
         #if the worst cell is far from any of the other cells reschedule it
         for bce in bundle_avg:
-            diff = bce[2] / worst_cell[2] #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
-                                              # be bigger if worst_cell is very bad.     
-            if diff > self.PDR_THRESHOLD:
+            #compare pdr, maxCell pdr will be smaller than other cells so the ratio will
+            # be bigger if worst_cell is very bad.     
+            if bce[2]/self.PDR_THRESHOLD > worst_cell[2]:
+            
                 #reschedule the cell -- add to avoid scheduling the same
                 print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id)
                 self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
@@ -796,8 +799,25 @@ class Mote(object):
                 self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
                 self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
                 self._incrementStats('numCellsReallocated')
-                break;
-
+                break
+        
+        # check whether all scheduled cells are collided
+        if self.schedule.has_key(worst_cell[0]): # worst cell is not removed
+            avgPDR = float(numAckTotal)/float(numTxTotal)
+            if self.getPDR(worst_cell[1]['neighbor'])/100.0/self.PDR_THRESHOLD > avgPDR: 
+                # reallocate all the scheduled cells
+                for bce in bundle_avg:
+                    print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id)
+                    self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id))
+                    self._addCellToNeighbor(bce[1]['neighbor'])
+                    #and delete old one
+                    self._removeCellToNeighbor(bce[0], bce[1])
+                    # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
+                    self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
+                    self.engine.removeEvent(uniqueTag=(bce[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
+                    self._incrementStats('numCellsReallocated')
+        
+        
     def _removeWorstCellToNeighbor(self, node):
         ''' finds the worst cell in each bundle and remove it from schedule 
         '''
