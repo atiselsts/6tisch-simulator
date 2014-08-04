@@ -105,7 +105,7 @@ class Mote(object):
            self.rank    = 0
            self.dagRank = 0
            self.parent  = self
-           self.numPktReached = 0 # number of packets reached to DAG root
+           self.accumLatency = 0 # Accumulated latency to reach to DAG root (in slot)
         else:
            self.dagRoot = False
            self.rank    = None
@@ -591,6 +591,7 @@ class Mote(object):
             
             if self.dagRoot == True and smac != None:
                 self._incrementStats('dataRecieved')
+                self.accumLatency += asn-payload[1] 
                         
             if self.dagRoot == False and self.parent != None and smac != None and self.getTxCells()!=[]:
                 
@@ -664,7 +665,7 @@ class Mote(object):
                     'asn':      self.engine.getAsn(),
                     'nextHop':  nextHop,
                     'type':     self.TYPE_DATA,
-                    'payload':  [],
+                    'payload':  [self.id,self.engine.getAsn()], # the payload is used for latency calculation
                 }]
                 self._incrementStats('dataQueueOK')
             else:

@@ -153,7 +153,7 @@ class SimEngine(threading.Thread):
                 cycle = int(self.asn/s().timeslots)
                 if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
                     if cycle == 0:
-                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\tgen pkt\treach\tqueue\toverflow\te2e PDR\n\n')
+                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
                     print('Run num: {0} cycle: {1}'.format(self.count, cycle))
                     
                     numGeneratedPkts  = self.countGeneratedPackets()
@@ -164,8 +164,11 @@ class SimEngine(threading.Thread):
                         e2ePDR = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
                     else:
                         e2ePDR = 0.0
-                    
-                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\n'.format(
+                    if numPacketsReached > 0:
+                        avgLatency = float(self.motes[0].accumLatency)/float(numPacketsReached)
+                    else:
+                        avgLatency = 0.0
+                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\n'.format(
                                                                self.count, #0
                                                                cycle, #1
                                                                self.numAccumScheduledCells, #2
@@ -181,7 +184,8 @@ class SimEngine(threading.Thread):
                                                                numPacketsReached,#12
                                                                numPacketsInQueue,#13
                                                                numOverflow,#14
-                                                               round(e2ePDR,3) #15
+                                                               round(e2ePDR,3), #15
+                                                               round(avgLatency,2), #16 
                                                                ))
                     self.propagation.initStats() 
                 
@@ -348,7 +352,7 @@ class SimEngine(threading.Thread):
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
             file.write('# side = {0}\n'.format(s().side))
-            file.write('# SC = Schedule Collision, PC = Packet Collision\n')        
+            file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')        
             
         
     #======================== private =========================================
