@@ -153,20 +153,35 @@ class SimEngine(threading.Thread):
                 cycle = int(self.asn/s().timeslots)
                 if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
                     if cycle == 0:
-                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\n\n')
+                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\tgen pkt\treach\tqueue\toverflow\te2e PDR\n\n')
                     print('Run num: {0} cycle: {1}'.format(self.count, cycle))
-                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\n'.format(
-                                                               self.count,
-                                                               cycle,
-                                                               self.numAccumScheduledCells,
-                                                               self.numAccumScheduledCells - self.numAccumScheduledCollisions,
-                                                               self.propagation.numAccumNoPktAtNSC,
-                                                               self.propagation.numAccumPktAtNSC,
-                                                               self.numAccumScheduledCollisions,                                                               
-                                                               self.propagation.numAccumNoPktAtSC,
-                                                               self.propagation.numAccumPktCollisions,
-                                                               self.propagation.numAccumNoPktCollisions,
-                                                               self.propagation.numAccumSuccess,
+                    
+                    numGeneratedPkts  = self.countGeneratedPackets()
+                    numPacketsInQueue = self.countPacketsInQueue()
+                    numOverflow = self.countQueueFull()
+                    numPacketsReached = self.motes[0].getStats()['dataRecieved']
+                    if numGeneratedPkts-numPacketsInQueue > 0:
+                        e2ePDR = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
+                    else:
+                        e2ePDR = 0.0
+                    
+                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\n'.format(
+                                                               self.count, #0
+                                                               cycle, #1
+                                                               self.numAccumScheduledCells, #2
+                                                               self.numAccumScheduledCells - self.numAccumScheduledCollisions, #3
+                                                               self.propagation.numAccumNoPktAtNSC, #4
+                                                               self.propagation.numAccumPktAtNSC, #5
+                                                               self.numAccumScheduledCollisions, #6                                                               
+                                                               self.propagation.numAccumNoPktAtSC, #7
+                                                               self.propagation.numAccumPktCollisions, #8
+                                                               self.propagation.numAccumNoPktCollisions, #9
+                                                               self.propagation.numAccumSuccess, #10
+                                                               numGeneratedPkts, #11
+                                                               numPacketsReached,#12
+                                                               numPacketsInQueue,#13
+                                                               numOverflow,#14
+                                                               round(e2ePDR,3) #15
                                                                ))
                     self.propagation.initStats() 
                 
@@ -294,7 +309,35 @@ class SimEngine(threading.Thread):
             self.numAccumScheduledCells += len(self.scheduledCells)
             self.numAccumScheduledCollisions += len(self.collisionCells)
                 
+    def countPacketsInQueue(self):
+        # count the number of packets in queues of all motes at current asn
+        
+        with self.dataLock:
+            numPkt = 0
+            for mote in self.motes:
+                numPkt += len(mote.txQueue)
+            return numPkt
     
+    def countGeneratedPackets(self):
+        # count the number of generated packets of all motes
+        
+        with self.dataLock:
+            numPkt = 0
+            for mote in self.motes:
+                stats = mote.getStats()
+                numPkt += stats['dataGenerated']
+            return numPkt
+
+    def countQueueFull(self):
+        # count the number of generated packets of all motes
+        
+        with self.dataLock:
+            numPkt = 0
+            for mote in self.motes:
+                stats = mote.getStats()
+                numPkt += stats['dataQueueFull']
+            return numPkt
+   
     def fileInit(self, file):
         if self.INIT_FILE == False:
             self.INIT_FILE = True

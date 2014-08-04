@@ -105,6 +105,7 @@ class Mote(object):
            self.rank    = 0
            self.dagRank = 0
            self.parent  = self
+           self.numPktReached = 0 # number of packets reached to DAG root
         else:
            self.dagRoot = False
            self.rank    = None
@@ -588,12 +589,15 @@ class Mote(object):
             
             self.waitingFor = None
             
+            if self.dagRoot == True and smac != None:
+                self._incrementStats('dataRecieved')
+                        
             if self.dagRoot == False and self.parent != None and smac != None and self.getTxCells()!=[]:
                 
                 # count incoming traffic for each node
                 self._incrementIncomingTraffics(smac)
                 # add to queue
-                self._incrementStats('dataRelayed')
+                self._incrementStats('dataRecieved')
                 nextHop = self.selectNextHop()
                 if len(self.txQueue)<self.QUEUE_SIZE:
                     self.txQueue += [{
@@ -961,7 +965,7 @@ class Mote(object):
         with self.dataLock:
             self.stats = {
                 'dataGenerated':  0,
-                'dataRelayed':  0,                
+                'dataRecieved':  0,                
                 'dataQueueOK':    0,
                 'dataQueueFull':  0,
                 'numCellsReallocated': 0,
