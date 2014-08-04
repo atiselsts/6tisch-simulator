@@ -25,7 +25,7 @@ import SimSettings
 
 class Mote(object):
     
-    HOUSEKEEPING_PERIOD      = 1#10
+    HOUSEKEEPING_PERIOD      = 1
     QUEUE_SIZE               = 10
     
     # sufficient num. of tx to estimate pdr by ACK
@@ -72,7 +72,6 @@ class Mote(object):
         self.setLocation()
         self.waitingFor      = None
         self.radioChannel    = None
-        self.dataPeriod      = {}
         self.PDR             = {} #indexed by neighbor
         self.RSSI            = {} #indexed by neighbor        
         self.numCells        = {}
@@ -87,19 +86,20 @@ class Mote(object):
         # set _action_monitoring after all traffic generated (1.1 * slot frame duration assumed)
         # so that cell scheduling can start
         # this setting also prevents that _action_activeCell can be called without no data at queue
-        self.firstHousekeepinPeriod = 1.1 * self.settings.slotDuration*self.settings.timeslots 
+        self.firstHousekeepinPeriod = 1.1 * self.settings.slotDuration * self.settings.timeslots 
         
         # set DIO period as 1 cycle of slotframe
         self.dioPeriod = self.settings.timeslots
         # number of received DIOs
         self.numRxDIO = {} #indexed by neighbor
         self.collectDIO = False
-        self.reliableStats = False
+        self.dataStart = False
         
         # RPL initialization
         self.ranks           = {} #indexed by neighbor
         self.dagRanks        = {} #indexed by neighbor
-        
+        self.trafficDistribution = {} # indexed by parents, traffic portion of outgoing traffic
+                
         if self.id == 0: # mote with id 0 becomes a DAG root  
            self.dagRoot = True
            self.rank    = 0
@@ -107,8 +107,8 @@ class Mote(object):
            self.parent  = self
         else:
            self.dagRoot = False
-           self.rank    = None#100*self.MIN_HOP_RANK_INCREASE # Large value not to be chosen as a parent at the beginning
-           self.dagRank = None#100
+           self.rank    = None
+           self.dagRank = None
            self.parent  = None # preferred parent    
            self.parents = [] # set of parents
 
@@ -119,76 +119,7 @@ class Mote(object):
         
         
     #======================== public =========================================
-    
-    def setDataEngine(self,neighbor,dataPeriod):
-        ''' sets the period to communicate with that neighbor '''
-        with self.dataLock:
-            self.dataPeriod[neighbor] = dataPeriod
-            self._schedule_sendData(neighbor)
-
-    def setDataEngineAll(self):
-        ''' sets the period to communicate for all neighbors/parents '''
-        with self.dataLock:
-            
-            '''
-            # if DIO from all neighbors are collected, set self.collectDIO = True            
-            if self.collectDIO == False:                
-                self.collectDIO = True
-                for (neighbor, _) in self.PDR.items():
-                    if self.numRxDIO.has_key(neighbor):
-                        if self.numRxDIO[neighbor] < self.NUM_SUFFICIENT_DIO:
-                            self.collectDIO = False
-                            break            
-                    else:
-                        self.collectDIO = False
-                        break            
                         
-            # at initial phase, sends data to all neighbors    
-            if self.collectDIO == False:
-
-                # divides data portion equally to all neighbors
-                for (neighbor, _) in self.PDR.items():
-                    portion = 1.0/len(self.PDR.items())
-                    period = self.settings.traffic/portion                    
-                    self.dataPeriod[neighbor] = period
-                    self._schedule_sendData(neighbor)           
-                    
-            # after statistics become reliable, sends data to parents   
-            else:
-                # divides data portion to parents in inverse ratio to DagRank
-                sum = 0.0
-                resultingRanks = {}
-                for p in self.parents:
-                    resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
-                    sum += 1.0/resultingRanks[p]
-                for p in self.parents:
-                    portion = (1.0/resultingRanks[p])/sum
-                    period = self.settings.traffic/portion                    
-                    self.dataPeriod[p] = period           
-                    self._schedule_sendData(p)
-                for (neighbor, _) in self.PDR.items():
-                    # remove sendData of neighbor which is not selected as a parent 
-                    if neighbor not in self.parents and neighbor in self.dataPeriod.keys():
-                        self.engine.removeEvent((self.id, neighbor.id,'sendData'))
-                        del self.dataPeriod[neighbor]
-            '''
-            # divides data portion to parents in inverse ratio to DagRank
-            sum = 0.0
-            resultingRanks = {}
-            for p in self.parents:
-                resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
-                sum += 1.0/resultingRanks[p]
-            for p in self.parents:
-                portion = (1.0/resultingRanks[p])/sum
-                period = self.settings.traffic/portion                    
-                self.dataPeriod[p] = period           
-                self._schedule_sendData(p)
-            for (neighbor, _) in self.PDR.items():
-                # remove sendData of neighbor which is not selected as a parent 
-                if neighbor not in self.parents and neighbor in self.dataPeriod.keys():
-                    self.engine.removeEvent((self.id, neighbor.id,'sendData'))
-                    del self.dataPeriod[neighbor]
-                    
     def setPDR(self,neighbor,pdr):
         ''' sets the pdr to that neighbor'''
         with self.dataLock:
@@ -411,13 +342,28 @@ class Mote(object):
 
             # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
+
+    def setTrafficDistribution(self):
+        ''' sets the period to communicate for all neighbors/parents '''
+        with self.dataLock:
+            
+            # divides data portion to parents in inverse ratio to DagRank
+            sum = 0.0
+            resultingRanks = {}
+            self.trafficDistribution = {}
+            for p in self.parents:
+                resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
+                sum += 1.0/resultingRanks[p]
+            for p in self.parents:
+                portion = (1.0/resultingRanks[p])/sum
+                self.trafficDistribution[p] = portion
         
     def selectNextHop(self):
         # select next hop to relay a packet based on the current traffic allotment
         with self.dataLock:
             
             numNeighborInQueue = {}            
-            for (neighbor, _) in self.PDR.items():
+            for neighbor in self.PDR.keys():
                 numNeighborInQueue[neighbor] = 0
                     
             # count num of packets in queue per neighbor 
@@ -441,12 +387,9 @@ class Mote(object):
                         if numNeighborInQueue[neighbor] < 0:
                             return neighbor
                         else:
-                            i += 1
                             break
                 i += 1
             
-                
-
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
         with self.dataLock:
@@ -506,7 +449,7 @@ class Mote(object):
                 # update rank
                 self.setRank()
                 
-                for (neighbor, _) in self.PDR.items():
+                for neighbor in self.PDR.keys():
                     if neighbor.dagRoot == False:
                         # neighbor stores DAG rank and rank from the sender
                         neighbor.dagRanks[self] = self.dagRank
@@ -520,6 +463,7 @@ class Mote(object):
                         
                         # neighbor updates its parent
                         neighbor.setParent()
+                        neighbor.setTrafficDistribution()
                     
             self._schedule_DIO()                
             
@@ -703,47 +647,39 @@ class Mote(object):
     
     #===== sendData
     
-    def _action_sendData(self,neighbor):
+    def _action_sendData(self):
         ''' actual send data function. Evaluates queue length too '''
-        # log
-        self._log(self.DEBUG,"_action_sendData to {0}".format(neighbor.id))
         
-        # add to queue
-        self._incrementStats('dataGenerated')
-        if len(self.txQueue)<self.QUEUE_SIZE:
-            self.txQueue += [{
-                'asn':      self.engine.getAsn(),
-                'nextHop':  neighbor,
-                'type':     self.TYPE_DATA,
-                'payload':  [],
-            }]
-            self._incrementStats('dataQueueOK')
-        else:
-            self._incrementStats('dataQueueFull')
+        if self.getTxCells() != []:
+            nextHop = self.selectNextHop()
+            
+            # add to queue
+            self._incrementStats('dataGenerated')
+            if len(self.txQueue)<self.QUEUE_SIZE:
+                self.txQueue += [{
+                    'asn':      self.engine.getAsn(),
+                    'nextHop':  nextHop,
+                    'type':     self.TYPE_DATA,
+                    'payload':  [],
+                }]
+                self._incrementStats('dataQueueOK')
+            else:
+                self._incrementStats('dataQueueFull')
         
         # schedule next _action_sendData
-        #self._schedule_sendData(neighbor)
-        
-        # update data periods of destinations and schedule next _action_sendData
-        self.setDataEngineAll()
-    
-    def _schedule_sendData(self,neighbor):
-        ''' create an event that is inserted into the simulator engine to send the data according to the dataPeriod'''
-        # cancel activity if neighbor disappeared from schedule
-        if neighbor not in self.dataPeriod:
-            return
-        
+        self._schedule_sendData()
+            
+    def _schedule_sendData(self):
+        ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
+
         # compute random
-        delay      = self.dataPeriod[neighbor]*(0.9+0.2*random.random())
-        
-        # create lambda function with destination
-        cb         = lambda x=neighbor: self._action_sendData(x)
+        delay      = self.settings.traffic*(0.9+0.2*random.random())
         
         # schedule
         self.engine.scheduleIn(
             delay     = delay,
-            cb        = cb,
-            uniqueTag = (self.id,neighbor.id,'sendData')
+            cb        = self._action_sendData,
+            uniqueTag = (self.id, 'sendData')
         )
     
     #===== monitoring
@@ -804,7 +740,7 @@ class Mote(object):
         # check whether all scheduled cells are collided
         if self.schedule.has_key(worst_cell[0]): # worst cell is not removed
             avgPDR = float(numAckTotal)/float(numTxTotal)
-            if self.getPDR(worst_cell[1]['neighbor'])/100.0/self.PDR_THRESHOLD > avgPDR: 
+            if self.getPDR(node)/100.0/self.PDR_THRESHOLD > avgPDR: 
                 # reallocate all the scheduled cells
                 for bce in bundle_avg:
                     print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id)
@@ -864,33 +800,32 @@ class Mote(object):
             # if DIO from all neighbors are collected, set self.collectDIO = True            
             if self.collectDIO == False:                
                 self.collectDIO = True
-                for (neighbor, _) in self.PDR.items():
+                for neighbor in self.PDR.keys():
                     if self.numRxDIO.has_key(neighbor):
                         if self.numRxDIO[neighbor] < self.NUM_SUFFICIENT_DIO:
                             self.collectDIO = False
                             break            
                     else:
                         self.collectDIO = False
-                        break            
-
+                        break
+                        
             # data generation starts if DIOs are received from all the neighbors            
-            if self.collectDIO == True and self.dagRoot == False:
-                self.setDataEngineAll()
+            if self.collectDIO == True and self.dataStart == False and self.dagRoot == False:
+                self.dataStart = True
+                self._schedule_sendData()
             
             # calculate incoming traffic stats
             self._averageIncomingTraffics()
             self._resetIncomingTraffics()
             
-            # calculate total traffic (pkt/sec) to be sent
+            # calculate total traffic
             totalTraffic = 1.0/self.settings.traffic*self.settings.timeslots*self.settings.slotDuration # converts from (sec/pkt) to (pkt/cycle)
-            for (n,_) in self.PDR.items():
+            for n in self.PDR.keys():
                 if self.averageIncomingTraffics.has_key(n):
                     totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.timeslots*self.settings.slotDuration
-                        
-            for (n,period) in self.dataPeriod.items():
-                
-                # calculate outgoing traffic
-                portion = self.settings.traffic/period
+            
+            for (n,portion) in self.trafficDistribution.items():
+                            
                 # ETX acts as overprovision
                 #reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
                 reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
@@ -907,8 +842,7 @@ class Mote(object):
                     elif reqNumCell < numCell:
                         self._removeWorstCellToNeighbor(n)
                         if numCell == self.numCells.get(n): # cannot find worst cell due to insufficient tx
-                            break
-                        
+                            break                        
                     else: # reqNumCell = numCell
                         break
                 
@@ -919,16 +853,15 @@ class Mote(object):
                           
             
             # remove scheduled cells if its destination is not a parent        
-            if len(self.dataPeriod) != 0: # after data setting
-                for (n,_) in self.PDR.items(): # for all neighbors
-                    if not self.dataPeriod.has_key(n): 
-                        remove = False
-                        for (ts,cell) in self.schedule.items():
-                            if cell['neighbor'] == n and cell['dir'] == self.TX:
-                                remove = True
-                                self._removeCellToNeighbor(ts,cell)
-                        if remove == True: # if at least one cell is removed, then updade next active cell
-                            n._schedule_next_ActiveCell()       
+            for n in self.PDR.keys():        # for all neighbors
+                if not self.trafficDistribution.has_key(n): 
+                    remove = False
+                    for (ts,cell) in self.schedule.items():
+                        if cell['neighbor'] == n and cell['dir'] == self.TX:
+                            remove = True
+                            self._removeCellToNeighbor(ts,cell)
+                    if remove == True: # if at least one cell is removed, then updade next active cell
+                        n._schedule_next_ActiveCell()       
             
             # schedule next active cell
             # Note: this is needed in case the monitoring action modified the schedule
@@ -1040,7 +973,7 @@ class Mote(object):
     
     def _resetIncomingTraffics(self):
         with self.dataLock:
-            for (neighbor, _) in self.PDR.items():
+            for neighbor in self.PDR.keys():
                 self.incomingTraffics[neighbor] = 0
 
     def _incrementIncomingTraffics(self,neighbor):
@@ -1049,7 +982,7 @@ class Mote(object):
 
     def _averageIncomingTraffics(self):
         with self.dataLock:
-            for (neighbor, _) in self.PDR.items():
+            for neighbor in self.PDR.keys():
                 if self.averageIncomingTraffics.has_key(neighbor):
                     self.averageIncomingTraffics[neighbor] = self.SMOOTHING*self.incomingTraffics[neighbor] \
                     + (1-self.SMOOTHING)*self.averageIncomingTraffics[neighbor]

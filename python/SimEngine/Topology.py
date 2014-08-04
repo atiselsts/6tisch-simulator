@@ -101,6 +101,7 @@ class Topology(object):
                 
         return self.motes
     
+    # not used
     def _createRandomTopology(self):
         for id in range(len(self.motes)):
             neighborId = None
@@ -115,7 +116,8 @@ class Topology(object):
                 self.motes[neighborId],
                 s().traffic,
             )
-            
+    
+    # not used        
     def _createFullMeshTopology(self):
         for id in range(len(self.motes)):
             for nei in range(len(self.motes)):
@@ -138,6 +140,7 @@ class Topology(object):
         #upstream link
         self.motes[child].setDataEngine(self.motes[id], s().traffic)
 
+    # not used
     def _createBTreeTopology(self):
         print 'len {0}, {1}'.format(len(self.motes),(len(self.motes)/2))
         for id in range((len(self.motes)/2)):
@@ -149,7 +152,7 @@ class Topology(object):
                   self._addChild(id,2*(id+1))
                   print 'child 2 {0}'.format(2*(id+1))
     
-    
+    # not used
     def _createMinDistanceTopology(self):
         for id in range(len(self.motes)):
             #link to 2 min distance neighbors
@@ -166,7 +169,7 @@ class Topology(object):
                 self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
                 self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
                 
-            
+    # not used        
     def _createRadiusDistanceTopology(self):
         for id in range(len(self.motes)):
             #link to all neighbors with distance smaller than radius
@@ -179,6 +182,7 @@ class Topology(object):
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
                         self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
                
+    # not used
     def _createMaxRssiTopology(self):
         for id in range(len(self.motes)):
             #link to a neighbor with max RSSI           
@@ -234,10 +238,6 @@ class Topology(object):
             for nei in neighbors:
                 self.motes[id].setPDR(self.motes[nei], self.computePDR(id, nei))
             
-            # DAG root does not generate data
-            # if self.motes[id].dagRoot == False:
-            #    self.motes[id].setDataEngineAll() 
-        
             
     
     def computePDR(self,node,neighbor): 

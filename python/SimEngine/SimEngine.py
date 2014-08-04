@@ -84,8 +84,8 @@ class SimEngine(threading.Thread):
         self.goOn            = True
         
         #use the topology component to create the network
-        #TODO define topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        self.motes=self.topology.createTopology(self.topology.CONNECTED)
+        #update other topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
+        self.motes = self.topology.createTopology(self.topology.CONNECTED)
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -200,9 +200,7 @@ class SimEngine(threading.Thread):
                         del self.events[i]
                     else: #the list reduces its size when an element is deleted.
                          i += 1
-                    
-                 
-                
+                            
                 
     def scheduleIn(self,delay,cb,uniqueTag=None):
         ''' used to generate events. Puts an event to the queue '''    
