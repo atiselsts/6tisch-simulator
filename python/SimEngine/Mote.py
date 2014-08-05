@@ -40,6 +40,7 @@ class Mote(object):
     MAX_LINK_METRIC          = MAX_ETX*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
     MAX_PATH_COST            = 256*MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
     PARENT_SET_SIZE          = 3
+    TX_RETRIES               = 3
     
     SMOOTHING                = 0.5
     
@@ -81,7 +82,7 @@ class Mote(object):
         self.tPower          = 0
         self.antennaGain     = 0
         self.radioSensitivity = -101
-        
+        self.pktToSend       = None
 
         # set _action_monitoring after all traffic generated (1.1 * slot frame duration assumed)
         # so that cell scheduling can start
@@ -507,23 +508,24 @@ class Mote(object):
             elif cell['dir']==self.DIR_TX:
                 
                 # check whether packet to send
-                pktToSend = None
+                self.pktToSend = None
                 for i in range(len(self.txQueue)):
                     if self.txQueue[i]['nextHop']==cell['neighbor']:
-                       pktToSend = self.txQueue.pop(i)
+                       self.pktToSend = self.txQueue[i]
+                       self.txQueue[i]['retriesLeft'] -= 1
                        break
                 
                 # send packet
-                if pktToSend:
+                if self.pktToSend:
                     
                     cell['numTx'] += 1
                     
                     self.propagation.startTx(
                         channel   = cell['ch'],
-                        type      = pktToSend['type'],
+                        type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = pktToSend['nextHop'],
-                        payload   = pktToSend['payload'],
+                        dmac      = self.pktToSend['nextHop'],
+                        payload   = self.pktToSend['payload'],
                     )
                     
                     # indicate that we're waiting for the RX operation to finish
@@ -555,10 +557,14 @@ class Mote(object):
             
             if success:
                 self.schedule[ts]['numTxAck'] += 1
+                self.txQueue.remove(self.pktToSend) 
+                
             else:
                 # failure include collision and normal packet error
                 self.schedule[ts]['numTxFailures'] += 1    
-            
+                i = self.txQueue.index(self.pktToSend)
+                if self.txQueue[i]['retriesLeft'] == 0:
+                    self.txQueue.remove(self.pktToSend)    
             self.waitingFor = None
             
             # schedule next active cell
@@ -606,6 +612,7 @@ class Mote(object):
                         'nextHop':  nextHop,
                         'type':     type,
                         'payload':  payload,
+                        'retriesLeft': self.TX_RETRIES
                     }]
                     self._incrementStats('dataQueueOK')
                 else:
@@ -666,6 +673,7 @@ class Mote(object):
                     'nextHop':  nextHop,
                     'type':     self.TYPE_DATA,
                     'payload':  [self.id,self.engine.getAsn()], # the payload is used for latency calculation
+                    'retriesLeft': self.TX_RETRIES
                 }]
                 self._incrementStats('dataQueueOK')
             else:
@@ -832,8 +840,8 @@ class Mote(object):
             for (n,portion) in self.trafficDistribution.items():
                             
                 # ETX acts as overprovision
-                #reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
-                reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
+                reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
+                #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
                 
                 # Compare outgoing traffic with total traffic to be sent 
                 while True:                
