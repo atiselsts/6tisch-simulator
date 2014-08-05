@@ -84,11 +84,6 @@ class Mote(object):
         self.radioSensitivity = -101
         self.pktToSend       = None
 
-        # set _action_monitoring after all traffic generated (1.1 * slot frame duration assumed)
-        # so that cell scheduling can start
-        # this setting also prevents that _action_activeCell can be called without no data at queue
-        self.firstHousekeepinPeriod = 1.1 * self.settings.slotDuration * self.settings.timeslots 
-        
         # set DIO period as 1 cycle of slotframe
         self.dioPeriod = self.settings.timeslots
         # number of received DIOs
@@ -147,8 +142,8 @@ class Mote(object):
         with self.dataLock:
             self.booted      = False
         
-        # schedule first monitoring
-        self._schedule_monitoring(delay = self.firstHousekeepinPeriod)        
+        # schedule monitoring
+        self._schedule_monitoring()        
         # schedule first active cell
         self._schedule_next_ActiveCell()
         # schedule DIO
@@ -360,37 +355,6 @@ class Mote(object):
                 portion = (1.0/resultingRanks[p])/sum
                 self.trafficDistribution[p] = portion
         
-    def selectNextHop(self):
-        # select next hop to relay a packet based on the current traffic allotment
-        with self.dataLock:
-            
-            numNeighborInQueue = {}            
-            for neighbor in self.PDR.keys():
-                numNeighborInQueue[neighbor] = 0
-                    
-            # count num of packets in queue per neighbor 
-            for i in range(len(self.txQueue)):
-                neighbor = self.txQueue[i]['nextHop']
-                numNeighborInQueue[neighbor] += 1
-
-            asn = self.engine.getAsn()                    
-            # get timeslotOffset of current asn
-            ts = asn%self.settings.timeslots
-            
-            txCells = self.getTxCells()
-            # finally returns the neighbor which does not have a packet to send in queue
-            i = 1
-            while True:
-                scan = (ts+i) % self.settings.timeslots # search starts from next asn (ts+1)
-                for j in range(len(txCells)):
-                    if scan == txCells[j][0]:
-                        neighbor = txCells[j][2]
-                        numNeighborInQueue[neighbor] -= 1
-                        if numNeighborInQueue[neighbor] < 0:
-                            return neighbor
-                        else:
-                            break
-                i += 1
             
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
@@ -507,13 +471,11 @@ class Mote(object):
             
             elif cell['dir']==self.DIR_TX:
                 
-                # check whether packet to send
+                # check whether packet to send                
                 self.pktToSend = None
-                for i in range(len(self.txQueue)):
-                    if self.txQueue[i]['nextHop']==cell['neighbor']:
-                       self.pktToSend = self.txQueue[i]
-                       self.txQueue[i]['retriesLeft'] -= 1
-                       break
+                if self.txQueue != []:
+                    self.pktToSend = self.txQueue[0]
+                    self.txQueue[0]['retriesLeft'] -= 1
                 
                 # send packet
                 if self.pktToSend:
@@ -524,7 +486,7 @@ class Mote(object):
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = self.pktToSend['nextHop'],
+                        dmac      = cell['neighbor'],
                         payload   = self.pktToSend['payload'],
                     )
                     
@@ -605,11 +567,9 @@ class Mote(object):
                 self._incrementIncomingTraffics(smac)
                 # add to queue
                 self._incrementStats('dataRecieved')
-                nextHop = self.selectNextHop()
                 if len(self.txQueue)<self.QUEUE_SIZE:
                     self.txQueue += [{
                         'asn':      self.engine.getAsn(),
-                        'nextHop':  nextHop,
                         'type':     type,
                         'payload':  payload,
                         'retriesLeft': self.TX_RETRIES
@@ -663,14 +623,12 @@ class Mote(object):
         ''' actual send data function. Evaluates queue length too '''
         
         if self.getTxCells() != []:
-            nextHop = self.selectNextHop()
             
             # add to queue
             self._incrementStats('dataGenerated')
             if len(self.txQueue)<self.QUEUE_SIZE:
                 self.txQueue += [{
                     'asn':      self.engine.getAsn(),
-                    'nextHop':  nextHop,
                     'type':     self.TYPE_DATA,
                     'payload':  [self.id,self.engine.getAsn()], # the payload is used for latency calculation
                     'retriesLeft': self.TX_RETRIES
@@ -837,27 +795,28 @@ class Mote(object):
                 if self.averageIncomingTraffics.has_key(n):
                     totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.timeslots*self.settings.slotDuration
             
-            for (n,portion) in self.trafficDistribution.items():
-                            
-                # ETX acts as overprovision
-                reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
-                #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
-                
-                # Compare outgoing traffic with total traffic to be sent 
-                while True:                
-                    numCell = self.numCells.get(n)
-
-                    if reqNumCell > numCell:
-                        # schedule another cell if needed
-                        self._addCellToNeighbor(n)
-                        if numCell == self.numCells.get(n): # cannot find free time slot
+            if self.dataStart == True:
+                for (n,portion) in self.trafficDistribution.items():
+                                
+                    # ETX acts as overprovision
+                    reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
+                    #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
+                    
+                    # Compare outgoing traffic with total traffic to be sent 
+                    while True:                
+                        numCell = self.numCells.get(n)
+    
+                        if reqNumCell > numCell:
+                            # schedule another cell if needed
+                            self._addCellToNeighbor(n)
+                            if numCell == self.numCells.get(n): # cannot find free time slot
+                                break
+                        elif reqNumCell < numCell:
+                            self._removeWorstCellToNeighbor(n)
+                            if numCell == self.numCells.get(n): # cannot find worst cell due to insufficient tx
+                                break                        
+                        else: # reqNumCell = numCell
                             break
-                    elif reqNumCell < numCell:
-                        self._removeWorstCellToNeighbor(n)
-                        if numCell == self.numCells.get(n): # cannot find worst cell due to insufficient tx
-                            break                        
-                    else: # reqNumCell = numCell
-                        break
                 
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
@@ -883,20 +842,13 @@ class Mote(object):
             # schedule next monitoring
             self._schedule_monitoring()
     
-    def _schedule_monitoring(self, delay = HOUSEKEEPING_PERIOD):
+    def _schedule_monitoring(self):
         ''' tells to the simulator engine to add an event to monitor the network'''
-        if delay == self.HOUSEKEEPING_PERIOD:
-            self.engine.scheduleIn(
-                delay     = delay*(0.9+0.2*random.random()),
-                cb        = self._action_monitoring,
-                uniqueTag = (self.id,'monitoring')
-            )
-        else:
-            self.engine.scheduleIn(
-                delay     = delay,
-                cb        = self._action_monitoring,
-                uniqueTag = (self.id,'monitoring')
-            )
+        self.engine.scheduleIn(
+            delay     = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
+            cb        = self._action_monitoring,
+            uniqueTag = (self.id,'monitoring')
+        )
             
     
     def _addCellToNeighbor(self,neighbor):
