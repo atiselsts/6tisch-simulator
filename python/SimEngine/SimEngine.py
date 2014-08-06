@@ -153,7 +153,7 @@ class SimEngine(threading.Thread):
                 cycle = int(self.asn/s().timeslots)
                 if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
                     if cycle == 0:
-                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tSC\tno pkt\tPC\tno PC\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
+                        f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
                     print('Run num: {0} cycle: {1}'.format(self.count, cycle))
                     
                     numGeneratedPkts  = self.countGeneratedPackets()
@@ -175,11 +175,11 @@ class SimEngine(threading.Thread):
                                                                self.numAccumScheduledCells - self.numAccumScheduledCollisions, #3
                                                                self.propagation.numAccumNoPktAtNSC, #4
                                                                self.propagation.numAccumPktAtNSC, #5
-                                                               self.numAccumScheduledCollisions, #6                                                               
-                                                               self.propagation.numAccumNoPktAtSC, #7
-                                                               self.propagation.numAccumPktCollisions, #8
-                                                               self.propagation.numAccumNoPktCollisions, #9
-                                                               self.propagation.numAccumSuccess, #10
+                                                               self.propagation.numAccumSuccessAtNSC, #6
+                                                               self.numAccumScheduledCollisions, #7                                                               
+                                                               self.propagation.numAccumNoPktAtSC, #8
+                                                               self.propagation.numAccumPktAtSC, #9
+                                                               self.propagation.numAccumSuccessAtSC, #10
                                                                numGeneratedPkts, #11
                                                                numPacketsReached,#12
                                                                numPacketsInQueue,#13

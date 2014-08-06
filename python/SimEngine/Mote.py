@@ -82,8 +82,9 @@ class Mote(object):
         self.tPower          = 0
         self.antennaGain     = 0
         self.radioSensitivity = -101
+        self.noisepower      = -105 # in dBm
         self.pktToSend       = None
-
+        
         # set DIO period as 1 cycle of slotframe
         self.dioPeriod = self.settings.timeslots
         # number of received DIOs

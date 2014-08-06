@@ -18,6 +18,7 @@ log.addHandler(NullHandler())
 
 import threading
 import random
+import math
 
 import SimEngine
 
@@ -50,21 +51,23 @@ class Propagation(object):
         self.collisions          = []        
         self.rxFailures          = []
         
-        self.numPktCollisions          = 0 # Packet collision at schedule collision cells
-        self.numNoPktCollisions        = 0 # No Packet collision at schedule collision cells
+        # for schedule collision cells
+        self.numPktAtSC                = 0 
         self.numNoPktAtSC              = 0 # No Packet at schedule collision cells
-
+        self.numSuccessAtSC            = 0
+        
+        # for schedule collision free cells
         self.numPktAtNSC               = 0 # packets at non schedule collision cells
         self.numNoPktAtNSC             = 0 # no packets at non schedule collision cells
-        self.numSuccess                = 0 # success transmissions at both NSC and SC 
+        self.numSuccessAtNSC           = 0 # success transmissions at both NSC and SC 
         
-        self.numAccumPktCollisions     = 0
-        self.numAccumNoPktCollisions   = 0 
+        self.numAccumPktAtSC           = 0
         self.numAccumNoPktAtSC         = 0 
-
+        self.numAccumSuccessAtSC       = 0
+         
         self.numAccumPktAtNSC          = 0 
         self.numAccumNoPktAtNSC        = 0 
-        self.numAccumSuccess           = 0
+        self.numAccumSuccessAtNSC      = 0
         
         # for debug
         self.engine          = SimEngine.SimEngine()
@@ -72,13 +75,14 @@ class Propagation(object):
     def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
-            self.numAccumPktCollisions     = 0
-            self.numAccumNoPktCollisions   = 0 
-            self.numAccumNoPktAtSC         = 0
-            self.numAccumPktAtNSC          = 0 
-            self.numAccumNoPktAtNSC        = 0
-            self.numAccumSuccess           = 0
 
+            self.numAccumPktAtSC           = 0
+            self.numAccumNoPktAtSC         = 0 
+            self.numAccumSuccessAtSC       = 0
+             
+            self.numAccumPktAtNSC          = 0 
+            self.numAccumNoPktAtNSC        = 0 
+            self.numAccumSuccessAtNSC      = 0
 
             
     def startRx(self,mote,channel):
@@ -110,7 +114,53 @@ class Propagation(object):
                 'smac':           smac,
                 'dmac':           dmac,
             }]
-    
+
+    def dBmTomW(self, dBm):
+        ''' translate dBm to mW '''        
+        return math.pow(10.0, dBm/10.0)
+
+    def mWTodBm(self, mW):
+        ''' translate dBm to mW '''        
+        return 10*math.log10(mW)
+
+    def computeSINR(self, smac, dmac, interferers):
+        ''' compute SINR  '''        
+        noise = self.dBmTomW(dmac.noisepower)
+        # S = RSSI - N
+        signal = self.dBmTomW(smac.getRSSI(dmac.id)) - noise
+        if signal < 0.0:
+            # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB) 
+            return -10.0
+        
+        totalInterference = 0.0
+        for interferer in interferers:
+            # I = RSSI - N
+            interference = self.dBmTomW(interferer.getRSSI(dmac.id)) - noise
+            if interference < 0.0:
+                # RSSI has not to be below noise level. If this happens, set interference 0.0 
+                interference = 0.0
+            totalInterference += interference
+        
+        sinr = signal/(totalInterference + noise)
+        
+        return self.mWTodBm(sinr)
+            
+    def computePdrFromSINR(self, sinr, dmac):
+        ''' compute PDR from SINR  '''        
+
+        # equivalent RSSI means RSSI which has same SNR as input SINR
+        equivalentRSSI = self.mWTodBm(self.dBmTomW(sinr + dmac.noisepower) + self.dBmTomW(dmac.noisepower))
+            
+        # TODO these values are tentative. Need to check datasheet for RSSI vs PDR relationship. 
+        if equivalentRSSI < -85 and equivalentRSSI > dmac.radioSensitivity:
+            pdr=(equivalentRSSI - dmac.radioSensitivity)*6.25
+        elif equivalentRSSI <= dmac.radioSensitivity:
+            pdr=0.0
+        elif equivalentRSSI > -85:
+            pdr=100.0
+            
+        return pdr 
+            
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
             for each of the transmitters do:
@@ -127,7 +177,6 @@ class Propagation(object):
                 # find matching receivers
                 i = 0
                 success = True # success in packet delivery
-                pktCollision = False
                 scheduleCollision = False
                 
                 num_receivers_ch = 0
@@ -138,21 +187,14 @@ class Propagation(object):
                         #check this is a real link --
                         if self.receivers[i]['mote'].id == transmission['dmac'].id:
                             
-                            # Check packet collision and schedule collision with other packets
+                            # Check schedule collision and concurrent transmission 
+                            interferers = []
                             for otherPacket in self.transmissions:
                                 if (otherPacket != transmission) and (otherPacket['channel'] == transmission['channel']):                                    
                                     if scheduleCollision == False:
                                         scheduleCollision = True
                                         scheduleCollisionChs.add(transmission['channel'])
-                                    
-                                    if otherPacket['smac'].getRSSI(transmission['dmac'].id) > self.RADIO_SENSITIVITY:
-                                        if pktCollision == False:
-                                            pktCollision = True
-                                            success = False
-                                            self.rxFailures += [self.receivers[i]]
-                                            del self.receivers[i]                                            
-                                            self.collisions += [transmission] # store collided packet for debug purpose
-                                            break
+                                    interferers.append(otherPacket['smac'])
 
                             # Check schedule collision between Tx and no Tx
                             if scheduleCollision == False: 
@@ -164,37 +206,42 @@ class Propagation(object):
                             
                             if scheduleCollision == False:
                                 self.numPktAtNSC += 1
-
-                            if scheduleCollision == True and pktCollision == True:
-                                self.numPktCollisions += 1
-                            
-                            if scheduleCollision == True and pktCollision == False:
-                                self.numNoPktCollisions += 1
-                            
+                            else:
+                                self.numPktAtSC += 1
+                                
+                                
                             # test whether a packet can be delivered   
-                            if pktCollision == False:                                                                                                                                
-                                # pick a random number
-                                failure = random.randint(0,100)
-                                # get pdr to that neighbor
-                                pdr = transmission['smac'].getPDR(transmission['dmac'])                                
-                                # if we are lucky the packet is sent
-                                if (pdr>=failure):
-                                    success = True
-                                    self.numSuccess += 1                                                
-                                    log.debug("send with pdr {0},{1}".format(pdr,failure))
-                                    self.receivers[i]['mote'].rxDone(
-                                        type       = transmission['type'],
-                                        smac       = transmission['smac'],
-                                        dmac       = transmission['dmac'],
-                                        payload    = transmission['payload']
-                                    )
-                                    del self.receivers[i]
+                            # get SINR to that neighbor and translate it to PDR
+                            sinr = self.computeSINR(transmission['smac'], transmission['dmac'], interferers)
+                            pdr = self.computePdrFromSINR(sinr, transmission['dmac'])
+                            pdr_debug = transmission['smac'].getPDR(transmission['dmac'])                                
+
+                            # pick a random number
+                            failure = random.randint(0,100)
+
+                            # if we are lucky the packet is sent
+                            if (pdr>=failure):
+                                success = True
+                                if scheduleCollision == True:
+                                    self.numSuccessAtSC += 1
                                 else:
-                                    success = False
-                                    log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr, failure, transmission['smac'].id, self.receivers[i]['mote'].id))  
-                                    self.rxFailures += [self.receivers[i]]
-                                    del self.receivers[i]                                         
-                                    # increment of i does not needed because of del self.receivers[i] 
+                                    self.numSuccessAtNSC += 1
+
+                                log.debug("send with pdr {0},{1}".format(pdr,failure))
+                                self.receivers[i]['mote'].rxDone(
+                                    type       = transmission['type'],
+                                    smac       = transmission['smac'],
+                                    dmac       = transmission['dmac'],
+                                    payload    = transmission['payload']
+                                )
+                                del self.receivers[i]
+                            else:
+                                success = False
+                                log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr, failure, transmission['smac'].id, self.receivers[i]['mote'].id))  
+                                self.rxFailures += [self.receivers[i]]
+                                del self.receivers[i]                                         
+                                # increment of i does not needed because of del self.receivers[i] 
+
                         else: # different id                           
                             # not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
                             # TODO if we add broadcast, it will be processed here
@@ -207,7 +254,7 @@ class Propagation(object):
                 log.debug(" num listeners per transmitter {0}".format(num_receivers_ch))
                 transmission['smac'].txDone(success)
             
-            # indicate collision and packet error
+            # indicate packet error
             for r in self.rxFailures:
                 r['mote'].rxDone(failure=True)
 
@@ -230,23 +277,27 @@ class Propagation(object):
 
             
             # update at each slot, clear at the end of slotframe
-            self.numAccumPktCollisions     += self.numPktCollisions
-            self.numAccumNoPktCollisions   += self.numNoPktCollisions 
-            self.numAccumNoPktAtSC         += self.numNoPktAtSC
-            self.numAccumPktAtNSC          += self.numPktAtNSC
-            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC
-            self.numAccumSuccess           += self.numSuccess
             
+            self.numAccumPktAtSC           += self.numPktAtSC
+            self.numAccumNoPktAtSC         += self.numNoPktAtSC 
+            self.numAccumSuccessAtSC       += self.numSuccessAtSC
+             
+            self.numAccumPktAtNSC          += self.numPktAtNSC 
+            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC 
+            self.numAccumSuccessAtNSC      += self.numSuccessAtNSC
+
             # clear all outstanding transmissions
             self.transmissions      = []
             self.notransmissions    = []
             self.receivers          = []
             self.collisions         = []
             self.rxFailures         = []
-            self.numPktCollisions   = 0
-            self.numNoPktCollisions = 0
-            self.numNoPktAtSC       = 0
-            self.numPktAtNSC        = 0
-            self.numNoPktAtNSC      = 0
-            self.numSuccess         = 0
-            
+
+            self.numPktAtSC                = 0
+            self.numNoPktAtSC              = 0
+            self.numSuccessAtSC            = 0
+    
+            self.numPktAtNSC               = 0
+            self.numNoPktAtNSC             = 0
+            self.numSuccessAtNSC           = 0
+
