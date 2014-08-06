@@ -42,3 +42,6 @@ class SimSettings(object):
         self.timeslots       = None
         self.traffic         = None
         self.side            = None
+        self.OTFthresh       = None
+        self.maxRunNum       = None
+        self.cycleEnd        = None

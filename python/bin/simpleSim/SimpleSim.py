@@ -65,7 +65,7 @@ def parseCliOptions():
     
     parser.add_option( '--traffic',
         dest       = 'traffic',
-        type       = 'int',
+        type       = 'float',
         default    = 0.1,
     )
     
@@ -83,13 +83,32 @@ def parseCliOptions():
         default    = 1.0,#0.2, 
     )
     
+    # Threshold used by OTF for limitating cells allocation
+    parser.add_option( '--OTFthresh',
+        dest       = 'OTFthresh',
+        type       = 'int',
+        default    = 0, 
+    )
+    
+    # Run number
+    parser.add_option( '--runs',
+        dest       = 'maxRunNum',
+        type       = 'int',
+        default    = 1000, 
+    )
+    
+    # Cycle number
+    parser.add_option( '--cycles',
+        dest       = 'cycleEnd',
+        type       = 'int',
+        default    = 100, 
+    )
+    
     (opts, args)  = parser.parse_args()
     
     return opts.__dict__
 
 def main():
-
-    maxRunNum = 1000
     
     logging.config.fileConfig('logging.conf')
     
@@ -103,7 +122,7 @@ def main():
     
     # For multiple runs of simulation w/o GUI
     #'''
-    for runNum in range(maxRunNum):
+    for runNum in xrange(settings.maxRunNum):
         # instantiate a SimEngine object
         print('start run num: {0}\n'.format(runNum))
         simengine = SimEngine.SimEngine()

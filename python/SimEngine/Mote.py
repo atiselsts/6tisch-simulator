@@ -345,17 +345,10 @@ class Mote(object):
         with self.dataLock:
             
             # divides data portion to parents in inverse ratio to DagRank
-            sum = 0.0
-            resultingRanks = {}
-            self.trafficDistribution = {}
-            for p in self.parents:
-                resultingRanks[p] = self.ranks[p] + self.computeRankIncrease(p)
-                sum += 1.0/resultingRanks[p]
-            for p in self.parents:
-                portion = (1.0/resultingRanks[p])/sum
-                self.trafficDistribution[p] = portion
+            reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self.computeRankIncrease(p))) for p in self.parents])
+            sumRecRanks = float(sum(reciprocalResultingRanks.values()))
+            self.trafficDistribution = dict([(p, reciprocalResultingRanks[p]/sumRecRanks) for p in self.parents])
         
-            
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
         with self.dataLock:
@@ -761,6 +754,7 @@ class Mote(object):
             self._schedule_next_ActiveCell()
             self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
             worst_cell[1]['neighbor']._schedule_next_ActiveCell()
+            return True
             
     def _action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
@@ -796,34 +790,31 @@ class Mote(object):
                     totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.timeslots*self.settings.slotDuration
             
             if self.dataStart == True:
-                for (n,portion) in self.trafficDistribution.items():
+                for n,portion in self.trafficDistribution.iteritems():
                                 
                     # ETX acts as overprovision
-                    reqNumCell = math.ceil(self.estimateETX(n)*portion*totalTraffic) # required bandwidth
+                    reqNumCell = int(math.ceil(self.estimateETX(n)*portion*totalTraffic)) # required bandwidth
                     #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
+                    threshold = int(math.ceil(portion*self.settings.OTFthresh))
                     
                     # Compare outgoing traffic with total traffic to be sent 
-                    while True:                
-                        numCell = self.numCells.get(n)
-    
-                        if reqNumCell > numCell:
-                            # schedule another cell if needed
-                            self._addCellToNeighbor(n)
-                            if numCell == self.numCells.get(n): # cannot find free time slot
-                                break
-                        elif reqNumCell < numCell:
-                            self._removeWorstCellToNeighbor(n)
-                            if numCell == self.numCells.get(n): # cannot find worst cell due to insufficient tx
-                                break                        
-                        else: # reqNumCell = numCell
-                            break
+                    numCell = self.numCells.get(n)
+                    if numCell is None:
+                        numCell=0
+                    if reqNumCell > numCell:
+                        for i in xrange(reqNumCell-numCell):
+                            if not self._addCellToNeighbor(n):
+                                break # cannot find free time slot
+                    elif reqNumCell < numCell-threshold:
+                        for i in xrange(numCell-threshold-reqNumCell):
+                            if not self._removeWorstCellToNeighbor(n):
+                                break # cannot find worst cell due to insufficient tx
                 
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
                 # Neighbor also has to update its next active cell 
                 n._schedule_next_ActiveCell()
                           
-            
             # remove scheduled cells if its destination is not a parent        
             for n in self.PDR.keys():        # for all neighbors
                 if not self.trafficDistribution.has_key(n): 
@@ -854,22 +845,13 @@ class Mote(object):
     def _addCellToNeighbor(self,neighbor):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         with self.dataLock:
-            found = False
-            trial = 0
-            while not found:
+            for trial in xrange(1,10001):
                 candidateTimeslot      = random.randint(0,self.settings.timeslots-1)
                 candidateChannel       = random.randint(0,self.settings.channels-1)
-                
-                if trial==10000:
-                    print'try {0} times but cannot find a empty time slot for both nodes'.format(trial)
-                    break
-                trial += 1
-
                 if (
                         self.isUnusedSlot(candidateTimeslot) and
                         neighbor.isUnusedSlot(candidateTimeslot)
                     ):
-                    found = True
                     self.scheduleCell(
                         ts             = candidateTimeslot,
                         ch             = candidateChannel,
@@ -888,6 +870,8 @@ class Mote(object):
                     self.numCells[neighbor]  += 1
                     
                     #TODO count number or retries.
+                    return True
+            print 'tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial,self.id,neighbor.id)
     
     def _removeCellToNeighbor(self,ts,cell):
         ''' removes a cell in the schedule of this node and the neighbor '''

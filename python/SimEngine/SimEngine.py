@@ -27,8 +27,6 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    CYCLE_END = 100
-    
     SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"
     INIT_FILE = False
@@ -192,7 +190,7 @@ class SimEngine(threading.Thread):
                 
                                     
                 # Terminate condition
-                if cycle == self.CYCLE_END:
+                if cycle == s().cycleEnd:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
