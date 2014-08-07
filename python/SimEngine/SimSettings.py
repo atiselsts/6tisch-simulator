@@ -41,6 +41,7 @@ class SimSettings(object):
         self.channels        = None
         self.timeslots       = None
         self.traffic         = None
+        self.trafficSTD      = None
         self.side            = None
         self.OTFthresh       = None
         self.maxRunNum       = None

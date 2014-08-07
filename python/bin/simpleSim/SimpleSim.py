@@ -69,6 +69,12 @@ def parseCliOptions():
         default    = 0.1,
     )
     
+    parser.add_option( '--trafficSTD',
+        dest       = 'trafficSTD',
+        type       = 'float',
+        default    = 0.1,
+    )
+    
     # not used
     parser.add_option( '--op',
         dest       = 'overprovisioning',
@@ -118,6 +124,14 @@ def main():
     # instantiate a SimSettings
     settings  = SimSettings.SimSettings()
     for (k,v) in args.items():
+        if k=='trafficSTD':
+            if v<0 or v>=1:
+                v=0.1
+            # v=eval(v)
+            # if type(v) is 'float' and (v<0 or v>1):
+            #     v=0.1
+            # elif type(v) is 'list':
+            #     print v
         setattr(settings,k,v)
     
     # For multiple runs of simulation w/o GUI

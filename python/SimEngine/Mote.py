@@ -638,7 +638,7 @@ class Mote(object):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
 
         # compute random
-        delay      = self.settings.traffic*(0.9+0.2*random.random())
+        delay      = self.settings.traffic*(1.0+self.settings.trafficSTD*(-1+2*random.random()))
         
         # schedule
         self.engine.scheduleIn(
