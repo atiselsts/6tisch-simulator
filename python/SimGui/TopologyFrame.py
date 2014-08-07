@@ -139,7 +139,7 @@ class TopologyFrame(Tkinter.Frame):
     #===== coordinate calculation
     
     def _moteCoordinates(self,m):
-        (x,y) = m.getLocation()
+        (x,y) = m.getNormalizedLocation()
         return (
             self.WIDTH*x-self.MOTE_SIZE/2,
             self.HEIGHT*y-self.MOTE_SIZE/2,
@@ -148,15 +148,15 @@ class TopologyFrame(Tkinter.Frame):
         )
     
     def _moteIdCoordinates(self,m):
-        (x,y) = m.getLocation()
+        (x,y) = m.getNormalizedLocation()
         return (
             self.WIDTH*x,
             self.HEIGHT*y+self.MOTE_SIZE,
         )
     
     def _linkCoordinates(self,fromMote,toMote):
-        (fromX, fromY)  = fromMote.getLocation()
-        (toX,   toY)    = toMote.getLocation()
+        (fromX, fromY)  = fromMote.getNormalizedLocation()
+        (toX,   toY)    = toMote.getNormalizedLocation()
         return (
             fromX*self.WIDTH,
             fromY*self.HEIGHT,

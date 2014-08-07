@@ -242,7 +242,9 @@ class Topology(object):
     
     def computePDR(self,node,neighbor): 
         ''' computes pdr to neighbor according to RSSI'''
-
+        
+        distance = self.computeDistance(node,neighbor)
+        
         rssi = self.motes[node].getRSSI(neighbor)
 
         if rssi < -85 and rssi > self.motes[neighbor].radioSensitivity:
@@ -251,27 +253,30 @@ class Topology(object):
             pdr=0.0
         elif rssi > -85:
             pdr=100.0
-            
-        print "node {0}, neighbor {1}, rssi {2}, pdr {3}".format(node, neighbor, rssi, pdr)
+        
+        print "node {0}, neighbor {1}, distance {2}, rssi {3}, pdr {4}".format(node, neighbor, distance, rssi, pdr)
 
         log.debug("node {0}, neighbor {1}, rssi {2}, pdr {3}".format(node, neighbor, rssi, pdr)) 
 
         return pdr 
-
+    
+    def computeDistance(self,node,neighbor):
+        
+        return math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)*1000
+    
     def computeRSSI(self,node,neighbor): 
         ''' computes RSSI between any two nodes (not only neighbor) according to Pister hack model'''
 
-        #x and y values are between [0,1) in km
-        distance = math.sqrt((self.motes[node].x - self.motes[neighbor].x)**2 + (self.motes[node].y - self.motes[neighbor].y)**2)
-             
-        # Convert km to m
-        distance = distance*1000.0
-    
+        # distance in m
+        distance = self.computeDistance(node,neighbor)
+        
         # sqrt and inverse of the free space path loss
         fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
-        #simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
-        pr = self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain +(20*math.log10(fspl))
-        #according to the receiver power (RSSI) we can apply the Pister hack model.
+        
+        # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
+        pr = self.motes[node].tPower + self.motes[node].antennaGain + self.motes[neighbor].antennaGain + (20*math.log10(fspl))
+        
+        # according to the receiver power (RSSI) we can apply the Pister hack model.
         mu = pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
     
         # the receiver will receive the packet with an rssi distributed in a gaussian between friis and friis -40

@@ -57,8 +57,8 @@ class Mote(object):
     #ratio 1/4 -- changing this threshold the detection of a bad cell can be tuned, if
     #as higher the slower to detect a wrong cell but the more prone to avoid churn
     #as lower the faster but with some chances to introduces churn due to unstable medium
-    PDR_THRESHOLD            = 4.0   
-                             
+    PDR_THRESHOLD            = 4.0
+    
     def __init__(self,id):
         
         # store params
@@ -74,7 +74,7 @@ class Mote(object):
         self.waitingFor      = None
         self.radioChannel    = None
         self.PDR             = {} #indexed by neighbor
-        self.RSSI            = {} #indexed by neighbor        
+        self.RSSI            = {} #indexed by neighbor
         self.numCells        = {}
         self.booted          = False
         self.schedule        = {}
@@ -117,7 +117,7 @@ class Mote(object):
         
         
     #======================== public =========================================
-                        
+    
     def setPDR(self,neighbor,pdr):
         ''' sets the pdr to that neighbor'''
         with self.dataLock:
@@ -174,6 +174,14 @@ class Mote(object):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
     
+    def getNeighbors(self):
+        with self.dataLock:
+            returnVal = []
+            for (k,v) in self.PDR.items():
+                if v>0.5:
+                    returnVal += [k]
+            return returnVal
+    
     def getRxCells(self):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
@@ -183,9 +191,12 @@ class Mote(object):
             self.x = random.random()*self.settings.side #in km, * 10^3 to represent meters
             self.y = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are in cm so it can be plotted)
 
-    def getLocation(self):
+    def getNormalizedLocation(self):
         with self.dataLock:
-            return (self.x,self.y)
+            return (
+                self.x/self.settings.side,
+                self.y/self.settings.side
+            )
     
     def getStats(self):
         with self.dataLock:
@@ -639,6 +650,7 @@ class Mote(object):
 
         # compute random
         delay      = self.settings.traffic*(1.0+self.settings.trafficSTD*(-1+2*random.random()))
+        assert delay>0
         
         # schedule
         self.engine.scheduleIn(
