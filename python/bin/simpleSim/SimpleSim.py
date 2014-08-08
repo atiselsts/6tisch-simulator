@@ -93,7 +93,7 @@ def parseCliOptions():
     parser.add_option( '--side',
         dest       = 'side',
         type       = 'float',
-        default    = 1.0,#0.2, 
+        default    = 1.0, 
         help       = 'Side of the square deployment area, in km.',
     )
     

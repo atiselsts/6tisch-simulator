@@ -219,8 +219,8 @@ class Topology(object):
 
                 connected = False
                 while not connected:
+                    self.motes[id].setLocation()
                     for chk in list(checkedNodes):
-                        self.motes[id].setLocation()
                         self.computeRSSI(id, chk)
                         if self.motes[id].getRSSI(chk) > self.MIN_RSSI:
                             connected = True
