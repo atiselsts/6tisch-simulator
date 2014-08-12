@@ -27,10 +27,8 @@ log.addHandler(NullHandler())
 import logging.config
 
 from optparse      import OptionParser
-
 from SimEngine     import SimEngine, \
                           SimSettings
-                          
 from SimGui        import SimGui
 
 #============================ defines =========================================
@@ -93,15 +91,22 @@ def parseCliOptions():
     parser.add_option( '--numCyclesPerRun',
         dest       = 'numCyclesPerRun',
         type       = 'int',
-        default    = 100, 
+        default    = 10, 
         help       = 'Duration of one simulation run, in slotframe cycle.',
     )
     
     parser.add_option( '--numRuns',
         dest       = 'numRuns',
         type       = 'int',
-        default    = 1000, 
+        default    = 3, 
         help       = 'Number of simulation runs.',
+    )
+    
+    parser.add_option( '--gui',
+        dest       = 'gui',
+        type       = 'int',
+        default    = 1, 
+        help       = 'Use the GUI (1) or not (0).',
     )
     
     (opts, args)   = parser.parse_args()
@@ -110,37 +115,36 @@ def parseCliOptions():
 
 def main():
     
+    # initialize logging
     logging.config.fileConfig('logging.conf')
     
     # retrieve the command line args
-    args      = parseCliOptions()
+    args           = parseCliOptions()
     
     # instantiate SimSettings
-    settings  = SimSettings.SimSettings()
+    settings       = SimSettings.SimSettings()
     for (k,v) in args.items():
-        print k
         setattr(settings,k,v)
     
-    # For multiple runs of simulation w/o GUI
-    gui = None
-    for runNum in xrange(settings.numRuns):
+    # start the GUI
+    if settings.gui:
+        SimGui.SimGui()
+    
+    # run the simulation runs
+    for runNum in range(settings.numRuns):
+        
+        # logging
+        print('start run {0}\n'.format(runNum))
+        
         # instantiate a SimEngine object
-        print('start run num: {0}\n'.format(runNum))
-        if not gui:
-            gui       = SimGui.SimGui()
-        simengine = SimEngine.SimEngine()
-        simengine.join()
+        simengine  = SimEngine.SimEngine()  # start simulation
+        simengine.join()                    # wait until it's done
         SimEngine.SimEngine.setCount()
-        simengine._instance      = None
+        simengine._instance      = None     # destroy the singleton
         simengine._init          = False
-        print('end run num: {0}\n'.format(runNum))    
-    
-    # For single run with GUI
-    '''
-    simengine = SimEngine.SimEngine() 
-    # instantiate the GUI interface
-    gui       = SimGui.SimGui()
-    '''
-    
+        
+        # logging
+        print('end run {0}\n'.format(runNum))    
+
 if __name__=="__main__":
     main()
