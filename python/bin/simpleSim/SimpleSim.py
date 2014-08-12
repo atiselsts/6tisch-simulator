@@ -62,6 +62,13 @@ def parseCliOptions():
         help       = 'Number of frequency channels (between 1 and 16).',
     )
     
+    parser.add_option( '--slotDuration',
+        dest       = 'slotDuration',
+        type       = 'float',
+        default    = 0.010,
+        help       = 'Duration of a TSCH timeslot, in seconds.',
+    )
+    
     parser.add_option( '--slotframeLength',
         dest       = 'slotframeLength',
         type       = 'int',
@@ -102,13 +109,6 @@ def parseCliOptions():
         type       = 'int',
         default    = 3, 
         help       = 'Number of simulation runs.',
-    )
-
-    parser.add_option( '--slotDuration',
-        dest       = 'slotDuration',
-        type       = 'float',
-        default    = 0.01, 
-        help       = 'Duration of a TSCH timeslot, in seconds.',
     )
     
     parser.add_option( '--gui',

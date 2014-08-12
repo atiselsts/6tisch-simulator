@@ -103,8 +103,8 @@ class Propagation(object):
                 'smac':           smac,
                 'dmac':           dmac,
                 'payload':        payload,
-                 }]
-                    
+            }]
+    
     def noTx(self,channel,smac,dmac):
         ''' add a tx mote without data (for debug purpose) '''        
         with self.dataLock:
@@ -125,6 +125,7 @@ class Propagation(object):
 
     def computeSINR(self, smac, dmac, interferers):
         ''' compute SINR  '''        
+        
         noise = self.dBmTomW(dmac.noisepower)
         # S = RSSI - N
         signal = self.dBmTomW(smac.getRSSI(dmac)) - noise
@@ -270,11 +271,10 @@ class Propagation(object):
             
             # count no packets at both SC and NSC
             for n in self.notransmissions:
-                if n['channel'] in scheduleCollisionChs:            
-                    self.numNoPktAtSC  += 1
+                if n['channel'] in scheduleCollisionChs:
+                    self.numNoPktAtSC      += 1
                 else:
-                    self.numNoPktAtNSC += 1                                                            
-
+                    self.numNoPktAtNSC     += 1
             
             # update at each slot, clear at the end of slotframe
             
@@ -287,17 +287,16 @@ class Propagation(object):
             self.numAccumSuccessAtNSC      += self.numSuccessAtNSC
 
             # clear all outstanding transmissions
-            self.transmissions      = []
-            self.notransmissions    = []
-            self.receivers          = []
-            self.collisions         = []
-            self.rxFailures         = []
-
-            self.numPktAtSC                = 0
-            self.numNoPktAtSC              = 0
-            self.numSuccessAtSC            = 0
-    
-            self.numPktAtNSC               = 0
-            self.numNoPktAtNSC             = 0
-            self.numSuccessAtNSC           = 0
-
+            self.transmissions              = []
+            self.notransmissions            = []
+            self.receivers                  = []
+            self.collisions                 = []
+            self.rxFailures                 = []
+            
+            self.numPktAtSC                 = 0
+            self.numNoPktAtSC               = 0
+            self.numSuccessAtSC             = 0
+            
+            self.numPktAtNSC                = 0
+            self.numNoPktAtNSC              = 0
+            self.numSuccessAtNSC            = 0

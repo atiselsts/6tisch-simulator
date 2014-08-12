@@ -78,7 +78,7 @@ class Mote(object):
         self.booted          = False
         self.schedule        = {}
         self.txQueue         = []
-        self.tPower          = 0
+        self.txPower         = 0
         self.antennaGain     = 0
         self.radioSensitivity = -101
         self.noisepower      = -105 # in dBm

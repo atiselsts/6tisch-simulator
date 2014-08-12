@@ -29,9 +29,7 @@ import SimSettings
 
 class Topology(object):
     
-    NEIGHBOR_RADIUS          = 0.050        # in km 
-    
-    TWO_DOT_FOUR_GHZ         = 2400000000   # hertz
+    TWO_DOT_FOUR_GHZ         = 2400000000   # Hz
     PISTER_HACK_LOWER_SHIFT  = 40           # -40 dB
     SPEED_OF_LIGHT           = 299792458    # m/s
     
@@ -41,9 +39,6 @@ class Topology(object):
         
         # store params
         self.motes           = motes
-        
-        # local variables
-        self.settings        = SimSettings.SimSettings()
     
     #======================== public ==========================================
     
@@ -118,7 +113,7 @@ class Topology(object):
         fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
         
         # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
-        pr = mote.tPower + mote.antennaGain + neighbor.antennaGain + (20*math.log10(fspl))
+        pr = mote.txPower + mote.antennaGain + neighbor.antennaGain + (20*math.log10(fspl))
         
         # according to the receiver power (RSSI) we can apply the Pister hack model.
         mu = pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
@@ -148,8 +143,6 @@ class Topology(object):
         return pdr 
     
     def _computeDistance(self,mote,neighbor):
-        
-        
         
         return 1000*math.sqrt(
             (mote.x - neighbor.x)**2 +
