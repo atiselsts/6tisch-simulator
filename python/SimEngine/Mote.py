@@ -75,59 +75,57 @@ class Mote(object):
         self.id              = id
         
         # local variables
-        self.engine          = SimEngine.SimEngine()
-        self.settings        = SimSettings.SimSettings()
-        self.propagation     = Propagation.Propagation()
+        self.engine               = SimEngine.SimEngine()
+        self.settings             = SimSettings.SimSettings()
+        self.propagation          = Propagation.Propagation()
         
-        self.dagRoot         = False
+        self.dagRoot              = False
         
-        self.dataLock        = threading.RLock()
+        self.dataLock             = threading.RLock()
         self.setLocation()
-        self.waitingFor      = None
-        self.radioChannel    = None
-        self.PDR             = {} #indexed by neighbor
-        self.RSSI            = {} #indexed by neighbor
-        self.numCells        = {}
-        self.booted          = False
-        self.schedule        = {}
-        self.txQueue         = []
-        self.txPower         = 0
-        self.antennaGain     = 0
-        self.radioSensitivity = -101
-        self.noisepower      = -105 # in dBm
-        self.pktToSend       = None
+        self.waitingFor           = None
+        self.PDR                  = {} #indexed by neighbor
+        self.RSSI                 = {} #indexed by neighbor
+        self.numCells             = {}
+        self.booted               = False
+        self.schedule             = {}
+        self.txQueue              = []
+        self.txPower              = 0
+        self.antennaGain          = 0
+        self.radioSensitivity     = -101
+        self.noisepower           = -105 # in dBm
+        self.pktToSend            = None
         
         # set DIO period as 1 cycle of slotframe
-        self.dioPeriod = self.settings.slotframeLength
+        self.dioPeriod            = self.settings.slotframeLength
         # number of received DIOs
-        self.numRxDIO = {} #indexed by neighbor
-        self.collectDIO = False
-        self.dataStart = False
+        self.numRxDIO             = {} #indexed by neighbor
+        self.collectDIO           = False
+        self.dataStart            = False
         
         # RPL initialization
-        self.ranks           = {} #indexed by neighbor
-        self.dagRanks        = {} #indexed by neighbor
-        self.trafficDistribution = {} # indexed by parents, traffic portion of outgoing traffic
-                
+        self.ranks                = {} #indexed by neighbor
+        self.dagRanks             = {} #indexed by neighbor
+        self.trafficDistribution  = {} # indexed by parents, traffic portion of outgoing traffic
+        
         if self.id == 0: # mote with id 0 becomes a DAG root  
-           self.dagRoot = True
-           self.rank    = 0
-           self.dagRank = 0
-           self.parent  = self
-           self.accumLatency = 0 # Accumulated latency to reach to DAG root (in slot)
+           self.dagRoot           = True
+           self.rank              = 0
+           self.dagRank           = 0
+           self.parent            = self
+           self.accumLatency      = 0 # Accumulated latency to reach to DAG root (in slot)
         else:
-           self.dagRoot = False
-           self.rank    = None
-           self.dagRank = None
-           self.parent  = None # preferred parent    
-           self.parents = [] # set of parents
-
+           self.dagRoot           = False
+           self.rank              = None
+           self.dagRank           = None
+           self.parent            = None # preferred parent    
+           self.parents           = [] # set of parents
+        
         self._resetStats()
-
-        self.incomingTraffics = {} #indexed by neighbor
+         
+        self.incomingTraffics     = {} #indexed by neighbor
         self.averageIncomingTraffics = {}#indexed by neighbor
-        
-        
+    
     #======================== public =========================================
     
     def setPDR(self,neighbor,pdr):
@@ -200,8 +198,8 @@ class Mote(object):
     
     def setLocation(self):
         with self.dataLock:
-            self.x = random.random()*self.settings.squareSide
-            self.y = random.random()*self.settings.squareSide
+            self.x = self.settings.squareSide*random.random()
+            self.y = self.settings.squareSide*random.random()
     
     def getNormalizedLocation(self):
         with self.dataLock:
@@ -236,7 +234,7 @@ class Mote(object):
                 'numTxFailures':    0,
                 'numRxFailures':    0,
             }
-            
+    
     def removeCell(self,ts,neighbor):
         ''' removes a cell from the schedule '''
         self._log(self.DEBUG,"removeCell ts={0} with {1}".format(ts,neighbor.id))
@@ -339,8 +337,7 @@ class Mote(object):
                         self.setRank()
                         self.parents.append(minNeighbor)
                         print "a preferred parent of {0} is set to {1}".format(self.id, self.parent.id) 
-                
-            
+    
     def computeRankIncrease(self, neighbor):
         # calculate rank increase to neighbor
         with self.dataLock:    
@@ -363,7 +360,7 @@ class Mote(object):
 
             # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
-
+    
     def setTrafficDistribution(self):
         ''' sets the period to communicate for all neighbors/parents '''
         with self.dataLock:
@@ -372,7 +369,7 @@ class Mote(object):
             reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self.computeRankIncrease(p))) for p in self.parents])
             sumRecRanks = float(sum(reciprocalResultingRanks.values()))
             self.trafficDistribution = dict([(p, reciprocalResultingRanks[p]/sumRecRanks) for p in self.parents])
-        
+    
     def estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
         with self.dataLock:
@@ -418,8 +415,7 @@ class Mote(object):
                 cb          = self._action_DIO,
                 uniqueTag   = (self.id,'DIO'),
             )
-
-
+    
     def _action_DIO(self):
         ''' Broadcast DIO to neighbors. Current implementation assumes DIO can be sent out of band.
         '''
@@ -448,8 +444,7 @@ class Mote(object):
                         neighbor.setParent()
                         neighbor.setTrafficDistribution()
                     
-            self._schedule_DIO()                
-            
+            self._schedule_DIO()
     
     #===== activeCell
     
@@ -519,7 +514,7 @@ class Mote(object):
                     # schedule next active cell
 
                     self._schedule_next_ActiveCell()
-                       
+    
     def txDone(self,success):
         '''end of tx slot. compute stats and schedules next action '''
         asn = self.engine.getAsn()
@@ -575,7 +570,7 @@ class Mote(object):
             self.waitingFor = None
             
             if self.dagRoot == True and smac != None:
-                self._incrementStats('dataRecieved')
+                self._incrementStats('dataReceived')
                 self.accumLatency += asn-payload[1] 
                         
             if self.dagRoot == False and self.parent != None and smac != None and self.getTxCells()!=[]:
@@ -583,7 +578,7 @@ class Mote(object):
                 # count incoming traffic for each node
                 self._incrementIncomingTraffics(smac)
                 # add to queue
-                self._incrementStats('dataRecieved')
+                self._incrementStats('dataReceived')
                 if len(self.txQueue)<self.QUEUE_SIZE:
                     self.txQueue += [{
                         'asn':      self.engine.getAsn(),
@@ -656,7 +651,7 @@ class Mote(object):
         
         # schedule next _action_sendData
         self._schedule_sendData()
-            
+    
     def _schedule_sendData(self):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
 
@@ -673,7 +668,6 @@ class Mote(object):
     
     #===== monitoring
     
-
     def rescheduleCellIfNeeded(self, node):
         ''' finds the worst cell in each bundle. If the performance of the cell is bad compared to
             other cells in the bundle reschedule this cell. 
@@ -705,8 +699,7 @@ class Mote(object):
                 #this is part of a bundle of cells for that neighbor, keep
                 #the tuple ts, schedule entry, pdr
                 bundle_avg += [(ts, ce, pdr)]
-                    
-                            
+        
         #compute the distance to the other cells in the bundle,
         #if the worst cell is far from any of the other cells reschedule it
         for bce in bundle_avg:
@@ -741,8 +734,7 @@ class Mote(object):
                     self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
                     self.engine.removeEvent(uniqueTag=(bce[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
                     self._incrementStats('numCellsReallocated')
-        
-        
+    
     def _removeWorstCellToNeighbor(self, node):
         ''' finds the worst cell in each bundle and remove it from schedule 
         '''
@@ -780,11 +772,11 @@ class Mote(object):
             self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
             worst_cell[1]['neighbor']._schedule_next_ActiveCell()
             return True
-            
+    
     def _action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
         self._log(self.DEBUG,"_action_monitoring")
-                
+        
         with self.dataLock:
             
             # if DIO from all neighbors are collected, set self.collectDIO = True            
@@ -794,11 +786,11 @@ class Mote(object):
                     if self.numRxDIO.has_key(neighbor):
                         if self.numRxDIO[neighbor] < self.NUM_SUFFICIENT_DIO:
                             self.collectDIO = False
-                            break            
+                            break
                     else:
                         self.collectDIO = False
                         break
-                        
+            
             # data generation starts if DIOs are received from all the neighbors            
             if self.collectDIO == True and self.dataStart == False and self.dagRoot == False:
                 self.dataStart = True
@@ -816,7 +808,7 @@ class Mote(object):
             
             if self.dataStart == True:
                 for n,portion in self.trafficDistribution.iteritems():
-                                
+                    
                     # ETX acts as overprovision
                     reqNumCell = int(math.ceil(self.estimateETX(n)*portion*totalTraffic)) # required bandwidth
                     #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
@@ -839,7 +831,7 @@ class Mote(object):
                 self.rescheduleCellIfNeeded(n)
                 # Neighbor also has to update its next active cell 
                 n._schedule_next_ActiveCell()
-                          
+            
             # remove scheduled cells if its destination is not a parent        
             for n in self.PDR.keys():        # for all neighbors
                 if not self.trafficDistribution.has_key(n): 
@@ -854,7 +846,7 @@ class Mote(object):
             # schedule next active cell
             # Note: this is needed in case the monitoring action modified the schedule
             self._schedule_next_ActiveCell()
-                    
+            
             # schedule next monitoring
             self._schedule_monitoring()
     
@@ -865,12 +857,11 @@ class Mote(object):
             cb        = self._action_monitoring,
             uniqueTag = (self.id,'monitoring')
         )
-            
     
     def _addCellToNeighbor(self,neighbor):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         with self.dataLock:
-            for trial in xrange(1,10001):
+            for trial in range(0,10000):
                 candidateTimeslot      = random.randint(0,self.settings.slotframeLength-1)
                 candidateChannel       = random.randint(0,self.settings.numChans-1)
                 if (
@@ -896,7 +887,7 @@ class Mote(object):
                     
                     #TODO count number or retries.
                     return True
-            print 'tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial,self.id,neighbor.id)
+            print 'tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial+1,self.id,neighbor.id)
     
     def _removeCellToNeighbor(self,ts,cell):
         ''' removes a cell in the schedule of this node and the neighbor '''
@@ -910,7 +901,8 @@ class Mote(object):
                  neighbor       = self,
                  )
             self.numCells[cell['neighbor']]  -= 1
-                    #TODO count number or retries.    
+                    #TODO count number or retries.
+    
     #======================== private =========================================
     
     def _log(self,severity,message):
@@ -934,10 +926,10 @@ class Mote(object):
     def _resetStats(self):
         with self.dataLock:
             self.stats = {
-                'dataGenerated':  0,
-                'dataRecieved':  0,                
-                'dataQueueOK':    0,
-                'dataQueueFull':  0,
+                'dataGenerated':       0,
+                'dataReceived':        0,
+                'dataQueueOK':         0,
+                'dataQueueFull':       0,
                 'numCellsReallocated': 0,
             }
     
@@ -962,5 +954,3 @@ class Mote(object):
                     + (1-self.SMOOTHING)*self.averageIncomingTraffics[neighbor]
                 elif self.incomingTraffics[neighbor] != 0:
                     self.averageIncomingTraffics[neighbor] = self.incomingTraffics[neighbor]
-                    
-        

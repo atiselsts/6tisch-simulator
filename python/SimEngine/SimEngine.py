@@ -105,7 +105,8 @@ class SimEngine(threading.Thread):
         log.info("thread {0} starting".format(self.name))
         
         # write to file
-        self._fileWriteHeader()
+        if self.runNum==0:
+            self._fileWriteHeader()
         
         while self.goOn:
             
@@ -150,7 +151,7 @@ class SimEngine(threading.Thread):
                     numGeneratedPkts   = self._countGeneratedPackets()
                     numPacketsInQueue  = self._countPacketsInQueue()
                     numOverflow        = self._countQueueFull()
-                    numPacketsReached  = self.motes[0].getStats()['dataRecieved']
+                    numPacketsReached  = self.motes[0].getStats()['dataReceived']
                     if numGeneratedPkts-numPacketsInQueue > 0:
                         e2ePDR         = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
                     else:
@@ -159,32 +160,29 @@ class SimEngine(threading.Thread):
                         avgLatency     = float(self.motes[0].accumLatency)/float(numPacketsReached)
                     else:
                         avgLatency     = 0.0
-                    self._fileWriteRun(
-                        '{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\n'.format(
-                            self.runNum, #0
-                            cycle, #1
-                            self.numAccumScheduledCells, #2
-                            self.numAccumScheduledCells - self.numAccumScheduledCollisions, #3
-                            self.propagation.numAccumNoPktAtNSC, #4
-                            self.propagation.numAccumPktAtNSC, #5
-                            self.propagation.numAccumSuccessAtNSC, #6
-                            self.numAccumScheduledCollisions, #7                                                               
-                            self.propagation.numAccumNoPktAtSC, #8
-                            self.propagation.numAccumPktAtSC, #9
-                            self.propagation.numAccumSuccessAtSC, #10
-                            numGeneratedPkts, #11
-                            numPacketsReached,#12
-                            numPacketsInQueue,#13
-                            numOverflow,#14
-                            round(e2ePDR,3), #15
-                            round(avgLatency,2), #16 
-                        )
-                    )
+                    self._fileWriteRun([
+                        self.runNum,
+                        cycle,
+                        self.numAccumScheduledCells,
+                        self.numAccumScheduledCells - self.numAccumScheduledCollisions,
+                        self.propagation.numAccumNoPktAtNSC,
+                        self.propagation.numAccumPktAtNSC,
+                        self.propagation.numAccumSuccessAtNSC,
+                        self.numAccumScheduledCollisions,
+                        self.propagation.numAccumNoPktAtSC,
+                        self.propagation.numAccumPktAtSC,
+                        self.propagation.numAccumSuccessAtSC,
+                        numGeneratedPkts,
+                        numPacketsReached,
+                        numPacketsInQueue,
+                        numOverflow,
+                        round(e2ePDR,3),
+                        round(avgLatency,2),
+                    ])
                     self.propagation.initStats() 
                 
                 # Terminate condition
-                if cycle == self.settings.numCyclesPerRun:
-                    self._fileClose()
+                if cycle==self.settings.numCyclesPerRun:
                     self.goOn=False
                 
                 # update the current ASN
@@ -275,20 +273,19 @@ class SimEngine(threading.Thread):
                 'pkPeriod',
                 'squareSide',
             ]:
-            output += ['# {0} = {1}\n'.format(param,getattr(self.settings,param))]
-        output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n']
+            output += ['# {0} = {1}'.format(param,getattr(self.settings,param))]
+        output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n']
         output     = '\n'.join(output)
         
         with open(self.OUTPUT_FILE,'a') as f:
             f.write(output)
     
-    def _fileWriteRun(self,line):
+    def _fileWriteRun(self,elems):
+        formatString    = ' '.join(['{{{0}:>5}}'.format(i) for i in range(len(elems))])
+        formatString   += '\n'
+        line            = formatString.format(*elems)
         with open(self.OUTPUT_FILE,'a') as f:
             f.write(line)
-    
-    def _fileClose(self):
-        with open(self.OUTPUT_FILE,'a') as f:
-            f.write('\n')
     
     def _countSchedule(self):
         # count scheduled cells and schedule collision at each asn
