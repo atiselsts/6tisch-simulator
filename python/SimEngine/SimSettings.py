@@ -37,7 +37,6 @@ class SimSettings(object):
         # store params
         self.slotDuration    = 0.01
         self.numMotes        = None
-        self.degree          = None
         self.channels        = None
         self.timeslots       = None
         self.traffic         = None

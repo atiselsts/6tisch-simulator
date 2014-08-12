@@ -1,17 +1,18 @@
 #!/usr/bin/python
-
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 '''
 
+#============================ adjust path =====================================
 import os
 import sys
 if __name__=='__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..', '..'))
+
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -20,6 +21,8 @@ class NullHandler(logging.Handler):
 log = logging.getLogger('SimpleSim')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
+
+#============================ imports =========================================
 
 import logging.config
 
@@ -45,19 +48,11 @@ def parseCliOptions():
         help       = 'Number of motes',
     )
     
-    # not used
-    parser.add_option( '-d',
-        dest       = 'degree',
-        type       = 'int',
-        default    = 1,
-        help       = 'Not used.',
-    )
-    
     parser.add_option( '-c',
         dest       = 'channels',
         type       = 'int',
         default    = 16,
-        help       = 'Number of channel (between 1 and 16)',
+        help       = 'Number of channels (between 1 and 16)',
     )
     
     parser.add_option( '--ts',
@@ -81,15 +76,6 @@ def parseCliOptions():
         help       = 'Variability of the traffic, in [0..1[. 0 for CBR.',
     )
     
-    # not used
-    parser.add_option( '--op',
-        dest       = 'overprovisioning',
-        type       = 'float',
-        default    = 1.0,
-        help       = 'Not used.',
-    )
-
-    # a side of area in km (This can be treated as cm when plotted)
     parser.add_option( '--side',
         dest       = 'side',
         type       = 'float',
@@ -97,7 +83,6 @@ def parseCliOptions():
         help       = 'Side of the square deployment area, in km.',
     )
     
-    # Threshold used by OTF for limitating cells allocation
     parser.add_option( '--OTFthresh',
         dest       = 'OTFthresh',
         type       = 'int',
@@ -105,7 +90,6 @@ def parseCliOptions():
         help       = 'OTF threshhold, see draft, in cells.',
     )
     
-    # Run number
     parser.add_option( '--runs',
         dest       = 'maxRunNum',
         type       = 'int',
@@ -113,7 +97,6 @@ def parseCliOptions():
         help       = 'Number of simulation runs.',
     )
     
-    # Cycle number
     parser.add_option( '--cycles',
         dest       = 'cycleEnd',
         type       = 'int',
@@ -121,7 +104,7 @@ def parseCliOptions():
         help       = 'Duration of one simulation run, in slotframe cycle.',
     )
     
-    (opts, args)  = parser.parse_args()
+    (opts, args) = parser.parse_args()
     
     return opts.__dict__
 
@@ -132,18 +115,12 @@ def main():
     # retrieve the command line args
     args      = parseCliOptions()
     
-    # instantiate a SimSettings
+    # instantiate SimSettings
     settings  = SimSettings.SimSettings()
     for (k,v) in args.items():
-        # v=eval(v)
-        # if type(v) is 'float' and (v<0 or v>1):
-        #     v=0.1
-        # elif type(v) is 'list':
-        #     print v
         setattr(settings,k,v)
     
     # For multiple runs of simulation w/o GUI
-    #'''
     gui = None
     for runNum in xrange(settings.maxRunNum):
         # instantiate a SimEngine object
@@ -156,8 +133,6 @@ def main():
         simengine._instance      = None
         simengine._init          = False
         print('end run num: {0}\n'.format(runNum))    
-    
-    #'''
     
     # For single run with GUI
     '''

@@ -345,12 +345,10 @@ class SimEngine(threading.Thread):
             self.INIT_FILE = True
             file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
             file.write('# numMotes = {0}\n'.format(s().numMotes))        
-            file.write('# degree = {0}\n'.format(s().degree))        
             file.write('# channels = {0}\n'.format(s().channels))        
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
             file.write('# side = {0}\n'.format(s().side))
-            file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')        
-            
-        
+            file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')
+    
     #======================== private =========================================
