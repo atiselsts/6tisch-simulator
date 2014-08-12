@@ -114,7 +114,7 @@ class Topology(object):
                                   )
             self.motes[id].setDataEngine(
                 self.motes[neighborId],
-                s().traffic,
+                s().pkPeriod,
             )
     
     # not used        
@@ -129,16 +129,16 @@ class Topology(object):
                     #initialize the traffic pattern with that neighbor
                     self.motes[id].setDataEngine(
                         self.motes[nei],
-                        s().traffic,
+                        s().pkPeriod,
                     )
                     
 
     def _addChild(self, id,child):
         print 'i {0}'.format(id)
         #downstream link
-        self.motes[id].setDataEngine(self.motes[child], s().traffic)
+        self.motes[id].setDataEngine(self.motes[child], s().pkPeriod)
         #upstream link
-        self.motes[child].setDataEngine(self.motes[id], s().traffic)
+        self.motes[child].setDataEngine(self.motes[id], s().pkPeriod)
 
     # not used
     def _createBTreeTopology(self):
@@ -167,7 +167,7 @@ class Topology(object):
                         linkto=nei
             if linkto!=-1:
                 self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
-                self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
+                self.motes[id].setDataEngine(self.motes[linkto], s().pkPeriod,) 
                 
     # not used        
     def _createRadiusDistanceTopology(self):
@@ -180,7 +180,7 @@ class Topology(object):
                     if distance < self.NEIGHBOR_RADIUS:
                         print "adding neighbor {0},{1}".format(id,nei)
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
-                        self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
+                        self.motes[id].setDataEngine(self.motes[nei], s().pkPeriod,) 
                
     # not used
     def _createMaxRssiTopology(self):
@@ -200,7 +200,7 @@ class Topology(object):
                         
             print "adding neighbor {0},{1}".format(id,maxNei)
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
-            self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
+            self.motes[id].setDataEngine(self.motes[maxNei], s().pkPeriod,) 
 
     
     def _createConnectedTopology(self):
@@ -225,10 +225,10 @@ class Topology(object):
                         if self.motes[id].getRSSI(chk) > self.MIN_RSSI:
                             connected = True
                  
-                checkedNodes.add(id)                       
+                checkedNodes.add(id)
                         
         for id in range(len(self.motes)):
-            #link to a neighbor with higher RSSI than threshold             
+            #link to a neighbor with higher RSSI than threshold
             neighbors = []
             for j in range(len(self.motes)):
                 if j != id:

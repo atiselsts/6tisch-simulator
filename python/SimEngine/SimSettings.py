@@ -1,10 +1,8 @@
 #!/usr/bin/python
-
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 '''
 
 import logging
@@ -35,13 +33,13 @@ class SimSettings(object):
         self._init = True
         
         # store params
-        self.slotDuration    = 0.01
-        self.numMotes        = None
-        self.numChans        = None
-        self.timeslots       = None
-        self.traffic         = None
-        self.trafficSTD      = None
-        self.side            = None
-        self.OTFthresh       = None
-        self.maxRunNum       = None
-        self.cycleEnd        = None
+        self.slotDuration         = 0.010
+        self.squareSide           = None
+        self.numMotes             = None
+        self.numChans             = None
+        self.slotframeLength      = None
+        self.pkPeriod             = None
+        self.pkPeriodVar          = None
+        self.otfThreshold         = None
+        self.numCyclesPerRun      = None
+        self.numRuns              = None

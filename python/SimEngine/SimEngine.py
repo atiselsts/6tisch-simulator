@@ -146,8 +146,8 @@ class SimEngine(threading.Thread):
                 # wait a bit
                 time.sleep(self.simDelay)
 
-                cycle = int(self.asn/s().timeslots)
-                if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
+                cycle = int(self.asn/s().slotframeLength)
+                if self.asn % s().slotframeLength == s().slotframeLength -1: # end of each cycle
                     if cycle == 0:
                         f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
                     print('Run num: {0} cycle: {1}'.format(self.count, cycle))
@@ -188,14 +188,13 @@ class SimEngine(threading.Thread):
                 
                                     
                 # Terminate condition
-                if cycle == s().cycleEnd:
+                if cycle == s().numCyclesPerRun:
                     f.write('\n')
                     f.close()
-                    self.goOn=False        
-        
+                    self.goOn=False
                 
                 # update the current ASN
-                self.asn += 1        
+                self.asn += 1
         # log
         log.info("thread {0} ends".format(self.name))
     
@@ -276,9 +275,9 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             
             # initialize at start of each cycle
-            currentTs = self.asn % s().timeslots
+            currentTs = self.asn % s().slotframeLength
             if currentTs == 0: 
-                self.numAccumScheduledCells = 0        
+                self.numAccumScheduledCells = 0
                 self.numAccumScheduledCollisions = 0
 
             self.scheduledCells.clear()
@@ -341,12 +340,12 @@ class SimEngine(threading.Thread):
     def fileInit(self, file):
         if self.INIT_FILE == False:
             self.INIT_FILE = True
-            file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
-            file.write('# numMotes = {0}\n'.format(s().numMotes))        
-            file.write('# numChans = {0}\n'.format(s().numChans))        
-            file.write('# timeslots = {0}\n'.format(s().timeslots))        
-            file.write('# traffic = {0}\n'.format(s().traffic))
-            file.write('# side = {0}\n'.format(s().side))
+            file.write('# slotDuration = {0}\n'.format(s().slotDuration))
+            file.write('# numMotes = {0}\n'.format(s().numMotes))
+            file.write('# numChans = {0}\n'.format(s().numChans))
+            file.write('# slotframeLength = {0}\n'.format(s().slotframeLength))
+            file.write('# pkPeriod = {0}\n'.format(s().pkPeriod))
+            file.write('# squareSide = {0}\n'.format(s().squareSide))
             file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')
     
     #======================== private =========================================
