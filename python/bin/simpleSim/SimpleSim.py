@@ -3,9 +3,11 @@
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
 
 #============================ adjust path =====================================
+
 import os
 import sys
 if __name__=='__main__':
@@ -137,10 +139,9 @@ def main():
         print('start run {0}\n'.format(runNum))
         
         # instantiate a SimEngine object
-        simengine  = SimEngine.SimEngine()  # start simulation
-        simengine.join()                    # wait until it's done
-        SimEngine.SimEngine.setCount()
-        simengine._instance      = None     # destroy the singleton
+        simengine  = SimEngine.SimEngine(runNum) # start simulation
+        simengine.join()                         # wait until it's done
+        simengine._instance      = None          # destroy the singleton
         simengine._init          = False
         
         # logging
