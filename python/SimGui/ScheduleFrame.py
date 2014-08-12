@@ -39,7 +39,7 @@ class ScheduleFrame(Tkinter.Frame):
         
         # variables
         self.cells           = []
-        self.step            = min((self.WIDTH-4)/s().timeslots,(self.HEIGHT-4)/s().channels)
+        self.step            = min((self.WIDTH-4)/s().timeslots,(self.HEIGHT-4)/s().numChans)
         
         # initialize the parent class
         Tkinter.Frame.__init__(
@@ -56,7 +56,7 @@ class ScheduleFrame(Tkinter.Frame):
         
         for ts in range(s().timeslots):
             self.cells.append([])
-            for ch in range(s().channels):
+            for ch in range(s().numChans):
                 newCell = self.schedule.create_rectangle(self._cellCoordinates(ts,ch))
                 self.schedule.tag_bind(newCell, '<ButtonPress-1>', self._cellClicked)
                 self.cells[ts] += [newCell]

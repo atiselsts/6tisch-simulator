@@ -41,15 +41,15 @@ def parseCliOptions():
     
     parser = OptionParser()
     
-    parser.add_option( '--nm',
+    parser.add_option( '--numMotes',
         dest       = 'numMotes',
         type       = 'int',
         default    = 10,
         help       = 'Number of motes',
     )
     
-    parser.add_option( '-c',
-        dest       = 'channels',
+    parser.add_option( '--numChans',
+        dest       = 'numChans',
         type       = 'int',
         default    = 16,
         help       = 'Number of channels (between 1 and 16)',
@@ -118,6 +118,7 @@ def main():
     # instantiate SimSettings
     settings  = SimSettings.SimSettings()
     for (k,v) in args.items():
+        print k
         setattr(settings,k,v)
     
     # For multiple runs of simulation w/o GUI

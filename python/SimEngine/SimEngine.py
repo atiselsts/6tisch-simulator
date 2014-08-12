@@ -27,10 +27,11 @@ from SimSettings import SimSettings as s
 
 class SimEngine(threading.Thread):
     
-    SLOT_DURATION  = 0.01
-    OUTPUT_FILE = "output.dat"
-    INIT_FILE = False
-    count = 0  
+    SLOT_DURATION  = 0.010
+    OUTPUT_FILE    = "output.dat"
+    INIT_FILE      = False
+    count          = 0
+    
     #======================== singleton pattern ===============================
     
     _instance      = None
@@ -43,7 +44,7 @@ class SimEngine(threading.Thread):
     
     @classmethod
     def setCount(cls):
-        cls.count+=1
+        cls.count += 1
 
     def __init__(self):
         
@@ -54,19 +55,17 @@ class SimEngine(threading.Thread):
         
         # store params
         
-        # variables
-        self.dataLock        = threading.RLock()
-        
-        self.scheduledCells = set()
-        self.collisionCells = set()
-        self.inactivatedCells = set()
-
-        self.numAccumScheduledCells = 0        
-        self.numAccumScheduledCollisions = 0
+        # local variables
+        self.dataLock                       = threading.RLock()
+        self.scheduledCells                 = set()
+        self.collisionCells                 = set()
+        self.inactivatedCells               = set()
+        self.numAccumScheduledCells         = 0
+        self.numAccumScheduledCollisions    = 0
         
         # initialize propagation at start of each run 
-        Propagation.Propagation._instance = None
-        Propagation.Propagation._init     = False        
+        Propagation.Propagation._instance   = None
+        Propagation.Propagation._init       = False
         self.propagation     = Propagation.Propagation()
         
         self.asn             = 0
@@ -96,7 +95,6 @@ class SimEngine(threading.Thread):
         # start thread
         self.start()
     
-            
     #======================== thread ==========================================
     
     def run(self):
@@ -345,7 +343,7 @@ class SimEngine(threading.Thread):
             self.INIT_FILE = True
             file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
             file.write('# numMotes = {0}\n'.format(s().numMotes))        
-            file.write('# channels = {0}\n'.format(s().channels))        
+            file.write('# numChans = {0}\n'.format(s().numChans))        
             file.write('# timeslots = {0}\n'.format(s().timeslots))        
             file.write('# traffic = {0}\n'.format(s().traffic))
             file.write('# side = {0}\n'.format(s().side))

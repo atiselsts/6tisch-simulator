@@ -860,7 +860,7 @@ class Mote(object):
         with self.dataLock:
             for trial in xrange(1,10001):
                 candidateTimeslot      = random.randint(0,self.settings.timeslots-1)
-                candidateChannel       = random.randint(0,self.settings.channels-1)
+                candidateChannel       = random.randint(0,self.settings.numChans-1)
                 if (
                         self.isUnusedSlot(candidateTimeslot) and
                         neighbor.isUnusedSlot(candidateTimeslot)
