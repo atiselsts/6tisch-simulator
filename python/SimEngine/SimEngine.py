@@ -1,12 +1,12 @@
 #!/usr/bin/python
-
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
 
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -15,6 +15,8 @@ class NullHandler(logging.Handler):
 log = logging.getLogger('SimEngine')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
+
+#============================ imports =========================================
 
 import time
 import threading
@@ -25,11 +27,15 @@ import Topology
 import Mote
 import SimSettings
 
+#============================ defines =========================================
+
+#============================ body ============================================
+
 class SimEngine(threading.Thread):
     
-    OUTPUT_FILE = "output.dat"
-    INIT_FILE = False
-    count = 0  
+    OUTPUT_FILE    = "output.dat"
+    INIT_FILE      = False
+    
     #======================== singleton pattern ===============================
     
     _instance      = None
@@ -40,11 +46,7 @@ class SimEngine(threading.Thread):
             cls._instance = super(SimEngine,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
-    @classmethod
-    def setCount(cls):
-        cls.count+=1
-
-    def __init__(self):
+    def __init__(self,runNum=None):
         
         # don't re-initialize an instance (needed because singleton)
         if self._init:
@@ -52,21 +54,20 @@ class SimEngine(threading.Thread):
         self._init = True
         
         # store params
+        self.runNum                         = runNum
         
-        # variables
-        self.settings          = SimSettings.SimSettings()
-        self.dataLock        = threading.RLock()
-        
-        self.scheduledCells = set()
-        self.collisionCells = set()
-        self.inactivatedCells = set()
-
-        self.numAccumScheduledCells = 0        
-        self.numAccumScheduledCollisions = 0
+        # local variables
+        self.settings                       = SimSettings.SimSettings()
+        self.dataLock                       = threading.RLock()
+        self.scheduledCells                 = set()
+        self.collisionCells                 = set()
+        self.inactivatedCells               = set()
+        self.numAccumScheduledCells         = 0
+        self.numAccumScheduledCollisions    = 0
         
         # initialize propagation at start of each run 
-        Propagation.Propagation._instance = None
-        Propagation.Propagation._init     = False        
+        Propagation.Propagation._instance   = None
+        Propagation.Propagation._init       = False
         self.propagation     = Propagation.Propagation()
         
         self.asn             = 0
@@ -94,7 +95,6 @@ class SimEngine(threading.Thread):
         # start thread
         self.start()
     
-            
     #======================== thread ==========================================
     
     def run(self):
@@ -146,11 +146,11 @@ class SimEngine(threading.Thread):
                 # wait a bit
                 time.sleep(self.simDelay)
 
-                cycle = int(self.asn/self.settings.timeslots)
-                if self.asn % self.settings.timeslots == self.settings.timeslots -1: # end of each cycle
+                cycle = int(self.asn/self.settings.slotframeLength)
+                if self.asn % self.settings.slotframeLength == self.settings.slotframeLength -1: # end of each cycle
                     if cycle == 0:
                         f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
-                    print('Run num: {0} cycle: {1}'.format(self.count, cycle))
+                    print('Run num: {0} cycle: {1}'.format(self.runNum, cycle))
                     
                     numGeneratedPkts  = self.countGeneratedPackets()
                     numPacketsInQueue = self.countPacketsInQueue()
@@ -164,42 +164,42 @@ class SimEngine(threading.Thread):
                         avgLatency = float(self.motes[0].accumLatency)/float(numPacketsReached)
                     else:
                         avgLatency = 0.0
-                    f.write('{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\n'.format(
-                                                               self.count, #0
-                                                               cycle, #1
-                                                               self.numAccumScheduledCells, #2
-                                                               self.numAccumScheduledCells - self.numAccumScheduledCollisions, #3
-                                                               self.propagation.numAccumNoPktAtNSC, #4
-                                                               self.propagation.numAccumPktAtNSC, #5
-                                                               self.propagation.numAccumSuccessAtNSC, #6
-                                                               self.numAccumScheduledCollisions, #7                                                               
-                                                               self.propagation.numAccumNoPktAtSC, #8
-                                                               self.propagation.numAccumPktAtSC, #9
-                                                               self.propagation.numAccumSuccessAtSC, #10
-                                                               numGeneratedPkts, #11
-                                                               numPacketsReached,#12
-                                                               numPacketsInQueue,#13
-                                                               numOverflow,#14
-                                                               round(e2ePDR,3), #15
-                                                               round(avgLatency,2), #16 
-                                                               ))
+                    f.write(
+                        '{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\n'.format(
+                            self.runNum, #0
+                            cycle, #1
+                            self.numAccumScheduledCells, #2
+                            self.numAccumScheduledCells - self.numAccumScheduledCollisions, #3
+                            self.propagation.numAccumNoPktAtNSC, #4
+                            self.propagation.numAccumPktAtNSC, #5
+                            self.propagation.numAccumSuccessAtNSC, #6
+                            self.numAccumScheduledCollisions, #7                                                               
+                            self.propagation.numAccumNoPktAtSC, #8
+                            self.propagation.numAccumPktAtSC, #9
+                            self.propagation.numAccumSuccessAtSC, #10
+                            numGeneratedPkts, #11
+                            numPacketsReached,#12
+                            numPacketsInQueue,#13
+                            numOverflow,#14
+                            round(e2ePDR,3), #15
+                            round(avgLatency,2), #16 
+                        )
+                    )
                     self.propagation.initStats() 
                 
-                
-                                    
                 # Terminate condition
-                if cycle == self.settings.cycleEnd:
+                if cycle == self.settings.numCyclesPerRun:
                     f.write('\n')
                     f.close()
-                    self.goOn=False        
-        
+                    self.goOn=False
                 
                 # update the current ASN
-                self.asn += 1        
+                self.asn += 1
         # log
         log.info("thread {0} ends".format(self.name))
     
     #======================== public ==========================================
+    
     def removeEvent(self,uniqueTag,exceptCurrentASN=False):
         i = 0
         with self.dataLock:
@@ -276,9 +276,9 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             
             # initialize at start of each cycle
-            currentTs = self.asn % self.settings.timeslots
+            currentTs = self.asn % self.settings.slotframeLength
             if currentTs == 0: 
-                self.numAccumScheduledCells = 0        
+                self.numAccumScheduledCells = 0
                 self.numAccumScheduledCollisions = 0
 
             self.scheduledCells.clear()
@@ -342,12 +342,11 @@ class SimEngine(threading.Thread):
         if self.INIT_FILE == False:
             self.INIT_FILE = True
             file.write('# slotDuration = {0}\n'.format(self.settings.slotDuration))        
-            file.write('# numMotes = {0}\n'.format(self.settings.numMotes))        
-            file.write('# degree = {0}\n'.format(self.settings.degree))        
-            file.write('# channels = {0}\n'.format(self.settings.channels))        
-            file.write('# timeslots = {0}\n'.format(self.settings.timeslots))        
-            file.write('# traffic = {0}\n'.format(self.settings.traffic))
-            file.write('# side = {0}\n'.format(self.settings.side))
+            file.write('# numMotes = {0}\n'.format(self.settings.numMotes))
+            file.write('# numChans = {0}\n'.format(self.settings.numChans))        
+            file.write('# slotframeLength = {0}\n'.format(self.settings.slotframeLength))        
+            file.write('# pkPeriod = {0}\n'.format(self.settings.pkPeriod))
+            file.write('# squareSide = {0}\n'.format(self.settings.squareSide))
             file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')        
             
         

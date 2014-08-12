@@ -1,10 +1,8 @@
 #!/usr/bin/python
-
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 '''
 
 import logging

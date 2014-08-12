@@ -85,7 +85,7 @@ class Mote(object):
         self.pktToSend       = None
         
         # set DIO period as 1 cycle of slotframe
-        self.dioPeriod = self.settings.timeslots
+        self.dioPeriod = self.settings.slotframeLength
         # number of received DIOs
         self.numRxDIO = {} #indexed by neighbor
         self.collectDIO = False
@@ -187,14 +187,14 @@ class Mote(object):
     
     def setLocation(self):
         with self.dataLock:
-            self.x = random.random()*self.settings.side #in km, * 10^3 to represent meters
-            self.y = random.random()*self.settings.side #in km, * 10^3 to represent meters (these are in cm so it can be plotted)
-
+            self.x = random.random()*self.settings.squareSide
+            self.y = random.random()*self.settings.squareSide
+    
     def getNormalizedLocation(self):
         with self.dataLock:
             return (
-                self.x/self.settings.side,
-                self.y/self.settings.side
+                self.x/self.settings.squareSide,
+                self.y/self.settings.squareSide
             )
     
     def getStats(self):
@@ -397,7 +397,7 @@ class Mote(object):
             asn = self.engine.getAsn()
                     
             # get timeslotOffset of current asn
-            ts = asn%self.settings.timeslots
+            ts = asn%self.settings.slotframeLength
             
             # schedule at the start of next cycle
             self.engine.scheduleAtAsn(
@@ -449,7 +449,7 @@ class Mote(object):
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
-        ts = asn%self.settings.timeslots
+        ts = asn%self.settings.slotframeLength
         
         with self.dataLock:
             # make sure this is an active slot
@@ -512,7 +512,7 @@ class Mote(object):
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
-        ts = asn%self.settings.timeslots
+        ts = asn%self.settings.slotframeLength
         
         with self.dataLock:
             
@@ -541,7 +541,7 @@ class Mote(object):
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
-        ts = asn%self.settings.timeslots
+        ts = asn%self.settings.slotframeLength
         
         with self.dataLock:
             
@@ -591,7 +591,7 @@ class Mote(object):
         asn = self.engine.getAsn()
         
         # get timeslotOffset of current asn
-        tsCurrent = asn%self.settings.timeslots
+        tsCurrent = asn%self.settings.slotframeLength
         
         # find closest active slot in schedule
         with self.dataLock:
@@ -603,11 +603,11 @@ class Mote(object):
             tsDiffMin             = None
             for (ts,cell) in self.schedule.items():
                 if   ts==tsCurrent:
-                    tsDiff        = self.settings.timeslots
+                    tsDiff        = self.settings.slotframeLength
                 elif ts>tsCurrent:
                     tsDiff        = ts-tsCurrent
                 elif ts<tsCurrent:
-                    tsDiff        = (ts+self.settings.timeslots)-tsCurrent
+                    tsDiff        = (ts+self.settings.slotframeLength)-tsCurrent
                 else:
                     raise SystemError()
                 
@@ -648,7 +648,7 @@ class Mote(object):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
 
         # compute random
-        delay      = self.settings.traffic*(1.0+self.settings.trafficSTD*(-1+2*random.random()))
+        delay      = self.settings.pkPeriod*(1.0+self.settings.pkPeriodVar*(-1+2*random.random()))
         assert delay>0
         
         # schedule
@@ -796,10 +796,10 @@ class Mote(object):
             self._resetIncomingTraffics()
             
             # calculate total traffic
-            totalTraffic = 1.0/self.settings.traffic*self.settings.timeslots*self.settings.slotDuration # converts from (sec/pkt) to (pkt/cycle)
+            totalTraffic = 1.0/self.settings.pkPeriod*self.settings.slotframeLength*self.settings.slotDuration # converts from (sec/pkt) to (pkt/cycle)
             for n in self.PDR.keys():
                 if self.averageIncomingTraffics.has_key(n):
-                    totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.timeslots*self.settings.slotDuration
+                    totalTraffic += self.averageIncomingTraffics[n]/self.HOUSEKEEPING_PERIOD*self.settings.slotframeLength*self.settings.slotDuration
             
             if self.dataStart == True:
                 for n,portion in self.trafficDistribution.iteritems():
@@ -807,7 +807,7 @@ class Mote(object):
                     # ETX acts as overprovision
                     reqNumCell = int(math.ceil(self.estimateETX(n)*portion*totalTraffic)) # required bandwidth
                     #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
-                    threshold = int(math.ceil(portion*self.settings.OTFthresh))
+                    threshold = int(math.ceil(portion*self.settings.otfThreshold))
                     
                     # Compare outgoing traffic with total traffic to be sent 
                     numCell = self.numCells.get(n)
@@ -858,8 +858,8 @@ class Mote(object):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         with self.dataLock:
             for trial in xrange(1,10001):
-                candidateTimeslot      = random.randint(0,self.settings.timeslots-1)
-                candidateChannel       = random.randint(0,self.settings.channels-1)
+                candidateTimeslot      = random.randint(0,self.settings.slotframeLength-1)
+                candidateChannel       = random.randint(0,self.settings.numChans-1)
                 if (
                         self.isUnusedSlot(candidateTimeslot) and
                         neighbor.isUnusedSlot(candidateTimeslot)
