@@ -1,11 +1,12 @@
 #!/usr/bin/python
+'''
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
+'''
 
-'''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
-'''
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -15,12 +16,20 @@ log = logging.getLogger('Mote')
 log.setLevel(logging.DEBUG)
 log.addHandler(NullHandler())
 
+#============================ imports =========================================
+
 import copy
 import random
 import threading
 import math
+
 import SimEngine
+import SimSettings
 import Propagation
+
+#============================ defines =========================================
+
+#============================ body ============================================
 
 class Mote(object):
     
@@ -53,9 +62,11 @@ class Mote(object):
     
     TX                       = 'TX'
     RX                       = 'RX'
-    #ratio 1/4 -- changing this threshold the detection of a bad cell can be tuned, if
-    #as higher the slower to detect a wrong cell but the more prone to avoid churn
-    #as lower the faster but with some chances to introduces churn due to unstable medium
+    
+    # ratio 1/4 -- changing this threshold the detection of a bad cell can be
+    # tuned, if as higher the slower to detect a wrong cell but the more prone
+    # to avoid churn as lower the faster but with some chances to introduces
+    # churn due to unstable medium
     PDR_THRESHOLD            = 4.0
     
     def __init__(self,id):
@@ -63,11 +74,13 @@ class Mote(object):
         # store params
         self.id              = id
         
-        self.dagRoot         = False
-        # variables
+        # local variables
         self.engine          = SimEngine.SimEngine()
-        self.settings        = self.engine.settings
+        self.settings        = SimSettings.SimSettings()
         self.propagation     = Propagation.Propagation()
+        
+        self.dagRoot         = False
+        
         self.dataLock        = threading.RLock()
         self.setLocation()
         self.waitingFor      = None

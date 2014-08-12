@@ -18,9 +18,7 @@ log.addHandler(NullHandler())
 
 #============================ imports =========================================
 
-import time
 import threading
-import random
 
 import Propagation
 import Topology
@@ -93,6 +91,10 @@ class SimEngine(threading.Thread):
         
         # start thread
         self.start()
+    
+    def destroy(self):
+        self._instance       = None
+        self._init           = False
     
     #======================== thread ==========================================
     

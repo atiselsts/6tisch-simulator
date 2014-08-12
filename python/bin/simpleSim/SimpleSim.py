@@ -29,8 +29,9 @@ log.addHandler(NullHandler())
 import logging.config
 
 from optparse      import OptionParser
-from SimEngine     import SimEngine, \
-                          SimSettings
+from SimEngine     import SimEngine,   \
+                          SimSettings, \
+                          Propagation
 from SimGui        import SimGui
 
 #============================ defines =========================================
@@ -127,10 +128,8 @@ def main():
     # initialize logging
     logging.config.fileConfig('logging.conf')
     
-    # retrieve the command line kwargs and instantiate SimSettings
-    settings       = SimSettings.SimSettings(**parseCliOptions())
-    
     # start the GUI
+    settings       = SimSettings.SimSettings(**parseCliOptions())
     if settings.gui:
         gui        = SimGui.SimGui()
     
@@ -140,11 +139,18 @@ def main():
         # logging
         print('run {0}, start'.format(runNum))
         
-        # run a simulation for one run
-        simengine  = SimEngine.SimEngine(runNum) # start simulation
-        simengine.join()                         # wait until it's done
-        simengine._instance      = None          # destroy the singleton
-        simengine._init          = False
+        # create singletons
+        settings        = SimSettings.SimSettings(**parseCliOptions())
+        propagation     = Propagation.Propagation()
+        simengine       = SimEngine.SimEngine(runNum) # start simulation
+        
+        # wait for simulation to end
+        simengine.join()
+        
+        # destroy singletons
+        simengine.destroy()
+        propagation.destroy()
+        settings.destroy()                       # destroy the SimSettings singleton
         
         # logging
         print('run {0}, end'.format(runNum))

@@ -21,8 +21,6 @@ log.addHandler(NullHandler())
 import random
 import math
 
-import SimSettings
-
 #============================ defines =========================================
 
 #============================ body ============================================

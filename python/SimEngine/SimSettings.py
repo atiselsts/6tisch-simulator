@@ -5,6 +5,8 @@
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 '''
 
+#============================ logging =========================================
+
 import logging
 class NullHandler(logging.Handler):
     def emit(self, record):
@@ -12,6 +14,12 @@ class NullHandler(logging.Handler):
 log = logging.getLogger('SimSettings')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
+
+#============================ imports =========================================
+
+#============================ defines =========================================
+
+#============================ body ============================================
 
 class SimSettings(object):
     
@@ -34,3 +42,7 @@ class SimSettings(object):
         
         # store params
         self.__dict__.update(kwargs)
+    
+    def destroy(self):
+        self._instance       = None
+        self._init           = False

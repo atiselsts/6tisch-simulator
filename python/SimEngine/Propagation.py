@@ -1,12 +1,12 @@
 #!/usr/bin/python
-
-
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-       Xavier Vilajosana  <xvilajosana@uoc.edu> 
-                          <xvilajosana@eecs.berkeley.edu>
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
+
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -16,18 +16,21 @@ log = logging.getLogger('Propagation')
 log.setLevel(logging.DEBUG)
 log.addHandler(NullHandler())
 
+#============================ imports =========================================
+
 import threading
 import random
 import math
 
-#import SimEngine
+#============================ defines =========================================
+
+#============================ body ============================================
 
 class Propagation(object):
     
-     #======================== singleton pattern ===============================
+    #======================== singleton pattern ===============================
     _instance      = None
     _init          = False
-    RADIO_SENSITIVITY = -101
     
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -44,12 +47,12 @@ class Propagation(object):
         # store params
         
         # variables
-        self.dataLock            = threading.Lock()
-        self.receivers           = []
-        self.transmissions       = []
-        self.notransmissions     = []
-        self.collisions          = []        
-        self.rxFailures          = []
+        self.dataLock                  = threading.Lock()
+        self.receivers                 = []
+        self.transmissions             = []
+        self.notransmissions           = []
+        self.collisions                = []
+        self.rxFailures                = []
         
         # for schedule collision cells
         self.numPktAtSC                = 0 
@@ -68,23 +71,23 @@ class Propagation(object):
         self.numAccumPktAtNSC          = 0 
         self.numAccumNoPktAtNSC        = 0 
         self.numAccumSuccessAtNSC      = 0
-        
-        # for debug
-        # self.engine          = SimEngine.SimEngine()
-        
+    
+    def destroy(self):
+        self._instance       = None
+        self._init           = False
+    
     def initStats(self):
         ''' initialize stats at each cycle'''
         with self.dataLock:
 
-            self.numAccumPktAtSC           = 0
-            self.numAccumNoPktAtSC         = 0 
-            self.numAccumSuccessAtSC       = 0
+            self.numAccumPktAtSC       = 0
+            self.numAccumNoPktAtSC     = 0 
+            self.numAccumSuccessAtSC   = 0
              
-            self.numAccumPktAtNSC          = 0 
-            self.numAccumNoPktAtNSC        = 0 
-            self.numAccumSuccessAtNSC      = 0
-
-            
+            self.numAccumPktAtNSC      = 0 
+            self.numAccumNoPktAtNSC    = 0 
+            self.numAccumSuccessAtNSC  = 0
+    
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
@@ -145,7 +148,7 @@ class Propagation(object):
         sinr = signal/(totalInterference + noise)
         
         return self.mWTodBm(sinr)
-            
+    
     def computePdrFromSINR(self, sinr, dmac):
         ''' compute PDR from SINR  '''        
 
@@ -161,7 +164,7 @@ class Propagation(object):
             pdr=100.0
             
         return pdr 
-            
+    
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
             for each of the transmitters do:
