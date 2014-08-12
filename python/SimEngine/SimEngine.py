@@ -75,11 +75,11 @@ class SimEngine(threading.Thread):
         self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
 
         # initialize topology at start of each run
-        self.topology        = Topology.Topology(self.motes)
+        self.topology                       = Topology.Topology(self.motes)
         
         # use the topology component to create the network
         # update other topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        self.topology.createTopology(self.topology.CONNECTED)
+        self.topology.createTopology()
         
         self.goOn            = True
         

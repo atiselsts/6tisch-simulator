@@ -130,12 +130,12 @@ class Mote(object):
     def setRSSI(self,neighbor,rssi):
         ''' sets the RSSI to that neighbor'''
         with self.dataLock:
-            self.RSSI[neighbor] = rssi
+            self.RSSI[neighbor.id] = rssi
 
     def getRSSI(self,neighbor):
         ''' returns the RSSI to that neighbor'''
         with self.dataLock:
-            return self.RSSI[neighbor]
+            return self.RSSI[neighbor.id]
     
     def boot(self):
         ''' boots the mote '''

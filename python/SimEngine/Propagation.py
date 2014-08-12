@@ -127,7 +127,7 @@ class Propagation(object):
         ''' compute SINR  '''        
         noise = self.dBmTomW(dmac.noisepower)
         # S = RSSI - N
-        signal = self.dBmTomW(smac.getRSSI(dmac.id)) - noise
+        signal = self.dBmTomW(smac.getRSSI(dmac)) - noise
         if signal < 0.0:
             # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB) 
             return -10.0
@@ -135,7 +135,7 @@ class Propagation(object):
         totalInterference = 0.0
         for interferer in interferers:
             # I = RSSI - N
-            interference = self.dBmTomW(interferer.getRSSI(dmac.id)) - noise
+            interference = self.dBmTomW(interferer.getRSSI(dmac)) - noise
             if interference < 0.0:
                 # RSSI has not to be below noise level. If this happens, set interference 0.0 
                 interference = 0.0

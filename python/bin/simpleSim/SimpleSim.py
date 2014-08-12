@@ -113,9 +113,9 @@ def parseCliOptions():
     
     parser.add_option( '--gui',
         dest       = 'gui',
-        action       = 'store_true',
+        action     = 'store_true',
         default    = False, 
-        help       = 'Display GUI.',
+        help       = 'Display the GUI during execution.',
     )
     
     (opts, args)   = parser.parse_args()
@@ -128,26 +128,26 @@ def main():
     logging.config.fileConfig('logging.conf')
     
     # retrieve the command line kwargs and instantiate SimSettings
-    settings  = SimSettings.SimSettings(**parseCliOptions())
-
+    settings       = SimSettings.SimSettings(**parseCliOptions())
+    
+    # start the GUI
+    if settings.gui:
+        gui        = SimGui.SimGui()
+    
     # run the simulation runs
     for runNum in range(settings.numRuns):
         
         # logging
-        print('start run {0}\n'.format(runNum))
+        print('run {0}, start'.format(runNum))
         
-        # instantiate a SimEngine object
+        # run a simulation for one run
         simengine  = SimEngine.SimEngine(runNum) # start simulation
-        # start the GUI
-        if settings.gui:
-            gui       = SimGui.SimGui()
         simengine.join()                         # wait until it's done
         simengine._instance      = None          # destroy the singleton
         simengine._init          = False
         
         # logging
-        print('end run {0}\n'.format(runNum))       
-    
-    
+        print('run {0}, end'.format(runNum))
+
 if __name__=="__main__":
     main()
