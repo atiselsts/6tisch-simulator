@@ -46,17 +46,19 @@ class TopologyFrame(Tkinter.Frame):
         # GUI layout
         self.topology   = Tkinter.Canvas(self, width=self.WIDTH, height=self.HEIGHT)
         self.topology.grid(row=0,column=0)
-        self.topology.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.topology.after(self.UPDATE_PERIOD,self._updateGui)
     
     #======================== public ==========================================
+    
+    def quit(self):
+        self.topology.after_cancel(self._update)
     
     #======================== private =========================================
     
     def _updateGui(self):
         
         self._redrawTopology()
-        
-        self.topology.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.topology.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawTopology(self):
         

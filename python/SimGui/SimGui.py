@@ -49,14 +49,14 @@ class SimGui(Tkinter.Tk):
         self.resizable(0,0)
         
         # create frames
-        frame = ScheduleFrame.ScheduleFrame(self)
-        frame.grid(row=0,column=0,columnspan=2)
-        frame = TopologyFrame.TopologyFrame(self)
-        frame.grid(row=1,column=0,rowspan=2)
-        frame = ActionFrame.ActionFrame(self)
-        frame.grid(row=1,column=1)
-        frame = StatsFrame.StatsFrame(self)
-        frame.grid(row=2,column=1)
+        self.scheduleFrame = ScheduleFrame.ScheduleFrame(self)
+        self.scheduleFrame.grid(row=0,column=0,columnspan=2)
+        self.topologyFrame = TopologyFrame.TopologyFrame(self)
+        self.topologyFrame.grid(row=1,column=0,rowspan=2)
+        self.actionFrame = ActionFrame.ActionFrame(self)
+        self.actionFrame.grid(row=1,column=1)
+        self.statsFrame = StatsFrame.StatsFrame(self)
+        self.statsFrame.grid(row=2,column=1)
         
         # start GUI
         self.mainloop()
@@ -96,4 +96,7 @@ class SimGui(Tkinter.Tk):
     #======================== private =========================================
     
     def _closeWindow(self):
-        self.quit()
+        self.scheduleFrame.quit()
+        self.topologyFrame.quit()
+        self.statsFrame.quit()
+        self.destroy()

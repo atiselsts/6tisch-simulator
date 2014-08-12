@@ -20,7 +20,7 @@ import threading
 import random
 import math
 
-import SimEngine
+#import SimEngine
 
 class Propagation(object):
     
@@ -70,7 +70,7 @@ class Propagation(object):
         self.numAccumSuccessAtNSC      = 0
         
         # for debug
-        self.engine          = SimEngine.SimEngine()
+        # self.engine          = SimEngine.SimEngine()
         
     def initStats(self):
         ''' initialize stats at each cycle'''

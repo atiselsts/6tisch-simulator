@@ -121,6 +121,22 @@ def parseCliOptions():
         help       = 'Duration of one simulation run, in slotframe cycle.',
     )
     
+    # Slot duration
+    parser.add_option( '--slotDuration',
+        dest       = 'slotDuration',
+        type       = 'float',
+        default    = 0.01, 
+        help       = 'Duration of a TSCH timeslot, in seconds.',
+    )
+    
+    # GUI
+    parser.add_option( '--gui',
+        dest       = 'gui',
+        action       = 'store_true',
+        default    = False, 
+        help       = 'Display GUI.',
+    )
+    
     (opts, args)  = parser.parse_args()
     
     return opts.__dict__
@@ -129,26 +145,16 @@ def main():
     
     logging.config.fileConfig('logging.conf')
     
-    # retrieve the command line args
-    args      = parseCliOptions()
-    
-    # instantiate a SimSettings
-    settings  = SimSettings.SimSettings()
-    for (k,v) in args.items():
-        # v=eval(v)
-        # if type(v) is 'float' and (v<0 or v>1):
-        #     v=0.1
-        # elif type(v) is 'list':
-        #     print v
-        setattr(settings,k,v)
+    # retrieve the command line kwargs and instantiate a SimSettings
+    settings  = SimSettings.SimSettings(**parseCliOptions())
+
     
     # For multiple runs of simulation w/o GUI
-    #'''
-    gui = None
+
     for runNum in xrange(settings.maxRunNum):
         # instantiate a SimEngine object
         print('start run num: {0}\n'.format(runNum))
-        if not gui:
+        if settings.gui:
             gui       = SimGui.SimGui()
         simengine = SimEngine.SimEngine()
         simengine.join()
@@ -157,14 +163,6 @@ def main():
         simengine._init          = False
         print('end run num: {0}\n'.format(runNum))    
     
-    #'''
-    
-    # For single run with GUI
-    '''
-    simengine = SimEngine.SimEngine() 
-    # instantiate the GUI interface
-    gui       = SimGui.SimGui()
-    '''
     
 if __name__=="__main__":
     main()

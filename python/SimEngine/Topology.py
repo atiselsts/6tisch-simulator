@@ -15,20 +15,12 @@ log = logging.getLogger('Topology')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
-import threading
 import random
 import math
 
-import Propagation
-import Mote
-from SimSettings import SimSettings as s
+import SimSettings
 
 class Topology(object):
-    
-     #======================== singleton pattern ===============================
-    
-    _instance       = None
-    _init           = False
     
     RANDOM          = "RANDOM"
     FULL_MESH       = "FULL_MESH"
@@ -48,23 +40,10 @@ class Topology(object):
     
     MIN_RSSI        = -93 # in dBm, corresponds to PDR = 0.5
     
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(Topology,cls).__new__(cls, *args, **kwargs)
-        return cls._instance
-    
-    def __init__(self):
-        
-        # don't re-initialize an instance (needed because singleton)
-        if self._init:
-            return
-        self._init = True
-        
-        # store params
-        
-         # variables
-        self.dataLock            = threading.Lock()
-        self.motes=[Mote.Mote(id) for id in range(s().numMotes)]
+    def __init__(self, motes):
+        # variables
+        self.settings=SimSettings.SimSettings()
+        self.motes=motes
          
     def createTopology(self,type):
         
@@ -98,8 +77,6 @@ class Topology(object):
             self._createConnectedTopology()        
         else: 
             raise NotImplementedError('Mode {0} not supported'.format(type))
-                
-        return self.motes
     
     # not used
     def _createRandomTopology(self):
@@ -114,7 +91,7 @@ class Topology(object):
                                   )
             self.motes[id].setDataEngine(
                 self.motes[neighborId],
-                s().traffic,
+                self.settings.traffic,
             )
     
     # not used        
@@ -129,16 +106,16 @@ class Topology(object):
                     #initialize the traffic pattern with that neighbor
                     self.motes[id].setDataEngine(
                         self.motes[nei],
-                        s().traffic,
+                        self.settings.traffic,
                     )
                     
 
     def _addChild(self, id,child):
         print 'i {0}'.format(id)
         #downstream link
-        self.motes[id].setDataEngine(self.motes[child], s().traffic)
+        self.motes[id].setDataEngine(self.motes[child], self.settings.traffic)
         #upstream link
-        self.motes[child].setDataEngine(self.motes[id], s().traffic)
+        self.motes[child].setDataEngine(self.motes[id], self.settings.traffic)
 
     # not used
     def _createBTreeTopology(self):
@@ -167,7 +144,7 @@ class Topology(object):
                         linkto=nei
             if linkto!=-1:
                 self.motes[id].setPDR(self.motes[linkto],self.computePDR(id,linkto))
-                self.motes[id].setDataEngine(self.motes[linkto], s().traffic,) 
+                self.motes[id].setDataEngine(self.motes[linkto], self.settings.traffic,) 
                 
     # not used        
     def _createRadiusDistanceTopology(self):
@@ -180,7 +157,7 @@ class Topology(object):
                     if distance < self.NEIGHBOR_RADIUS:
                         print "adding neighbor {0},{1}".format(id,nei)
                         self.motes[id].setPDR(self.motes[nei],self.computePDR(id,nei))
-                        self.motes[id].setDataEngine(self.motes[nei], s().traffic,) 
+                        self.motes[id].setDataEngine(self.motes[nei], self.settings.traffic,) 
                
     # not used
     def _createMaxRssiTopology(self):
@@ -200,7 +177,7 @@ class Topology(object):
                         
             print "adding neighbor {0},{1}".format(id,maxNei)
             self.motes[id].setPDR(self.motes[maxNei], self.computePDR(id, maxNei))
-            self.motes[id].setDataEngine(self.motes[maxNei], s().traffic,) 
+            self.motes[id].setDataEngine(self.motes[maxNei], self.settings.traffic,) 
 
     
     def _createConnectedTopology(self):

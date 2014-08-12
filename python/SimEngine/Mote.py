@@ -21,7 +21,6 @@ import threading
 import math
 import SimEngine
 import Propagation
-import SimSettings
 
 class Mote(object):
     
@@ -66,8 +65,8 @@ class Mote(object):
         
         self.dagRoot         = False
         # variables
-        self.settings        = SimSettings.SimSettings()
         self.engine          = SimEngine.SimEngine()
+        self.settings        = self.engine.settings
         self.propagation     = Propagation.Propagation()
         self.dataLock        = threading.RLock()
         self.setLocation()

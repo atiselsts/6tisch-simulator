@@ -17,7 +17,6 @@ log.addHandler(NullHandler())
 import Tkinter
 
 from SimEngine             import SimEngine
-from SimEngine.SimSettings import SimSettings as s
 
 class ScheduleFrame(Tkinter.Frame):
     
@@ -35,11 +34,12 @@ class ScheduleFrame(Tkinter.Frame):
         
         # store params
         self.guiParent       = guiParent
-        self.engine          = SimEngine.SimEngine()
+        self.engine           = SimEngine.SimEngine()
+        self.settings         = self.engine.settings
         
         # variables
         self.cells           = []
-        self.step            = min((self.WIDTH-4)/s().timeslots,(self.HEIGHT-4)/s().channels)
+        self.step            = min((self.WIDTH-4)/self.settings.timeslots,(self.HEIGHT-4)/self.settings.channels)
         
         # initialize the parent class
         Tkinter.Frame.__init__(
@@ -52,16 +52,19 @@ class ScheduleFrame(Tkinter.Frame):
         # GUI layout
         self.schedule = Tkinter.Canvas(self, width=self.WIDTH, height=self.HEIGHT)
         self.schedule.grid(row=0,column=0)
-        self.schedule.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.schedule.after(self.UPDATE_PERIOD,self._updateGui)
         
-        for ts in range(s().timeslots):
+        for ts in range(self.settings.timeslots):
             self.cells.append([])
-            for ch in range(s().channels):
+            for ch in range(self.settings.channels):
                 newCell = self.schedule.create_rectangle(self._cellCoordinates(ts,ch))
                 self.schedule.tag_bind(newCell, '<ButtonPress-1>', self._cellClicked)
                 self.cells[ts] += [newCell]
     
     #======================== public ==========================================
+    
+    def quit(self):
+        self.schedule.after_cancel(self._update)
     
     #======================== private =========================================
     
@@ -69,7 +72,7 @@ class ScheduleFrame(Tkinter.Frame):
         
         self._redrawSchedule()
         
-        self.schedule.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.schedule.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawSchedule(self):
         

@@ -27,7 +27,7 @@ class SimSettings(object):
             cls._instance = super(SimSettings,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
-    def __init__(self):
+    def __init__(self, **kwargs):
         
         # don't re-initialize an instance (needed because singleton)
         if self._init:
@@ -35,14 +35,4 @@ class SimSettings(object):
         self._init = True
         
         # store params
-        self.slotDuration    = 0.01
-        self.numMotes        = None
-        self.degree          = None
-        self.channels        = None
-        self.timeslots       = None
-        self.traffic         = None
-        self.trafficSTD      = None
-        self.side            = None
-        self.OTFthresh       = None
-        self.maxRunNum       = None
-        self.cycleEnd        = None
+        self.__dict__.update(kwargs)

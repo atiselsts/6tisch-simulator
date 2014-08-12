@@ -16,7 +16,6 @@ log.addHandler(NullHandler())
 import Tkinter
 
 from SimEngine             import SimEngine
-from SimEngine.SimSettings import SimSettings as s
 
 class StatsFrame(Tkinter.Frame):
     
@@ -27,6 +26,7 @@ class StatsFrame(Tkinter.Frame):
         # store params
         self.guiParent       = guiParent
         self.engine          = SimEngine.SimEngine()
+        self.settings         = self.engine.settings
         
         # initialize the parent class
         Tkinter.Frame.__init__(
@@ -50,9 +50,12 @@ class StatsFrame(Tkinter.Frame):
         self.link.grid(row=0,column=3)
         
         # schedule first update
-        self.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.after(self.UPDATE_PERIOD,self._updateGui)
         
     #======================== public ==========================================
+    
+    def quit(self):
+        self.after_cancel(self._update)
     
     #======================== private =========================================
     
@@ -62,8 +65,7 @@ class StatsFrame(Tkinter.Frame):
         self._redrawCell()
         self._redrawMote()
         self._redrawLink()
-        
-        self.after(self.UPDATE_PERIOD,self._updateGui)
+        self._update=self.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawInfo(self):
         
@@ -71,7 +73,7 @@ class StatsFrame(Tkinter.Frame):
         output  = []
         output += ["info:"]
         output += ["ASN: {0}".format(asn)]
-        output += ["time: {0}".format(asn*s().slotDuration)]
+        output += ["time: {0}".format(asn*self.settings.slotDuration)]
         output  = '\n'.join(output)
         self.info.configure(text=output)
     

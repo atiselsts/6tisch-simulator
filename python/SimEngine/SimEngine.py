@@ -23,11 +23,10 @@ import random
 import Propagation
 import Topology
 import Mote
-from SimSettings import SimSettings as s
+import SimSettings
 
 class SimEngine(threading.Thread):
     
-    SLOT_DURATION  = 0.01
     OUTPUT_FILE = "output.dat"
     INIT_FILE = False
     count = 0  
@@ -55,6 +54,7 @@ class SimEngine(threading.Thread):
         # store params
         
         # variables
+        self.settings          = SimSettings.SimSettings()
         self.dataLock        = threading.RLock()
         
         self.scheduledCells = set()
@@ -72,18 +72,16 @@ class SimEngine(threading.Thread):
         self.asn             = 0
         self.events          = []
         self.simDelay        = 0
-        self.motes           = []
+        self.motes=[Mote.Mote(id) for id in range(self.settings.numMotes)]
 
         # initialize topology at start of each run         
-        Topology.Topology._instance = None
-        Topology.Topology._init     = False
-        self.topology        = Topology.Topology()
-        
-        self.goOn            = True
+        self.topology        = Topology.Topology(self.motes)
         
         #use the topology component to create the network
         #update other topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
-        self.motes = self.topology.createTopology(self.topology.CONNECTED)
+        self.topology.createTopology(self.topology.CONNECTED)
+        
+        self.goOn            = True
         
         # boot all the motes
         for i in range(len(self.motes)):
@@ -148,8 +146,8 @@ class SimEngine(threading.Thread):
                 # wait a bit
                 time.sleep(self.simDelay)
 
-                cycle = int(self.asn/s().timeslots)
-                if self.asn % s().timeslots == s().timeslots -1: # end of each cycle
+                cycle = int(self.asn/self.settings.timeslots)
+                if self.asn % self.settings.timeslots == self.settings.timeslots -1: # end of each cycle
                     if cycle == 0:
                         f.write('# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n\n')
                     print('Run num: {0} cycle: {1}'.format(self.count, cycle))
@@ -190,7 +188,7 @@ class SimEngine(threading.Thread):
                 
                                     
                 # Terminate condition
-                if cycle == s().cycleEnd:
+                if cycle == self.settings.cycleEnd:
                     f.write('\n')
                     f.close()
                     self.goOn=False        
@@ -222,7 +220,7 @@ class SimEngine(threading.Thread):
     def scheduleIn(self,delay,cb,uniqueTag=None):
         ''' used to generate events. Puts an event to the queue '''    
         with self.dataLock:
-            asn = int(self.asn+(float(delay)/float(s().slotDuration)))
+            asn = int(self.asn+(float(delay)/float(self.settings.slotDuration)))
             
             self.scheduleAtAsn(asn,cb,uniqueTag)
     
@@ -278,7 +276,7 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             
             # initialize at start of each cycle
-            currentTs = self.asn % s().timeslots
+            currentTs = self.asn % self.settings.timeslots
             if currentTs == 0: 
                 self.numAccumScheduledCells = 0        
                 self.numAccumScheduledCollisions = 0
@@ -343,13 +341,13 @@ class SimEngine(threading.Thread):
     def fileInit(self, file):
         if self.INIT_FILE == False:
             self.INIT_FILE = True
-            file.write('# slotDuration = {0}\n'.format(s().slotDuration))        
-            file.write('# numMotes = {0}\n'.format(s().numMotes))        
-            file.write('# degree = {0}\n'.format(s().degree))        
-            file.write('# channels = {0}\n'.format(s().channels))        
-            file.write('# timeslots = {0}\n'.format(s().timeslots))        
-            file.write('# traffic = {0}\n'.format(s().traffic))
-            file.write('# side = {0}\n'.format(s().side))
+            file.write('# slotDuration = {0}\n'.format(self.settings.slotDuration))        
+            file.write('# numMotes = {0}\n'.format(self.settings.numMotes))        
+            file.write('# degree = {0}\n'.format(self.settings.degree))        
+            file.write('# channels = {0}\n'.format(self.settings.channels))        
+            file.write('# timeslots = {0}\n'.format(self.settings.timeslots))        
+            file.write('# traffic = {0}\n'.format(self.settings.traffic))
+            file.write('# side = {0}\n'.format(self.settings.side))
             file.write('# SC = Schedule Collision, PC = Packet Collision, OVF = overflow\n')        
             
         
