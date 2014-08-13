@@ -11,6 +11,7 @@
 import os
 import sys
 import time
+import numpy
 if __name__=='__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..', '..'))
@@ -94,10 +95,20 @@ def postprocessing(filename, postprocessingFilename, numRuns, cycles):
     while lines[0].startswith('#'):
         lines.pop(0)
     assert len(lines)==numRuns*cycles
-    matrix=[]
-    for run in xrange(numRuns):
-        matrix+=[[[float(l) for l in lines.pop(0).strip().split('\t')[2:]] for i in xrange(cycles)]]
-    #To Be Updated
+    matrixResults=numpy.array([[[float(l) for l in lines.pop(0).strip().split('\t')[2:]] for i in xrange(cycles)] for run in xrange(numRuns)])
+    # change matrixResults here for further analysis 
+    sumValues=numpy.sum(matrixResults, axis=0)
+    sumSquareValues=numpy.sum(matrixResults**2, axis=0)
+    f=open(postprocessingFilename, 'w')
+    f.write('# SUM VALUES\n')
+    for line in sumValues:
+        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
+        f.write(formatString.format(*tuple(line))+'\n')
+    f.write('# SUM SQUARE VALUES\n')
+    for line in sumSquareValues:
+        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
+        f.write(formatString.format(*tuple(line))+'\n')
+    f.close()
     
 def main():
     
@@ -145,7 +156,7 @@ def main():
                         # logging
                         print('run {0}, end'.format(runNum))
                     
-                    postprocessingFilename='//postprocessing_{0}_{1}.dat'.format(numRuns,idfilename)
+                    postprocessingFilename='//postprocessing_{0}_{1}.dat'.format(idfilename, numRuns)
                     postprocessing(directory+filename, directory+postprocessingFilename, numRuns, settings.numCyclesPerRun)
                     settings.destroy()                       # destroy the SimSettings singleton
 
