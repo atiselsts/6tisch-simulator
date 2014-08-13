@@ -20,6 +20,17 @@ log.addHandler(NullHandler())
 
 #============================ defines =========================================
 
+SQUARESIDE              = 1.000
+NUMMOTES                = 10
+NUMCHANS                = 16
+SLOTDURATION            = 0.010
+SLOTFRAMELENGTH         = 101
+PKPERIOD                = 0.100
+PKPERIODVAR             = 0.1
+OTFTHRESHOLD            = 0
+NUMCYCLESPERRUN         = 10
+OUTPUTFILE              = 'output.dat'
+
 #============================ body ============================================
 
 class SimSettings(object):
@@ -34,7 +45,18 @@ class SimSettings(object):
             cls._instance = super(SimSettings,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
-    def __init__(self, **kwargs):
+    def __init__(self, \
+                squareSide = SQUARESIDE, \
+                numMotes = NUMMOTES, \
+                numChans = NUMCHANS, \
+                slotDuration = SLOTDURATION, \
+                slotframeLength = SLOTFRAMELENGTH, \
+                pkPeriod = PKPERIOD, \
+                pkPeriodVar = PKPERIODVAR, \
+                otfThreshold = OTFTHRESHOLD, \
+                numCyclesPerRun = NUMCYCLESPERRUN, \
+                outputFile = OUTPUTFILE
+                ):
         
         # don't re-initialize an instance (needed because singleton)
         if self._init:
@@ -42,7 +64,16 @@ class SimSettings(object):
         self._init = True
         
         # store params
-        self.__dict__.update(kwargs)
+        self.squareSide             = squareSide
+        self.numMotes               = numMotes
+        self.numChans               = numChans
+        self.slotDuration           = slotDuration
+        self.slotframeLength        = slotframeLength
+        self.pkPeriod               = pkPeriod
+        self.pkPeriodVar            = pkPeriodVar
+        self.otfThreshold           = otfThreshold
+        self.numCyclesPerRun        = numCyclesPerRun
+        self.outputFile             = outputFile
     
     def destroy(self):
         self._instance       = None

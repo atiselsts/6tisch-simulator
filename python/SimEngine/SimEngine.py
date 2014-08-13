@@ -31,9 +31,6 @@ import SimSettings
 
 class SimEngine(threading.Thread):
     
-    OUTPUT_FILE    = "output.dat"
-    INIT_FILE      = False
-    
     #======================== singleton pattern ===============================
     
     _instance      = None
@@ -56,6 +53,7 @@ class SimEngine(threading.Thread):
         
         # local variables
         self.settings                       = SimSettings.SimSettings()
+        self.OUTPUT_FILE                    = self.settings.outputFile
         self.dataLock                       = threading.RLock()
         self.scheduledCells                 = set()
         self.collisionCells                 = set()
