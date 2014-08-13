@@ -279,7 +279,7 @@ class SimEngine(threading.Thread):
             f.write(output)
     
     def _fileWriteRun(self,elems):
-        formatString    = ' '.join(['{{{0}:>5}}'.format(i) for i in range(len(elems))])
+        formatString    = '\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(elems))])
         formatString   += '\n'
         line            = formatString.format(*elems)
         with open(self.OUTPUT_FILE,'a') as f:

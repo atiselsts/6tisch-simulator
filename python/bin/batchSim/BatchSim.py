@@ -87,6 +87,18 @@ def parseCliOptions():
     
     return numRuns, opts
 
+def postprocessing(filename, postprocessingFilename, numRuns, cycles):
+    f=open(filename)
+    lines=f.readlines()
+    f.close()
+    while lines[0].startswith('#'):
+        lines.pop(0)
+    assert len(lines)==numRuns*cycles
+    matrix=[]
+    for run in xrange(numRuns):
+        matrix+=[[[float(l) for l in lines.pop(0).strip().split('\t')[2:]] for i in xrange(cycles)]]
+    #To Be Updated
+    
 def main():
     
     # initialize logging
@@ -104,12 +116,14 @@ def main():
                         'numMotes_{0}_pkPeriod_{1}ms_pkPeriodVar_{2}%_otfThreshold_{3}cells'.format(numMotes,int(pkPeriod*1000),int(pkPeriodVar*100),otfThreshold))
                     if not os.path.exists(directory):
                         os.makedirs(directory)
+                    idfilename=int(time.time())
+                    filename='//output_{0}.dat'.format(idfilename)
                     settings = SimSettings.SimSettings(\
                                 numMotes=numMotes, \
                                 pkPeriod=pkPeriod, \
                                 pkPeriodVar=pkPeriodVar, \
                                 otfThreshold=otfThreshold, \
-                                outputFile=directory+'//output_{}.dat'.format(int(time.time())), \
+                                outputFile=directory+filename, \
                                 )
                     # run the simulation runs
                     for runNum in xrange(numRuns):
@@ -130,6 +144,9 @@ def main():
                         
                         # logging
                         print('run {0}, end'.format(runNum))
+                    
+                    postprocessingFilename='//postprocessing_{0}_{1}.dat'.format(numRuns,idfilename)
+                    postprocessing(directory+filename, directory+postprocessingFilename, numRuns, settings.numCyclesPerRun)
                     settings.destroy()                       # destroy the SimSettings singleton
 
 if __name__=="__main__":
