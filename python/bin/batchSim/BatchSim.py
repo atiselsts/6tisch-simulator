@@ -10,8 +10,6 @@
 
 import os
 import sys
-import time
-import numpy
 if __name__=='__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..', '..'))
@@ -28,6 +26,8 @@ log.addHandler(NullHandler())
 
 #============================ imports =========================================
 
+import time
+import numpy
 import logging.config
 
 from argparse      import ArgumentParser

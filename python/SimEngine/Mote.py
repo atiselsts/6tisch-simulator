@@ -819,11 +819,11 @@ class Mote(object):
                     if numCell is None:
                         numCell=0
                     if reqNumCell > numCell:
-                        for i in xrange(reqNumCell-numCell):
+                        for i in xrange(reqNumCell-numCell+(threshold+1)/2):
                             if not self._addCellToNeighbor(n):
                                 break # cannot find free time slot
                     elif reqNumCell < numCell-threshold:
-                        for i in xrange(numCell-threshold-reqNumCell):
+                        for i in xrange(numCell-reqNumCell-(threshold+1)/2):
                             if not self._removeWorstCellToNeighbor(n):
                                 break # cannot find worst cell due to insufficient tx
                 
