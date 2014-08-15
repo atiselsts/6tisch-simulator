@@ -288,7 +288,7 @@ class SimEngine(threading.Thread):
         # columnNames
         if not self.columnNames:
             self.columnNames = sorted(elems.keys())
-            output     += ['\n#'+' '.join(self.columnNames)]
+            output     += ['\n# '+' '.join(self.columnNames)]
         
         # dataline
         formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])

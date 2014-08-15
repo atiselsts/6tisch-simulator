@@ -21,107 +21,116 @@ log.addHandler(NullHandler())
 #============================ imports =========================================
 
 import os
+import re
+import glob
+import sys
 import time
+
 import numpy
-import scipy.stats as ss
+import scipy
+import scipy.stats
+
 import math
 import logging.config
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import argparse
 
 from argparse      import ArgumentParser
 
 #============================ defines =========================================
 
 DATADIR = 'simData'
+CONFINT = 0.95
 
 #============================ body ============================================
 
-def postprocessing():
-    for dir in os.listdir(DATADIR):
-        subdirectory=os.path.join(DATADIR, dir)
-        if os.path.isdir(subdirectory):
-            simRuns=0
-            matrix=[]
-            for filename in os.listdir(subdirectory):
-                filenameSplit=filename.split('.')[0].split('_')
-                if filenameSplit[0]=='postprocessing':
-                   if len(filenameSplit)==4:
-                        simRuns+=int(filenameSplit[-1])
-                        f=open(subdirectory+'//'+filename)
-                        lines=f.readlines()
-                        f.close()
-                        length=len(lines)
-                        assert length%2==0
-                        matrix+=[[[float(l) for l in line.strip().split('\t')] for line in lines[1:length/2]+lines[length/2+1:]]]
-                   else:
-                       os.remove(subdirectory+'//'+filename)
-            if simRuns>0:
-                matrix=numpy.array(matrix)/simRuns
-                matrix=numpy.sum(matrix, axis=0)
-                outputFile=subdirectory+'//postprocessing_{0}.dat'.format(simRuns)
-                f=open(outputFile, 'w')
-                f.write('# SUM VALUES\n')
-                for line in matrix[:len(matrix)/2, :]:
-                    formatString='\t'.join(['{{{0}}}'.format(i) for i in xrange(len(line))])
-                    f.write(formatString.format(*tuple(line))+'\n')
-                f.write('# SUM SQUARE VALUES\n')
-                for line in matrix[len(matrix)/2:, :]:
-                    formatString='\t'.join(['{{{0}}}'.format(i) for i in xrange(len(line))])
-                    f.write(formatString.format(*tuple(line))+'\n')
-                f.close()
-
-def readDataForFigures(columns=None):
-    figures='figures'
-    data={}
-    control=None
-    for dir in os.listdir(DATADIR):
-        subdirectory=os.path.join(DATADIR, dir)
-        identifier=tuple(dir.split('_')[1::2])
-        data[identifier]={}
-        if os.path.isdir(subdirectory):
-            for filename in os.listdir(subdirectory):
-                filenameSplit=filename.split('.')[0].split('_')
-                if filenameSplit[0]=='postprocessing' and len(filenameSplit)==2:
-                    simRuns=int(filenameSplit[-1])
-                    f=open(subdirectory+'//'+filename)
-                    lines=f.readlines()
-                    f.close()
-                    print subdirectory+'//'+filename
-                    length=len(lines)
-                    assert length%2==0
-                    matrixAvg=[[float(l) for l in line.strip().split('\t')] for line in lines[1:length/2]]
-                    matrixSqAvg=[[float(l) for l in line.strip().split('\t')] for line in lines[length/2+1:]]
-                    matrixAvg=zip(*matrixAvg)
-                    matrixSqAvg=zip(*matrixSqAvg)
-                    if control==None:
-                        control=len(matrixAvg)
-                    else:
-                        assert len(matrixAvg)==control
-                    confidence=ss.t.interval(0.95, simRuns)[1]
-                    for stat in xrange(len(matrixAvg)):
-                        avg=numpy.array(matrixAvg[stat])
-                        sqAvg=numpy.array(matrixSqAvg[stat])
-                        err=numpy.sqrt((sqAvg-avg**2)/(simRuns-1))*confidence
-                        data[identifier][stat]=[avg, err]
-    if not os.path.exists(figures):
-        os.makedirs(figures)
-    if columns is None:
-        columns=range(control)
-    for column in columns:
-        toplot=dict([(identifier, data[identifier][column]) for identifier in data.iterkeys()])
-        plotFigure(toplot, figures, column)
+def parseCliOptions():
     
-def plotFigure(toplot, figures, column):
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument( '--elemNames',
+        dest       = 'elemNames',
+        nargs      = '+',
+        type       = str,
+        default    = [
+            'numAccumScheduledCells',
+            'numAccumScheduledCollisions',
+        ],
+        help       = 'Name of the elements to generate timeline figures for.',
+    )
+    
+    options        = parser.parse_args()
+    
+    return options.__dict__
+
+def genFig(dir,infile,elemName):
+    print dir,infile,elemName
+    
+    filepath = os.path.join(dir,infile)
+    
+    # find colnumelem, colnumcycle, colnumrunNum
+    with open(filepath,'r') as f:
+        for line in f:
+            if line.startswith('# '):
+                elems        = re.sub(' +',' ',line[2:]).split()
+                numcols      = len(elems)
+                colnumelem   = elems.index(elemName)
+                colnumcycle  = elems.index('cycle')
+                colnumrunNum = elems.index('runNum')
+                break
+    
+    assert colnumelem
+    assert colnumcycle
+    assert colnumrunNum
+    
+    # parse data
+    valuesPerCycle = {}
+    with open(filepath,'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+            cycle  = int(m.group(colnumcycle+1))
+            runNum = int(m.group(colnumrunNum+1))
+            try:
+                elem         = float(m.group(colnumelem+1))
+            except:
+                try:
+                    elem     =   int(m.group(colnumelem+1))
+                except:
+                    elem     =       m.group(colnumelem+1)
+            #print 'cycle={0} runNum={1} elem={2}'.format(cycle,runNum,elem)
+            if cycle not in valuesPerCycle:
+                valuesPerCycle[cycle] = []
+            valuesPerCycle[cycle] += [elem]
+    
+    # calculate mean and confidence interval
+    meanPerCycle    = {}
+    confintPerCycle = {}
+    for (k,v) in valuesPerCycle.items():
+        a          = 1.0*numpy.array(v)
+        n          = len(a)
+        se         = scipy.stats.sem(a)
+        m          = numpy.mean(a)
+        confint    = se * scipy.stats.t._ppf((1+CONFINT)/2., n-1)
+        meanPerCycle[k]      = m
+        confintPerCycle[k]   = confint
+    
+    print valuesPerCycle
+    print meanPerCycle
+    print confintPerCycle
+    
+    # plot
+    x         = sorted(meanPerCycle.keys())
+    y         = [meanPerCycle[k] for k in x]
+    yerr      = [confintPerCycle[k] for k in x]
+    outfile   = infile.split('.')[0]+'_{}.png'.format(elemName)
     plt.figure()
-    plt.hold(True)
-    colors = cm.rainbow(numpy.linspace(0, 1, len(toplot)))
-    for en, i in enumerate(sorted(toplot.keys())):
-        plt.errorbar(range(len(toplot[i][0])), toplot[i][0], yerr=toplot[i][1], label=' '.join(i), color=colors[en])
-    plt.grid()
-    plt.legend(loc=2, prop=matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='small'), labelspacing=0.0)
-    plt.savefig('{0}/column_{1}.png'.format(figures, column))
+    plt.errorbar(x,y,yerr=yerr)
+    print outfile
+    plt.savefig(os.path.join(dir,outfile))
     plt.close()
 
 #============================ main ============================================
@@ -131,14 +140,23 @@ def main():
     # initialize logging
     logging.config.fileConfig('logging.conf')
     
-    # verify there are some results
+    # verify there is some data to plot
     if not os.path.isdir(DATADIR):
         print 'There are no simulation results to analyze.'
         sys.exit(1)
     
     # parse CLI options
-    postprocessing()
-    readDataForFigures(columns=[0, 13, 15, 16]) #indicate the number related to each column you want to plot (column of the postprocessing files)
+    options            = parseCliOptions()
+    
+    # plot figures
+    for dir in os.listdir(DATADIR):
+        for infile in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+            for elemName in options['elemNames']:
+                genFig(
+                    dir      = os.path.join(DATADIR, dir),
+                    infile   = os.path.basename(infile),
+                    elemName = elemName,
+                )
 
 if __name__=="__main__":
     main()
