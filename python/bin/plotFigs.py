@@ -34,26 +34,13 @@ from argparse      import ArgumentParser
 
 #============================ defines =========================================
 
-#============================ main ============================================
+DATADIR = 'simData'
 
-def parseCliOptions():
-    
-    parser = ArgumentParser()
-    
-    parser.add_argument( '--post',
-        dest         = 'post',
-        action      = 'store_true',
-        default     = False, 
-        help         = 'Enables post-processing before plotting figures.',
-    )
-    
-    opts           = parser.parse_args()
-    
-    return opts
+#============================ body ============================================
 
-def postprocessing(directory):
-    for dir in os.listdir(directory):
-        subdirectory=os.path.join(directory, dir)
+def postprocessing():
+    for dir in os.listdir(DATADIR):
+        subdirectory=os.path.join(DATADIR, dir)
         if os.path.isdir(subdirectory):
             simRuns=0
             matrix=[]
@@ -85,12 +72,12 @@ def postprocessing(directory):
                     f.write(formatString.format(*tuple(line))+'\n')
                 f.close()
 
-def readDataForFigures(directory, columns=None):
+def readDataForFigures(columns=None):
     figures='figures'
     data={}
     control=None
-    for dir in os.listdir(directory):
-        subdirectory=os.path.join(directory, dir)
+    for dir in os.listdir(DATADIR):
+        subdirectory=os.path.join(DATADIR, dir)
         identifier=tuple(dir.split('_')[1::2])
         data[identifier]={}
         if os.path.isdir(subdirectory):
@@ -136,21 +123,22 @@ def plotFigure(toplot, figures, column):
     plt.legend(loc=2, prop=matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='small'), labelspacing=0.0)
     plt.savefig('{0}/column_{1}.png'.format(figures, column))
     plt.close()
-    
+
+#============================ main ============================================
+
 def main():
     
     # initialize logging
     logging.config.fileConfig('logging.conf')
     
-    directory='results'
-    if not os.path.isdir(directory):
+    # verify there are some results
+    if not os.path.isdir(DATADIR):
         print 'There are no simulation results to analyze.'
-    else:
-        # parse CLI options
-        opts   = parseCliOptions()
-        if opts.post:
-            postprocessing(directory)
-        readDataForFigures(directory, columns=[0, 13, 15, 16]) #indicate the number related to each column you want to plot (column of the postprocessing files)
+        sys.exit(1)
+    
+    # parse CLI options
+    postprocessing()
+    readDataForFigures(columns=[0, 13, 15, 16]) #indicate the number related to each column you want to plot (column of the postprocessing files)
 
 if __name__=="__main__":
     main()
