@@ -57,6 +57,7 @@ class SimEngine(threading.Thread):
         self.scheduledCells                 = set()
         self.collisionCells                 = set()
         self.inactivatedCells               = set()
+        self.columnNames                    = []
         self.numAccumScheduledCells         = 0
         self.numAccumScheduledCollisions    = 0
         self.queueDelays                                 = []
@@ -150,9 +151,9 @@ class SimEngine(threading.Thread):
                     numPacketsInQueue  = self._countPacketsInQueue()
                     numOverflow        = self._countQueueFull()
                     numPacketsReached  = self.motes[0].getStats()['dataReceived']
-                    avgQueueDelay = 0
+                    avgQueueDelay      = 0
                     if self.queueDelays:
-                        avgQueueDelay = sum(self.queueDelays)/float(len(self.queueDelays))
+                        avgQueueDelay  = sum(self.queueDelays)/float(len(self.queueDelays))
                     timeBetweenOTFevents=[]
                     avgTimeBetweenOTFevents=0
                     for mote in self.motes:
@@ -168,30 +169,29 @@ class SimEngine(threading.Thread):
                         avgLatency     = float(self.motes[0].accumLatency)/float(numPacketsReached)
                     else:
                         avgLatency     = 0.0
-                    self._fileWriteRun([
-                        self.runNum,
-                        cycle,
-                        self.numAccumScheduledCells,
-                        self.numAccumScheduledCells - self.numAccumScheduledCollisions,
-                        self.propagation.numAccumNoPktAtNSC,
-                        self.propagation.numAccumPktAtNSC,
-                        self.propagation.numAccumSuccessAtNSC,
-                        self.numAccumScheduledCollisions,
-                        self.propagation.numAccumNoPktAtSC,
-                        self.propagation.numAccumPktAtSC,
-                        self.propagation.numAccumSuccessAtSC,
-                        numGeneratedPkts,
-                        numPacketsReached,
-                        numPacketsInQueue,
-                        numOverflow,
-                        round(e2ePDR,3),
-                        round(avgLatency,2),
-                        avgQueueDelay, 
-                        avgTimeBetweenOTFevents, 
-                    ])
+                    self._fileWriteRun({
+                        'runNum': self.runNum,
+                        'cycle': cycle,
+                        'numAccumScheduledCells':          self.numAccumScheduledCells,
+                        'numAccumScheduledCollisions':     self.numAccumScheduledCollisions,
+                        'numAccumNoPktAtNSC':              self.propagation.numAccumNoPktAtNSC,
+                        'numAccumPktAtNSC':                self.propagation.numAccumPktAtNSC,
+                        'numAccumSuccessAtNSC':            self.propagation.numAccumSuccessAtNSC,
+                        'numAccumNoPktAtSC':               self.propagation.numAccumNoPktAtSC,
+                        'numAccumPktAtSC':                 self.propagation.numAccumPktAtSC,
+                        'numAccumSuccessAtSC':             self.propagation.numAccumSuccessAtSC,
+                        'numGeneratedPkts':                numGeneratedPkts,
+                        'numPacketsReached':               numPacketsReached,
+                        'numPacketsInQueue':               numPacketsInQueue,
+                        'numOverflow':                     numOverflow,
+                        'e2ePDR':                          e2ePDR,
+                        'avgLatency':                      avgLatency,
+                        'avgQueueDelay':                   avgQueueDelay, 
+                        'avgTimeBetweenOTFevents':         avgTimeBetweenOTFevents, 
+                    })
                     self.propagation.initStats() 
                 
-                # Terminate condition
+                # stop after numCyclesPerRun cycles
                 if cycle==self.settings.numCyclesPerRun:
                     self.goOn=False
                 
@@ -274,28 +274,30 @@ class SimEngine(threading.Thread):
     #======================== private =========================================
     
     def _fileWriteHeader(self):
-        output     = []
-        for param in [
-                'slotDuration',
-                'numMotes',
-                'numChans',
-                'slotframeLength',
-                'pkPeriod',
-                'squareSide',
-            ]:
-            output += ['# {0} = {1}'.format(param,getattr(self.settings,param))]
-        output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\tqueueDelay\ttimeBetweenOTFevents\n']
-        output     = '\n'.join(output)
+        output          = []
+        output         += ['## {0} = {1}'.format(k,v) for (k,v) in self.settings.__dict__.items() if not k.startswith('_')]
+        output         += ['\n']
+        output          = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:
             f.write(output)
     
     def _fileWriteRun(self,elems):
-        formatString    = '\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(elems))])
+        output          = []
+        
+        # columnNames
+        if not self.columnNames:
+            self.columnNames = sorted(elems.keys())
+            output     += ['\n#'+' '.join(self.columnNames)]
+        
+        # dataline
+        formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
         formatString   += '\n'
-        line            = formatString.format(*elems)
+        output         += [' '+formatString.format(*[elems[k] for k in self.columnNames])]
+        
+        # write to file
         with open(self.settings.getOutputFile(),'a') as f:
-            f.write(line)
+            f.write('\n'.join(output))
     
     def _countSchedule(self):
         # count scheduled cells and schedule collision at each asn
