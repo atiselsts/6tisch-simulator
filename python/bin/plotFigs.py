@@ -24,20 +24,14 @@ import os
 import re
 import glob
 import sys
-import time
 
 import numpy
 import scipy
 import scipy.stats
 
-import math
 import logging.config
-import matplotlib
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
+import matplotlib.pyplot
 import argparse
-
-from argparse      import ArgumentParser
 
 #============================ defines =========================================
 
@@ -66,9 +60,12 @@ def parseCliOptions():
     return options.__dict__
 
 def genFig(dir,infile,elemName):
-    print dir,infile,elemName
     
-    filepath = os.path.join(dir,infile)
+    outfile   = os.path.join(dir,infile.split('.')[0]+'_{}.png'.format(elemName))
+    filepath  = os.path.join(dir,infile)
+    
+    # print
+    print 'Generating {0}...'.format(outfile),
     
     # find colnumelem, colnumcycle, colnumrunNum
     with open(filepath,'r') as f:
@@ -118,20 +115,17 @@ def genFig(dir,infile,elemName):
         meanPerCycle[k]      = m
         confintPerCycle[k]   = confint
     
-    print valuesPerCycle
-    print meanPerCycle
-    print confintPerCycle
-    
     # plot
     x         = sorted(meanPerCycle.keys())
     y         = [meanPerCycle[k] for k in x]
     yerr      = [confintPerCycle[k] for k in x]
-    outfile   = infile.split('.')[0]+'_{}.png'.format(elemName)
-    plt.figure()
-    plt.errorbar(x,y,yerr=yerr)
-    print outfile
-    plt.savefig(os.path.join(dir,outfile))
-    plt.close()
+    matplotlib.pyplot.figure()
+    matplotlib.pyplot.errorbar(x,y,yerr=yerr)
+    matplotlib.pyplot.savefig(outfile)
+    matplotlib.pyplot.close()
+    
+    # print
+    print 'done.'
 
 #============================ main ============================================
 

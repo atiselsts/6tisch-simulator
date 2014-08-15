@@ -188,50 +188,8 @@ def main():
             
             # log
             print('run {0}/{1}, end'.format(runNum+1,simParam['numRuns']))
-        
-        # run some postprocessing
-        '''
-        ppfilename           = os.path.join(
-            dirname,
-            'postprocessing_{0}_{1}.dat'.format(temp,simParam['numRuns']),
-        )
-        postprocessing(
-            infile           = datafilename,
-            outfile          = ppfilename,
-            numRuns          = simParam['numRuns'],
-            numCyclesPerRun  = simParam['numCyclesPerRun'],
-        )
-        '''
 
 #============================ main ============================================
 
 if __name__=="__main__":
     main()
-
-'''
-def postprocessing(infile, outfile, numRuns, numCyclesPerRun):
-    # read input file, remove line with comments
-    lines = []
-    with open(infile,'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line.startswith('#'):
-                lines += [line]
-    assert len(lines)==numRuns*numCyclesPerRun
-    
-    # TODO: simplify
-    matrixResults=numpy.array([[[float(l) for l in lines.pop(0).strip().split('\t')[2:]] for i in xrange(numCyclesPerRun)] for run in xrange(numRuns)])
-    # change matrixResults here for further analysis 
-    sumValues=numpy.sum(matrixResults, axis=0)
-    sumSquareValues=numpy.sum(matrixResults**2, axis=0)
-    f=open(outfile, 'w')
-    f.write('# SUM VALUES\n')
-    for line in sumValues:
-        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
-        f.write(formatString.format(*tuple(line))+'\n')
-    f.write('# SUM SQUARE VALUES\n')
-    for line in sumSquareValues:
-        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
-        f.write(formatString.format(*tuple(line))+'\n')
-    f.close()
-'''
