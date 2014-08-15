@@ -150,7 +150,7 @@ def main():
         opts   = parseCliOptions()
         if opts.post:
             postprocessing(directory)
-        readDataForFigures(directory, columns=None) #indicate the number related to each column you want to plot (column of the postprocessing files)
+        readDataForFigures(directory, columns=[0, 13, 15, 16]) #indicate the number related to each column you want to plot (column of the postprocessing files)
 
 if __name__=="__main__":
     main()
