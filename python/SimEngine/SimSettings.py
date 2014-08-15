@@ -55,7 +55,7 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            'results',
+            'simData',
             '_'.join(['{0}_{1}'.format(k,getattr(self,k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):

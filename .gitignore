@@ -3,5 +3,5 @@
 *.log
 *.log.*
 *.dat
-/python/bin/batchSim/results
-/python/bin/batchSim/figures
+/python/bin/simData
+/python/bin/simFigs
