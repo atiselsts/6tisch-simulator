@@ -169,7 +169,7 @@ def main():
         for runNum in xrange(simParam['numRuns']):
             
             # log
-            print('run {0}/{1}, start'.format(runNum,simParam['numRuns']))
+            print('run {0}/{1}, start'.format(runNum+1,simParam['numRuns']))
             
             # create singletons
             settings         = SimSettings.SimSettings(**simParam)
@@ -187,7 +187,7 @@ def main():
             settings.destroy()
             
             # log
-            print('run {0}/{1}, end'.format(runNum,simParam['numRuns']))
+            print('run {0}/{1}, end'.format(runNum+1,simParam['numRuns']))
         
         # run some postprocessing
         '''
