@@ -156,7 +156,7 @@ class Mote(object):
             self.booted      = False
         
         # schedule monitoring
-        self._schedule_monitoring()        
+        self._schedule_monitoring()
         # schedule first active cell
         self._schedule_next_ActiveCell()
         # schedule DIO
@@ -233,8 +233,8 @@ class Mote(object):
                 'numTx':              0,
                 'numTxAck':           0,
                 'numRx':              0,
-                'numTxFailures':    0,
-                'numRxFailures':    0,
+                'numTxFailures':      0,
+                'numRxFailures':      0,
             }
     
     def removeCell(self,ts,neighbor):
@@ -290,7 +290,7 @@ class Mote(object):
                     self.parents = self.parents[0:self.PARENT_SET_SIZE]
                                                 
                     if len(self.parents) != 0:
-                        if self.parent in self.parents:                            
+                        if self.parent in self.parents:
                             # check requirement if changing a preferred parent 
                             if self.rank - resultingRanks[self.parents[0]] > self.PARENT_SWITCH_THRESHOLD:
                                 print "a preferred parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, self.parents[0].id) 
@@ -328,13 +328,13 @@ class Mote(object):
                     # first parent setting
                     # len(self.dagRanks) == 1 as the setParent() is called soon after the first neighbor is inserted in dagRanks
                     
-                    (minRank, minNeighbor) = min((v,k) for (k,v) in self.dagRanks.items())                    
+                    (minRank, minNeighbor) = min((v,k) for (k,v) in self.dagRanks.items())
                     rankIncrease = self.computeRankIncrease(minNeighbor)
-                    resultingRank = self.ranks[minNeighbor] + rankIncrease                        
+                    resultingRank = self.ranks[minNeighbor] + rankIncrease
                     
                     # condition of MAX_LINK_METRIC excluded to avoid loop
-                    #if (rankIncrease <= self.MAX_LINK_METRIC and resultingRank <= self.MAX_PATH_COST):                              
-                    if (resultingRank <= self.MAX_PATH_COST):                              
+                    #if (rankIncrease <= self.MAX_LINK_METRIC and resultingRank <= self.MAX_PATH_COST):
+                    if (resultingRank <= self.MAX_PATH_COST):
                         self.parent = minNeighbor
                         self.setRank()
                         self.parents.append(minNeighbor)
@@ -356,11 +356,11 @@ class Mote(object):
             
             # calculate ETX            
             if numTxAck > 0:
-                etx = float(numTx)/float(numTxAck)            
+                etx = float(numTx)/float(numTxAck)
             else:
                 etx = float(numTx)/0.1 # to avoid division by zero
 
-            # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE    
+            # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
     
     def setTrafficDistribution(self):
@@ -538,10 +538,10 @@ class Mote(object):
                 
             else:
                 # failure include collision and normal packet error
-                self.schedule[ts]['numTxFailures'] += 1    
+                self.schedule[ts]['numTxFailures'] += 1
                 i = self.txQueue.index(self.pktToSend)
                 if self.txQueue[i]['retriesLeft'] == 0:
-                    self.txQueue.remove(self.pktToSend)    
+                    self.txQueue.remove(self.pktToSend)
             self.waitingFor = None
             
             # schedule next active cell

@@ -109,7 +109,7 @@ class Propagation(object):
             }]
     
     def noTx(self,channel,smac,dmac):
-        ''' add a tx mote without data (for debug purpose) '''        
+        ''' add a tx mote without data (for debug purpose) '''
         with self.dataLock:
             
             self.notransmissions  += [{
