@@ -85,7 +85,7 @@ def postprocessing(directory):
                     f.write(formatString.format(*tuple(line))+'\n')
                 f.close()
 
-def readDataForFigures(directory, columns=[0]):
+def readDataForFigures(directory, columns=None):
     figures='figures'
     data={}
     control=None
@@ -120,6 +120,8 @@ def readDataForFigures(directory, columns=[0]):
                         data[identifier][stat]=[avg, err]
     if not os.path.exists(figures):
         os.makedirs(figures)
+    if columns is None:
+        columns=range(control)
     for column in columns:
         toplot=dict([(identifier, data[identifier][column]) for identifier in data.iterkeys()])
         plotFigure(toplot, figures, column)
@@ -148,7 +150,7 @@ def main():
         opts   = parseCliOptions()
         if opts.post:
             postprocessing(directory)
-        readDataForFigures(directory, range(15))
+        readDataForFigures(directory, columns=None) #indicate the number related to each column you want to plot (column of the postprocessing files)
 
 if __name__=="__main__":
     main()

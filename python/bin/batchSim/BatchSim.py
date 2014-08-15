@@ -137,7 +137,7 @@ def main():
                                 pkPeriodVar=pkPeriodVar, \
                                 otfThreshold=otfThreshold, \
                                 outputFile=filename, \
-                                numCyclesPerRun=10
+                                numCyclesPerRun=20
                                 )
                     # run the simulation runs
                     for runNum in xrange(numRuns):

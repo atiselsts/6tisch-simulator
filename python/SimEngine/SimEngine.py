@@ -60,6 +60,7 @@ class SimEngine(threading.Thread):
         self.inactivatedCells               = set()
         self.numAccumScheduledCells         = 0
         self.numAccumScheduledCollisions    = 0
+        self.queueDelays                                 = []
         
         # initialize propagation at start of each run 
         Propagation.Propagation._instance   = None
@@ -150,6 +151,16 @@ class SimEngine(threading.Thread):
                     numPacketsInQueue  = self._countPacketsInQueue()
                     numOverflow        = self._countQueueFull()
                     numPacketsReached  = self.motes[0].getStats()['dataReceived']
+                    avgQueueDelay = 0
+                    if self.queueDelays:
+                        avgQueueDelay = sum(self.queueDelays)/float(len(self.queueDelays))
+                    timeBetweenOTFevents=[]
+                    avgTimeBetweenOTFevents=0
+                    for mote in self.motes:
+                        if mote.timeBetweenOTFevents:
+                            timeBetweenOTFevents+=[(sum(mote.timeBetweenOTFevents)+self.getAsn()-mote.asnOTFevent)/(len(mote.timeBetweenOTFevents)+1.0)]
+                    if timeBetweenOTFevents:
+                        avgTimeBetweenOTFevents=sum(timeBetweenOTFevents)/len(timeBetweenOTFevents)
                     if numGeneratedPkts-numPacketsInQueue > 0:
                         e2ePDR         = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
                     else:
@@ -176,6 +187,8 @@ class SimEngine(threading.Thread):
                         numOverflow,
                         round(e2ePDR,3),
                         round(avgLatency,2),
+                        avgQueueDelay, 
+                        avgTimeBetweenOTFevents, 
                     ])
                     self.propagation.initStats() 
                 
@@ -272,7 +285,7 @@ class SimEngine(threading.Thread):
                 'squareSide',
             ]:
             output += ['# {0} = {1}'.format(param,getattr(self.settings,param))]
-        output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\n']
+        output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\tqueueDelay\ttimeBetweenOTFevents\n']
         output     = '\n'.join(output)
         
         with open(self.OUTPUT_FILE,'a') as f:
@@ -295,6 +308,7 @@ class SimEngine(threading.Thread):
             if currentTs == 0: 
                 self.numAccumScheduledCells = 0
                 self.numAccumScheduledCollisions = 0
+                self.queueDelays=[]
 
             self.scheduledCells.clear()
             self.collisionCells.clear()

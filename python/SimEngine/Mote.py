@@ -95,6 +95,8 @@ class Mote(object):
         self.radioSensitivity     = -101
         self.noisepower           = -105 # in dBm
         self.pktToSend            = None
+        self.asnOTFevent        = None
+        self.timeBetweenOTFevents = []
         
         # set DIO period as 1 cycle of slotframe
         self.dioPeriod            = self.settings.slotframeLength
@@ -532,6 +534,7 @@ class Mote(object):
             if success:
                 self.schedule[ts]['numTxAck'] += 1
                 self.txQueue.remove(self.pktToSend) 
+                self.engine.queueDelays+=[self.engine.getAsn()-self.pktToSend['asn']]
                 
             else:
                 # failure include collision and normal packet error
@@ -818,6 +821,7 @@ class Mote(object):
                     numCell = self.numCells.get(n)
                     if numCell is None:
                         numCell=0
+                    otfEvent=True
                     if reqNumCell > numCell:
                         for i in xrange(reqNumCell-numCell+(threshold+1)/2):
                             if not self._addCellToNeighbor(n):
@@ -826,7 +830,16 @@ class Mote(object):
                         for i in xrange(numCell-reqNumCell-(threshold+1)/2):
                             if not self._removeWorstCellToNeighbor(n):
                                 break # cannot find worst cell due to insufficient tx
-                
+                    else:
+                        otfEvent=False
+                    if otfEvent:
+                        if self.asnOTFevent == None:
+                            self.asnOTFevent=self.engine.getAsn()
+                            assert len(self.timeBetweenOTFevents)==0
+                        else:
+                            now=self.engine.getAsn()
+                            self.timeBetweenOTFevents+=[now-self.asnOTFevent]
+                            self.asnOTFevent=now
                 #find worst cell in a bundle and if it is way worst and reschedule it
                 self.rescheduleCellIfNeeded(n)
                 # Neighbor also has to update its next active cell 
