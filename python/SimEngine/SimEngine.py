@@ -53,7 +53,6 @@ class SimEngine(threading.Thread):
         
         # local variables
         self.settings                       = SimSettings.SimSettings()
-        self.OUTPUT_FILE                    = self.settings.outputFile
         self.dataLock                       = threading.RLock()
         self.scheduledCells                 = set()
         self.collisionCells                 = set()
@@ -288,14 +287,14 @@ class SimEngine(threading.Thread):
         output    +=['# run\tcycle\tsched.\tno SC\tno pkt\tpkt\tsuccess\tSC\tno pkt\tpkt\tsuccess\tgen pkt\treach\tqueue\tOVF\te2e PDR\tlatency\tqueueDelay\ttimeBetweenOTFevents\n']
         output     = '\n'.join(output)
         
-        with open(self.OUTPUT_FILE,'a') as f:
+        with open(self.settings.getOutputFile(),'a') as f:
             f.write(output)
     
     def _fileWriteRun(self,elems):
         formatString    = '\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(elems))])
         formatString   += '\n'
         line            = formatString.format(*elems)
-        with open(self.OUTPUT_FILE,'a') as f:
+        with open(self.settings.getOutputFile(),'a') as f:
             f.write(line)
     
     def _countSchedule(self):
