@@ -28,6 +28,7 @@ log.addHandler(NullHandler())
 
 import time
 import numpy
+import itertools
 import logging.config
 
 from argparse      import ArgumentParser
@@ -79,7 +80,7 @@ def parseCliOptions():
     parser.add_argument( '--numRuns',
         dest       = 'numRuns',
         type       = int,
-        default    = 3, 
+        default    = 5, 
         help       = 'Number of simulation runs per each configurations.',
     )
     
@@ -111,7 +112,6 @@ def postprocessing(filename, postprocessingFilename, numRuns, cycles):
     f.close()
     
 def main():
-    
     # initialize logging
     logging.config.fileConfig('logging.conf')
     
@@ -124,17 +124,20 @@ def main():
             for pkPeriodVar in options.pkPeriodVarList:
                 for otfThreshold in options.otfThresholdList:
                     directory = os.path.join('results', \
-                        'numMotes_{0}_pkPeriod_{1}ms_pkPeriodVar_{2}%_otfThreshold_{3}cells'.format(numMotes,int(pkPeriod*1000),int(pkPeriodVar*100),otfThreshold))
+                        'numMotes_{0}_pkPeriod_{1}_pkPeriodVar_{2}_otfThreshold_{3}'.format(numMotes,pkPeriod,pkPeriodVar,otfThreshold))
                     if not os.path.exists(directory):
                         os.makedirs(directory)
-                    idfilename=int(time.time())
-                    filename='//output_{0}.dat'.format(idfilename)
+                    idfilename='{0}_{1}'.format(int(time.time()), os.getpid())
+                    filename=directory+'//output_{0}.dat'.format(idfilename)
+                    while os.path.isfile(filename):
+                        print 'ok'
                     settings = SimSettings.SimSettings(\
                                 numMotes=numMotes, \
                                 pkPeriod=pkPeriod, \
                                 pkPeriodVar=pkPeriodVar, \
                                 otfThreshold=otfThreshold, \
-                                outputFile=directory+filename, \
+                                outputFile=filename, \
+                                numCyclesPerRun=10
                                 )
                     # run the simulation runs
                     for runNum in xrange(numRuns):
@@ -156,8 +159,8 @@ def main():
                         # logging
                         print('run {0}, end'.format(runNum))
                     
-                    postprocessingFilename='//postprocessing_{0}_{1}.dat'.format(idfilename, numRuns)
-                    postprocessing(directory+filename, directory+postprocessingFilename, numRuns, settings.numCyclesPerRun)
+                    postprocessingFilename=directory+'//postprocessing_{0}_{1}.dat'.format(idfilename, numRuns)
+                    postprocessing(filename, postprocessingFilename, numRuns, settings.numCyclesPerRun)
                     settings.destroy()                       # destroy the SimSettings singleton
 
 if __name__=="__main__":

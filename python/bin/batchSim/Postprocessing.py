@@ -23,7 +23,12 @@ log.addHandler(NullHandler())
 import os
 import time
 import numpy
+import scipy.stats as ss
+import math
 import logging.config
+import matplotlib
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 
 from argparse      import ArgumentParser
 
@@ -54,36 +59,81 @@ def postprocessing(directory):
             matrix=[]
             for filename in os.listdir(subdirectory):
                 filenameSplit=filename.split('.')[0].split('_')
-                if filenameSplit=='postprocessing' and len(filenameSplit)==3:
-                    simRuns+=int(filenameSplit[-1])
-                    f=open(filename)
+                if filenameSplit[0]=='postprocessing':
+                   if len(filenameSplit)==4:
+                        simRuns+=int(filenameSplit[-1])
+                        f=open(subdirectory+'//'+filename)
+                        lines=f.readlines()
+                        f.close()
+                        length=len(lines)
+                        assert length%2==0
+                        matrix+=[[[float(l) for l in line.strip().split('\t')] for line in lines[1:length/2]+lines[length/2+1:]]]
+                   else:
+                       os.remove(subdirectory+'//'+filename)
+            if simRuns>0:
+                matrix=numpy.array(matrix)/simRuns
+                matrix=numpy.sum(matrix, axis=0)
+                outputFile=subdirectory+'//postprocessing_{0}.dat'.format(simRuns)
+                f=open(outputFile, 'w')
+                f.write('# SUM VALUES\n')
+                for line in matrix[:len(matrix)/2, :]:
+                    formatString='\t'.join(['{{{0}}}'.format(i) for i in xrange(len(line))])
+                    f.write(formatString.format(*tuple(line))+'\n')
+                f.write('# SUM SQUARE VALUES\n')
+                for line in matrix[len(matrix)/2:, :]:
+                    formatString='\t'.join(['{{{0}}}'.format(i) for i in xrange(len(line))])
+                    f.write(formatString.format(*tuple(line))+'\n')
+                f.close()
+
+def readDataForFigures(directory, columns=[0]):
+    figures='figures'
+    data={}
+    control=None
+    for dir in os.listdir(directory):
+        subdirectory=os.path.join(directory, dir)
+        identifier=tuple(dir.split('_')[1::2])
+        data[identifier]={}
+        if os.path.isdir(subdirectory):
+            for filename in os.listdir(subdirectory):
+                filenameSplit=filename.split('.')[0].split('_')
+                if filenameSplit[0]=='postprocessing' and len(filenameSplit)==2:
+                    simRuns=int(filenameSplit[-1])
+                    f=open(subdirectory+'//'+filename)
                     lines=f.readlines()
                     f.close()
+                    print subdirectory+'//'+filename
                     length=len(lines)
                     assert length%2==0
-                    matrix+=[[[float(l) for l in line.strip().split('\t')] for line in lines[1:length/2]+lines[length/2+1:]]]
-            matrix=numpy.sum(matrix, axis=0)/simRuns
-
-#    f=open(filename)
-#    lines=f.readlines()
-#    f.close()
-#    while lines[0].startswith('#'):
-#        lines.pop(0)
-#    assert len(lines)==numRuns*cycles
-#    matrixResults=numpy.array([[[float(l) for l in lines.pop(0).strip().split('\t')[2:]] for i in xrange(cycles)] for run in xrange(numRuns)])
-#    # change matrixResults here for further analysi s 
-#    sumValues=numpy.sum(matrixResults, axis=0)
-#    sumSquareValues=numpy.sum(matrixResults**2, axis=0)
-#    f=open(postprocessingFilename, 'w')
-#    f.write('# SUM VALUES\n')
-#    for line in sumValues:
-#        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
-#        f.write(formatString.format(*tuple(line))+'\n')
-#    f.write('# SUM SQUARE VALUES\n')
-#    for line in sumSquareValues:
-#        formatString='\t'.join(['{{{0}:>5}}'.format(i) for i in xrange(len(line))])
-#        f.write(formatString.format(*tuple(line))+'\n')
-#    f.close()
+                    matrixAvg=[[float(l) for l in line.strip().split('\t')] for line in lines[1:length/2]]
+                    matrixSqAvg=[[float(l) for l in line.strip().split('\t')] for line in lines[length/2+1:]]
+                    matrixAvg=zip(*matrixAvg)
+                    matrixSqAvg=zip(*matrixSqAvg)
+                    if control==None:
+                        control=len(matrixAvg)
+                    else:
+                        assert len(matrixAvg)==control
+                    confidence=ss.t.interval(0.95, simRuns)[1]
+                    for stat in xrange(len(matrixAvg)):
+                        avg=numpy.array(matrixAvg[stat])
+                        sqAvg=numpy.array(matrixSqAvg[stat])
+                        err=numpy.sqrt((sqAvg-avg**2)/(simRuns-1))*confidence
+                        data[identifier][stat]=[avg, err]
+    if not os.path.exists(figures):
+        os.makedirs(figures)
+    for column in columns:
+        toplot=dict([(identifier, data[identifier][column]) for identifier in data.iterkeys()])
+        plotFigure(toplot, figures, column)
+    
+def plotFigure(toplot, figures, column):
+    plt.figure()
+    plt.hold(True)
+    colors = cm.rainbow(numpy.linspace(0, 1, len(toplot)))
+    for en, i in enumerate(sorted(toplot.keys())):
+        plt.errorbar(range(len(toplot[i][0])), toplot[i][0], yerr=toplot[i][1], label=' '.join(i), color=colors[en])
+    plt.grid()
+    plt.legend(loc=2, prop=matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='small'), labelspacing=0.0)
+    plt.savefig('{0}/column_{1}.png'.format(figures, column))
+    plt.close()
     
 def main():
     
@@ -98,47 +148,7 @@ def main():
         opts   = parseCliOptions()
         if opts.post:
             postprocessing(directory)
-        
-#        for numMotes in options.numMotesList:
-#            for pkPeriod in options.pkPeriodList:
-#                for pkPeriodVar in options.pkPeriodVarList:
-#                    for otfThreshold in options.otfThresholdList:
-#                        directory = os.path.join('results', \
-#                            'numMotes_{0}_pkPeriod_{1}ms_pkPeriodVar_{2}%_otfThreshold_{3}cells'.format(numMotes,int(pkPeriod*1000),int(pkPeriodVar*100),otfThreshold))
-#                        if not os.path.exists(directory):
-#                            os.makedirs(directory)
-#                        idfilename=int(time.time())
-#                        filename='//output_{0}.dat'.format(idfilename)
-#                        settings = SimSettings.SimSettings(\
-#                                    numMotes=numMotes, \
-#                                    pkPeriod=pkPeriod, \
-#                                    pkPeriodVar=pkPeriodVar, \
-#                                    otfThreshold=otfThreshold, \
-#                                    outputFile=directory+filename, \
-#                                    )
-#                        # run the simulation runs
-#                        for runNum in xrange(numRuns):
-#                            
-#                            # logging
-#                            print('run {0}, start'.format(runNum))
-#                            
-#                            # create singletons
-#                            propagation     = Propagation.Propagation()
-#                            simengine       = SimEngine.SimEngine(runNum) # start simulation
-#                            
-#                            # wait for simulation to end
-#                            simengine.join()
-#                            
-#                            # destroy singletons
-#                            simengine.destroy()
-#                            propagation.destroy()
-#                            
-#                            # logging
-#                            print('run {0}, end'.format(runNum))
-#                        
-#                        postprocessingFilename='//postprocessing_{0}_{1}.dat'.format(idfilename, numRuns)
-#                        postprocessing(directory+filename, directory+postprocessingFilename, numRuns, settings.numCyclesPerRun)
-#                        settings.destroy()                       # destroy the SimSettings singleton
+        readDataForFigures(directory, range(15))
 
 if __name__=="__main__":
     main()
