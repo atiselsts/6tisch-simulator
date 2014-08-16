@@ -194,6 +194,7 @@ class SimEngine(threading.Thread):
                 # stop after numCyclesPerRun cycles
                 if cycle==self.settings.numCyclesPerRun:
                     self.goOn=False
+                    self._fileWriteTopology()
                 
                 # update the current ASN
                 self.asn += 1
@@ -298,6 +299,11 @@ class SimEngine(threading.Thread):
         # write to file
         with open(self.settings.getOutputFile(),'a') as f:
             f.write('\n'.join(output))
+    
+    def _fileWriteTopology(self):
+        with open(self.settings.getOutputFile(),'a') as f:
+            f.write('#pos runNum={0} '.format(self.runNum)+' '.join(['{0}@({1},{2})@{3}'.format(mote.id, round(mote.x, 5), round(mote.y, 5), mote.rank) for mote in self.motes])+'\n')
+            f.write('#links runNum={0} '.format(self.runNum)+' '.join(['{0}->{1}@{2}dBm'.format(id1, id2, round(rssi,3)) for (id1, id2, rssi) in self.topology.links])+'\n')
     
     def _countSchedule(self):
         # count scheduled cells and schedule collision at each asn

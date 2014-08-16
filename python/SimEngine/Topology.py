@@ -37,6 +37,7 @@ class Topology(object):
         
         # store params
         self.motes           = motes
+        self.links              = set()
     
     #======================== public ==========================================
     
@@ -80,6 +81,7 @@ class Topology(object):
                     continue
                 if mote.getRSSI(m) > mote.radioSensitivity:
                     mote.setPDR(m,self._computePDR(mote,m))
+                    self.links.update([tuple(sorted([mote.id, m.id])+[mote.getRSSI(m)])])
         
         # print stats
         for mote in self.motes:

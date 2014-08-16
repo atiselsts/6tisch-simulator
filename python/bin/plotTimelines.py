@@ -127,6 +127,65 @@ def genFig(dir,infile,elemName):
     # print
     print 'done.'
 
+def genTopologyFigs(dir,infile):
+    
+    
+    filepath  = os.path.join(dir,infile)
+    
+    # print
+    print 'Generating Topologies...', 
+    
+    # parse data
+    topologies={}
+    with open(filepath,'r') as f:
+        for line in f:
+            if line.startswith('#pos'):
+                rawdata=line.strip().split(' ')
+                runNum=int(rawdata[1].split('=')[1])
+                topologies[runNum]={'motes':{}}
+                for node in rawdata[2:]:
+                    nodeParam=node.split('@')
+                    topologies[runNum]['motes'][int(nodeParam[0])]={'position':eval(nodeParam[1]), 'rank':int(nodeParam[2])}
+            elif line.startswith('#links'):
+                rawdata=line.strip().split(' ')
+                runNum=int(rawdata[1].split('=')[1])
+                if topologies.has_key(runNum):
+                    topologies[runNum]['links']={}
+                    for link in rawdata[2:]:
+                        node1, further=link.split('->')
+                        node2, further=further.split('@')
+                        rssi=further[:-3]
+                        topologies[runNum]['links'][(int(node1), int(node2))]=float(rssi)
+            else:
+                continue
+    
+    # plot topologies
+    for runNum, topology in topologies.iteritems():
+        if topology.has_key('links'):
+            matplotlib.pyplot.figure()
+            xx=[topology['motes'][mote]['position'][0] for mote in sorted(topology['motes'].keys())]
+            yy=[topology['motes'][mote]['position'][1] for mote in sorted(topology['motes'].keys())]
+            matplotlib.pyplot.scatter(xx,yy,marker='o', c='w', s=50, lw=0.5, zorder=1)
+            for mote in sorted(topology['motes'].keys()):
+                position=numpy.array(topology['motes'][mote]['position'])
+                matplotlib.pyplot.annotate(str(mote), position+numpy.array([0, 0.02]), color='k', size='small', weight='semibold', zorder=3)
+                matplotlib.pyplot.annotate(str(topology['motes'][mote]['rank']), position+numpy.array([0, -0.04]), color='r', size='small', zorder=3)
+            for link in sorted(topology['links'].keys()):
+                matplotlib.pyplot.plot(\
+                                        [topology['motes'][link[0]]['position'][0], topology['motes'][link[1]]['position'][0]], \
+                                        [topology['motes'][link[0]]['position'][1], topology['motes'][link[1]]['position'][1]], \
+                                        color='g', zorder=0
+                                        )
+#                position=(
+#                                (topology['motes'][link[0]]['position'][0] + topology['motes'][link[1]]['position'][0])/2,  \
+#                                (topology['motes'][link[0]]['position'][1] + topology['motes'][link[1]]['position'][1])/2
+#                                )
+#                matplotlib.pyplot.annotate(str(topology['links'][link]), position, color='b', size='small', zorder=3)
+            matplotlib.pyplot.savefig(os.path.join(dir,infile.split('.')[0]+'_topology_{}.png'.format(runNum)))
+            matplotlib.pyplot.close()
+    # print
+    print 'done.'
+
 #============================ main ============================================
 
 def main():
@@ -150,6 +209,10 @@ def main():
                     dir      = os.path.join(DATADIR, dir),
                     infile   = os.path.basename(infile),
                     elemName = elemName,
+                )
+                genTopologyFigs(
+                    dir      = os.path.join(DATADIR, dir),
+                    infile   = os.path.basename(infile),              
                 )
 
 if __name__=="__main__":
