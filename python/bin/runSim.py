@@ -38,6 +38,7 @@ import argparse
 
 from SimEngine     import SimEngine,   \
                           SimSettings, \
+                          SimStats,    \
                           Propagation
 from SimGui        import SimGui
 
@@ -181,6 +182,7 @@ def main():
             settings.setStartTime(startTime)
             settings.setCombinationKeys(combinationKeys)
             simengine        = SimEngine.SimEngine(runNum)
+            simstats         = SimStats.SimStats(runNum)
             
             # start simulation run
             simengine.start()
@@ -189,6 +191,7 @@ def main():
             simengine.join()
             
             # destroy singletons
+            simstats.destroy()
             simengine.destroy()
             settings.destroy()
             

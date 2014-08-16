@@ -102,10 +102,6 @@ class SimEngine(threading.Thread):
         # log
         log.info("thread {0} starting".format(self.name))
         
-        # write to file
-        if self.runNum==0:
-            self._fileWriteHeader()
-        
         while self.goOn:
             
             with self.dataLock:
@@ -135,7 +131,7 @@ class SimEngine(threading.Thread):
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
                 
-                # call remained callbacks (i.e. monitoring)
+                # call remainder callbacks (i.e. monitoring)
                 while True:
                     if self.events[0][0]!=self.asn:
                         break
@@ -269,15 +265,6 @@ class SimEngine(threading.Thread):
             return self.asn
     
     #======================== private =========================================
-    
-    def _fileWriteHeader(self):
-        output          = []
-        output         += ['## {0} = {1}'.format(k,v) for (k,v) in self.settings.__dict__.items() if not k.startswith('_')]
-        output         += ['\n']
-        output          = '\n'.join(output)
-        
-        with open(self.settings.getOutputFile(),'a') as f:
-            f.write(output)
     
     def _fileWriteRun(self,elems):
         output          = []
