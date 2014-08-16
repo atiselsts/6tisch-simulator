@@ -1,6 +1,11 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Entry point to start a simulation.
+
+A number of command-line parameters are available to modify the simulation
+settings. Use '--help' for a list of them.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -120,7 +125,7 @@ def parseCliOptions():
         dest       = 'numRuns',
         nargs      = 1,
         type       = int,
-        default    = 3, 
+        default    = 3,
         help       = 'Number of simulation runs per each configurations.',
     )
     
@@ -175,15 +180,16 @@ def main():
             settings         = SimSettings.SimSettings(**simParam)
             settings.setStartTime(startTime)
             settings.setCombinationKeys(combinationKeys)
-            propagation      = Propagation.Propagation()
-            simengine        = SimEngine.SimEngine(runNum) # starts this simulation
+            simengine        = SimEngine.SimEngine(runNum)
             
-            # wait for simulation to end
+            # start simulation run
+            simengine.start()
+            
+            # wait for simulation run to end
             simengine.join()
             
             # destroy singletons
             simengine.destroy()
-            propagation.destroy()
             settings.destroy()
             
             # log

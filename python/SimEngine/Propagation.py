@@ -1,6 +1,8 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Wirless propagation model.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -28,7 +30,7 @@ import math
 
 class Propagation(object):
     
-    #======================== singleton pattern ===============================
+    #===== start singleton
     _instance      = None
     _init          = False
     
@@ -36,13 +38,16 @@ class Propagation(object):
         if not cls._instance:
             cls._instance = super(Propagation,cls).__new__(cls, *args, **kwargs)
         return cls._instance
+    #===== end singleton
     
     def __init__(self):
         
+        #===== start singleton
         # don't re-initialize an instance (needed because singleton)
         if self._init:
             return
         self._init = True
+        #===== end singleton
         
         # store params
         
@@ -55,21 +60,21 @@ class Propagation(object):
         self.rxFailures                = []
         
         # for schedule collision cells
-        self.numPktAtSC                = 0 
+        self.numPktAtSC                = 0
         self.numNoPktAtSC              = 0 # No Packet at schedule collision cells
         self.numSuccessAtSC            = 0
         
         # for schedule collision free cells
         self.numPktAtNSC               = 0 # packets at non schedule collision cells
         self.numNoPktAtNSC             = 0 # no packets at non schedule collision cells
-        self.numSuccessAtNSC           = 0 # success transmissions at both NSC and SC 
+        self.numSuccessAtNSC           = 0 # success transmissions at both NSC and SC
         
         self.numAccumPktAtSC           = 0
-        self.numAccumNoPktAtSC         = 0 
+        self.numAccumNoPktAtSC         = 0
         self.numAccumSuccessAtSC       = 0
          
-        self.numAccumPktAtNSC          = 0 
-        self.numAccumNoPktAtNSC        = 0 
+        self.numAccumPktAtNSC          = 0
+        self.numAccumNoPktAtNSC        = 0
         self.numAccumSuccessAtNSC      = 0
     
     def destroy(self):
@@ -81,31 +86,31 @@ class Propagation(object):
         with self.dataLock:
 
             self.numAccumPktAtSC       = 0
-            self.numAccumNoPktAtSC     = 0 
+            self.numAccumNoPktAtSC     = 0
             self.numAccumSuccessAtSC   = 0
              
-            self.numAccumPktAtNSC      = 0 
-            self.numAccumNoPktAtNSC    = 0 
+            self.numAccumPktAtNSC      = 0
+            self.numAccumNoPktAtNSC    = 0
             self.numAccumSuccessAtNSC  = 0
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
-            #note that we don't prevent collisions as we want to enable broadcast ch.        
+            #note that we don't prevent collisions as we want to enable broadcast ch.
             self.receivers += [{
-                'mote':          mote,
-                'channel':       channel,
+                'mote':                mote,
+                'channel':             channel,
             }]
     
     def startTx(self,channel,type,smac,dmac,payload):
-        ''' add a mote as using a ch. for tx'''        
+        ''' add a mote as using a ch. for tx'''
         with self.dataLock:
             self.transmissions  += [{
-                'channel':        channel,
-                'type':           type,
-                'smac':           smac,
-                'dmac':           dmac,
-                'payload':        payload,
+                'channel':             channel,
+                'type':                type,
+                'smac':                smac,
+                'dmac':                dmac,
+                'payload':             payload,
             }]
     
     def noTx(self,channel,smac,dmac):
@@ -113,27 +118,27 @@ class Propagation(object):
         with self.dataLock:
             
             self.notransmissions  += [{
-                'channel':        channel,
-                'smac':           smac,
-                'dmac':           dmac,
+                'channel':             channel,
+                'smac':                smac,
+                'dmac':                dmac,
             }]
 
     def dBmTomW(self, dBm):
-        ''' translate dBm to mW '''        
+        ''' translate dBm to mW '''
         return math.pow(10.0, dBm/10.0)
 
     def mWTodBm(self, mW):
-        ''' translate dBm to mW '''        
+        ''' translate dBm to mW '''
         return 10*math.log10(mW)
 
     def computeSINR(self, smac, dmac, interferers):
-        ''' compute SINR  '''        
+        ''' compute SINR  '''
         
         noise = self.dBmTomW(dmac.noisepower)
         # S = RSSI - N
         signal = self.dBmTomW(smac.getRSSI(dmac)) - noise
         if signal < 0.0:
-            # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB) 
+            # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB)
             return -10.0
         
         totalInterference = 0.0
@@ -141,7 +146,7 @@ class Propagation(object):
             # I = RSSI - N
             interference = self.dBmTomW(interferer.getRSSI(dmac)) - noise
             if interference < 0.0:
-                # RSSI has not to be below noise level. If this happens, set interference 0.0 
+                # RSSI has not to be below noise level. If this happens, set interference 0.0
                 interference = 0.0
             totalInterference += interference
         
@@ -150,12 +155,12 @@ class Propagation(object):
         return self.mWTodBm(sinr)
     
     def computePdrFromSINR(self, sinr, dmac):
-        ''' compute PDR from SINR  '''        
+        ''' compute PDR from SINR  '''
 
         # equivalent RSSI means RSSI which has same SNR as input SINR
         equivalentRSSI = self.mWTodBm(self.dBmTomW(sinr + dmac.noisepower) + self.dBmTomW(dmac.noisepower))
             
-        # TODO these values are tentative. Need to check datasheet for RSSI vs PDR relationship. 
+        # TODO these values are tentative. Need to check datasheet for RSSI vs PDR relationship.
         if equivalentRSSI < -85 and equivalentRSSI > dmac.radioSensitivity:
             pdr=(equivalentRSSI - dmac.radioSensitivity)*6.25
         elif equivalentRSSI <= dmac.radioSensitivity:
@@ -163,13 +168,13 @@ class Propagation(object):
         elif equivalentRSSI > -85:
             pdr=100.0
             
-        return pdr 
+        return pdr
     
     def propagate(self):
         ''' simulate the propagation of pkts in a slot.
             for each of the transmitters do:
-            for all motes listening on a channel notify them (no propagation model yet). 
-            Notify the rest with No packet so they can know that nothing happen in that slot. 
+            for all motes listening on a channel notify them (no propagation model yet).
+            Notify the rest with No packet so they can know that nothing happen in that slot.
         '''
         
         with self.dataLock:
@@ -191,17 +196,17 @@ class Propagation(object):
                         #check this is a real link --
                         if self.receivers[i]['mote'].id == transmission['dmac'].id:
                             
-                            # Check schedule collision and concurrent transmission 
+                            # Check schedule collision and concurrent transmission
                             interferers = []
                             for otherPacket in self.transmissions:
-                                if (otherPacket != transmission) and (otherPacket['channel'] == transmission['channel']):                                    
+                                if (otherPacket != transmission) and (otherPacket['channel'] == transmission['channel']):
                                     if scheduleCollision == False:
                                         scheduleCollision = True
                                         scheduleCollisionChs.add(transmission['channel'])
                                     interferers.append(otherPacket['smac'])
 
                             # Check schedule collision between Tx and no Tx
-                            if scheduleCollision == False: 
+                            if scheduleCollision == False:
                                 for noTx in self.notransmissions:
                                     if noTx['channel'] == transmission['channel']:
                                         scheduleCollision = True
@@ -214,11 +219,11 @@ class Propagation(object):
                                 self.numPktAtSC += 1
                                 
                                 
-                            # test whether a packet can be delivered   
+                            # test whether a packet can be delivered
                             # get SINR to that neighbor and translate it to PDR
                             sinr = self.computeSINR(transmission['smac'], transmission['dmac'], interferers)
                             pdr = self.computePdrFromSINR(sinr, transmission['dmac'])
-                            pdr_debug = transmission['smac'].getPDR(transmission['dmac'])                                
+                            pdr_debug = transmission['smac'].getPDR(transmission['dmac'])
 
                             # pick a random number
                             failure = random.randint(0,100)
@@ -241,15 +246,15 @@ class Propagation(object):
                                 del self.receivers[i]
                             else:
                                 success = False
-                                log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr, failure, transmission['smac'].id, self.receivers[i]['mote'].id))  
+                                log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr, failure, transmission['smac'].id, self.receivers[i]['mote'].id))
                                 self.rxFailures += [self.receivers[i]]
-                                del self.receivers[i]                                         
-                                # increment of i does not needed because of del self.receivers[i] 
+                                del self.receivers[i]
+                                # increment of i does not needed because of del self.receivers[i]
 
-                        else: # different id                           
+                        else: # different id
                             # not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
                             # TODO if we add broadcast, it will be processed here
-                            i += 1  
+                            i += 1
                     
                     else: # different channel
                         i += 1
@@ -270,7 +275,7 @@ class Propagation(object):
             for n in self.notransmissions:
                 for otherNoTx in self.notransmissions:
                     if (otherNoTx != n) and (otherNoTx['channel'] == n['channel']):
-                        scheduleCollisionChs.add(n['channel'])       
+                        scheduleCollisionChs.add(n['channel'])
             
             # count no packets at both SC and NSC
             for n in self.notransmissions:
@@ -280,13 +285,12 @@ class Propagation(object):
                     self.numNoPktAtNSC     += 1
             
             # update at each slot, clear at the end of slotframe
-            
             self.numAccumPktAtSC           += self.numPktAtSC
-            self.numAccumNoPktAtSC         += self.numNoPktAtSC 
+            self.numAccumNoPktAtSC         += self.numNoPktAtSC
             self.numAccumSuccessAtSC       += self.numSuccessAtSC
              
-            self.numAccumPktAtNSC          += self.numPktAtNSC 
-            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC 
+            self.numAccumPktAtNSC          += self.numPktAtNSC
+            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC
             self.numAccumSuccessAtNSC      += self.numSuccessAtNSC
 
             # clear all outstanding transmissions

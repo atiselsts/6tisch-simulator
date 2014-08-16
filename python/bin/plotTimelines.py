@@ -1,6 +1,9 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Script to plot timelines and topology figures from collected simulation
+    data.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -122,7 +125,7 @@ def genTimeline(dir,infile,elemName):
     matplotlib.pyplot.figure()
     matplotlib.pyplot.errorbar(x,y,yerr=yerr)
     matplotlib.pyplot.savefig(outfile)
-    matplotlib.pyplot.close()
+    matplotlib.pyplot.close('all')
     
     # print
     print 'done.'
@@ -132,7 +135,7 @@ def genTopologies(dir,infile):
     filepath  = os.path.join(dir,infile)
     
     # print
-    print 'Generating Topologies...', 
+    print 'Generating Topologies...',
     
     # parse data
     xcoord         = {}

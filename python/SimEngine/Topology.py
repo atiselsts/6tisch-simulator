@@ -1,6 +1,8 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Wireless network topology creator.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -37,7 +39,7 @@ class Topology(object):
         
         # store params
         self.motes           = motes
-        self.links              = set()
+        self.links           = set()
     
     #======================== public ==========================================
     
@@ -83,7 +85,7 @@ class Topology(object):
                     mote.setPDR(m,self._computePDR(mote,m))
                     self.links.update([tuple(sorted([mote.id, m.id])+[mote.getRSSI(m)])])
         
-        # print stats
+        # print topology information
         for mote in self.motes:
             for neighbor in self.motes:
                 try:
@@ -103,16 +105,16 @@ class Topology(object):
     
     #======================== private =========================================
     
-    def _computeRSSI(self,mote,neighbor): 
+    def _computeRSSI(self,mote,neighbor):
         ''' computes RSSI between any two nodes (not only neighbor) according to Pister hack model'''
         
         # distance in m
         distance = self._computeDistance(mote,neighbor)
         
         # sqrt and inverse of the free space path loss
-        fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ)) 
+        fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ))
         
-        # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)   
+        # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)
         pr = mote.txPower + mote.antennaGain + neighbor.antennaGain + (20*math.log10(fspl))
         
         # according to the receiver power (RSSI) we can apply the Pister hack model.
@@ -127,7 +129,7 @@ class Topology(object):
         mote.setRSSI(neighbor, rssi)
         neighbor.setRSSI(mote, rssi)
     
-    def _computePDR(self,mote,neighbor): 
+    def _computePDR(self,mote,neighbor):
         ''' computes pdr to neighbor according to RSSI'''
         
         distance   = self._computeDistance(mote,neighbor)
@@ -140,7 +142,7 @@ class Topology(object):
         elif rssi>-85:
             pdr    = 100.0
         
-        return pdr 
+        return pdr
     
     def _computeDistance(self,mote,neighbor):
         

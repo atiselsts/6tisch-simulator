@@ -1,6 +1,8 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Container for the settings of a simulation run.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -26,8 +28,7 @@ import os
 
 class SimSettings(object):
     
-    #======================== singleton pattern ===============================
-    
+    #===== start singleton
     _instance      = None
     _init          = False
     
@@ -35,13 +36,15 @@ class SimSettings(object):
         if not cls._instance:
             cls._instance = super(SimSettings,cls).__new__(cls, *args, **kwargs)
         return cls._instance
+    #===== end singleton
     
     def __init__(self,**kwargs):
         
-        # don't re-initialize an instance (needed because singleton)
+        #===== start singleton
         if self._init:
             return
         self._init = True
+        #===== end singleton
         
         # store params
         self.__dict__.update(kwargs)

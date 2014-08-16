@@ -1,6 +1,8 @@
 #!/usr/bin/python
 '''
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>    
+\brief Discrete-event simulation engine.
+
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
@@ -31,8 +33,7 @@ import SimSettings
 
 class SimEngine(threading.Thread):
     
-    #======================== singleton pattern ===============================
-    
+    #===== start singleton
     _instance      = None
     _init          = False
     
@@ -40,13 +41,15 @@ class SimEngine(threading.Thread):
         if not cls._instance:
             cls._instance = super(SimEngine,cls).__new__(cls, *args, **kwargs)
         return cls._instance
+    #===== end singleton
     
     def __init__(self,runNum=None):
         
-        # don't re-initialize an instance (needed because singleton)
+        #===== start singleton
         if self._init:
             return
         self._init = True
+        #===== end singleton
         
         # store params
         self.runNum                         = runNum
@@ -54,31 +57,26 @@ class SimEngine(threading.Thread):
         # local variables
         self.settings                       = SimSettings.SimSettings()
         self.dataLock                       = threading.RLock()
+        self.goOn                           = True
+        self.asn                            = 0
+        self.events                         = []
+        self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
+        
+        # stats variables (TODO: move to other object)
         self.scheduledCells                 = set()
         self.collisionCells                 = set()
         self.inactivatedCells               = set()
         self.columnNames                    = []
         self.numAccumScheduledCells         = 0
         self.numAccumScheduledCollisions    = 0
-        self.queueDelays                                 = []
+        self.queueDelays                    = []
         
-        # initialize propagation at start of each run 
-        Propagation.Propagation._instance   = None
-        Propagation.Propagation._init       = False
+        # initialize propagation
         self.propagation                    = Propagation.Propagation()
         
-        self.asn                            = 0
-        self.events                         = []
-        self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
-
-        # initialize topology at start of each run
+        # initialize topology
         self.topology                       = Topology.Topology(self.motes)
-        
-        # use the topology component to create the network
-        # update other topology configurations e.g tree, full mesh, etc.. so topology can build different nets   
         self.topology.createTopology()
-        
-        self.goOn            = True
         
         # boot all motes
         for i in range(len(self.motes)):
@@ -86,14 +84,15 @@ class SimEngine(threading.Thread):
         
         # initialize parent class
         threading.Thread.__init__(self)
-        self.name            = 'SimEngine'
-        
-        # start thread
-        self.start()
+        self.name                           = 'SimEngine'
     
     def destroy(self):
-        self._instance       = None
-        self._init           = False
+        # destroy the propagation singleton
+        self.propagation.destroy()
+        
+        # destroy my own instance
+        self._instance                      = None
+        self._init                          = False
     
     #======================== thread ==========================================
     
@@ -109,7 +108,7 @@ class SimEngine(threading.Thread):
         
         while self.goOn:
             
-            with self.dataLock: 
+            with self.dataLock:
                 
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
@@ -118,7 +117,7 @@ class SimEngine(threading.Thread):
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
 
-                # call callbacks at this ASN other than monitoring
+                # call callbacks at this ASN (NOT monitoring)
                 i = 0
                 while True:
                     if self.events[i][0] != self.asn:
@@ -136,8 +135,8 @@ class SimEngine(threading.Thread):
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
                 
-                # call remained callbacks (i.e. monitoring) 
-                while True:                    
+                # call remained callbacks (i.e. monitoring)
+                while True:
                     if self.events[0][0]!=self.asn:
                         break
                     (_,cb,_) = self.events.pop(0)
@@ -186,10 +185,10 @@ class SimEngine(threading.Thread):
                         'numOverflow':                     numOverflow,
                         'e2ePDR':                          e2ePDR,
                         'avgLatency':                      avgLatency,
-                        'avgQueueDelay':                   avgQueueDelay, 
-                        'avgTimeBetweenOTFevents':         avgTimeBetweenOTFevents, 
+                        'avgQueueDelay':                   avgQueueDelay,
+                        'avgTimeBetweenOTFevents':         avgTimeBetweenOTFevents,
                     })
-                    self.propagation.initStats() 
+                    self.propagation.initStats()
                 
                 # stop after numCyclesPerRun cycles
                 if cycle==self.settings.numCyclesPerRun:
@@ -207,7 +206,7 @@ class SimEngine(threading.Thread):
     #=== scheduling
     
     def scheduleIn(self,delay,cb,uniqueTag=None):
-        ''' used to generate events. Puts an event to the queue '''    
+        ''' used to generate events. Puts an event to the queue '''
         
         with self.dataLock:
             asn = int(self.asn+(float(delay)/float(self.settings.slotDuration)))
@@ -227,7 +226,7 @@ class SimEngine(threading.Thread):
                 i = 0
                 while i<len(self.events):
                     (a,c,t) = self.events[i]
-                    # remove the future event but do not remove events at the current asn  
+                    # remove the future event but do not remove events at the current asn
                     if (t==uniqueTag) and (a > self.asn):
                         del self.events[i]
                     else:
@@ -256,7 +255,7 @@ class SimEngine(threading.Thread):
                     else:
                         # only increment when not removing
                         i += 1
-                else: # events at current asn are not removed 
+                else: # events at current asn are not removed
                     if t==uniqueTag and a>self.asn:
                         del self.events[i]
                     else:
@@ -268,9 +267,6 @@ class SimEngine(threading.Thread):
     def getAsn(self):
         with self.dataLock:
             return self.asn
-    
-    def close(self):
-        self.goOn = False
     
     #======================== private =========================================
     
@@ -326,15 +322,15 @@ class SimEngine(threading.Thread):
             
             # initialize at start of each cycle
             currentTs = self.asn % self.settings.slotframeLength
-            if currentTs == 0: 
+            if currentTs == 0:
                 self.numAccumScheduledCells = 0
                 self.numAccumScheduledCollisions = 0
                 self.queueDelays=[]
 
             self.scheduledCells.clear()
             self.collisionCells.clear()
-            self.inactivatedCells.clear() # store cells recently added by monitoring function but not activated yet 
-            for mote in self.motes:                
+            self.inactivatedCells.clear() # store cells recently added by monitoring function but not activated yet
+            for mote in self.motes:
                 for (ts,ch,_) in mote.getTxCells():
                     if ts == currentTs:
                                                 
