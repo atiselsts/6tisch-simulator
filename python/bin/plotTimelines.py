@@ -62,16 +62,17 @@ def parseCliOptions():
     
     return options.__dict__
 
-def genTimeline(dir,infile,elemName):
+def genTimeline(dir,infilemame,elemName):
     
-    outfile   = os.path.join(dir,infile.split('.')[0]+'_{}.png'.format(elemName))
-    filepath  = os.path.join(dir,infile)
+    infilepath     = os.path.join(dir,infilemame)
+    outfilename    = infilemame.split('.')[0]+'_{}.png'.format(elemName)
+    outfilepath    = os.path.join(dir,outfilename)
     
     # print
-    print 'Generating {0}...'.format(outfile),
+    print 'Parsing    {0}...'.format(infilemame),
     
     # find colnumelem, colnumcycle, colnumrunNum
-    with open(filepath,'r') as f:
+    with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('# '):
                 elems        = re.sub(' +',' ',line[2:]).split()
@@ -87,7 +88,7 @@ def genTimeline(dir,infile,elemName):
     
     # parse data
     valuesPerCycle = {}
-    with open(filepath,'r') as f:
+    with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('#') or not line.strip():
                 continue
@@ -105,6 +106,12 @@ def genTimeline(dir,infile,elemName):
             if cycle not in valuesPerCycle:
                 valuesPerCycle[cycle] = []
             valuesPerCycle[cycle] += [elem]
+    
+    # print
+    print 'done.'
+    
+    # print
+    print 'Generating {0}...'.format(outfilename),
     
     # calculate mean and confidence interval
     meanPerCycle    = {}
@@ -124,25 +131,25 @@ def genTimeline(dir,infile,elemName):
     yerr      = [confintPerCycle[k] for k in x]
     matplotlib.pyplot.figure()
     matplotlib.pyplot.errorbar(x,y,yerr=yerr)
-    matplotlib.pyplot.savefig(outfile)
+    matplotlib.pyplot.savefig(outfilepath)
     matplotlib.pyplot.close('all')
     
     # print
     print 'done.'
 
-def genTopologies(dir,infile):
+def genTopologies(dir,infilemame):
     
-    filepath  = os.path.join(dir,infile)
+    infilepath     = os.path.join(dir,infilemame)
     
     # print
-    print 'Generating Topologies...',
+    print 'Parsing    {0}...'.format(infilemame),
     
     # parse data
     xcoord         = {}
     ycoord         = {}
     motes          = {}
     links          = {}
-    with open(filepath,'r') as f:
+    with open(infilepath,'r') as f:
         for line in f:
             
             if line.startswith('##'):
@@ -200,6 +207,9 @@ def genTopologies(dir,infile):
     assert squareSide
     assert sorted(motes.keys())==sorted(links.keys())
     
+    # print
+    print 'done.'
+    
     def plotMotes(thisax):
         # motes
         thisax.scatter(
@@ -222,7 +232,13 @@ def genTopologies(dir,infile):
         )
     
     # plot topologies
-    for runNum in motes.keys():
+    for runNum in sorted(motes.keys()):
+        
+        outfilename = infilemame.split('.')[0]+'_topology_runNumber_{}.png'.format(runNum)
+        outfilepath = os.path.join(dir,outfilename)
+        
+        # print
+        print 'Generating {0}...'.format(outfilename),
         
         #=== start new plot
         
@@ -315,12 +331,11 @@ def genTopologies(dir,infile):
         
         #=== save and close plot
         
-        outfile = os.path.join(dir,infile.split('.')[0]+'_topology_runNumber_{}.png'.format(runNum))
-        matplotlib.pyplot.savefig(outfile)
+        matplotlib.pyplot.savefig(outfilepath)
         matplotlib.pyplot.close('all')
-    
-    # print
-    print 'done.'
+        
+        # print
+        print 'done.'
 
 #============================ main ============================================
 
@@ -339,17 +354,21 @@ def main():
     
     # plot figures
     for dir in os.listdir(DATADIR):
-        for infile in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+        for infilemame in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+            
+            # plot timelines
             for elemName in options['elemNames']:
                 genTimeline(
-                    dir      = os.path.join(DATADIR, dir),
-                    infile   = os.path.basename(infile),
-                    elemName = elemName,
+                    dir           = os.path.join(DATADIR, dir),
+                    infilemame    = os.path.basename(infilemame),
+                    elemName      = elemName,
                 )
-                genTopologies(
-                    dir      = os.path.join(DATADIR, dir),
-                    infile   = os.path.basename(infile),
-                )
+            
+            # plot topologies
+            genTopologies(
+                dir           = os.path.join(DATADIR, dir),
+                infilemame    = os.path.basename(infilemame),
+            )
 
 if __name__=="__main__":
     main()
