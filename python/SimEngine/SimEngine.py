@@ -170,8 +170,8 @@ class SimEngine(threading.Thread):
                     else:
                         avgLatency     = 0.0
                     self._fileWriteRun({
-                        'runNum': self.runNum,
-                        'cycle': cycle,
+                        'runNum':                          self.runNum,
+                        'cycle':                           cycle,
                         'numAccumScheduledCells':          self.numAccumScheduledCells,
                         'numAccumScheduledCollisions':     self.numAccumScheduledCollisions,
                         'numAccumNoPktAtNSC':              self.propagation.numAccumNoPktAtNSC,
@@ -193,8 +193,8 @@ class SimEngine(threading.Thread):
                 
                 # stop after numCyclesPerRun cycles
                 if cycle==self.settings.numCyclesPerRun:
-                    self.goOn=False
                     self._fileWriteTopology()
+                    self.goOn=False
                 
                 # update the current ASN
                 self.asn += 1
@@ -301,9 +301,23 @@ class SimEngine(threading.Thread):
             f.write('\n'.join(output))
     
     def _fileWriteTopology(self):
+        output  = []
+        output += [
+            '#pos runNum={0} {1}'.format(
+                self.runNum,
+                ' '.join(['{0}@({1:.5f},{2:.5f})@{3}'.format(mote.id,mote.x,mote.y,mote.rank) for mote in self.motes])
+            )
+        ]
+        output += [
+            '#links runNum={0} {1}'.format(
+                self.runNum,
+                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA,moteB,rssi) for (moteA,moteB,rssi) in self.topology.links])
+            )
+        ]
+        output  = '\n'.join(output)
+    
         with open(self.settings.getOutputFile(),'a') as f:
-            f.write('#pos runNum={0} '.format(self.runNum)+' '.join(['{0}@({1},{2})@{3}'.format(mote.id, round(mote.x, 5), round(mote.y, 5), mote.rank) for mote in self.motes])+'\n')
-            f.write('#links runNum={0} '.format(self.runNum)+' '.join(['{0}->{1}@{2}dBm'.format(id1, id2, round(rssi,3)) for (id1, id2, rssi) in self.topology.links])+'\n')
+            f.write(output)
     
     def _countSchedule(self):
         # count scheduled cells and schedule collision at each asn

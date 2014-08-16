@@ -59,7 +59,7 @@ def parseCliOptions():
     
     return options.__dict__
 
-def genFig(dir,infile,elemName):
+def genTimeline(dir,infile,elemName):
     
     outfile   = os.path.join(dir,infile.split('.')[0]+'_{}.png'.format(elemName))
     filepath  = os.path.join(dir,infile)
@@ -127,8 +127,7 @@ def genFig(dir,infile,elemName):
     # print
     print 'done.'
 
-def genTopologyFigs(dir,infile):
-    
+def genTopologies(dir,infile):
     
     filepath  = os.path.join(dir,infile)
     
@@ -136,53 +135,187 @@ def genTopologyFigs(dir,infile):
     print 'Generating Topologies...', 
     
     # parse data
-    topologies={}
+    xcoord         = {}
+    ycoord         = {}
+    motes          = {}
+    links          = {}
     with open(filepath,'r') as f:
         for line in f:
+            
+            if line.startswith('##'):
+                # squareSide
+                m = re.search('squareSide\s+=\s+([\.0-9]+)',line)
+                if m:
+                    squareSide = float(m.group(1))
+            
             if line.startswith('#pos'):
-                rawdata=line.strip().split(' ')
-                runNum=int(rawdata[1].split('=')[1])
-                topologies[runNum]={'motes':{}}
-                for node in rawdata[2:]:
-                    nodeParam=node.split('@')
-                    topologies[runNum]['motes'][int(nodeParam[0])]={'position':eval(nodeParam[1]), 'rank':int(nodeParam[2])}
-            elif line.startswith('#links'):
-                rawdata=line.strip().split(' ')
-                runNum=int(rawdata[1].split('=')[1])
-                if topologies.has_key(runNum):
-                    topologies[runNum]['links']={}
-                    for link in rawdata[2:]:
-                        node1, further=link.split('->')
-                        node2, further=further.split('@')
-                        rssi=further[:-3]
-                        topologies[runNum]['links'][(int(node1), int(node2))]=float(rssi)
-            else:
-                continue
+                
+                # runNum
+                m = re.search('runNum=([0-9]+)',line)
+                runNum = m.group(1)
+                
+                # initialize variables
+                motes[runNum]     = []
+                xcoord[runNum]    = {}
+                ycoord[runNum]    = {}
+                
+                # motes
+                m = re.findall('([0-9]+)\@\(([\.0-9]+),([\.0-9]+)\)\@([0-9]+)',line)
+                for (id,x,y,rank) in m:
+                    id       = int(id)
+                    x        = float(x)
+                    y        = float(y)
+                    rank     = int(rank)
+                    motes[runNum] += [{
+                        'id':     id,
+                        'x':      x,
+                        'y':      y,
+                        'rank':   rank,
+                    }]
+                    xcoord[runNum][id] = x
+                    ycoord[runNum][id] = y
+            
+            if line.startswith('#links'):
+                
+                # runNum
+                m = re.search('runNum=([0-9]+)',line)
+                runNum = m.group(1)
+                
+                # create entry for this run
+                links[runNum] = []
+                
+                # links
+                m = re.findall('([0-9]+)-([0-9]+)@([\-0-9]+)dBm',line)
+                for (moteA,moteB,rssi) in m:
+                    links[runNum] += [{
+                        'moteA':  int(moteA),
+                        'moteB':  int(moteB),
+                        'rssi':   int(rssi),
+                    }]
+    
+    # verify integrity
+    assert squareSide
+    assert sorted(motes.keys())==sorted(links.keys())
+    
+    def plotMotes(thisax):
+        # motes
+        thisax.scatter(
+            [mote['x'] for mote in motes[runNum] if mote['id']!=0],
+            [mote['y'] for mote in motes[runNum] if mote['id']!=0],
+            marker      = 'o',
+            c           = 'white',
+            s           = 30,
+            lw          = 0.5,
+            zorder      = 4,
+        )
+        thisax.scatter(
+            [mote['x'] for mote in motes[runNum] if mote['id']==0],
+            [mote['y'] for mote in motes[runNum] if mote['id']==0],
+            marker      = 'o',
+            c           = 'red',
+            s           = 30,
+            lw          = 0.5,
+            zorder      = 4,
+        )
     
     # plot topologies
-    for runNum, topology in topologies.iteritems():
-        if topology.has_key('links'):
-            matplotlib.pyplot.figure()
-            xx=[topology['motes'][mote]['position'][0] for mote in sorted(topology['motes'].keys())]
-            yy=[topology['motes'][mote]['position'][1] for mote in sorted(topology['motes'].keys())]
-            matplotlib.pyplot.scatter(xx,yy,marker='o', c='w', s=50, lw=0.5, zorder=1)
-            for mote in sorted(topology['motes'].keys()):
-                position=numpy.array(topology['motes'][mote]['position'])
-                matplotlib.pyplot.annotate(str(mote), position+numpy.array([0, 0.02]), color='k', size='small', weight='semibold', zorder=3)
-                matplotlib.pyplot.annotate(str(topology['motes'][mote]['rank']), position+numpy.array([0, -0.04]), color='r', size='small', zorder=3)
-            for link in sorted(topology['links'].keys()):
-                matplotlib.pyplot.plot(\
-                                        [topology['motes'][link[0]]['position'][0], topology['motes'][link[1]]['position'][0]], \
-                                        [topology['motes'][link[0]]['position'][1], topology['motes'][link[1]]['position'][1]], \
-                                        color='g', zorder=0
-                                        )
-#                position=(
-#                                (topology['motes'][link[0]]['position'][0] + topology['motes'][link[1]]['position'][0])/2,  \
-#                                (topology['motes'][link[0]]['position'][1] + topology['motes'][link[1]]['position'][1])/2
-#                                )
-#                matplotlib.pyplot.annotate(str(topology['links'][link]), position, color='b', size='small', zorder=3)
-            matplotlib.pyplot.savefig(os.path.join(dir,infile.split('.')[0]+'_topology_{}.png'.format(runNum)))
-            matplotlib.pyplot.close()
+    for runNum in motes.keys():
+        
+        #=== start new plot
+        
+        matplotlib.pyplot.figure()
+        
+        f, ((ax1, ax2), (ax3, ax4)) = matplotlib.pyplot.subplots(2, 2, sharex=True, sharey=True, squeeze=True)
+        
+        AXISSIZE = [-squareSide*0.1,squareSide*1.1,-squareSide*0.1,squareSide*1.1]
+        
+        #=== plot 1: motes and IDs
+        
+        ax1.set_aspect('equal')
+        ax1.axis(AXISSIZE)
+        
+        # motes
+        plotMotes(ax1)
+        
+        # id
+        for mote in motes[runNum]:
+            ax1.annotate(
+                mote['id'],
+                xy      = (mote['x']+0.01,mote['y']+0.01),
+                color   = 'black',
+                size    = '6',
+                zorder  = 3,
+            )
+        
+        #=== plot 2: motes, rank and contour
+        
+        ax2.set_aspect('equal')
+        ax2.axis(AXISSIZE)
+        
+        # motes
+        plotMotes(ax2)
+        
+        # rank
+        for mote in motes[runNum]:
+            ax2.annotate(
+                mote['rank'],
+                xy      = (mote['x']+0.01,mote['y']-0.02),
+                color   = 'black',
+                size    = '6',
+                zorder  = 2,
+            )
+        
+        # contour
+        x     = [mote['x']    for mote in motes[runNum]]
+        y     = [mote['y']    for mote in motes[runNum]]
+        z     = [mote['rank'] for mote in motes[runNum]]
+        
+        xi    = numpy.linspace(0,squareSide,100)
+        yi    = numpy.linspace(0,squareSide,100)
+        zi    = matplotlib.mlab.griddata(x,y,z,xi,yi)
+        
+        ax2.contour(xi,yi,zi,lw=0.5)
+        
+        #=== plot 3: links
+        
+        ax3.set_aspect('equal')
+        ax3.axis(AXISSIZE)
+        
+        # motes
+        plotMotes(ax3)
+        
+        # links
+        cmap       = matplotlib.pyplot.get_cmap('jet')
+        cNorm      = matplotlib.colors.Normalize(
+            vmin   = min([link['rssi'] for link in links[runNum]]),
+            vmax   = max([link['rssi'] for link in links[runNum]]),
+        )
+        scalarMap  = matplotlib.cm.ScalarMappable(norm=cNorm, cmap=cmap)
+        
+        for link in links[runNum]:
+            colorVal = scalarMap.to_rgba(link['rssi'])
+            ax3.plot(
+                [xcoord[runNum][link['moteA']],xcoord[runNum][link['moteB']]],
+                [ycoord[runNum][link['moteA']],ycoord[runNum][link['moteB']]],
+                color   = colorVal,
+                zorder  = 1,
+                lw      = 0.5,
+            )
+        
+        #=== plot 4: TODO
+        
+        ax4.set_aspect('equal')
+        ax4.axis(AXISSIZE)
+        
+        # motes
+        plotMotes(ax4)
+        
+        #=== save and close plot
+        
+        outfile = os.path.join(dir,infile.split('.')[0]+'_topology_runNumber_{}.png'.format(runNum))
+        matplotlib.pyplot.savefig(outfile)
+        matplotlib.pyplot.close('all')
+    
     # print
     print 'done.'
 
@@ -205,14 +338,14 @@ def main():
     for dir in os.listdir(DATADIR):
         for infile in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
             for elemName in options['elemNames']:
-                genFig(
+                genTimeline(
                     dir      = os.path.join(DATADIR, dir),
                     infile   = os.path.basename(infile),
                     elemName = elemName,
                 )
-                genTopologyFigs(
+                genTopologies(
                     dir      = os.path.join(DATADIR, dir),
-                    infile   = os.path.basename(infile),              
+                    infile   = os.path.basename(infile),
                 )
 
 if __name__=="__main__":
