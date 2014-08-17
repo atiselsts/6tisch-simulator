@@ -69,7 +69,8 @@ class SimSettings(object):
         # file
         datafilename         = os.path.join(
             dirname,
-            'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
+            #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
+            'output.dat',
         )
         
         return datafilename

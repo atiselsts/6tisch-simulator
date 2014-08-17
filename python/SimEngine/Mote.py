@@ -164,7 +164,7 @@ class Mote(object):
             }
             
             # update mote stats
-            self._incrementMoteStats('dataGenerated')
+            self._incrementMoteStats('pkGenerated')
             
             # add to queue
             if len(self.txQueue)==self.TSCH_QUEUE_SIZE:
@@ -223,6 +223,9 @@ class Mote(object):
                     if self not in neighbor.numRxDIO:
                         neighbor.numRxDIO[self]  = 0
                     neighbor.numRxDIO[self]     += 1
+                    
+                    # update mote stats
+                    self._incrementMoteStats('numRxDIO')
                     
                     # in neighbor, do RPL housekeeping
                     neighbor._rpl_housekeeping()
@@ -809,17 +812,17 @@ class Mote(object):
                 # receiving packet at DAG root
                 
                 # update mote stats
-                self._incrementMoteStats('dataReceived')
+                self._incrementMoteStats('pkReceived')
                 
                 # calculate end-to-end latency
                 latency = asn-payload[1]
                 self.accumLatency += latency
             
-            if not self.dagRoot and self.preferredParent and smac and self.getTxCells():
+            elif not self.dagRoot and self.preferredParent and smac and self.getTxCells():
                 # relaying packet
                 
                 # update mote stats
-                self._incrementMoteStats('dataReceived')
+                self._incrementMoteStats('pkRelayed')
                 
                 # count incoming traffic for each node
                 self._otf_incrementIncomingTraffic(smac)
@@ -903,13 +906,19 @@ class Mote(object):
     def _resetMoteStats(self):
         with self.dataLock:
             self.motestats = {
-                'dataGenerated':       0,
-                'dataReceived':        0,
+                # app
+                'pkGenerated':         0,
+                'pkRelayed':           0,
+                'pkReceived':          0,
+                # queue
                 'dataQueueOK':         0,
+                'dataQueueFull':       0,
+                # rpl
                 'numDIOsTransmitted':  0,
+                'numRxDIO':            0,
                 'numPrefParentChange': 0,
                 'numRankChange':       0,
-                'dataQueueFull':       0,
+                # otf
                 'numCellsReallocated': 0,
             }
     
@@ -918,14 +927,20 @@ class Mote(object):
             self.motestats[name] += 1
     
     def getMoteStats(self):
+        
+        # gather statistics
         with self.dataLock:
             returnVal = copy.deepcopy(self.motestats)
-            returnVal['numRxDIO']      = sum(self.numRxDIO.values())
             returnVal['numTxCells']    = len(self.getTxCells())
             returnVal['numRxCells']    = len(self.getRxCells())
             returnVal['aveQueueDelay'] = self.getAverageQueueDelay()
             returnVal['txQueueFill']   = len(self.txQueue)
-            return returnVal
+        
+        # reset the statistics
+        self._resetQueueStats()
+        self._resetMoteStats()
+        
+        return returnVal
     
     # cell stats
     

@@ -171,7 +171,7 @@ class SimStats(object):
         # dataline
         formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
         formatString   += '\n'
-        output         += [' '+formatString.format(*[stats[k] for k in self.columnNames])]
+        output         += ['  '+formatString.format(*[stats[k] for k in self.columnNames])]
         
         # write to file
         with open(self.settings.getOutputFile(),'a') as f:
