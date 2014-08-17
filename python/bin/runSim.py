@@ -35,11 +35,11 @@ import time
 import itertools
 import logging.config
 import argparse
+import threading
 
 from SimEngine     import SimEngine,   \
                           SimSettings, \
-                          SimStats,    \
-                          Propagation
+                          SimStats
 from SimGui        import SimGui
 
 #============================ defines =========================================
@@ -141,20 +141,11 @@ def parseCliOptions():
     
     return options.__dict__
 
-def main():
-    # initialize logging
-    logging.config.fileConfig('logging.conf')
-    
-    # parse CLI options
-    options            = parseCliOptions()
-    
-    # start the GUI
-    if options['gui']:
-        gui            = SimGui.SimGui()
+def runSims(options):
     
     # compute all the simulation parameter combinations
-    combinationKeys    = sorted([k for (k,v) in options.items() if type(v)==list])
-    simParams          = []
+    combinationKeys     = sorted([k for (k,v) in options.items() if type(v)==list])
+    simParams           = []
     for p in itertools.product(*[options[k] for k in combinationKeys]):
         simParam = {}
         for (k,v) in zip(combinationKeys,p):
@@ -163,9 +154,6 @@ def main():
             if k not in simParam:
                 simParam[k] = v
         simParams      += [simParam]
-    
-    # record simulation start time
-    simStartTime = time.time()
     
     # run a simulation for each set of simParams
     for (simParamNum,simParam) in enumerate(simParams):
@@ -200,12 +188,32 @@ def main():
             simengine.destroy()
             settings.destroy()
     
-    # stop the GUI
-    if options['gui']:
-        gui.close()
+def main():
+    # initialize logging
+    logging.config.fileConfig('logging.conf')
     
-    # print
-    print '\nSimulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
+    # parse CLI options
+    options        = parseCliOptions()
+    
+    if options['gui']:
+        # create the GUI
+        gui        = SimGui.SimGui()
+        
+        # run simulations (in separate thread)
+        simThread  = threading.Thread(target=runSims,args=(options,))
+        simThread.start()
+        
+        # start GUI's mainloop (in main thread)
+        gui.mainloop()
+    else:
+        # record simulation start time
+        simStartTime   = time.time()
+        
+        # run the simulations
+        runSims(options)
+        
+        # print
+        print '\nSimulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
 
 #============================ main ============================================
 

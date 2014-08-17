@@ -59,6 +59,8 @@ class SimEngine(threading.Thread):
         
         # local variables
         self.dataLock                       = threading.RLock()
+        self.pauseSem                       = threading.Semaphore(0)
+        self.simPaused                      = False
         self.goOn                           = True
         self.asn                            = 0
         self.startCb                        = []
@@ -97,8 +99,8 @@ class SimEngine(threading.Thread):
         # schedule the endOfSimulation event
         self.scheduleAtAsn(
             asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
-            cb          = self._actionEndSimulation,
-            uniqueTag   = (None,'_actionEndSimulation'),
+            cb          = self._actionEndSim,
+            uniqueTag   = (None,'_actionEndSim'),
         )
         
         # call the start callbacks
@@ -219,15 +221,38 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.endCb      += [cb]
     
+    #=== play/stop
+    
+    def pauseAtAsn(self,asn):
+        if not self.simPaused:
+            self.scheduleAtAsn(
+                asn         = asn,
+                cb          = self._actionPauseSim,
+                uniqueTag   = ('SimEngine','_actionPauseSim'),
+            )
+    
+    def go(self):
+        self._actionResumeSim()
+    
     #=== getters/setters
     
     def getAsn(self):
-        with self.dataLock:
-            return self.asn
+        return self.asn
     
     #======================== private =========================================
     
-    def _actionEndSimulation(self):
+    def _actionPauseSim(self):
+        if not self.simPaused:
+            self.simPaused = True
+            self.pauseSem.acquire()
+    
+    def _actionResumeSim(self):
+        if self.simPaused:
+            self.simPaused = False
+            self.pauseSem.release()
+    
+    def _actionEndSim(self):
         with self.dataLock:
             self.goOn = False
+    
     

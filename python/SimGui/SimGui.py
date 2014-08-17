@@ -24,6 +24,7 @@ import threading
 import Tkinter
 
 import ScheduleFrame
+import PlayPauseFrame
 import TopologyFrame
 import StatsFrame
 
@@ -60,15 +61,13 @@ class SimGui(Tkinter.Tk):
         
         # create frames
         self.scheduleFrame   = ScheduleFrame.ScheduleFrame(self)
-        self.scheduleFrame.grid(row=0,column=0,columnspan=2)
+        self.scheduleFrame.grid(row=0,column=0,columnspan=3)
+        self.playPauseFrame   = PlayPauseFrame.PlayPauseFrame(self)
+        self.playPauseFrame.grid(row=1,column=0)
         self.topologyFrame   = TopologyFrame.TopologyFrame(self)
-        self.topologyFrame.grid(row=1,column=0,rowspan=2)
+        self.topologyFrame.grid(row=1,column=1)
         self.statsFrame      = StatsFrame.StatsFrame(self)
-        self.statsFrame.grid(row=2,column=1)
-        
-        # start GUI (in a separate thread)
-        guiThread = threading.Thread(target=self.mainloop)
-        guiThread.start()
+        self.statsFrame.grid(row=1,column=2)
     
     #======================== public ==========================================
     
