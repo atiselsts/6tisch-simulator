@@ -35,46 +35,46 @@ import Propagation
 
 class Mote(object):
     
-    HOUSEKEEPING_PERIOD      = 1
-    QUEUE_SIZE               = 10
+    HOUSEKEEPING_PERIOD           = 1
+    QUEUE_SIZE                    = 10
     
     # sufficient num. of tx to estimate pdr by ACK
-    NUM_SUFFICIENT_TX        = 10
+    NUM_SUFFICIENT_TX             = 10
     
     # sufficient num. of DIO to determine parent is stable
-    NUM_SUFFICIENT_DIO       = 1
+    NUM_SUFFICIENT_DIO            = 1
     
-    PARENT_SWITCH_THRESHOLD  = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
-    MIN_HOP_RANK_INCREASE    = 256
-    MAX_ETX                  = 4
-    MAX_LINK_METRIC          = MAX_ETX*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
-    MAX_PATH_COST            = 256*MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
-    PARENT_SET_SIZE          = 3
-    TX_RETRIES               = 3
+    PARENT_SWITCH_THRESHOLD       = 768# corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
+    MIN_HOP_RANK_INCREASE         = 256
+    MAX_ETX                       = 4
+    MAX_LINK_METRIC               = MAX_ETX*MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for one hop for parents
+    MAX_PATH_COST                 = 256*MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
+    PARENT_SET_SIZE               = 3
+    TX_RETRIES                    = 3
     
-    SMOOTHING                = 0.5
+    SMOOTHING                     = 0.5
     
-    DIR_TX                   = 'TX'
-    DIR_RX                   = 'RX'
+    DIR_TX                        = 'TX'
+    DIR_RX                        = 'RX'
     
-    DEBUG                    = 'DEBUG'
-    WARNING                  = 'WARNING'
+    DEBUG                         = 'DEBUG'
+    WARNING                       = 'WARNING'
     
-    TYPE_DATA                = 'DATA'
+    TYPE_DATA                     = 'DATA'
     
-    TX                       = 'TX'
-    RX                       = 'RX'
+    TX                            = 'TX'
+    RX                            = 'RX'
     
     # ratio 1/4 -- changing this threshold the detection of a bad cell can be
     # tuned, if as higher the slower to detect a wrong cell but the more prone
     # to avoid churn as lower the faster but with some chances to introduces
     # churn due to unstable medium
-    PDR_THRESHOLD            = 4.0
+    PDR_THRESHOLD                 = 4.0
     
     def __init__(self,id):
         
         # store params
-        self.id              = id
+        self.id                   = id
         
         # local variables
         self.engine               = SimEngine.SimEngine()
