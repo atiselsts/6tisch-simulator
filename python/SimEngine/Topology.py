@@ -39,7 +39,6 @@ class Topology(object):
         
         # store params
         self.motes           = motes
-        self.links           = set()
     
     #======================== public ==========================================
     
@@ -71,9 +70,14 @@ class Topology(object):
                 
                 # make sure it is connected to at least one mote
                 for cm in connectedMotes:
-                    self._computeRSSI(mote, cm)
-                    if mote.getRSSI(cm)>self.MIN_RSSI:
+                    
+                    rssi = self._computeRSSI(mote, cm)
+                    mote.setRSSI(cm, rssi)
+                    cm.setRSSI(mote, rssi)
+                    
+                    if rssi>self.MIN_RSSI:
                         connected = True
+            
             connectedMotes += [mote]
         
         # for each mote, compute PDR to each neighbors
@@ -81,9 +85,10 @@ class Topology(object):
             for m in self.motes:
                 if mote==m:
                     continue
-                if mote.getRSSI(m) > mote.radioSensitivity:
-                    mote.setPDR(m,self._computePDR(mote,m))
-                    self.links.update([tuple(sorted([mote.id, m.id])+[mote.getRSSI(m)])])
+                if mote.getRSSI(m)>mote.radioSensitivity:
+                    pdr = self._computePDR(mote,m)
+                    mote.setPDR(m,pdr)
+                    m.setPDR(mote,pdr)
         
         # print topology information
         '''
@@ -128,8 +133,7 @@ class Topology(object):
         # the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
         rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
         
-        mote.setRSSI(neighbor, rssi)
-        neighbor.setRSSI(mote, rssi)
+        return rssi
     
     def _computePDR(self,mote,neighbor):
         ''' computes pdr to neighbor according to RSSI'''

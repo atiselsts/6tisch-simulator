@@ -55,13 +55,7 @@ class SimStats(object):
         self.settings                       = SimSettings.SimSettings()
         
         # stats
-        self.scheduledCells                 = set()
-        self.collisionCells                 = set()
-        self.inactivatedCells               = set()
-        self.columnNames                    = []
-        self.numAccumScheduledCells         = 0
-        self.numAccumScheduledCollisions    = 0
-        self.queueDelays                    = []
+        self.stats                          = {}
         
         # start file
         if self.runNum==0:
@@ -142,11 +136,11 @@ class SimStats(object):
     
     def _collectStats(self):
         
-        numGeneratedPkts   = self._countGeneratedPackets()
+        totalDataGenerated   = sum([mote.getStats()['dataGenerated'] for mote in self.engine.motes])
+        totalDataReceived    = sum([mote.getStats()['dataGenerated'] for mote in self.engine.motes])
         
-        numPacketsInQueue  = self._countPacketsInQueue()
-        
-        numOverflow        = self._countQueueFull()
+        totalTxQueueLen      = sum([len(mote.txQueue)                for mote in self.engine.motes])
+        totalDataQueueFull   = sum([mote.getStats()['dataQueueFull'] for mote in self.engine.motes])
         
         numPacketsReached  = self.motes[0].getStats()['dataReceived']
         
@@ -211,34 +205,6 @@ class SimStats(object):
             self.numAccumScheduledCells += len(self.scheduledCells)
             self.numAccumScheduledCollisions += len(self.collisionCells)
     
-    def _countPacketsInQueue(self):
-        # count the number of packets in queues of all motes at current asn
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                numPkt += len(mote.txQueue)
-            return numPkt
-    
-    def _countGeneratedPackets(self):
-        # count the number of generated packets of all motes
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                stats = mote.getStats()
-                numPkt += stats['dataGenerated']
-            return numPkt
-
-    def _countQueueFull(self):
-        # count the number of generated packets of all motes
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                stats = mote.getStats()
-                numPkt += stats['dataQueueFull']
-            return numPkt
     
     #=== writing to file
     
@@ -276,14 +242,23 @@ class SimStats(object):
                 ' '.join(['{0}@({1:.5f},{2:.5f})@{3}'.format(mote.id,mote.x,mote.y,mote.rank) for mote in self.engine.motes])
             )
         ]
-        '''
+        links = {}
+        for m in self.engine.motes:
+            for n in self.engine.motes:
+                if m==n:
+                    continue
+                if (n,m) in links:
+                    continue
+                try:
+                    links[(m,n)] = m.getPDR(n)
+                except KeyError:
+                    pass
         output += [
             '#links runNum={0} {1}'.format(
                 self.runNum,
-                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA,moteB,rssi) for (moteA,moteB,rssi) in self.topology.links])
+                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA,moteB,rssi) for ((moteA,moteB),rssi) in links.items()])
             )
         ]
-        '''
         output  = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:
