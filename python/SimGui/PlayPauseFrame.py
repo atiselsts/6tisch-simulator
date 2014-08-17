@@ -46,12 +46,12 @@ class PlayPauseFrame(Tkinter.Frame):
         )
         
         # GUI layout
+        self.playButton      = Tkinter.Button(self, text="play",     command=self._play_clicked)
+        self.playButton.grid(row=0,column=0)
+        self.pauseButton     = Tkinter.Button(self, text="pause",    command=self._pause_clicked)
+        self.pauseButton.grid(row=1,column=0)
         self.nextCycleButton = Tkinter.Button(self, text="nextCycle",command=self._nextCycle_clicked)
-        self.nextCycleButton.grid(row=0,column=0)
-        self.nextRunButton   = Tkinter.Button(self, text="nextRun",  command=self._nextRun_clicked)
-        self.nextRunButton.grid(row=1,column=0)
-        self.goButton        = Tkinter.Button(self, text="go",       command=self._go_clicked)
-        self.goButton.grid(row=2,column=0)
+        self.nextCycleButton.grid(row=2,column=0)
     
     #======================== public ==========================================
     
@@ -70,27 +70,36 @@ class PlayPauseFrame(Tkinter.Frame):
     
     #======================== private =========================================
     
+    def _play_clicked(self):
+        print 'play clicked'
+        try:
+            self.engine.play()
+        except EnvironmentError:
+            # this happens when we try to update between runs
+            pass
+    
+    def _pause_clicked(self):
+        print 'pause clicked'
+        try:
+            nowAsn           = self.engine.getAsn()
+            
+            self.engine.pauseAtAsn(
+                asn          = nowAsn+1,
+            )
+        except EnvironmentError:
+            # this happens when we try to update between runs
+            pass
+    
     def _nextCycle_clicked(self):
         print 'nextCycle clicked'
         try:
             nowAsn           = self.engine.getAsn()
             endCycleAsn      = nowAsn+self.settings.slotframeLength-(nowAsn%self.settings.slotframeLength)
             
+            self.engine.play()
             self.engine.pauseAtAsn(
                 asn          = endCycleAsn,
             )
         except EnvironmentError:
             # this happens when we try to update between runs
             pass
-    
-    def _nextRun_clicked(self):
-        print "TODO _nextRun_clicked"
-    
-    def _go_clicked(self):
-        print 'go clicked'
-        try:
-            self.engine.go()
-        except EnvironmentError:
-            # this happens when we try to update between runs
-            pass
-    

@@ -221,7 +221,10 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.endCb      += [cb]
     
-    #=== play/stop
+    #=== play/pause
+    
+    def play(self):
+        self._actionResumeSim()
     
     def pauseAtAsn(self,asn):
         if not self.simPaused:
@@ -230,9 +233,6 @@ class SimEngine(threading.Thread):
                 cb          = self._actionPauseSim,
                 uniqueTag   = ('SimEngine','_actionPauseSim'),
             )
-    
-    def go(self):
-        self._actionResumeSim()
     
     #=== getters/setters
     
