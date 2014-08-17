@@ -6,9 +6,9 @@ A number of command-line parameters are available to modify the simulation
 settings. Use '--help' for a list of them.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 '''
 
 #============================ adjust path =====================================

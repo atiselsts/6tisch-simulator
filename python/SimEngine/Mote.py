@@ -3,9 +3,9 @@
 \brief Model of a 6TiSCH mote.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 '''
 
 #============================ logging =========================================
@@ -84,7 +84,6 @@ class Mote(object):
         self.RSSI                 = {} #indexed by neighbor
         self.PDR                  = {} #indexed by neighbor
         self.numCells             = {}
-        self.booted               = False
         self.schedule             = {}
         self.txQueue              = []
         self.txPower              = 0
@@ -122,10 +121,10 @@ class Mote(object):
         
         self._resetStats()
         
-        self.incomingTraffics     = {} #indexed by neighbor
+        self.incomingTraffic     = {} #indexed by neighbor
         self.averageIncomingTraffics = {}#indexed by neighbor
     
-    #======================== actions =========================================
+    #======================== stack ===========================================
     
     #===== application
     
@@ -564,20 +563,20 @@ class Mote(object):
     def _otf_resetIncomingTraffic(self):
         with self.dataLock:
             for neighbor in self.PDR.keys():
-                self.incomingTraffics[neighbor] = 0
+                self.incomingTraffic[neighbor] = 0
     
     def _otf_incrementIncomingTraffic(self,neighbor):
         with self.dataLock:
-            self.incomingTraffics[neighbor] += 1
+            self.incomingTraffic[neighbor] += 1
     
     def _otf_averageIncomingTraffic(self):
         with self.dataLock:
             for neighbor in self.PDR.keys():
                 if self.averageIncomingTraffics.has_key(neighbor):
-                    self.averageIncomingTraffics[neighbor] = self.OTF_TRAFFIC_SMOOTHING*self.incomingTraffics[neighbor] \
+                    self.averageIncomingTraffics[neighbor] = self.OTF_TRAFFIC_SMOOTHING*self.incomingTraffic[neighbor] \
                     + (1-self.OTF_TRAFFIC_SMOOTHING)*self.averageIncomingTraffics[neighbor]
-                elif self.incomingTraffics[neighbor] != 0:
-                    self.averageIncomingTraffics[neighbor] = self.incomingTraffics[neighbor]
+                elif self.incomingTraffic[neighbor] != 0:
+                    self.averageIncomingTraffics[neighbor] = self.incomingTraffic[neighbor]
     
     #===== 6top
     
@@ -613,10 +612,6 @@ class Mote(object):
                     return True
             log.error('tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial+1,self.id,neighbor.id))
     
-    def _6top_isUnusedSlot(self,ts):
-        with self.dataLock:
-            return not (ts in self.schedule)
-    
     def _6top_removeCell(self,ts,cell):
         ''' removes a cell in the schedule of this node and the neighbor '''
         with self.dataLock:
@@ -629,6 +624,10 @@ class Mote(object):
                 neighbor     = self,
             )
             self.numCells[cell['neighbor']] -= 1
+    
+    def _6top_isUnusedSlot(self,ts):
+        with self.dataLock:
+            return not (ts in self.schedule)
     
     #===== TSCH
     
@@ -875,18 +874,10 @@ class Mote(object):
     #==== battery
     
     def boot(self):
-        ''' boots the mote '''
-        with self.dataLock:
-            self.booted      = False
-        
-        # schedule monitoring
-        self._otf_schedule_monitoring()
-        # schedule first active cell
-        self._tsch_schedule_activeCell()
-        # schedule DIO
         self._rpl_schedule_DIO()
-        # reset traffic stats
         self._otf_resetIncomingTraffic()
+        self._otf_schedule_monitoring()
+        self._tsch_schedule_activeCell()
     
     #======================== private =========================================
     

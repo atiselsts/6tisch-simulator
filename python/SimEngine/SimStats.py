@@ -3,9 +3,9 @@
 \brief Collects and logs statistics about the ongoing simulation.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 '''
 
 #============================ logging =========================================
