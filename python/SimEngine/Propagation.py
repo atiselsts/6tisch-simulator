@@ -223,11 +223,10 @@ class Propagation(object):
                             # get SINR to that neighbor and translate it to PDR
                             sinr = self.computeSINR(transmission['smac'], transmission['dmac'], interferers)
                             pdr = self.computePdrFromSINR(sinr, transmission['dmac'])
-                            pdr_debug = transmission['smac'].getPDR(transmission['dmac'])
-
+                            
                             # pick a random number
                             failure = random.randint(0,100)
-
+                            
                             # if we are lucky the packet is sent
                             if (pdr>=failure):
                                 success = True

@@ -22,6 +22,7 @@ log.addHandler(NullHandler())
 
 import SimEngine
 import SimSettings
+import Propagation
 
 #============================ defines =========================================
 
@@ -53,9 +54,11 @@ class SimStats(object):
         # local variables
         self.engine                         = SimEngine.SimEngine()
         self.settings                       = SimSettings.SimSettings()
+        self.propagation                    = Propagation.Propagation()
         
         # stats
         self.stats                          = {}
+        self.columnNames                    = []
         
         # start file
         if self.runNum==0:
@@ -91,35 +94,36 @@ class SimStats(object):
         cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
         
         print('      cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
-        '''
-        # collect statistics
-        self._collectStats()
         
         # write statistics to output file
-        self._fileWriteStats({
-            'runNum':                       self.runNum,
-            'cycle':                        cycle,
-            'numAccumScheduledCells':       self.numAccumScheduledCells,
-            'numAccumScheduledCollisions':  self.numAccumScheduledCollisions,
-            'numAccumNoPktAtNSC':           self.propagation.numAccumNoPktAtNSC,
-            'numAccumPktAtNSC':             self.propagation.numAccumPktAtNSC,
-            'numAccumSuccessAtNSC':         self.propagation.numAccumSuccessAtNSC,
-            'numAccumNoPktAtSC':            self.propagation.numAccumNoPktAtSC,
-            'numAccumPktAtSC':              self.propagation.numAccumPktAtSC,
-            'numAccumSuccessAtSC':          self.propagation.numAccumSuccessAtSC,
-            'numGeneratedPkts':             numGeneratedPkts,
-            'numPacketsReached':            numPacketsReached,
-            'numPacketsInQueue':            numPacketsInQueue,
-            'numOverflow':                  numOverflow,
-            'e2ePDR':                       e2ePDR,
-            'avgLatency':                   avgLatency,
-            'avgQueueDelay':                avgQueueDelay,
-            'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
-        })
+        self._fileWriteStats(
+            dict(
+                {
+                    'runNum':              self.runNum,
+                    'cycle':               cycle,
+                }.items() +
+                self._collectSumMoteStats().items()
+            )
+        )
+        
+        #'numAccumScheduledCells':       self.numAccumScheduledCells,
+        #'numAccumScheduledCollisions':  self.numAccumScheduledCollisions,
+        #'numAccumNoPktAtNSC':           self.propagation.numAccumNoPktAtNSC,
+        #'numAccumPktAtNSC':             self.propagation.numAccumPktAtNSC,
+        #'numAccumSuccessAtNSC':         self.propagation.numAccumSuccessAtNSC,
+        #'numAccumNoPktAtSC':            self.propagation.numAccumNoPktAtSC,
+        #'numAccumPktAtSC':              self.propagation.numAccumPktAtSC,
+        #'numAccumSuccessAtSC':          self.propagation.numAccumSuccessAtSC,
+        #'numPacketsReached':            numPacketsReached,
+        #'numPacketsInQueue':            numPacketsInQueue,
+        #'numOverflow':                  numOverflow,
+        #'e2ePDR':                       e2ePDR,
+        #'avgLatency':                   avgLatency,
+        #'avgQueueDelay':                avgQueueDelay,
+        #'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
         
         # reset statistics
         self.propagation.initStats()
-        '''
         
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
@@ -134,77 +138,18 @@ class SimStats(object):
     
     #=== collecting statistics
     
-    def _collectStats(self):
+    def _collectSumMoteStats(self):
+        returnVal = {}
         
-        totalDataGenerated   = sum([mote.getStats()['dataGenerated'] for mote in self.engine.motes])
-        totalDataReceived    = sum([mote.getStats()['dataGenerated'] for mote in self.engine.motes])
+        for mote in self.engine.motes:
+            moteStats        = mote.getMoteStats()
+            if not returnVal:
+                returnVal    = moteStats
+            else:
+                for k in returnVal.keys():
+                    returnVal[k] += moteStats[k]
         
-        totalTxQueueLen      = sum([len(mote.txQueue)                for mote in self.engine.motes])
-        totalDataQueueFull   = sum([mote.getStats()['dataQueueFull'] for mote in self.engine.motes])
-        
-        numPacketsReached  = self.motes[0].getStats()['dataReceived']
-        
-        avgQueueDelay      = 0
-        if self.queueDelays:
-            avgQueueDelay  = sum(self.queueDelays)/float(len(self.queueDelays))
-        
-        timeBetweenOTFevents=[]
-        avgTimeBetweenOTFevents=0
-        for mote in self.motes:
-            if mote.timeBetweenOTFevents:
-                timeBetweenOTFevents+=[(sum(mote.timeBetweenOTFevents)+self.getAsn()-mote.asnOTFevent)/(len(mote.timeBetweenOTFevents)+1.0)]
-        if timeBetweenOTFevents:
-            avgTimeBetweenOTFevents=sum(timeBetweenOTFevents)/len(timeBetweenOTFevents)
-        
-        if numGeneratedPkts-numPacketsInQueue > 0:
-            e2ePDR         = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
-        else:
-            e2ePDR         = 0.0
-        if numPacketsReached > 0:
-            avgLatency     = float(self.motes[0].accumLatency)/float(numPacketsReached)
-        else:
-            avgLatency     = 0.0
-    
-    def _countSchedule(self):
-        # count scheduled cells and schedule collision at each asn
-        
-        with self.dataLock:
-            
-            # initialize at start of each cycle
-            currentTs = self.asn % self.settings.slotframeLength
-            if currentTs == 0:
-                self.numAccumScheduledCells = 0
-                self.numAccumScheduledCollisions = 0
-                self.queueDelays=[]
-
-            self.scheduledCells.clear()
-            self.collisionCells.clear()
-            self.inactivatedCells.clear() # store cells recently added by monitoring function but not activated yet
-            for mote in self.motes:
-                for (ts,ch,_) in mote.getTxCells():
-                    if ts == currentTs:
-                                                
-                        activated = False
-                        # check whether this cell is already activated
-                        for tx in self.propagation.transmissions:
-                            if tx['smac'] == mote:
-                                activated = True
-                                break
-                        for no in self.propagation.notransmissions:
-                            if no['smac'] == mote:
-                                activated = True
-                                break
-                        
-                        if not activated:
-                            self.inactivatedCells.add((ts,ch))
-                        elif (ts,ch) not in self.scheduledCells:
-                            self.scheduledCells.add((ts,ch))
-                        else:
-                            self.collisionCells.add((ts,ch))
-
-            self.numAccumScheduledCells += len(self.scheduledCells)
-            self.numAccumScheduledCollisions += len(self.collisionCells)
-    
+        return returnVal
     
     #=== writing to file
     
@@ -217,18 +162,18 @@ class SimStats(object):
         with open(self.settings.getOutputFile(),'a') as f:
             f.write(output)
     
-    def _fileWriteStats(self,elems):
+    def _fileWriteStats(self,stats):
         output          = []
         
         # columnNames
         if not self.columnNames:
-            self.columnNames = sorted(elems.keys())
+            self.columnNames = sorted(stats.keys())
             output     += ['\n# '+' '.join(self.columnNames)]
         
         # dataline
         formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
         formatString   += '\n'
-        output         += [' '+formatString.format(*[elems[k] for k in self.columnNames])]
+        output         += [' '+formatString.format(*[stats[k] for k in self.columnNames])]
         
         # write to file
         with open(self.settings.getOutputFile(),'a') as f:
@@ -250,13 +195,13 @@ class SimStats(object):
                 if (n,m) in links:
                     continue
                 try:
-                    links[(m,n)] = m.getPDR(n)
+                    links[(m,n)] = m.getRSSI(n)
                 except KeyError:
                     pass
         output += [
             '#links runNum={0} {1}'.format(
                 self.runNum,
-                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA,moteB,rssi) for ((moteA,moteB),rssi) in links.items()])
+                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA.id,moteB.id,rssi) for ((moteA,moteB),rssi) in links.items()])
             )
         ]
         output  = '\n'.join(output)

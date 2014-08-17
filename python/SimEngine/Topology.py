@@ -23,6 +23,8 @@ log.addHandler(NullHandler())
 import random
 import math
 
+import SimSettings
+
 #============================ defines =========================================
 
 #============================ body ============================================
@@ -34,11 +36,15 @@ class Topology(object):
     SPEED_OF_LIGHT           = 299792458    # m/s
     
     MIN_RSSI                 = -93          # dBm, corresponds to PDR = 0.5
+    WATERFALL_RISING_BAND    = 16.0         # in dB
     
     def __init__(self, motes):
         
         # store params
         self.motes           = motes
+        
+        # local variables
+        self.settings        = SimSettings.SimSettings()
     
     #======================== public ==========================================
     
@@ -53,9 +59,16 @@ class Topology(object):
         # find DAG root
         dagRoot = None
         for mote in self.motes:
-            if mote.dagRoot==True:
+            if mote.id==0:
+                mote.role_setDagRoot()
                 dagRoot = mote
         assert dagRoot
+        
+        # put DAG root at center of area
+        dagRoot.setLocation(
+            x = self.settings.squareSide/2,
+            y = self.settings.squareSide/2
+        )
         
         # reposition each mote until it is connected
         connectedMotes = [dagRoot]
@@ -66,7 +79,10 @@ class Topology(object):
             connected = False
             while not connected:
                 # pick a random location
-                mote.setLocation()
+                mote.setLocation(
+                    x = self.settings.squareSide*random.random(),
+                    y = self.settings.squareSide*random.random()
+                )
                 
                 # make sure it is connected to at least one mote
                 for cm in connectedMotes:
@@ -101,12 +117,12 @@ class Topology(object):
                 except KeyError:
                     pass
                 else:
-                    print "mote = {0}, neighbor = {1:<3}, distance = {2:>4}m, rssi = {3:>4}dBm, pdr = {4:>3}%".format(
+                    print "mote = {0:>3}, neigh = {1:<3}, dist = {2:>3}m, rssi = {3:>3}dBm, pdr = {4:.3f}%".format(
                         mote.id,
                         neighbor.id,
                         int(distance),
                         int(rssi),
-                        int(pdr)
+                        100*pdr
                     )
         '''
     
@@ -143,10 +159,13 @@ class Topology(object):
         rssi       = mote.getRSSI(neighbor)
         if   rssi<=neighbor.radioSensitivity:
             pdr    = 0.0
-        elif neighbor.radioSensitivity<rssi and rssi< -85:
-            pdr    = (rssi-neighbor.radioSensitivity)*6.25
+        elif neighbor.radioSensitivity<rssi and rssi<neighbor.radioSensitivity+self.WATERFALL_RISING_BAND:
+            pdr    = (rssi-neighbor.radioSensitivity)*(1.0/float(self.WATERFALL_RISING_BAND))
         elif rssi>-85:
-            pdr    = 100.0
+            pdr    = 1.0
+        
+        assert pdr>=0.0
+        assert pdr<=1.0
         
         return pdr
     

@@ -129,7 +129,7 @@ class StatsFrame(Tkinter.Frame):
         output += ["Mote:"]
         if mote:
             output += ["id={0}".format(mote.id)]
-            stats   = mote.getStats()
+            stats   = mote.getMoteStats()
             for (k,v) in stats.items():
                 output += ["- {0}: {1}".format(k,v)]
         else:
