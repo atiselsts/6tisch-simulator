@@ -216,7 +216,7 @@ def genTopologies(dir,infilemame):
             [mote['y'] for mote in motes[runNum] if mote['id']!=0],
             marker      = 'o',
             c           = 'white',
-            s           = 30,
+            s           = 10,
             lw          = 0.5,
             zorder      = 4,
         )
@@ -225,7 +225,7 @@ def genTopologies(dir,infilemame):
             [mote['y'] for mote in motes[runNum] if mote['id']==0],
             marker      = 'o',
             c           = 'red',
-            s           = 30,
+            s           = 10,
             lw          = 0.5,
             zorder      = 4,
         )
@@ -260,7 +260,7 @@ def genTopologies(dir,infilemame):
             ax1.annotate(
                 mote['id'],
                 xy      = (mote['x']+0.01,mote['y']+0.01),
-                color   = 'black',
+                color   = 'blue',
                 size    = '6',
                 zorder  = 3,
             )
@@ -271,9 +271,10 @@ def genTopologies(dir,infilemame):
         ax2.axis(AXISSIZE)
         
         # motes
-        plotMotes(ax2)
+        #plotMotes(ax2)
         
         # rank
+        '''
         for mote in motes[runNum]:
             ax2.annotate(
                 mote['rank'],
@@ -282,6 +283,7 @@ def genTopologies(dir,infilemame):
                 size    = '6',
                 zorder  = 2,
             )
+        '''
         
         # contour
         x     = [mote['x']    for mote in motes[runNum]]
@@ -292,7 +294,7 @@ def genTopologies(dir,infilemame):
         yi    = numpy.linspace(0,squareSide,100)
         zi    = matplotlib.mlab.griddata(x,y,z,xi,yi)
         
-        ax2.contour(xi,yi,zi,lw=0.5)
+        ax2.contour(xi,yi,zi,lw=0.1)
         
         #=== plot 3: links
         
@@ -317,7 +319,7 @@ def genTopologies(dir,infilemame):
                 [ycoord[runNum][link['moteA']],ycoord[runNum][link['moteB']]],
                 color   = colorVal,
                 zorder  = 1,
-                lw      = 0.5,
+                lw      = 0.1,
             )
         
         #=== plot 4: TODO
