@@ -161,7 +161,7 @@ def genTopologies(dir,infilemame):
                 
                 # runNum
                 m = re.search('runNum=([0-9]+)',line)
-                runNum = m.group(1)
+                runNum = int(m.group(1))
                 
                 # initialize variables
                 motes[runNum]     = []
@@ -188,7 +188,7 @@ def genTopologies(dir,infilemame):
                 
                 # runNum
                 m = re.search('runNum=([0-9]+)',line)
-                runNum = m.group(1)
+                runNum = int(m.group(1))
                 
                 # create entry for this run
                 links[runNum] = []
