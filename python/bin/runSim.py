@@ -102,8 +102,8 @@ def parseCliOptions():
         dest       = 'pkPeriodVar',
         nargs      = '+',
         type       = float,
-        default    = 0.2,
-        help       = 'Variability percentage of the traffic, in [0..1[. Use 0 for CBR traffic.',
+        default    = 2,
+        help       = 'Variability period (in s). Use 0 for CBR traffic.',
     )
     
     parser.add_argument( '--otfThreshold',

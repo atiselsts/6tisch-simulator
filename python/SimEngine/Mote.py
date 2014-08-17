@@ -135,9 +135,11 @@ class Mote(object):
     
     def _app_schedule_sendData(self):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
-
+        
+        assert self.settings.pkPeriodVar<self.settings.pkPeriod
+        
         # compute random
-        delay           = self.settings.pkPeriod*(1.0+self.settings.pkPeriodVar*(-1+2*random.random()))
+        delay           = self.settings.pkPeriod+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar)
         assert delay>0
         
         # schedule
@@ -323,9 +325,9 @@ class Mote(object):
     def _otf_schedule_monitoring(self):
         
         self.engine.scheduleIn(
-            delay     = self.OTF_HOUSEKEEPING_PERIOD_S*(0.9+0.2*random.random()),
-            cb        = self._otf_action_monitoring,
-            uniqueTag = (self.id,'monitoring')
+            delay       = self.OTF_HOUSEKEEPING_PERIOD_S*(0.9+0.2*random.random()),
+            cb          = self._otf_action_monitoring,
+            uniqueTag   = (self.id,'monitoring')
         )
     
     def _otf_action_monitoring(self):
