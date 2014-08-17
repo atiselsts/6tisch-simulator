@@ -130,34 +130,101 @@ class Mote(object):
         self.incomingTraffics     = {} #indexed by neighbor
         self.averageIncomingTraffics = {}#indexed by neighbor
     
-    def getStats(self):
-        with self.dataLock:
-            return copy.deepcopy(self.stats)
+    #======================== actions =========================================
     
-    def scheduleCell(self,ts,ch,dir,neighbor):
-        ''' adds a cell to the schedule '''
-        self._log(self.DEBUG,"scheduleCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
+    #===== application
+    
+    def _schedule_sendData(self):
+        ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
+
+        # compute random
+        delay      = self.settings.pkPeriod*(1.0+self.settings.pkPeriodVar*(-1+2*random.random()))
+        assert delay>0
+        
+        # schedule
+        self.engine.scheduleIn(
+            delay     = delay,
+            cb        = self._action_sendData,
+            uniqueTag = (self.id, 'sendData')
+        )
+    
+    def _action_sendData(self):
+        ''' actual send data function. Evaluates queue length too '''
+        
+        if self.getTxCells() != []:
+            
+            # add to queue
+            self._incrementStats('dataGenerated')
+            if len(self.txQueue)<self.QUEUE_SIZE:
+                self.txQueue += [{
+                    'asn':      self.engine.getAsn(),
+                    'type':     self.TYPE_DATA,
+                    'payload':  [self.id,self.engine.getAsn()], # the payload is used for latency calculation
+                    'retriesLeft': self.TX_RETRIES
+                }]
+                self._incrementStats('dataQueueOK')
+            else:
+                self._incrementStats('dataQueueFull')
+        
+        # schedule next _action_sendData
+        self._schedule_sendData()
+    
+    def setTrafficDistribution(self):
+        ''' sets the period to communicate for all neighbors/parents '''
+        with self.dataLock:
+            
+            # divides data portion to parents in inverse ratio to DagRank
+            reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self.computeRankIncrease(p))) for p in self.parentSet])
+            sumRecRanks = float(sum(reciprocalResultingRanks.values()))
+            self.trafficDistribution = dict([(p, reciprocalResultingRanks[p]/sumRecRanks) for p in self.parentSet])
+    
+    #===== RPL
+    
+    def _schedule_DIO(self):
+        ''' tells to the simulator engine to add an event of DIO
+        '''
+        with self.dataLock:
+            asn = self.engine.getAsn()
+                    
+            # get timeslotOffset of current asn
+            ts = asn%self.settings.slotframeLength
+            
+            # schedule at the start of next cycle
+            self.engine.scheduleAtAsn(
+                asn         = asn-ts+self.dioPeriod,
+                cb          = self._action_DIO,
+                uniqueTag   = (self.id,'DIO'),
+            )
+    
+    def _action_DIO(self):
+        ''' Broadcast DIO to neighbors. Current implementation assumes DIO can be sent out of band.
+        '''
+        self._log(self.DEBUG,"_action_DIO")
         
         with self.dataLock:
-            assert ts not in self.schedule.keys()
-            self.schedule[ts] = {
-                'ch':                 ch,
-                'dir':                dir,
-                'neighbor':           neighbor,
-                'numTx':              0,
-                'numTxAck':           0,
-                'numRx':              0,
-                'numTxFailures':      0,
-                'numRxFailures':      0,
-            }
-    
-    def removeCell(self,ts,neighbor):
-        ''' removes a cell from the schedule '''
-        self._log(self.DEBUG,"removeCell ts={0} with {1}".format(ts,neighbor.id))
-        with self.dataLock:
-            assert ts in self.schedule.keys()
-            assert neighbor == self.schedule[ts]['neighbor']
-            del self.schedule[ts]
+
+            if self.parent != None:
+            
+                # update rank
+                self.setRank()
+                
+                for neighbor in self.PDR.keys():
+                    if neighbor.dagRoot == False:
+                        # neighbor stores DAG rank and rank from the sender
+                        neighbor.dagRanks[self] = self.dagRank
+                        neighbor.ranks[self] = self.rank
+                        
+                        # count num of DIO received
+                        if self in neighbor.numRxDIO:
+                            neighbor.numRxDIO[self] += 1
+                        else:
+                            neighbor.numRxDIO[self] = 0
+                        
+                        # neighbor updates its parent
+                        neighbor.setParent()
+                        neighbor.setTrafficDistribution()
+                    
+            self._schedule_DIO()
     
     def setRank(self):
         with self.dataLock:
@@ -277,128 +344,6 @@ class Mote(object):
             # minimal 6tisch uses 2*ETX*MIN_HOP_RANK_INCREASE
             return int(2 * self.MIN_HOP_RANK_INCREASE * etx)
     
-    def setTrafficDistribution(self):
-        ''' sets the period to communicate for all neighbors/parents '''
-        with self.dataLock:
-            
-            # divides data portion to parents in inverse ratio to DagRank
-            reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self.computeRankIncrease(p))) for p in self.parentSet])
-            sumRecRanks = float(sum(reciprocalResultingRanks.values()))
-            self.trafficDistribution = dict([(p, reciprocalResultingRanks[p]/sumRecRanks) for p in self.parentSet])
-    
-    def estimateETX(self,neighbor):
-        # estimate ETX from self to neighbor by averaging the all Tx cells
-        with self.dataLock:
-
-            # set initial values for numTx and numTxAck assuming PDR is exactly estimated
-            pdr = self.getPDR(neighbor)/100.0
-            numTx = self.NUM_SUFFICIENT_TX
-            numAck = math.floor(pdr*numTx)
-
-            for ts in self.schedule.keys():
-                ce = self.schedule[ts]
-                if ce['neighbor'] == neighbor and ce['dir'] == self.TX:
-                    numTx  += ce['numTx']
-                    numAck += ce['numTxAck']
-                    
-            #estimate PDR if sufficient num of tx is available
-            if numAck == 0:
-                etx = float(numTx) # set a large value when pkts are never ack
-            else:
-                etx = float(numTx) / float(numAck)
-            
-            if numTx > self.MAX_ETX: # to avoid large ETX consumes too many cells
-                etx = self.MAX_ETX
-            
-            return etx
-    
-    #======================== actions =========================================
-    
-    #===== application
-    
-    def _schedule_sendData(self):
-        ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
-
-        # compute random
-        delay      = self.settings.pkPeriod*(1.0+self.settings.pkPeriodVar*(-1+2*random.random()))
-        assert delay>0
-        
-        # schedule
-        self.engine.scheduleIn(
-            delay     = delay,
-            cb        = self._action_sendData,
-            uniqueTag = (self.id, 'sendData')
-        )
-    
-    def _action_sendData(self):
-        ''' actual send data function. Evaluates queue length too '''
-        
-        if self.getTxCells() != []:
-            
-            # add to queue
-            self._incrementStats('dataGenerated')
-            if len(self.txQueue)<self.QUEUE_SIZE:
-                self.txQueue += [{
-                    'asn':      self.engine.getAsn(),
-                    'type':     self.TYPE_DATA,
-                    'payload':  [self.id,self.engine.getAsn()], # the payload is used for latency calculation
-                    'retriesLeft': self.TX_RETRIES
-                }]
-                self._incrementStats('dataQueueOK')
-            else:
-                self._incrementStats('dataQueueFull')
-        
-        # schedule next _action_sendData
-        self._schedule_sendData()
-    
-    #===== RPL
-    
-    def _schedule_DIO(self):
-        ''' tells to the simulator engine to add an event of DIO
-        '''
-        with self.dataLock:
-            asn = self.engine.getAsn()
-                    
-            # get timeslotOffset of current asn
-            ts = asn%self.settings.slotframeLength
-            
-            # schedule at the start of next cycle
-            self.engine.scheduleAtAsn(
-                asn         = asn-ts+self.dioPeriod,
-                cb          = self._action_DIO,
-                uniqueTag   = (self.id,'DIO'),
-            )
-    
-    def _action_DIO(self):
-        ''' Broadcast DIO to neighbors. Current implementation assumes DIO can be sent out of band.
-        '''
-        self._log(self.DEBUG,"_action_DIO")
-        
-        with self.dataLock:
-
-            if self.parent != None:
-            
-                # update rank
-                self.setRank()
-                
-                for neighbor in self.PDR.keys():
-                    if neighbor.dagRoot == False:
-                        # neighbor stores DAG rank and rank from the sender
-                        neighbor.dagRanks[self] = self.dagRank
-                        neighbor.ranks[self] = self.rank
-                        
-                        # count num of DIO received
-                        if self in neighbor.numRxDIO:
-                            neighbor.numRxDIO[self] += 1
-                        else:
-                            neighbor.numRxDIO[self] = 0
-                        
-                        # neighbor updates its parent
-                        neighbor.setParent()
-                        neighbor.setTrafficDistribution()
-                    
-            self._schedule_DIO()
-    
     #===== otf
     
     def _schedule_monitoring(self):
@@ -495,6 +440,32 @@ class Mote(object):
             
             # schedule next monitoring
             self._schedule_monitoring()
+    
+    def estimateETX(self,neighbor):
+        # estimate ETX from self to neighbor by averaging the all Tx cells
+        with self.dataLock:
+
+            # set initial values for numTx and numTxAck assuming PDR is exactly estimated
+            pdr = self.getPDR(neighbor)/100.0
+            numTx = self.NUM_SUFFICIENT_TX
+            numAck = math.floor(pdr*numTx)
+
+            for ts in self.schedule.keys():
+                ce = self.schedule[ts]
+                if ce['neighbor'] == neighbor and ce['dir'] == self.TX:
+                    numTx  += ce['numTx']
+                    numAck += ce['numTxAck']
+                    
+            #estimate PDR if sufficient num of tx is available
+            if numAck == 0:
+                etx = float(numTx) # set a large value when pkts are never ack
+            else:
+                etx = float(numTx) / float(numAck)
+            
+            if numTx > self.MAX_ETX: # to avoid large ETX consumes too many cells
+                etx = self.MAX_ETX
+            
+            return etx
     
     def _removeWorstCellToNeighbor(self, node):
         ''' finds the worst cell in each bundle and remove it from schedule
@@ -774,6 +745,31 @@ class Mote(object):
                     
                     self._schedule_next_ActiveCell()
     
+    def scheduleCell(self,ts,ch,dir,neighbor):
+        ''' adds a cell to the schedule '''
+        self._log(self.DEBUG,"scheduleCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
+        
+        with self.dataLock:
+            assert ts not in self.schedule.keys()
+            self.schedule[ts] = {
+                'ch':                 ch,
+                'dir':                dir,
+                'neighbor':           neighbor,
+                'numTx':              0,
+                'numTxAck':           0,
+                'numRx':              0,
+                'numTxFailures':      0,
+                'numRxFailures':      0,
+            }
+    
+    def removeCell(self,ts,neighbor):
+        ''' removes a cell from the schedule '''
+        self._log(self.DEBUG,"removeCell ts={0} with {1}".format(ts,neighbor.id))
+        with self.dataLock:
+            assert ts in self.schedule.keys()
+            assert neighbor == self.schedule[ts]['neighbor']
+            del self.schedule[ts]
+    
     #===== radio
     
     def txDone(self,success):
@@ -937,6 +933,10 @@ class Mote(object):
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
     
     #===== stats
+    
+    def getStats(self):
+        with self.dataLock:
+            return copy.deepcopy(self.stats)
     
     def _resetStats(self):
         with self.dataLock:
