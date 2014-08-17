@@ -134,7 +134,7 @@ class Mote(object):
     
     #===== application
     
-    def _schedule_sendData(self):
+    def _app_schedule_sendData(self):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
 
         # compute random
@@ -144,11 +144,11 @@ class Mote(object):
         # schedule
         self.engine.scheduleIn(
             delay     = delay,
-            cb        = self._action_sendData,
+            cb        = self._app_action_sendData,
             uniqueTag = (self.id, 'sendData')
         )
     
-    def _action_sendData(self):
+    def _app_action_sendData(self):
         ''' actual send data function. Evaluates queue length too '''
         
         if self.getTxCells() != []:
@@ -166,21 +166,21 @@ class Mote(object):
             else:
                 self._incrementStats('dataQueueFull')
         
-        # schedule next _action_sendData
-        self._schedule_sendData()
+        # schedule next _app_action_sendData
+        self._app_schedule_sendData()
     
-    def setTrafficDistribution(self):
+    def _app_divideTrafficBetweenParents(self):
         ''' sets the period to communicate for all neighbors/parents '''
         with self.dataLock:
             
             # divides data portion to parents in inverse ratio to DagRank
-            reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self.computeRankIncrease(p))) for p in self.parentSet])
+            reciprocalResultingRanks = dict([(p, 1.0/(self.ranks[p]+self._rpl_computeRankIncrease(p))) for p in self.parentSet])
             sumRecRanks = float(sum(reciprocalResultingRanks.values()))
             self.trafficDistribution = dict([(p, reciprocalResultingRanks[p]/sumRecRanks) for p in self.parentSet])
     
     #===== RPL
     
-    def _schedule_DIO(self):
+    def _rpl_schedule_DIO(self):
         ''' tells to the simulator engine to add an event of DIO
         '''
         with self.dataLock:
@@ -192,21 +192,21 @@ class Mote(object):
             # schedule at the start of next cycle
             self.engine.scheduleAtAsn(
                 asn         = asn-ts+self.dioPeriod,
-                cb          = self._action_DIO,
+                cb          = self._rpl_action_DIO,
                 uniqueTag   = (self.id,'DIO'),
             )
     
-    def _action_DIO(self):
+    def _rpl_action_DIO(self):
         ''' Broadcast DIO to neighbors. Current implementation assumes DIO can be sent out of band.
         '''
-        self._log(self.DEBUG,"_action_DIO")
+        self._log(self.DEBUG,"_rpl_action_DIO")
         
         with self.dataLock:
 
             if self.parent != None:
             
                 # update rank
-                self.setRank()
+                self._rpl_setRank()
                 
                 for neighbor in self.PDR.keys():
                     if neighbor.dagRoot == False:
@@ -221,29 +221,29 @@ class Mote(object):
                             neighbor.numRxDIO[self] = 0
                         
                         # neighbor updates its parent
-                        neighbor.setParent()
-                        neighbor.setTrafficDistribution()
+                        neighbor._rpl_setParent()
+                        neighbor._app_divideTrafficBetweenParents()
                     
-            self._schedule_DIO()
+            self._rpl_schedule_DIO()
     
-    def setRank(self):
+    def _rpl_setRank(self):
         with self.dataLock:
             if self.dagRoot == True:
                 self.rank = 0
                 self.dagRank = 0
             elif self.parent != None:
-                self.rank = self.ranks[self.parent] + self.computeRankIncrease(self.parent)
+                self.rank = self.ranks[self.parent] + self._rpl_computeRankIncrease(self.parent)
                 self.dagRank = int(self.rank/self.MIN_HOP_RANK_INCREASE)
     
-    def setParent(self):
+    def _rpl_setParent(self):
         with self.dataLock:
     
             if self.dagRoot == False:
                 
                 if self.parent != None:
                     # a preferred parent is already set
-                    self.setRank()
-                    rankIncrease = self.computeRankIncrease(self.parent)
+                    self._rpl_setRank()
+                    rankIncrease = self._rpl_computeRankIncrease(self.parent)
                     
                     # Reset the preferred parent if it does not satisfy the requirements
                     # if rankIncrease > self.MAX_LINK_METRIC or self.rank > self.MAX_PATH_COST:
@@ -257,7 +257,7 @@ class Mote(object):
                     for (neighbor, dagRank) in self.dagRanks.items():
                                                 
                         # compare dagRank of neighbor with that of current parent
-                        neighborRankInc = self.computeRankIncrease(neighbor)
+                        neighborRankInc = self._rpl_computeRankIncrease(neighbor)
                         neighborResultingRank = self.ranks[neighbor] + neighborRankInc
                                                                             
                         # check requirements for a set of parents
@@ -276,7 +276,7 @@ class Mote(object):
                             if self.rank - resultingRanks[self.parentSet[0]] > self.PARENT_SWITCH_THRESHOLD:
                                 log.info("a preferred parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, self.parentSet[0].id))
                                 self.parent = self.parentSet[0]
-                                self.setRank()
+                                self._rpl_setRank()
                                 # DAG rank of a parent has to be lower than DAG rank of a child
                                 for p in self.parentSet[1:self.PARENT_SET_SIZE]:
                                     if self.dagRanks[p] >= self.dagRank:
@@ -285,7 +285,7 @@ class Mote(object):
                         else:
                             log.info("a preferred parent of {0} is reset to {1}".format(self.id, self.parentSet[0].id))
                             self.parent = self.parentSet[0]
-                            self.setRank()
+                            self._rpl_setRank()
                             for p in self.parentSet[1:self.PARENT_SET_SIZE]:
                                 if self.dagRanks[p] >= self.dagRank:
                                     self.parentSet.remove(p)
@@ -294,12 +294,12 @@ class Mote(object):
                         # find tentative parents with low resulting rank
                         resultingRanks = {}
                         for (neighbor, _) in self.dagRanks.items():
-                            resultingRanks[neighbor] = self.ranks[neighbor] + self.computeRankIncrease(neighbor)
+                            resultingRanks[neighbor] = self.ranks[neighbor] + self._rpl_computeRankIncrease(neighbor)
                         ranks = sorted(resultingRanks.items(), key = lambda x:x[1])
                         self.parentSet = [nei for (nei,_) in ranks]
                         self.parentSet = self.parentSet[0:self.PARENT_SET_SIZE]
                         self.parent = self.parentSet[0]
-                        self.setRank()
+                        self._rpl_setRank()
                         log.warning("no neighbors satisfy the parent requirements for {0}; tentatively set {1} as a preferred parent".format(self.id, self.parent.id))
                         for p in self.parentSet[1:self.PARENT_SET_SIZE]:
                             if self.dagRanks[p] >= self.dagRank:
@@ -307,21 +307,21 @@ class Mote(object):
                                                 
                 elif self.dagRanks != {}:
                     # first parent setting
-                    # len(self.dagRanks) == 1 as the setParent() is called soon after the first neighbor is inserted in dagRanks
+                    # len(self.dagRanks) == 1 as the _rpl_setParent() is called soon after the first neighbor is inserted in dagRanks
                     
                     (minRank, minNeighbor) = min((v,k) for (k,v) in self.dagRanks.items())
-                    rankIncrease = self.computeRankIncrease(minNeighbor)
+                    rankIncrease = self._rpl_computeRankIncrease(minNeighbor)
                     resultingRank = self.ranks[minNeighbor] + rankIncrease
                     
                     # condition of MAX_LINK_METRIC excluded to avoid loop
                     #if (rankIncrease <= self.MAX_LINK_METRIC and resultingRank <= self.MAX_PATH_COST):
                     if (resultingRank <= self.MAX_PATH_COST):
                         self.parent = minNeighbor
-                        self.setRank()
+                        self._rpl_setRank()
                         self.parentSet.append(minNeighbor)
                         log.info("a preferred parent of {0} is set to {1}".format(self.id, self.parent.id))
     
-    def computeRankIncrease(self, neighbor):
+    def _rpl_computeRankIncrease(self, neighbor):
         # calculate rank increase to neighbor
         with self.dataLock:
             
@@ -346,17 +346,17 @@ class Mote(object):
     
     #===== otf
     
-    def _schedule_monitoring(self):
+    def _otf_schedule_monitoring(self):
         ''' tells to the simulator engine to add an event to monitor the network'''
         self.engine.scheduleIn(
             delay     = self.HOUSEKEEPING_PERIOD*(0.9+0.2*random.random()),
-            cb        = self._action_monitoring,
+            cb        = self._otf_action_monitoring,
             uniqueTag = (self.id,'monitoring')
         )
     
-    def _action_monitoring(self):
+    def _otf_action_monitoring(self):
         ''' the monitoring action. allocates more cells if the objective is not met. '''
-        self._log(self.DEBUG,"_action_monitoring")
+        self._log(self.DEBUG,"_otf_action_monitoring")
         
         with self.dataLock:
             
@@ -375,11 +375,11 @@ class Mote(object):
             # data generation starts if DIOs are received from all the neighbors
             if self.collectDIO == True and self.dataStart == False and self.dagRoot == False:
                 self.dataStart = True
-                self._schedule_sendData()
+                self._app_schedule_sendData()
             
             # calculate incoming traffic stats
-            self._averageIncomingTraffic()
-            self._resetIncomingTraffic()
+            self._otf_averageIncomingTraffic()
+            self._otf_resetIncomingTraffic()
             
             # calculate total traffic
             totalTraffic = 1.0/self.settings.pkPeriod*self.settings.slotframeLength*self.settings.slotDuration # converts from (sec/pkt) to (pkt/cycle)
@@ -391,7 +391,7 @@ class Mote(object):
                 for n,portion in self.trafficDistribution.iteritems():
                     
                     # ETX acts as overprovision
-                    reqNumCell = int(math.ceil(self.estimateETX(n)*portion*totalTraffic)) # required bandwidth
+                    reqNumCell = int(math.ceil(self._otf_estimateETX(n)*portion*totalTraffic)) # required bandwidth
                     #reqNumCell = math.ceil(portion*totalTraffic) # required bandwidth
                     threshold = int(math.ceil(portion*self.settings.otfThreshold))
                     
@@ -402,11 +402,11 @@ class Mote(object):
                     otfEvent=True
                     if reqNumCell > numCell:
                         for i in xrange(reqNumCell-numCell+(threshold+1)/2):
-                            if not self._addCellToNeighbor(n):
+                            if not self._6top_addCell(n):
                                 break # cannot find free time slot
                     elif reqNumCell < numCell-threshold:
                         for i in xrange(numCell-reqNumCell-(threshold+1)/2):
-                            if not self._removeWorstCellToNeighbor(n):
+                            if not self._otf_removeWorstCellToNeighbor(n):
                                 break # cannot find worst cell due to insufficient tx
                     else:
                         otfEvent=False
@@ -419,9 +419,9 @@ class Mote(object):
                             self.timeBetweenOTFevents+=[now-self.asnOTFevent]
                             self.asnOTFevent=now
                 #find worst cell in a bundle and if it is way worst and reschedule it
-                self.rescheduleCellIfNeeded(n)
+                self._otf_rescheduleCellIfNeeded(n)
                 # Neighbor also has to update its next active cell
-                n._schedule_next_ActiveCell()
+                n._tsch_schedule_activeCell()
             
             # remove scheduled cells if its destination is not a parent
             for n in self.PDR.keys():        # for all neighbors
@@ -430,18 +430,18 @@ class Mote(object):
                     for (ts,cell) in self.schedule.items():
                         if cell['neighbor'] == n and cell['dir'] == self.TX:
                             remove = True
-                            self._removeCellToNeighbor(ts,cell)
+                            self._6top_removeCell(ts,cell)
                     if remove == True: # if at least one cell is removed, then updade next active cell
-                        n._schedule_next_ActiveCell()
+                        n._tsch_schedule_activeCell()
             
             # schedule next active cell
             # Note: this is needed in case the monitoring action modified the schedule
-            self._schedule_next_ActiveCell()
+            self._tsch_schedule_activeCell()
             
             # schedule next monitoring
-            self._schedule_monitoring()
+            self._otf_schedule_monitoring()
     
-    def estimateETX(self,neighbor):
+    def _otf_estimateETX(self,neighbor):
         # estimate ETX from self to neighbor by averaging the all Tx cells
         with self.dataLock:
 
@@ -467,7 +467,7 @@ class Mote(object):
             
             return etx
     
-    def _removeWorstCellToNeighbor(self, node):
+    def _otf_removeWorstCellToNeighbor(self, node):
         ''' finds the worst cell in each bundle and remove it from schedule
         '''
         worst_cell = (None, None, None)
@@ -497,15 +497,15 @@ class Mote(object):
             # remove the worst cell
             log.info("remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0], worst_cell[1]['ch'], self.id, worst_cell[1]['neighbor'].id))
             self._log(self.DEBUG, "remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
-            self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
+            self._6top_removeCell(worst_cell[0], worst_cell[1])
             # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
             self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
-            self._schedule_next_ActiveCell()
+            self._tsch_schedule_activeCell()
             self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
-            worst_cell[1]['neighbor']._schedule_next_ActiveCell()
+            worst_cell[1]['neighbor']._tsch_schedule_activeCell()
             return True
     
-    def rescheduleCellIfNeeded(self, node):
+    def _otf_rescheduleCellIfNeeded(self, node):
         ''' finds the worst cell in each bundle. If the performance of the cell is bad compared to
             other cells in the bundle reschedule this cell.
         '''
@@ -547,9 +547,9 @@ class Mote(object):
                 #reschedule the cell -- add to avoid scheduling the same
                 log.info("reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
                 self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
-                self._addCellToNeighbor(worst_cell[1]['neighbor'])
+                self._6top_addCell(worst_cell[1]['neighbor'])
                 #and delete old one
-                self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
+                self._6top_removeCell(worst_cell[0], worst_cell[1])
                 # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
                 self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
                 self.engine.removeEvent(uniqueTag=(worst_cell[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
@@ -564,24 +564,24 @@ class Mote(object):
                 for bce in bundle_avg:
                     log.info("reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id))
                     self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id))
-                    self._addCellToNeighbor(bce[1]['neighbor'])
+                    self._6top_addCell(bce[1]['neighbor'])
                     #and delete old one
-                    self._removeCellToNeighbor(bce[0], bce[1])
+                    self._6top_removeCell(bce[0], bce[1])
                     # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
                     self.engine.removeEvent(uniqueTag=(self.id,'activeCell'), exceptCurrentASN = True)
                     self.engine.removeEvent(uniqueTag=(bce[1]['neighbor'].id,'activeCell'), exceptCurrentASN = True)
                     self._incrementStats('numCellsReallocated')
     
-    def _resetIncomingTraffic(self):
+    def _otf_resetIncomingTraffic(self):
         with self.dataLock:
             for neighbor in self.PDR.keys():
                 self.incomingTraffics[neighbor] = 0
     
-    def _incrementIncomingTraffic(self,neighbor):
+    def _otf_incrementIncomingTraffic(self,neighbor):
         with self.dataLock:
             self.incomingTraffics[neighbor] += 1
     
-    def _averageIncomingTraffic(self):
+    def _otf_averageIncomingTraffic(self):
         with self.dataLock:
             for neighbor in self.PDR.keys():
                 if self.averageIncomingTraffics.has_key(neighbor):
@@ -592,7 +592,7 @@ class Mote(object):
     
     #===== 6top
     
-    def _addCellToNeighbor(self,neighbor):
+    def _6top_addCell(self,neighbor):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
         
         with self.dataLock:
@@ -600,16 +600,16 @@ class Mote(object):
                 candidateTimeslot      = random.randint(0,self.settings.slotframeLength-1)
                 candidateChannel       = random.randint(0,self.settings.numChans-1)
                 if  (
-                        self._isUnusedSlot(candidateTimeslot) and
-                        neighbor._isUnusedSlot(candidateTimeslot)
+                        self._6top_isUnusedSlot(candidateTimeslot) and
+                        neighbor._6top_isUnusedSlot(candidateTimeslot)
                     ):
-                    self.scheduleCell(
+                    self._tsch_addCell(
                         ts             = candidateTimeslot,
                         ch             = candidateChannel,
                         dir            = self.DIR_TX,
                         neighbor       = neighbor,
                     )
-                    neighbor.scheduleCell(
+                    neighbor._tsch_addCell(
                         ts             = candidateTimeslot,
                         ch             = candidateChannel,
                         dir            = self.DIR_RX,
@@ -624,18 +624,18 @@ class Mote(object):
                     return True
             log.error('tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial+1,self.id,neighbor.id))
     
-    def _isUnusedSlot(self,ts):
+    def _6top_isUnusedSlot(self,ts):
         with self.dataLock:
             return not (ts in self.schedule)
     
-    def _removeCellToNeighbor(self,ts,cell):
+    def _6top_removeCell(self,ts,cell):
         ''' removes a cell in the schedule of this node and the neighbor '''
         with self.dataLock:
-            self.removeCell(
+            self._tsch_removeCell(
                 ts           = ts,
                 neighbor     = cell['neighbor'],
             )
-            cell['neighbor'].removeCell(
+            cell['neighbor']._tsch_removeCell(
                 ts           = ts,
                 neighbor     = self,
             )
@@ -643,7 +643,7 @@ class Mote(object):
     
     #===== TSCH
     
-    def _schedule_next_ActiveCell(self):
+    def _tsch_schedule_activeCell(self):
         ''' called by the engine. determines the next action to be taken in case this Mote has a schedule'''
         asn = self.engine.getAsn()
         
@@ -674,15 +674,15 @@ class Mote(object):
         # schedule at that ASN
         self.engine.scheduleAtAsn(
             asn         = asn+tsDiffMin,
-            cb          = self._action_activeCell,
+            cb          = self._tsch_action_activeCell,
             uniqueTag   = (self.id,'activeCell'),
         )
     
-    def _action_activeCell(self):
+    def _tsch_action_activeCell(self):
         ''' active slot starts. Determine what todo, either RX or TX, use the propagation model to introduce
             interference and Rx packet drops.
         '''
-        self._log(self.DEBUG,"_action_activeCell")
+        self._log(self.DEBUG,"_tsch_action_activeCell")
         
         asn = self.engine.getAsn()
         
@@ -743,11 +743,11 @@ class Mote(object):
                     )
                     # schedule next active cell
                     
-                    self._schedule_next_ActiveCell()
+                    self._tsch_schedule_activeCell()
     
-    def scheduleCell(self,ts,ch,dir,neighbor):
+    def _tsch_addCell(self,ts,ch,dir,neighbor):
         ''' adds a cell to the schedule '''
-        self._log(self.DEBUG,"scheduleCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
+        self._log(self.DEBUG,"_tsch_addCell ts={0} ch={1} dir={2} with {3}".format(ts,ch,dir,neighbor.id))
         
         with self.dataLock:
             assert ts not in self.schedule.keys()
@@ -762,9 +762,9 @@ class Mote(object):
                 'numRxFailures':      0,
             }
     
-    def removeCell(self,ts,neighbor):
+    def _tsch_removeCell(self,ts,neighbor):
         ''' removes a cell from the schedule '''
-        self._log(self.DEBUG,"removeCell ts={0} with {1}".format(ts,neighbor.id))
+        self._log(self.DEBUG,"_tsch_removeCell ts={0} with {1}".format(ts,neighbor.id))
         with self.dataLock:
             assert ts in self.schedule.keys()
             assert neighbor == self.schedule[ts]['neighbor']
@@ -800,7 +800,7 @@ class Mote(object):
             self.waitingFor = None
             
             # schedule next active cell
-            self._schedule_next_ActiveCell()
+            self._tsch_schedule_activeCell()
     
     def rxDone(self,type=None,smac=None,dmac=None,payload=None,failure=False):
         '''end of rx slot. compute stats and schedules next action '''
@@ -832,7 +832,7 @@ class Mote(object):
             if self.dagRoot == False and self.parent != None and smac != None and self.getTxCells()!=[]:
                 
                 # count incoming traffic for each node
-                self._incrementIncomingTraffic(smac)
+                self._otf_incrementIncomingTraffic(smac)
                 
                 # add to queue
                 self._incrementStats('dataReceived')
@@ -848,7 +848,7 @@ class Mote(object):
                     self._incrementStats('dataQueueFull')
         
         # schedule next active cell
-        self._schedule_next_ActiveCell()
+        self._tsch_schedule_activeCell()
     
     #===== wireless connectivity
     
@@ -891,13 +891,13 @@ class Mote(object):
             self.booted      = False
         
         # schedule monitoring
-        self._schedule_monitoring()
+        self._otf_schedule_monitoring()
         # schedule first active cell
-        self._schedule_next_ActiveCell()
+        self._tsch_schedule_activeCell()
         # schedule DIO
-        self._schedule_DIO()
+        self._rpl_schedule_DIO()
         # reset traffic stats
-        self._resetIncomingTraffic()
+        self._otf_resetIncomingTraffic()
     
     #======================== private =========================================
     
