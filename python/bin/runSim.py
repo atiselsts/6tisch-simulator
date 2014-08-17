@@ -62,7 +62,7 @@ def parseCliOptions():
         dest       = 'numMotes',
         nargs      = '+',
         type       = int,
-        default    = [20, 40],
+        default    = [20],#, 40],
         help       = 'Number of simulated motes.',
     )
     
@@ -110,7 +110,7 @@ def parseCliOptions():
         dest       = 'otfThreshold',
         nargs      = '+',
         type       = int,
-        default    = [0, 10],
+        default    = 5,
         help       = 'OTF threshold, in cells.',
     )
     
@@ -118,7 +118,7 @@ def parseCliOptions():
         dest       = 'numCyclesPerRun',
         nargs      = 1,
         type       = int,
-        default    = 10,
+        default    = 100,
         help       = 'Duration of one simulation run, in slotframe cycle.',
     )
     
@@ -126,7 +126,7 @@ def parseCliOptions():
         dest       = 'numRuns',
         nargs      = 1,
         type       = int,
-        default    = 3,
+        default    = 1,
         help       = 'Number of simulation runs per each configurations.',
     )
     

@@ -266,7 +266,18 @@ class Mote(object):
             
             # pick my preferred parent and resulting rank
             if sorted_potentialRanks:
-                (self.preferredParent,self.rank) = sorted_potentialRanks[0]
+                (newPreferredParent,newrank) = sorted_potentialRanks[0]
+                
+                # update mote stats
+                if self.preferredParent and newPreferredParent!=self.preferredParent:
+                    self._incrementMoteStats('numPrefParentChange')
+                
+                # update mote stats
+                if self.rank and newrank!=self.rank:
+                    self._incrementMoteStats('numRankChange')
+                
+                (self.preferredParent,self.rank) = (newPreferredParent,newrank)
+                
                 self.dagRank = int(self.rank/self.RPL_MIN_HOP_RANK_INCREASE)
             
             # pick my parent set
@@ -896,6 +907,8 @@ class Mote(object):
                 'dataReceived':        0,
                 'dataQueueOK':         0,
                 'numDIOsTransmitted':  0,
+                'numPrefParentChange': 0,
+                'numRankChange':       0,
                 'dataQueueFull':       0,
                 'numCellsReallocated': 0,
             }
@@ -908,7 +921,10 @@ class Mote(object):
         with self.dataLock:
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numRxDIO']      = sum(self.numRxDIO.values())
+            returnVal['numTxCells']    = len(self.getTxCells())
+            returnVal['numRxCells']    = len(self.getRxCells())
             returnVal['aveQueueDelay'] = self.getAverageQueueDelay()
+            returnVal['txQueueFill']   = len(self.txQueue)
             return returnVal
     
     # cell stats
@@ -972,3 +988,4 @@ class Mote(object):
         
         if logfunc:
             logfunc(output)
+

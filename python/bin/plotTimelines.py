@@ -52,8 +52,7 @@ def parseCliOptions():
         nargs      = '+',
         type       = str,
         default    = [
-            'numAccumScheduledCells',
-            'numAccumScheduledCollisions',
+            'numTxCells',
         ],
         help       = 'Name of the elements to generate timeline figures for.',
     )

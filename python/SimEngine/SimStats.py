@@ -115,11 +115,9 @@ class SimStats(object):
         #'numAccumPktAtSC':              self.propagation.numAccumPktAtSC,
         #'numAccumSuccessAtSC':          self.propagation.numAccumSuccessAtSC,
         #'numPacketsReached':            numPacketsReached,
-        #'numPacketsInQueue':            numPacketsInQueue,
         #'numOverflow':                  numOverflow,
         #'e2ePDR':                       e2ePDR,
         #'avgLatency':                   avgLatency,
-        #'avgQueueDelay':                avgQueueDelay,
         #'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
         
         # reset statistics
