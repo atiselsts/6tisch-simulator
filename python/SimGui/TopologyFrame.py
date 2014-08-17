@@ -1,9 +1,14 @@
 #!/usr/bin/python
+'''
+\brief GUI frame which shows the topology.
 
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-'''
+
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -13,22 +18,27 @@ log = logging.getLogger('TopologyFrame')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+#============================ imports =========================================
+
 import Tkinter
 
 from SimEngine import SimEngine
 
+#============================ defines =========================================
+
+#============================ body ============================================
+
 class TopologyFrame(Tkinter.Frame):
     
-    UPDATE_PERIOD      = 1000
-    MOTE_SIZE          = 10
-    HEIGHT             = 300
-    WIDTH              = 300
+    UPDATE_PERIOD       = 1000
+    MOTE_SIZE           = 10
+    HEIGHT              = 300
+    WIDTH               = 300
     
     def __init__(self,guiParent):
         
         # store params
         self.guiParent  = guiParent
-        self.engine     = SimEngine.SimEngine()
         
         # variables
         self.motes      = {}
@@ -50,14 +60,25 @@ class TopologyFrame(Tkinter.Frame):
     
     #======================== public ==========================================
     
-    def quit(self):
+    def close(self):
         self.topology.after_cancel(self._update)
+    
+    #======================== attributes ======================================
+    
+    @property
+    def engine(self):
+        return SimEngine.SimEngine(failIfNotInit=True)
     
     #======================== private =========================================
     
     def _updateGui(self):
         
-        self._redrawTopology()
+        try:
+            self._redrawTopology()
+        except EnvironmentError:
+            # this happens when we try to update between runs
+            pass
+        
         self._update=self.topology.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawTopology(self):
@@ -165,4 +186,3 @@ class TopologyFrame(Tkinter.Frame):
             toX*self.WIDTH,
             toY*self.HEIGHT,
         )
-        

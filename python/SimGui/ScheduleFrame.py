@@ -18,7 +18,7 @@ log = logging.getLogger('ScheduleFrame')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
-#============================ logging =========================================
+#============================ imports =========================================
 
 import Tkinter
 
@@ -66,7 +66,7 @@ class ScheduleFrame(Tkinter.Frame):
     
     #======================== public ==========================================
     
-    def quit(self):
+    def close(self):
         self.schedule.after_cancel(self._update)
     
     #======================== attributes ======================================

@@ -62,9 +62,9 @@ class SimGui(Tkinter.Tk):
         # create frames
         self.scheduleFrame   = ScheduleFrame.ScheduleFrame(self)
         self.scheduleFrame.grid(row=0,column=0,columnspan=2)
-        '''
         self.topologyFrame   = TopologyFrame.TopologyFrame(self)
         self.topologyFrame.grid(row=1,column=0,rowspan=2)
+        '''
         self.actionFrame     = ActionFrame.ActionFrame(self)
         self.actionFrame.grid(row=1,column=1)
         self.statsFrame      = StatsFrame.StatsFrame(self)
@@ -78,11 +78,11 @@ class SimGui(Tkinter.Tk):
     #======================== public ==========================================
     
     def close(self):
-        self.scheduleFrame.quit()
+        self.scheduleFrame.close()
+        self.topologyFrame.close()
         '''
-        self.topologyFrame.quit()
-        self.actionFrame.quit()
-        self.statsFrame.quit()
+        self.actionFrame.close()
+        self.statsFrame.close()
         '''
         self.destroy()
     
