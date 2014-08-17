@@ -25,7 +25,6 @@ import Tkinter
 
 import ScheduleFrame
 import TopologyFrame
-import ActionFrame
 import StatsFrame
 
 #============================ defines =========================================
@@ -65,8 +64,6 @@ class SimGui(Tkinter.Tk):
         self.topologyFrame   = TopologyFrame.TopologyFrame(self)
         self.topologyFrame.grid(row=1,column=0,rowspan=2)
         '''
-        self.actionFrame     = ActionFrame.ActionFrame(self)
-        self.actionFrame.grid(row=1,column=1)
         self.statsFrame      = StatsFrame.StatsFrame(self)
         self.statsFrame.grid(row=2,column=1)
         '''
