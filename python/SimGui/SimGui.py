@@ -63,10 +63,8 @@ class SimGui(Tkinter.Tk):
         self.scheduleFrame.grid(row=0,column=0,columnspan=2)
         self.topologyFrame   = TopologyFrame.TopologyFrame(self)
         self.topologyFrame.grid(row=1,column=0,rowspan=2)
-        '''
         self.statsFrame      = StatsFrame.StatsFrame(self)
         self.statsFrame.grid(row=2,column=1)
-        '''
         
         # start GUI (in a separate thread)
         guiThread = threading.Thread(target=self.mainloop)
@@ -77,10 +75,7 @@ class SimGui(Tkinter.Tk):
     def close(self):
         self.scheduleFrame.close()
         self.topologyFrame.close()
-        '''
-        self.actionFrame.close()
         self.statsFrame.close()
-        '''
         self.destroy()
     
     @property

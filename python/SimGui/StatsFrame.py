@@ -1,9 +1,14 @@
 #!/usr/bin/python
+'''
+\brief GUI frame which shows simulator statistics.
 
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-'''
+
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -13,9 +18,16 @@ log = logging.getLogger('StatsFrame')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+#============================ imports =========================================
+
 import Tkinter
 
-from SimEngine             import SimEngine
+from SimEngine     import SimEngine, \
+                          SimSettings
+
+#============================ defines =========================================
+
+#============================ body ============================================
 
 class StatsFrame(Tkinter.Frame):
     
@@ -25,8 +37,6 @@ class StatsFrame(Tkinter.Frame):
         
         # store params
         self.guiParent       = guiParent
-        self.engine          = SimEngine.SimEngine()
-        self.settings         = self.engine.settings
         
         # initialize the parent class
         Tkinter.Frame.__init__(
@@ -37,7 +47,7 @@ class StatsFrame(Tkinter.Frame):
         )
         
         # GUI layout
-        self.info   = Tkinter.Label(self,justify=Tkinter.LEFT)
+        self.info  = Tkinter.Label(self,justify=Tkinter.LEFT)
         self.info.grid(row=0,column=0)
         
         self.cell  = Tkinter.Label(self,justify=Tkinter.LEFT)
@@ -54,17 +64,32 @@ class StatsFrame(Tkinter.Frame):
         
     #======================== public ==========================================
     
-    def quit(self):
+    def close(self):
         self.after_cancel(self._update)
+    
+    #======================== attributes ======================================
+    
+    @property
+    def engine(self):
+        return SimEngine.SimEngine(failIfNotInit=True)
+    
+    @property
+    def settings(self):
+        return SimSettings.SimSettings(failIfNotInit=True)
     
     #======================== private =========================================
     
     def _updateGui(self):
         
-        self._redrawInfo()
-        self._redrawCell()
-        self._redrawMote()
-        self._redrawLink()
+        try:
+            self._redrawInfo()
+            self._redrawCell()
+            self._redrawMote()
+            self._redrawLink()
+        except EnvironmentError:
+            # this happens when we try to update between runs
+            pass
+        
         self._update=self.after(self.UPDATE_PERIOD,self._updateGui)
     
     def _redrawInfo(self):
