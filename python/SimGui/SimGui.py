@@ -1,9 +1,14 @@
 #!/usr/bin/python
+'''
+\brief GUI for the simulator.
 
+\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
+\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
+\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 '''
- @authors:
-       Thomas Watteyne    <watteyne@eecs.berkeley.edu>    
-'''
+
+#============================ logging =========================================
 
 import logging
 class NullHandler(logging.Handler):
@@ -13,6 +18,8 @@ log = logging.getLogger('SimGui')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+#============================ imports =========================================
+
 import threading
 import Tkinter
 
@@ -20,6 +27,10 @@ import ScheduleFrame
 import TopologyFrame
 import ActionFrame
 import StatsFrame
+
+#============================ defines =========================================
+
+#============================ body ============================================
 
 class SimGui(Tkinter.Tk):
     
@@ -40,28 +51,40 @@ class SimGui(Tkinter.Tk):
         Tkinter.Tk.__init__(self)
         
         # assign a title to this window
-        self.title("6tsch simulator")
+        self.title("6TiSCH simulator")
         
         # set a function to call when "x" close button is pressed
-        self.protocol('WM_DELETE_WINDOW',self._closeWindow)
+        self.protocol('WM_DELETE_WINDOW',self.close)
         
         # this window can not be resized
         self.resizable(0,0)
         
         # create frames
-        self.scheduleFrame = ScheduleFrame.ScheduleFrame(self)
+        self.scheduleFrame   = ScheduleFrame.ScheduleFrame(self)
         self.scheduleFrame.grid(row=0,column=0,columnspan=2)
-        self.topologyFrame = TopologyFrame.TopologyFrame(self)
+        '''
+        self.topologyFrame   = TopologyFrame.TopologyFrame(self)
         self.topologyFrame.grid(row=1,column=0,rowspan=2)
-        self.actionFrame = ActionFrame.ActionFrame(self)
+        self.actionFrame     = ActionFrame.ActionFrame(self)
         self.actionFrame.grid(row=1,column=1)
-        self.statsFrame = StatsFrame.StatsFrame(self)
+        self.statsFrame      = StatsFrame.StatsFrame(self)
         self.statsFrame.grid(row=2,column=1)
+        '''
         
-        # start GUI
-        self.mainloop()
+        # start GUI (in a separate thread)
+        guiThread = threading.Thread(target=self.mainloop)
+        guiThread.start()
     
     #======================== public ==========================================
+    
+    def close(self):
+        self.scheduleFrame.quit()
+        '''
+        self.topologyFrame.quit()
+        self.actionFrame.quit()
+        self.statsFrame.quit()
+        '''
+        self.destroy()
     
     @property
     def selectedCell(self):
@@ -95,8 +118,3 @@ class SimGui(Tkinter.Tk):
     
     #======================== private =========================================
     
-    def _closeWindow(self):
-        self.scheduleFrame.quit()
-        self.topologyFrame.quit()
-        self.statsFrame.quit()
-        self.destroy()

@@ -86,6 +86,7 @@ class Topology(object):
                     self.links.update([tuple(sorted([mote.id, m.id])+[mote.getRSSI(m)])])
         
         # print topology information
+        '''
         for mote in self.motes:
             for neighbor in self.motes:
                 try:
@@ -102,6 +103,7 @@ class Topology(object):
                         int(rssi),
                         int(pdr)
                     )
+        '''
     
     #======================== private =========================================
     

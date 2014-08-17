@@ -163,23 +163,28 @@ def main():
             if k not in simParam:
                 simParam[k] = v
         simParams      += [simParam]
-    print '{0} parameter combinations to run'.format(len(simParams))
+    
+    # record simulation start time
+    simStartTime = time.time()
     
     # run a simulation for each set of simParams
-    for simParam in simParams:
+    for (simParamNum,simParam) in enumerate(simParams):
         
-        # record start time
-        startTime = time.time()
+        # print
+        print('parameters {0}/{1}'.format(simParamNum,len(simParams)-1))
+        
+        # record run start time
+        runStartTime = time.time()
         
         # run the simulation runs
         for runNum in xrange(simParam['numRuns']):
             
-            # log
-            print('run {0}/{1}, start'.format(runNum+1,simParam['numRuns']))
+            # print
+            print('   run {0}/{1}'.format(runNum,simParam['numRuns']-1))
             
             # create singletons
             settings         = SimSettings.SimSettings(**simParam)
-            settings.setStartTime(startTime)
+            settings.setStartTime(runStartTime)
             settings.setCombinationKeys(combinationKeys)
             simengine        = SimEngine.SimEngine(runNum)
             simstats         = SimStats.SimStats(runNum)
@@ -194,9 +199,13 @@ def main():
             simstats.destroy()
             simengine.destroy()
             settings.destroy()
-            
-            # log
-            print('run {0}/{1}, end'.format(runNum+1,simParam['numRuns']))
+    
+    # stop the GUI
+    if options['gui']:
+        gui.close()
+    
+    # print
+    print '\nSimulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
 
 #============================ main ============================================
 

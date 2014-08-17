@@ -38,7 +38,10 @@ class SimSettings(object):
         return cls._instance
     #===== end singleton
     
-    def __init__(self,**kwargs):
+    def __init__(self,failIfNotInit=False,**kwargs):
+        
+        if failIfNotInit and not self._init:
+            raise EnvironmentError('SimSettings singleton not initialized.')
         
         #===== start singleton
         if self._init:
@@ -46,7 +49,6 @@ class SimSettings(object):
         self._init = True
         #===== end singleton
         
-        # store params
         self.__dict__.update(kwargs)
     
     def setStartTime(self,startTime):

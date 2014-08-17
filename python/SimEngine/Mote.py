@@ -295,7 +295,7 @@ class Mote(object):
                         if self.parent in self.parents:
                             # check requirement if changing a preferred parent
                             if self.rank - resultingRanks[self.parents[0]] > self.PARENT_SWITCH_THRESHOLD:
-                                print "a preferred parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, self.parents[0].id)
+                                log.info("a preferred parent of {0} changes from {1} to {2}".format(self.id, self.parent.id, self.parents[0].id))
                                 self.parent = self.parents[0]
                                 self.setRank()
                                 # DAG rank of a parent has to be lower than DAG rank of a child
@@ -304,7 +304,7 @@ class Mote(object):
                                         self.parents.remove(p)
                                                                 
                         else:
-                            print "a preferred parent of {0} is reset to {1}".format(self.id, self.parents[0].id)
+                            log.info("a preferred parent of {0} is reset to {1}".format(self.id, self.parents[0].id))
                             self.parent = self.parents[0]
                             self.setRank()
                             for p in self.parents[1:self.PARENT_SET_SIZE]:
@@ -321,7 +321,7 @@ class Mote(object):
                         self.parents = self.parents[0:self.PARENT_SET_SIZE]
                         self.parent = self.parents[0]
                         self.setRank()
-                        print "no neighbors satisfy the parent requirements for {0}; tentatively set {1} as a preferred parent".format(self.id, self.parent.id)
+                        log.warning("no neighbors satisfy the parent requirements for {0}; tentatively set {1} as a preferred parent".format(self.id, self.parent.id))
                         for p in self.parents[1:self.PARENT_SET_SIZE]:
                             if self.dagRanks[p] >= self.dagRank:
                                 self.parents.remove(p)
@@ -340,7 +340,7 @@ class Mote(object):
                         self.parent = minNeighbor
                         self.setRank()
                         self.parents.append(minNeighbor)
-                        print "a preferred parent of {0} is set to {1}".format(self.id, self.parent.id)
+                        log.info("a preferred parent of {0} is set to {1}".format(self.id, self.parent.id))
     
     def computeRankIncrease(self, neighbor):
         # calculate rank increase to neighbor
@@ -713,7 +713,7 @@ class Mote(object):
             if bce[2]/self.PDR_THRESHOLD > worst_cell[2]:
             
                 #reschedule the cell -- add to avoid scheduling the same
-                print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id)
+                log.info("reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
                 self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
                 self._addCellToNeighbor(worst_cell[1]['neighbor'])
                 #and delete old one
@@ -730,7 +730,7 @@ class Mote(object):
             if self.getPDR(node)/100.0/self.PDR_THRESHOLD > avgPDR:
                 # reallocate all the scheduled cells
                 for bce in bundle_avg:
-                    print "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id)
+                    log.info("reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id))
                     self._log(self.DEBUG, "reallocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(bce[0], bce[1]['ch'], self.id, bce[1]['neighbor'].id))
                     self._addCellToNeighbor(bce[1]['neighbor'])
                     #and delete old one
@@ -768,7 +768,7 @@ class Mote(object):
         
         if worst_cell != (None,None,None):
             # remove the worst cell
-            #print "remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0], worst_cell[1]['ch'], self.id, worst_cell[1]['neighbor'].id)
+            log.info("remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0], worst_cell[1]['ch'], self.id, worst_cell[1]['neighbor'].id))
             self._log(self.DEBUG, "remove cell ts:{0},ch:{1},src_id:{2},dst_id:{3}".format(worst_cell[0],worst_cell[1]['ch'],self.id,worst_cell[1]['neighbor'].id))
             self._removeCellToNeighbor(worst_cell[0], worst_cell[1])
             # it can happen that it was already scheduled an event to be executed at at that ts (both sides)
@@ -895,14 +895,14 @@ class Mote(object):
                         dir            = self.DIR_RX,
                         neighbor       = self,
                     )
-                    #print 'allocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id)
+                    log.info('allocating cell ts:{0},ch:{1},src_id:{2},dst_id:{3}'.format(candidateTimeslot, candidateChannel, self.id, neighbor.id))
                     if neighbor not in self.numCells:
                         self.numCells[neighbor]    = 0
                     self.numCells[neighbor]  += 1
                     
                     #TODO count number or retries.
                     return True
-            print 'tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial+1,self.id,neighbor.id)
+            log.error('tried {0} times but unable to find an empty time slot for nodes {1} and {2}'.format(trial+1,self.id,neighbor.id))
     
     def _removeCellToNeighbor(self,ts,cell):
         ''' removes a cell in the schedule of this node and the neighbor '''

@@ -43,7 +43,10 @@ class SimEngine(threading.Thread):
         return cls._instance
     #===== end singleton
     
-    def __init__(self,runNum=None):
+    def __init__(self,runNum=None,failIfNotInit=False):
+        
+        if failIfNotInit and not self._init:
+            raise EnvironmentError('SimEngine singleton not initialized.')
         
         #===== start singleton
         if self._init:
@@ -55,26 +58,15 @@ class SimEngine(threading.Thread):
         self.runNum                         = runNum
         
         # local variables
-        self.settings                       = SimSettings.SimSettings()
         self.dataLock                       = threading.RLock()
         self.goOn                           = True
         self.asn                            = 0
+        self.startCb                        = []
+        self.endCb                          = []
         self.events                         = []
-        self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
-        
-        # stats variables (TODO: move to other object)
-        self.scheduledCells                 = set()
-        self.collisionCells                 = set()
-        self.inactivatedCells               = set()
-        self.columnNames                    = []
-        self.numAccumScheduledCells         = 0
-        self.numAccumScheduledCollisions    = 0
-        self.queueDelays                    = []
-        
-        # initialize propagation
+        self.settings                       = SimSettings.SimSettings()
         self.propagation                    = Propagation.Propagation()
-        
-        # initialize topology
+        self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
         
@@ -102,17 +94,33 @@ class SimEngine(threading.Thread):
         # log
         log.info("thread {0} starting".format(self.name))
         
+        # schedule the endOfSimulation event
+        self.scheduleAtAsn(
+            asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
+            cb          = self._actionEndSimulation,
+            uniqueTag   = (None,'_actionEndSimulation'),
+        )
+        
+        # call the start callbacks
+        for cb in self.startCb:
+            cb()
+        
+        # consume events until self.goOn is False
         while self.goOn:
             
             with self.dataLock:
                 
+                # abort simulation when no more events
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
                     break
                 
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
-
+                
+                # update the current ASN
+                self.asn = self.events[0][0]
+                
                 # call callbacks at this ASN (NOT monitoring)
                 i = 0
                 while True:
@@ -125,9 +133,6 @@ class SimEngine(threading.Thread):
                     else:
                         i += 1
                 
-                # count scheduled cells and schedule collisions after 'activeCell' called
-                self._countSchedule()
-                
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
                 
@@ -137,62 +142,10 @@ class SimEngine(threading.Thread):
                         break
                     (_,cb,_) = self.events.pop(0)
                     cb()
-                
-                cycle = int(self.asn/self.settings.slotframeLength)
-                if self.asn%self.settings.slotframeLength==self.settings.slotframeLength-1: # end of each cycle
-                    print('Run num: {0} cycle: {1}'.format(self.runNum, cycle))
-                    
-                    numGeneratedPkts   = self._countGeneratedPackets()
-                    numPacketsInQueue  = self._countPacketsInQueue()
-                    numOverflow        = self._countQueueFull()
-                    numPacketsReached  = self.motes[0].getStats()['dataReceived']
-                    avgQueueDelay      = 0
-                    if self.queueDelays:
-                        avgQueueDelay  = sum(self.queueDelays)/float(len(self.queueDelays))
-                    timeBetweenOTFevents=[]
-                    avgTimeBetweenOTFevents=0
-                    for mote in self.motes:
-                        if mote.timeBetweenOTFevents:
-                            timeBetweenOTFevents+=[(sum(mote.timeBetweenOTFevents)+self.getAsn()-mote.asnOTFevent)/(len(mote.timeBetweenOTFevents)+1.0)]
-                    if timeBetweenOTFevents:
-                        avgTimeBetweenOTFevents=sum(timeBetweenOTFevents)/len(timeBetweenOTFevents)
-                    if numGeneratedPkts-numPacketsInQueue > 0:
-                        e2ePDR         = float(numPacketsReached)/float(numGeneratedPkts-numPacketsInQueue)
-                    else:
-                        e2ePDR         = 0.0
-                    if numPacketsReached > 0:
-                        avgLatency     = float(self.motes[0].accumLatency)/float(numPacketsReached)
-                    else:
-                        avgLatency     = 0.0
-                    self._fileWriteRun({
-                        'runNum':                          self.runNum,
-                        'cycle':                           cycle,
-                        'numAccumScheduledCells':          self.numAccumScheduledCells,
-                        'numAccumScheduledCollisions':     self.numAccumScheduledCollisions,
-                        'numAccumNoPktAtNSC':              self.propagation.numAccumNoPktAtNSC,
-                        'numAccumPktAtNSC':                self.propagation.numAccumPktAtNSC,
-                        'numAccumSuccessAtNSC':            self.propagation.numAccumSuccessAtNSC,
-                        'numAccumNoPktAtSC':               self.propagation.numAccumNoPktAtSC,
-                        'numAccumPktAtSC':                 self.propagation.numAccumPktAtSC,
-                        'numAccumSuccessAtSC':             self.propagation.numAccumSuccessAtSC,
-                        'numGeneratedPkts':                numGeneratedPkts,
-                        'numPacketsReached':               numPacketsReached,
-                        'numPacketsInQueue':               numPacketsInQueue,
-                        'numOverflow':                     numOverflow,
-                        'e2ePDR':                          e2ePDR,
-                        'avgLatency':                      avgLatency,
-                        'avgQueueDelay':                   avgQueueDelay,
-                        'avgTimeBetweenOTFevents':         avgTimeBetweenOTFevents,
-                    })
-                    self.propagation.initStats()
-                
-                # stop after numCyclesPerRun cycles
-                if cycle==self.settings.numCyclesPerRun:
-                    self._fileWriteTopology()
-                    self.goOn=False
-                
-                # update the current ASN
-                self.asn += 1
+        
+        # call the end callbacks
+        for cb in self.endCb:
+            cb()
         
         # log
         log.info("thread {0} ends".format(self.name))
@@ -200,6 +153,10 @@ class SimEngine(threading.Thread):
     #======================== public ==========================================
     
     #=== scheduling
+    
+    def scheduleAtStart(self,cb):
+        with self.dataLock:
+            self.startCb    += [cb]
     
     def scheduleIn(self,delay,cb,uniqueTag=None):
         ''' used to generate events. Puts an event to the queue '''
@@ -258,6 +215,10 @@ class SimEngine(threading.Thread):
                         # only increment when not removing
                         i += 1
     
+    def scheduleAtEnd(self,cb):
+        with self.dataLock:
+            self.endCb      += [cb]
+    
     #=== getters/setters
     
     def getAsn(self):
@@ -266,109 +227,7 @@ class SimEngine(threading.Thread):
     
     #======================== private =========================================
     
-    def _fileWriteRun(self,elems):
-        output          = []
-        
-        # columnNames
-        if not self.columnNames:
-            self.columnNames = sorted(elems.keys())
-            output     += ['\n# '+' '.join(self.columnNames)]
-        
-        # dataline
-        formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
-        formatString   += '\n'
-        output         += [' '+formatString.format(*[elems[k] for k in self.columnNames])]
-        
-        # write to file
-        with open(self.settings.getOutputFile(),'a') as f:
-            f.write('\n'.join(output))
-    
-    def _fileWriteTopology(self):
-        output  = []
-        output += [
-            '#pos runNum={0} {1}'.format(
-                self.runNum,
-                ' '.join(['{0}@({1:.5f},{2:.5f})@{3}'.format(mote.id,mote.x,mote.y,mote.rank) for mote in self.motes])
-            )
-        ]
-        output += [
-            '#links runNum={0} {1}'.format(
-                self.runNum,
-                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA,moteB,rssi) for (moteA,moteB,rssi) in self.topology.links])
-            )
-        ]
-        output  = '\n'.join(output)
-    
-        with open(self.settings.getOutputFile(),'a') as f:
-            f.write(output)
-    
-    def _countSchedule(self):
-        # count scheduled cells and schedule collision at each asn
-        
+    def _actionEndSimulation(self):
         with self.dataLock:
-            
-            # initialize at start of each cycle
-            currentTs = self.asn % self.settings.slotframeLength
-            if currentTs == 0:
-                self.numAccumScheduledCells = 0
-                self.numAccumScheduledCollisions = 0
-                self.queueDelays=[]
-
-            self.scheduledCells.clear()
-            self.collisionCells.clear()
-            self.inactivatedCells.clear() # store cells recently added by monitoring function but not activated yet
-            for mote in self.motes:
-                for (ts,ch,_) in mote.getTxCells():
-                    if ts == currentTs:
-                                                
-                        activated = False
-                        # check whether this cell is already activated
-                        for tx in self.propagation.transmissions:
-                            if tx['smac'] == mote:
-                                activated = True
-                                break
-                        for no in self.propagation.notransmissions:
-                            if no['smac'] == mote:
-                                activated = True
-                                break
-                        
-                        if not activated:
-                            self.inactivatedCells.add((ts,ch))
-                        elif (ts,ch) not in self.scheduledCells:
-                            self.scheduledCells.add((ts,ch))
-                        else:
-                            self.collisionCells.add((ts,ch))
-
-            self.numAccumScheduledCells += len(self.scheduledCells)
-            self.numAccumScheduledCollisions += len(self.collisionCells)
-                
-    def _countPacketsInQueue(self):
-        # count the number of packets in queues of all motes at current asn
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                numPkt += len(mote.txQueue)
-            return numPkt
+            self.goOn = False
     
-    def _countGeneratedPackets(self):
-        # count the number of generated packets of all motes
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                stats = mote.getStats()
-                numPkt += stats['dataGenerated']
-            return numPkt
-
-    def _countQueueFull(self):
-        # count the number of generated packets of all motes
-        
-        with self.dataLock:
-            numPkt = 0
-            for mote in self.motes:
-                stats = mote.getStats()
-                numPkt += stats['dataQueueFull']
-            return numPkt
-    
-    #======================== private =========================================
