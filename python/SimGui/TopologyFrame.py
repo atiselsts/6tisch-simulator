@@ -22,7 +22,8 @@ log.addHandler(NullHandler())
 
 import Tkinter
 
-from SimEngine import SimEngine
+from SimEngine import SimEngine, \
+                      SimSettings
 
 #============================ defines =========================================
 
@@ -68,6 +69,10 @@ class TopologyFrame(Tkinter.Frame):
     @property
     def engine(self):
         return SimEngine.SimEngine(failIfNotInit=True)
+    
+    @property
+    def settings(self):
+        return SimSettings.SimSettings(failIfNotInit=True)
     
     #======================== private =========================================
     
@@ -162,7 +167,7 @@ class TopologyFrame(Tkinter.Frame):
     #===== coordinate calculation
     
     def _moteCoordinates(self,m):
-        (x,y) = m.getNormalizedLocation()
+        (x,y) = self._normalizeLocation(m.getLocation())
         return (
             self.WIDTH*x-self.MOTE_SIZE/2,
             self.HEIGHT*y-self.MOTE_SIZE/2,
@@ -171,18 +176,25 @@ class TopologyFrame(Tkinter.Frame):
         )
     
     def _moteIdCoordinates(self,m):
-        (x,y) = m.getNormalizedLocation()
+        (x,y) = self._normalizeLocation(m.getLocation())
         return (
             self.WIDTH*x,
             self.HEIGHT*y+self.MOTE_SIZE,
         )
     
     def _linkCoordinates(self,fromMote,toMote):
-        (fromX, fromY)  = fromMote.getNormalizedLocation()
-        (toX,   toY)    = toMote.getNormalizedLocation()
+        (fromX, fromY)  = self._normalizeLocation(fromMote.getLocation())
+        (toX,   toY)    = self._normalizeLocation(toMote.getLocation())
         return (
             fromX*self.WIDTH,
             fromY*self.HEIGHT,
             toX*self.WIDTH,
             toY*self.HEIGHT,
+        )
+    
+    def _normalizeLocation(self,xy):
+        (x,y) = xy
+        return (
+            x/self.settings.squareSide,
+            y/self.settings.squareSide
         )

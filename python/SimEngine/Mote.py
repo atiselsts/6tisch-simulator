@@ -879,12 +879,9 @@ class Mote(object):
             self.x = self.settings.squareSide*random.random()
             self.y = self.settings.squareSide*random.random()
     
-    def getNormalizedLocation(self):
+    def getLocation(self):
         with self.dataLock:
-            return (
-                self.x/self.settings.squareSide,
-                self.y/self.settings.squareSide
-            )
+            return (self.x,self.y)
     
     #==== battery
     
