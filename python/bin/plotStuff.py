@@ -1,7 +1,6 @@
 #!/usr/bin/python
 '''
-\brief Script to plot timelines and topology figures from collected simulation
-    data.
+\brief Plots timelines and topology figures from collected simulation data.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
@@ -27,6 +26,7 @@ import os
 import re
 import glob
 import sys
+import math
 
 import numpy
 import scipy
@@ -241,16 +241,13 @@ def genTopologyPlots(dir,infilemame):
         
         #=== start new plot
         
-        matplotlib.pyplot.figure()
-        
-        f, ((ax1, ax2), (ax3, ax4)) = matplotlib.pyplot.subplots(2, 2, sharex=True, sharey=True, squeeze=True)
-        
-        AXISSIZE = [-squareSide*0.1,squareSide*1.1,-squareSide*0.1,squareSide*1.1]
+        fig = matplotlib.pyplot.figure(figsize=(8,12), dpi=80)
         
         #=== plot 1: motes and IDs
         
-        ax1.set_aspect('equal')
-        ax1.axis(AXISSIZE)
+        ax1 = fig.add_subplot(3,2,1,aspect='equal')
+        ax1.set_xlim(xmin=0,xmax=squareSide)
+        ax1.set_ylim(ymin=0,ymax=squareSide)
         
         # motes
         plotMotes(ax1)
@@ -267,8 +264,9 @@ def genTopologyPlots(dir,infilemame):
         
         #=== plot 2: motes, rank and contour
         
-        ax2.set_aspect('equal')
-        ax2.axis(AXISSIZE)
+        ax2 = fig.add_subplot(3,2,2,aspect='equal')
+        ax2.set_xlim(xmin=0,xmax=squareSide)
+        ax2.set_ylim(ymin=0,ymax=squareSide)
         
         # motes
         #plotMotes(ax2)
@@ -298,8 +296,9 @@ def genTopologyPlots(dir,infilemame):
         
         #=== plot 3: links
         
-        ax3.set_aspect('equal')
-        ax3.axis(AXISSIZE)
+        ax3 = fig.add_subplot(3,2,3,aspect='equal')
+        ax3.set_xlim(xmin=0,xmax=squareSide)
+        ax3.set_ylim(ymin=0,ymax=squareSide)
         
         # motes
         plotMotes(ax3)
@@ -324,11 +323,60 @@ def genTopologyPlots(dir,infilemame):
         
         #=== plot 4: TODO
         
-        ax4.set_aspect('equal')
-        ax4.axis(AXISSIZE)
+        ax4 = fig.add_subplot(3,2,4,aspect='equal')
+        ax4.set_xlim(xmin=0,xmax=squareSide)
+        ax4.set_ylim(ymin=0,ymax=squareSide)
         
         # motes
         plotMotes(ax4)
+        
+        #=== plot 5: rssi vs. distance
+        
+        ax5 = fig.add_subplot(3,2,5)
+        ax5.set_xlim(xmin=0,xmax=1000*squareSide)
+        
+        data_x = []
+        data_y = []
+        
+        for numRun in links.keys():
+            pos = {}
+            for mote in motes[numRun]:
+                pos[mote['id']] = (mote['x'],mote['y'])
+            
+            for l in links[numRun]:
+                distance = 1000*math.sqrt(
+                    (pos[l['moteA']][0] - pos[l['moteB']][0])**2 +
+                    (pos[l['moteA']][1] - pos[l['moteB']][1])**2
+                )
+                rssi     = l['rssi']
+                
+                data_x += [distance]
+                data_y += [rssi]
+        
+        ax5.scatter(
+            data_x,
+            data_y,
+            marker      = '+',
+            c           = 'blue',
+            s           = 3,
+            zorder      = 1,
+        )
+        ax5.plot(
+            [0,1000*squareSide],
+            [-101,-101],
+            color       = 'red',
+            zorder      = 2,
+            lw          = 0.5,
+        )
+        
+        #=== plot 6: waterfall (pdr vs rssi)
+        
+        ax6 = fig.add_subplot(3,2,6,aspect='equal')
+        ax6.set_xlim(xmin=0,xmax=squareSide)
+        ax6.set_ylim(ymin=0,ymax=squareSide)
+        
+        # motes
+        plotMotes(ax6)
         
         #=== save and close plot
         
