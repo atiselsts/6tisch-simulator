@@ -61,14 +61,14 @@ def parseCliOptions():
     
     return options.__dict__
 
-def genTimelinePlots(dir,infilemame,elemName):
+def genTimelinePlots(dir,infilename,elemName):
     
-    infilepath     = os.path.join(dir,infilemame)
-    outfilename    = infilemame.split('.')[0]+'_{}.png'.format(elemName)
+    infilepath     = os.path.join(dir,infilename)
+    outfilename    = infilename.split('.')[0]+'_{}.png'.format(elemName)
     outfilepath    = os.path.join(dir,outfilename)
     
     # print
-    print 'Parsing    {0}...'.format(infilemame),
+    print 'Parsing    {0}...'.format(infilename),
     
     # find colnumelem, colnumcycle, colnumrunNum
     with open(infilepath,'r') as f:
@@ -136,12 +136,131 @@ def genTimelinePlots(dir,infilemame,elemName):
     # print
     print 'done.'
 
-def genTopologyPlots(dir,infilemame):
+def genSingleRunTimelinePlots(dir,infilename):
     
-    infilepath     = os.path.join(dir,infilemame)
+    infilepath     = os.path.join(dir,infilename)
     
     # print
-    print 'Parsing    {0}...'.format(infilemame),
+    print 'Parsing    {0}...'.format(infilename),
+    
+    # find colnames
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('# '):
+                colnames = re.sub(' +',' ',line[2:]).split()
+                break
+    
+    # data = {
+    #    'col1': [
+    #       [1,2,3,4,5,6,7],
+    #       [1,2,3,4,5,6,7],
+    #       ...
+    #    ],
+    #    'col2': [
+    #       [1,2,3,4,5,6,7],
+    #       [1,2,3,4,5,6,7],
+    #       ...
+    #    ],
+    #    ...
+    # }
+    
+    # fill data
+    data = {}
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            
+            lineelems = re.sub(' +',' ',line[2:]).split()
+            line = dict([(colnames[i],lineelems[i]) for i in range(len(lineelems))])
+            
+            for k in line.keys():
+                try:
+                    line[k] = int(line[k])
+                except ValueError:
+                    line[k] = float(line[k])
+            
+            runNum = line['runNum']
+            cycle  = line['cycle']
+            
+            for (k,v) in line.items():
+                if k in ['runNum','cycle']:
+                    continue
+                
+                if k not in data:
+                    data[k] = []
+                
+                if runNum==len(data[k]):
+                    data[k].append([])
+                
+                assert runNum==len(data[k])-1
+                assert cycle==len(data[k][runNum])
+                
+                data[k][runNum] += [v]
+    
+    # verify data integrity
+    numRuns = None
+    for v in data.values():
+        if numRuns==None:
+            numRuns = len(v)
+        else:
+            assert len(v)==numRuns
+    numCycles = None
+    for v in data.values():
+        for r in v:
+            if numCycles==None:
+                numCycles = len(r)
+            else:
+                assert len(r)==numCycles
+    
+    # print
+    print 'done.'
+    
+    # plot timelines
+    for runNum in range(numRuns):
+        
+        outfilename = 'run_{}_timelines.png'.format(runNum)
+        outfilepath = os.path.join(dir,outfilename)
+        
+        # print
+        print 'Generating {0}...'.format(outfilename),
+        
+        #=== start new plot
+        
+        matplotlib.rc('font', size=6)
+        fig = matplotlib.pyplot.figure(
+            figsize     = (8,20),
+            dpi         = 80,
+        )
+        
+        #=== plot data
+        
+        firstax = None
+        
+        for (row,title) in enumerate(sorted(data.keys())):
+            if not firstax:
+                ax = fig.add_subplot(len(data),1,row)
+                firstax = ax
+            else:
+                ax = fig.add_subplot(len(data),1,row,sharex=firstax)
+                matplotlib.pyplot.setp( ax.get_xticklabels(), visible=False)
+            ax.set_title(title)
+            ax.plot(data[title][runNum])
+        
+        #=== save and close plot
+        
+        matplotlib.pyplot.savefig(outfilepath)
+        matplotlib.pyplot.close('all')
+        
+        # print
+        print 'done.'
+        
+def genTopologyPlots(dir,infilename):
+    
+    infilepath     = os.path.join(dir,infilename)
+    
+    # print
+    print 'Parsing    {0}...'.format(infilename),
     
     # parse data
     xcoord         = {}
@@ -239,7 +358,7 @@ def genTopologyPlots(dir,infilemame):
     # plot topologies
     for runNum in sorted(motes.keys()):
         
-        outfilename = 'topology_run_{}.png'.format(runNum)
+        outfilename = 'run_{}_topology.png'.format(runNum)
         outfilepath = os.path.join(dir,outfilename)
         
         # print
@@ -441,20 +560,26 @@ def main():
     
     # plot figures
     for dir in os.listdir(DATADIR):
-        for infilemame in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+        for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
             
             # plot timelines
             for elemName in options['elemNames']:
                 genTimelinePlots(
                     dir           = os.path.join(DATADIR, dir),
-                    infilemame    = os.path.basename(infilemame),
+                    infilename    = os.path.basename(infilename),
                     elemName      = elemName,
                 )
+            
+            # plot timelines for each run
+            genSingleRunTimelinePlots(
+                dir               = os.path.join(DATADIR, dir),
+                infilename        = os.path.basename(infilename),
+            )
             
             # plot topologies
             genTopologyPlots(
                 dir               = os.path.join(DATADIR, dir),
-                infilemame        = os.path.basename(infilemame),
+                infilename        = os.path.basename(infilename),
             )
 
 if __name__=="__main__":
