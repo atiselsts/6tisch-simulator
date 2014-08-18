@@ -38,8 +38,6 @@ class Mote(object):
     
     # sufficient num. of tx to estimate pdr by ACK
     NUM_SUFFICIENT_TX                  = 10
-    # sufficient num. of DIO to determine parent is stable
-    NUM_SUFFICIENT_DIO                 = 1
     
     DIR_TX                             = 'TX'
     DIR_RX                             = 'RX'
@@ -84,15 +82,12 @@ class Mote(object):
         
         # role
         self.dagRoot                   = False
-        # application
-        self.dataStart                 = False
         # rpl
         self.rank                      = None
         self.dagRank                   = None
         self.parentSet                 = []
         self.preferredParent           = None
-        self.collectDIO                = False
-        self.numRxDIO                  = {}      # indexed by neighbor, contains int
+        self.rplRxDIO                  = {}      # indexed by neighbor, contains int
         self.neighborRank              = {}      # indexed by neighbor
         self.neighborDagRank           = {}      # indexed by neighbor
         self.trafficPortionPerParent   = {}      # indexed by parent, portion of outgoing traffic
@@ -168,7 +163,7 @@ class Mote(object):
             }
             
             # update mote stats
-            self._incrementMoteStats('pkGenerated')
+            self._incrementMoteStats('appGenerated')
             
             # enqueue packet in TSCH queue
             self._tsch_enqueue(newPacket)
@@ -201,7 +196,7 @@ class Mote(object):
             if self.rank!=None and self.dagRank!=None:
                 
                 # update mote stats
-                self._incrementMoteStats('numTxDIO')
+                self._incrementMoteStats('rplTxDIO')
                 
                 # "send" DIO to all neighbors
                 for neighbor in self._myNeigbors():
@@ -215,12 +210,12 @@ class Mote(object):
                     neighbor.neighborRank[self]       = self.rank
                     
                     # in neighbor, update number of DIOs received
-                    if self not in neighbor.numRxDIO:
-                        neighbor.numRxDIO[self]  = 0
-                    neighbor.numRxDIO[self]     += 1
+                    if self not in neighbor.rplRxDIO:
+                        neighbor.rplRxDIO[self]  = 0
+                    neighbor.rplRxDIO[self]     += 1
                     
                     # update mote stats
-                    self._incrementMoteStats('numRxDIO')
+                    self._incrementMoteStats('rplRxDIO')
                     
                     # in neighbor, do RPL housekeeping
                     neighbor._rpl_housekeeping()
@@ -268,7 +263,7 @@ class Mote(object):
                 
                 # update mote stats
                 if self.preferredParent and newPreferredParent!=self.preferredParent:
-                    self._incrementMoteStats('churnPrefParent')
+                    self._incrementMoteStats('rplChurnPrefParent')
                     # log
                     self._log(
                         self.INFO,
@@ -278,7 +273,7 @@ class Mote(object):
                 
                 # update mote stats
                 if self.rank and newrank!=self.rank:
-                    self._incrementMoteStats('churnRank')
+                    self._incrementMoteStats('rplChurnRank')
                     # log
                     self._log(
                         self.INFO,
@@ -336,23 +331,6 @@ class Mote(object):
         
         with self.dataLock:
             
-            # if DIO from all neighbors are collected, set self.collectDIO = True
-            if (not self.collectDIO):
-                self.collectDIO = True
-                for neighbor in self._myNeigbors():
-                    if neighbor in self.numRxDIO:
-                        if self.numRxDIO[neighbor]<self.NUM_SUFFICIENT_DIO:
-                            self.collectDIO = False
-                            break
-                    else:
-                        self.collectDIO = False
-                        break
-            
-            # data generation starts if DIOs are received from all the neighbors
-            if (self.collectDIO) and (not self.dataStart) and (not self.dagRoot):
-                self.dataStart = True
-                self._app_schedule_sendData()
-            
             # calculate the "moving average" incoming traffic, in pkts since last cycle, per neighbor
             with self.dataLock:
                 for neighbor in self._myNeigbors():
@@ -375,77 +353,81 @@ class Mote(object):
             # convert to pkts/cycle
             genTraffic      *= self.settings.slotframeLength*self.settings.slotDuration
             
-            if self.dataStart == True:
+            # split genTraffic across parents, trigger 6top to add/delete cells accordingly
+            for (parent,portion) in self.trafficPortionPerParent.items():
                 
-                # split genTraffic across parents, trigger 6top to add/delete cells accordingly
-                for (parent,portion) in self.trafficPortionPerParent.items():
+                # calculate required number of cells to that parent
+                etx = self._estimateETX(parent)
+                if etx>self.RPL_MAX_ETX: # cap ETX
+                    etx  = self.RPL_MAX_ETX
+                reqCells      = int(math.ceil(portion*genTraffic*etx))
+                
+                # calculate the OTF threshold
+                threshold     = int(math.ceil(portion*self.settings.otfThreshold))
+                
+                # measure how many cells I have now to that parent
+                nowCells      = self.numCellsToNeighbors.get(parent,0)
+                
+                if nowCells<reqCells:
+                    # I don't have enough cells
                     
-                    # calculate required number of cells to that parent
-                    etx = self._estimateETX(parent)
-                    if etx>self.RPL_MAX_ETX: # cap ETX
-                        etx  = self.RPL_MAX_ETX
-                    reqCells      = int(math.ceil(portion*genTraffic*etx))
+                    # calculate how many to add
+                    numCellsToAdd = reqCells-nowCells+(threshold+1)/2
                     
-                    # calculate the OTF threshold
-                    threshold     = int(math.ceil(portion*self.settings.otfThreshold))
+                    # log
+                    self._log(
+                        self.INFO,
+                        "[otf] not enough cells to {0}: have {1}, need {2}, add {3}",
+                        (parent.id,nowCells,reqCells,numCellsToAdd),
+                    )
                     
-                    # measure how many cells I have now to that parent
-                    nowCells      = self.numCellsToNeighbors.get(parent,0)
+                    # update mote stats
+                    self._incrementMoteStats('otfAdd')
                     
-                    if nowCells<reqCells:
-                        # I don't have enough cells
-                        
-                        # calculate how many to add
-                        numCellsToAdd = reqCells-nowCells+(threshold+1)/2
-                        
-                        # log
-                        self._log(
-                            self.INFO,
-                            "[otf] not enough cells to {0}: have {1}, need {2}, add {3}",
-                            (parent.id,nowCells,reqCells,numCellsToAdd),
-                        )
-                        
-                        # have 6top add cells
-                        for _ in xrange(numCellsToAdd):
-                            self._6top_addCell(parent)
-                        
-                        # remember OTF triggered
-                        otfTriggered = True
+                    # have 6top add cells
+                    for _ in xrange(numCellsToAdd):
+                        self._6top_addCell(parent)
                     
-                    elif reqCells<nowCells-threshold:
-                        # I have too many cells
-                        
-                        # calculate how many to remove
-                        numCellsToRemove = nowCells-reqCells-(threshold+1)/2
-                        
-                        # log
-                        self._log(
-                            self.INFO,
-                            "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
-                            (parent.id,nowCells,reqCells,numCellsToRemove),
-                        )
-                        
-                        # have 6top remove cells
-                        for _ in xrange(numCellsToRemove):
-                            self._otf_removeWorstCell(parent)
-                        
-                        # remember OTF triggered
-                        otfTriggered = True
-                        
+                    # remember OTF triggered
+                    otfTriggered = True
+                
+                elif reqCells<nowCells-threshold:
+                    # I have too many cells
+                    
+                    # calculate how many to remove
+                    numCellsToRemove = nowCells-reqCells-(threshold+1)/2
+                    
+                    # log
+                    self._log(
+                        self.INFO,
+                        "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
+                        (parent.id,nowCells,reqCells,numCellsToRemove),
+                    )
+                    
+                    # update mote stats
+                    self._incrementMoteStats('otfRemove')
+                    
+                    # have 6top remove cells
+                    for _ in xrange(numCellsToRemove):
+                        self._otf_removeWorstCell(parent)
+                    
+                    # remember OTF triggered
+                    otfTriggered = True
+                    
+                else:
+                    # nothing to do
+                    
+                    # remember OTF did NOT trigger
+                    otfTriggered = False
+                
+                # maintain stats
+                if otfTriggered:
+                    now = self.engine.getAsn()
+                    if not self.asnOTFevent:
+                        assert not self.timeBetweenOTFevents
                     else:
-                        # nothing to do
-                        
-                        # remember OTF did NOT trigger
-                        otfTriggered = False
-                    
-                    # maintain stats
-                    if otfTriggered:
-                        now = self.engine.getAsn()
-                        if not self.asnOTFevent:
-                            assert not self.timeBetweenOTFevents
-                        else:
-                            self.timeBetweenOTFevents += [now-self.asnOTFevent]
-                        self.asnOTFevent = now
+                        self.timeBetweenOTFevents += [now-self.asnOTFevent]
+                    self.asnOTFevent = now
             
             # remove TX cells to neighbor who are not in parent set
             for (ts,cell) in self.schedule.items():
@@ -610,7 +592,7 @@ class Mote(object):
                 self._6top_removeCell(worst_ts,neighbor)
                 
                 # update stats
-                self._incrementMoteStats('numRelocatedCells')
+                self._incrementMoteStats('6topRelocatedCells')
                 
                 # remember I relocated a cell for that bundle
                 relocation = True
@@ -645,7 +627,7 @@ class Mote(object):
                     self._6top_removeCell(ts,neighbor)
                 
                 # update stats
-                self._incrementMoteStats('numRelocatedBundles')
+                self._incrementMoteStats('6topRelocatedBundles')
     
     def _6top_addCell(self,neighbor):
         ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
@@ -940,7 +922,7 @@ class Mote(object):
                     # receiving packet (at DAG root)
                     
                     # update mote stats
-                    self._incrementMoteStats('pkReachesDagroot')
+                    self._incrementMoteStats('appReachesDagroot')
                     
                     # calculate end-to-end latency
                     self.packetLatencies += [asn-payload[1]]
@@ -960,7 +942,7 @@ class Mote(object):
                     }
                     
                     # update mote stats
-                    self._incrementMoteStats('pkRelayed')
+                    self._incrementMoteStats('appRelayed')
                     
                     # enqueue packet in TSCH queue
                     self._tsch_enqueue(relayPacket)
@@ -1032,6 +1014,8 @@ class Mote(object):
     #==== battery
     
     def boot(self):
+        if not self.dagRoot:
+            self._app_schedule_sendData()
         self._rpl_schedule_sendDIO()
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
@@ -1057,22 +1041,24 @@ class Mote(object):
         with self.dataLock:
             self.motestats = {
                 # app
-                'pkGenerated':         0,   # number of packets app layer generated
-                'pkRelayed':           0,   # number of packets relayed
-                'pkReachesDagroot':    0,   # number of packets received at the DAGroot
+                'appGenerated':        0,   # number of packets app layer generated
+                'appRelayed':          0,   # number of packets relayed
+                'appReachesDagroot':   0,   # number of packets received at the DAGroot
                 # queue
                 'droppedQueueFull':    0,   # dropped packets because queue is full
                 # rpl
-                'numTxDIO':            0,   # number of TX'ed DIOs
-                'numRxDIO':            0,   # number of RX'ed DIOs
-                'churnPrefParent':     0,   # number of time the mote changes preferred parent
-                'churnRank':           0,   # number of time the mote changes rank
+                'rplTxDIO':            0,   # number of TX'ed DIOs
+                'rplRxDIO':            0,   # number of RX'ed DIOs
+                'rplChurnPrefParent':  0,   # number of time the mote changes preferred parent
+                'rplChurnRank':        0,   # number of time the mote changes rank
                 'droppedNoRoute':      0,   # packets dropped because no route (no preferred parent)
                 # otf
                 'droppedNoTxCells':    0,   # packets dropped because no TX cells
+                'otfAdd':              0,   # OTF adds some cells
+                'otfRemove':           0,   # OTF removes some cells
                 # 6top
-                'numRelocatedCells':   0,   # number of time 6top relocates a single cell
-                'numRelocatedBundles': 0,   # number of time 6top relocates a bundle
+                '6topRelocatedCells':  0,   # number of time 6top relocates a single cell
+                '6topRelocatedBundles':0,   # number of time 6top relocates a bundle
                 # tsch
                 'droppedMacRetries':   0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
             }

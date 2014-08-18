@@ -232,6 +232,7 @@ def genSingleRunTimelinePlots(dir,infilename):
             figsize     = (8,20),
             dpi         = 80,
         )
+        fig.subplots_adjust(hspace=0.5)
         
         #=== plot data
         
