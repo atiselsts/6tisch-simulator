@@ -61,7 +61,7 @@ def parseCliOptions():
     
     return options.__dict__
 
-def genTimeline(dir,infilemame,elemName):
+def genTimelinePlots(dir,infilemame,elemName):
     
     infilepath     = os.path.join(dir,infilemame)
     outfilename    = infilemame.split('.')[0]+'_{}.png'.format(elemName)
@@ -136,7 +136,7 @@ def genTimeline(dir,infilemame,elemName):
     # print
     print 'done.'
 
-def genTopologies(dir,infilemame):
+def genTopologyPlots(dir,infilemame):
     
     infilepath     = os.path.join(dir,infilemame)
     
@@ -359,16 +359,16 @@ def main():
             
             # plot timelines
             for elemName in options['elemNames']:
-                genTimeline(
+                genTimelinePlots(
                     dir           = os.path.join(DATADIR, dir),
                     infilemame    = os.path.basename(infilemame),
                     elemName      = elemName,
                 )
             
             # plot topologies
-            genTopologies(
-                dir           = os.path.join(DATADIR, dir),
-                infilemame    = os.path.basename(infilemame),
+            genTopologyPlots(
+                dir               = os.path.join(DATADIR, dir),
+                infilemame        = os.path.basename(infilemame),
             )
 
 if __name__=="__main__":
