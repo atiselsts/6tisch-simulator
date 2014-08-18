@@ -101,7 +101,7 @@ class Topology(object):
             for m in self.motes:
                 if mote==m:
                     continue
-                if mote.getRSSI(m)>mote.radioSensitivity:
+                if mote.getRSSI(m)>mote.sensitivity:
                     pdr = self._computePDR(mote,m)
                     mote.setPDR(m,pdr)
                     m.setPDR(mote,pdr)
@@ -155,7 +155,7 @@ class Topology(object):
         ''' computes pdr to neighbor according to RSSI'''
         
         rssi            = mote.getRSSI(neighbor)
-        sensitivity     = neighbor.radioSensitivity
+        sensitivity     = neighbor.sensitivity
         return self.rssiToPdr(rssi,sensitivity)
     
     @classmethod

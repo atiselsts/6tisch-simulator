@@ -165,9 +165,9 @@ class Propagation(object):
         equivalentRSSI = self.mWTodBm(self.dBmTomW(sinr + dmac.noisepower) + self.dBmTomW(dmac.noisepower))
             
         # TODO these values are tentative. Need to check datasheet for RSSI vs PDR relationship.
-        if equivalentRSSI < -85 and equivalentRSSI > dmac.radioSensitivity:
-            pdr=(equivalentRSSI - dmac.radioSensitivity)*6.25
-        elif equivalentRSSI <= dmac.radioSensitivity:
+        if equivalentRSSI < -85 and equivalentRSSI > dmac.sensitivity:
+            pdr=(equivalentRSSI - dmac.sensitivity)*6.25
+        elif equivalentRSSI <= dmac.sensitivity:
             pdr=0.0
         elif equivalentRSSI > -85:
             pdr=100.0

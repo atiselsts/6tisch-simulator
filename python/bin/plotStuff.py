@@ -155,8 +155,13 @@ def genTopologyPlots(dir,infilemame):
                 # squareSide
                 m = re.search('squareSide\s+=\s+([\.0-9]+)',line)
                 if m:
-                    squareSide = float(m.group(1))
-            
+                    squareSide    = float(m.group(1))
+                
+                # sensitivity
+                m = re.search('sensitivity\s+=\s+([-0-9]+)',line)
+                if m:
+                    sensitivity   = int(m.group(1))
+                
             if line.startswith('#pos'):
                 
                 # runNum
@@ -363,7 +368,7 @@ def genTopologyPlots(dir,infilemame):
         )
         ax5.plot(
             [0,1000*squareSide],
-            [-101,-101],
+            [sensitivity,sensitivity],
             color       = 'red',
             zorder      = 2,
             lw          = 0.5,

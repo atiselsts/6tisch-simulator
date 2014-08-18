@@ -74,6 +74,14 @@ def parseCliOptions():
         help       = 'Number of frequency channels (between 1 and 16).',
     )
     
+    parser.add_argument( '--sensitivity',
+        dest       = 'sensitivity',
+        nargs      = 1,
+        type       = int,
+        default    = -101,
+        help       = 'Radio sensitivity, in dBm.',
+    )
+    
     parser.add_argument( '--slotDuration',
         dest       = 'slotDuration',
         nargs      = '+',
