@@ -120,9 +120,6 @@ class SimStats(object):
         #'avgLatency':                   avgLatency,
         #'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
         
-        # reset statistics
-        self.propagation.resetStats()
-        
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
             asn         = self.engine.getAsn()+self.settings.slotframeLength,

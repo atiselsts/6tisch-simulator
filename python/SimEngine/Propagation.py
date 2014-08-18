@@ -24,6 +24,8 @@ import threading
 import random
 import math
 
+import Topology
+
 #============================ defines =========================================
 
 #============================ body ============================================
@@ -55,52 +57,18 @@ class Propagation(object):
         self.dataLock                  = threading.Lock()
         self.receivers                 = [] # motes with radios currently on listening
         self.transmissions             = [] # ongoing transmissions
-        
-        # 
-        self.notransmissions           = []
-        self.collisions                = []
-        self.rxFailures                = []
-        
-        # for schedule collision cells
-        self.numPktAtSC                = 0
-        self.numNoPktAtSC              = 0 # No Packet at schedule collision cells
-        self.numSuccessAtSC            = 0
-        
-        # for schedule collision free cells
-        self.numPktAtNSC               = 0 # packets at non schedule collision cells
-        self.numNoPktAtNSC             = 0 # no packets at non schedule collision cells
-        self.numSuccessAtNSC           = 0 # success transmissions at both NSC and SC
-        
-        self.numAccumPktAtSC           = 0
-        self.numAccumNoPktAtSC         = 0
-        self.numAccumSuccessAtSC       = 0
-         
-        self.numAccumPktAtNSC          = 0
-        self.numAccumNoPktAtNSC        = 0
-        self.numAccumSuccessAtNSC      = 0
     
     def destroy(self):
         self._instance                 = None
         self._init                     = False
     
-    #======================== body ============================================
+    #======================== public ==========================================
     
-    def resetStats(self):
-        '''Reset statistics'''
-        with self.dataLock:
-
-            self.numAccumPktAtSC       = 0
-            self.numAccumNoPktAtSC     = 0
-            self.numAccumSuccessAtSC   = 0
-             
-            self.numAccumPktAtNSC      = 0
-            self.numAccumNoPktAtNSC    = 0
-            self.numAccumSuccessAtNSC  = 0
+    #===== communication
     
     def startRx(self,mote,channel):
         ''' add a mote as listener on a channel'''
         with self.dataLock:
-            #note that we don't prevent collisions as we want to enable broadcast ch.
             self.receivers += [{
                 'mote':                mote,
                 'channel':             channel,
@@ -117,30 +85,87 @@ class Propagation(object):
                 'payload':             payload,
             }]
     
-    def noTx(self,channel,smac,dmac):
-        ''' add a tx mote without data (for debug purpose) '''
+    def propagate(self):
+        ''' Simulate the propagation of pkts in a slot. '''
+        
         with self.dataLock:
             
-            self.notransmissions  += [{
-                'channel':             channel,
-                'smac':                smac,
-                'dmac':                dmac,
-            }]
-
-    def dBmTomW(self, dBm):
-        ''' translate dBm to mW '''
-        return math.pow(10.0, dBm/10.0)
-
-    def mWTodBm(self, mW):
-        ''' translate dBm to mW '''
-        return 10*math.log10(mW)
-
-    def computeSINR(self, smac, dmac, interferers):
+            for transmission in self.transmissions:
+                
+                i       = 0
+                isACKed = False
+                
+                while i<len(self.receivers):
+                    
+                    if self.receivers[i]['channel']==transmission['channel']:
+                        # this receiver is listening on the right channel
+                        
+                        if self.receivers[i]['mote']==transmission['dmac']:
+                            # this packet is destined for this mote
+                            
+                            # other transmissions on the same channel?
+                            interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
+                            
+                            # calculate pdr, including interference
+                            sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                            pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                            
+                            # pick a random number
+                            failure = random.random()
+                            
+                            if (pdr>=failure):
+                                # packet is received correctly
+                                
+                                # this mote is delivered the packet
+                                self.receivers[i]['mote'].rxDone(
+                                    type       = transmission['type'],
+                                    smac       = transmission['smac'],
+                                    dmac       = transmission['dmac'],
+                                    payload    = transmission['payload']
+                                )
+                                
+                                # this mote ACKs succesfully
+                                isACKed = True
+                                
+                                # this mote stops listening
+                                del self.receivers[i]
+                            else:
+                                # packet is NOT received correctly
+                                
+                                # move to the next receiver
+                                i += 1
+                            
+                        else:
+                            # this packet is NOT destined for this mote
+                            
+                            # move to the next receiver
+                            i += 1
+                    
+                    else:
+                        # this receiver is NOT listening on the right channel
+                        
+                        # move to the next receiver
+                        i += 1
+                
+                # indicate to source packet was sent
+                transmission['smac'].txDone(isACKed)
+            
+            # to all receivers still listening, indicate no packet received
+            for r in self.receivers:
+                r['mote'].rxDone()
+            
+            # clear all outstanding transmissions
+            self.transmissions              = []
+            self.receivers                  = []
+    
+    #======================== private =========================================
+    
+    def _computeSINR(self,source,destination,interferers):
         ''' compute SINR  '''
         
-        noise = self.dBmTomW(dmac.noisepower)
+        noise = self._dBmTomW(destination.noisepower)
         # S = RSSI - N
-        signal = self.dBmTomW(smac.getRSSI(dmac)) - noise
+        signal = self._dBmTomW(source.getRSSI(destination)) - noise
         if signal < 0.0:
             # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB)
             return -10.0
@@ -148,7 +173,7 @@ class Propagation(object):
         totalInterference = 0.0
         for interferer in interferers:
             # I = RSSI - N
-            interference = self.dBmTomW(interferer.getRSSI(dmac)) - noise
+            interference = self._dBmTomW(interferer.getRSSI(destination)) - noise
             if interference < 0.0:
                 # RSSI has not to be below noise level. If this happens, set interference 0.0
                 interference = 0.0
@@ -156,157 +181,23 @@ class Propagation(object):
         
         sinr = signal/(totalInterference + noise)
         
-        return self.mWTodBm(sinr)
+        return self._mWTodBm(sinr)
     
-    def computePdrFromSINR(self, sinr, dmac):
+    def _computePdrFromSINR(self, sinr, destination):
         ''' compute PDR from SINR  '''
-
-        # equivalent RSSI means RSSI which has same SNR as input SINR
-        equivalentRSSI = self.mWTodBm(self.dBmTomW(sinr + dmac.noisepower) + self.dBmTomW(dmac.noisepower))
-            
-        # TODO these values are tentative. Need to check datasheet for RSSI vs PDR relationship.
-        if equivalentRSSI < -85 and equivalentRSSI > dmac.sensitivity:
-            pdr=(equivalentRSSI - dmac.sensitivity)*6.25
-        elif equivalentRSSI <= dmac.sensitivity:
-            pdr=0.0
-        elif equivalentRSSI > -85:
-            pdr=100.0
-            
+        
+        equivalentRSSI  = self._mWTodBm(
+            self._dBmTomW(sinr+destination.noisepower) + self._dBmTomW(destination.noisepower)
+        )
+        
+        pdr             = Topology.Topology.rssiToPdr(equivalentRSSI,destination.sensitivity)
+        
         return pdr
     
-    def propagate(self):
-        ''' simulate the propagation of pkts in a slot.
-            for each of the transmitters do:
-            for all motes listening on a channel notify them (no propagation model yet).
-            Notify the rest with No packet so they can know that nothing happen in that slot.
-        '''
-        
-        with self.dataLock:
-            
-            scheduleCollisionChs = set()
-            
-            for transmission in self.transmissions:
-                
-                # find matching receivers
-                i = 0
-                success = True # success in packet delivery
-                scheduleCollision = False
-                
-                num_receivers_ch = 0
-                while i<len(self.receivers):
-                    if self.receivers[i]['channel'] == transmission['channel']:
-                        num_receivers_ch += 1
-                         
-                        #check this is a real link --
-                        if self.receivers[i]['mote'].id == transmission['dmac'].id:
-                            
-                            # Check schedule collision and concurrent transmission
-                            interferers = []
-                            for otherPacket in self.transmissions:
-                                if (otherPacket != transmission) and (otherPacket['channel'] == transmission['channel']):
-                                    if scheduleCollision == False:
-                                        scheduleCollision = True
-                                        scheduleCollisionChs.add(transmission['channel'])
-                                    interferers.append(otherPacket['smac'])
-
-                            # Check schedule collision between Tx and no Tx
-                            if scheduleCollision == False:
-                                for noTx in self.notransmissions:
-                                    if noTx['channel'] == transmission['channel']:
-                                        scheduleCollision = True
-                                        scheduleCollisionChs.add(transmission['channel'])
-                                        break
-                            
-                            if scheduleCollision == False:
-                                self.numPktAtNSC += 1
-                            else:
-                                self.numPktAtSC += 1
-                                
-                                
-                            # test whether a packet can be delivered
-                            # get SINR to that neighbor and translate it to PDR
-                            sinr = self.computeSINR(transmission['smac'], transmission['dmac'], interferers)
-                            pdr = self.computePdrFromSINR(sinr, transmission['dmac'])
-                            
-                            # pick a random number
-                            failure = random.randint(0,100)
-                            
-                            # if we are lucky the packet is sent
-                            if (pdr>=failure):
-                                success = True
-                                if scheduleCollision == True:
-                                    self.numSuccessAtSC += 1
-                                else:
-                                    self.numSuccessAtNSC += 1
-
-                                log.debug("send with pdr {0},{1}".format(pdr,failure))
-                                self.receivers[i]['mote'].rxDone(
-                                    type       = transmission['type'],
-                                    smac       = transmission['smac'],
-                                    dmac       = transmission['dmac'],
-                                    payload    = transmission['payload']
-                                )
-                                del self.receivers[i]
-                            else:
-                                success = False
-                                log.debug( "failed to send from {2},{3} due to pdr {0},{1}".format(pdr, failure, transmission['smac'].id, self.receivers[i]['mote'].id))
-                                self.rxFailures += [self.receivers[i]]
-                                del self.receivers[i]
-                                # increment of i does not needed because of del self.receivers[i]
-
-                        else: # different id
-                            # not a neighbor, this is a listening terminal on that channel which is not neihbour -- this happens also when broadcasting
-                            # TODO if we add broadcast, it will be processed here
-                            i += 1
-                    
-                    else: # different channel
-                        i += 1
-                
-                # indicate to source packet was sent
-                log.debug(" num listeners per transmitter {0}".format(num_receivers_ch))
-                transmission['smac'].txDone(success)
-            
-            # indicate packet error
-            for r in self.rxFailures:
-                r['mote'].rxDone(failure=True)
-
-            # indicate no packet received
-            for r in self.receivers:
-                r['mote'].rxDone()
-            
-            # check schedule collision between no Txs and store channel
-            for n in self.notransmissions:
-                for otherNoTx in self.notransmissions:
-                    if (otherNoTx != n) and (otherNoTx['channel'] == n['channel']):
-                        scheduleCollisionChs.add(n['channel'])
-            
-            # count no packets at both SC and NSC
-            for n in self.notransmissions:
-                if n['channel'] in scheduleCollisionChs:
-                    self.numNoPktAtSC      += 1
-                else:
-                    self.numNoPktAtNSC     += 1
-            
-            # update at each slot, clear at the end of slotframe
-            self.numAccumPktAtSC           += self.numPktAtSC
-            self.numAccumNoPktAtSC         += self.numNoPktAtSC
-            self.numAccumSuccessAtSC       += self.numSuccessAtSC
-             
-            self.numAccumPktAtNSC          += self.numPktAtNSC
-            self.numAccumNoPktAtNSC        += self.numNoPktAtNSC
-            self.numAccumSuccessAtNSC      += self.numSuccessAtNSC
-
-            # clear all outstanding transmissions
-            self.transmissions              = []
-            self.notransmissions            = []
-            self.receivers                  = []
-            self.collisions                 = []
-            self.rxFailures                 = []
-            
-            self.numPktAtSC                 = 0
-            self.numNoPktAtSC               = 0
-            self.numSuccessAtSC             = 0
-            
-            self.numPktAtNSC                = 0
-            self.numNoPktAtNSC              = 0
-            self.numSuccessAtNSC            = 0
+    def _dBmTomW(self, dBm):
+        ''' translate dBm to mW '''
+        return math.pow(10.0, dBm/10.0)
+    
+    def _mWTodBm(self, mW):
+        ''' translate dBm to mW '''
+        return 10*math.log10(mW)

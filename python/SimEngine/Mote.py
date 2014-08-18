@@ -131,7 +131,7 @@ class Mote(object):
         self.dagRoot              = True
         self.rank                 = 0
         self.dagRank              = 0
-        self.accumLatency         = 0 # Accumulated latency to reach to DAG root (in slots)
+        self.packetLatencies      = [] # in slots
     
     #===== application
     
@@ -170,17 +170,8 @@ class Mote(object):
             # update mote stats
             self._incrementMoteStats('pkGenerated')
             
-            # add to queue
-            if len(self.txQueue)==self.TSCH_QUEUE_SIZE:
-                
-                # update mote stats
-                self._incrementMoteStats('dataQueueFull')
-            else:
-                # update mote stats
-                self._incrementMoteStats('dataQueueOK')
-                
-                # enqueue packet
-                self.txQueue     += [newPacket]
+            # enqueue packet in TSCH queue
+            self._tsch_enqueue(newPacket)
         
         # schedule next _app_action_sendData
         self._app_schedule_sendData()
@@ -210,7 +201,7 @@ class Mote(object):
             if self.rank!=None and self.dagRank!=None:
                 
                 # update mote stats
-                self._incrementMoteStats('numDIOsTransmitted')
+                self._incrementMoteStats('numTxDIO')
                 
                 # "send" DIO to all neighbors
                 for neighbor in self._myNeigbors():
@@ -277,7 +268,7 @@ class Mote(object):
                 
                 # update mote stats
                 if self.preferredParent and newPreferredParent!=self.preferredParent:
-                    self._incrementMoteStats('numPrefParentChange')
+                    self._incrementMoteStats('churnPrefParent')
                     # log
                     self._log(
                         self.INFO,
@@ -287,7 +278,7 @@ class Mote(object):
                 
                 # update mote stats
                 if self.rank and newrank!=self.rank:
-                    self._incrementMoteStats('numRankChange')
+                    self._incrementMoteStats('churnRank')
                     # log
                     self._log(
                         self.INFO,
@@ -729,6 +720,32 @@ class Mote(object):
     
     #===== tsch
     
+    def _tsch_enqueue(self,packet):
+        
+        if not self.preferredParent:
+            # I don't have a route
+            
+            # increment mote state
+            self._incrementMoteStats('droppedNoRoute')
+        
+        elif not self.getTxCells():
+            # I don't have any transmit cells
+            
+            # increment mote state
+            self._incrementMoteStats('droppedNoTxCells')
+        
+        elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
+            # my TX queue is full
+            
+            # update mote stats
+            self._incrementMoteStats('droppedQueueFull')
+        
+        else:
+            # all is good
+            
+            # enqueue packet
+            self.txQueue     += [packet]
+    
     def _tsch_schedule_activeCell(self):
         
         asn        = self.engine.getAsn()
@@ -770,14 +787,11 @@ class Mote(object):
         #self._log(self.DEBUG,"[tsch] _tsch_action_activeCell")
         
         asn = self.engine.getAsn()
-        
-        # get timeslotOffset of current asn
-        ts = asn%self.settings.slotframeLength
+        ts  = asn%self.settings.slotframeLength
         
         with self.dataLock:
-            # make sure this is an active slot
-            # NOTE: might be relaxed when schedule is changed
-               
+            
+            # make sure this is an active slot   
             assert ts in self.schedule
             
             # make sure we're not in the middle of a TX/RX operation
@@ -800,9 +814,8 @@ class Mote(object):
                 
                 # check whether packet to send
                 self.pktToSend = None
-                if self.txQueue != []:
+                if self.txQueue:
                     self.pktToSend = self.txQueue[0]
-                    self.txQueue[0]['retriesLeft'] -= 1
                 
                 # send packet
                 if self.pktToSend:
@@ -819,13 +832,6 @@ class Mote(object):
                     
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
-                else:
-                    # debug purpose to check
-                    self.propagation.noTx(
-                        channel   = cell['ch'],
-                        smac      = self,
-                        dmac      = cell['neighbor']
-                    )
             
             if not self.waitingFor:
                 # schedule next active cell
@@ -850,8 +856,6 @@ class Mote(object):
                 'numTx':              0,
                 'numTxAck':           0,
                 'numRx':              0,
-                'numTxFailures':      0,
-                'numRxFailures':      0,
             }
     
     def _tsch_removeCell(self,ts,neighbor):
@@ -871,7 +875,7 @@ class Mote(object):
     
     #===== radio
     
-    def txDone(self,success):
+    def txDone(self,isACKed):
         '''end of tx slot'''
         
         asn   = self.engine.getAsn()
@@ -883,7 +887,7 @@ class Mote(object):
             assert self.schedule[ts]['dir']==self.DIR_TX
             assert self.waitingFor==self.DIR_TX
             
-            if success:
+            if isACKed:
                 
                 # update schedule stats
                 self.schedule[ts]['numTxAck'] += 1
@@ -896,10 +900,17 @@ class Mote(object):
             
             else:
                 
-                # failure include collision and normal packet error
-                self.schedule[ts]['numTxFailures'] += 1
+                # decrement 'retriesLeft' counter associated with that packet
                 i = self.txQueue.index(self.pktToSend)
+                self.txQueue[i]['retriesLeft'] -= 1
+                
+                # drop packet if retried too many time
                 if self.txQueue[i]['retriesLeft'] == 0:
+                    
+                    # update mote stats
+                    self._incrementMoteStats('droppedMacRetries')
+                    
+                    # remove packet from queue
                     self.txQueue.remove(self.pktToSend)
             
             self.waitingFor = None
@@ -907,7 +918,7 @@ class Mote(object):
             # schedule next active cell
             self._tsch_schedule_activeCell()
     
-    def rxDone(self,type=None,smac=None,dmac=None,payload=None,failure=False):
+    def rxDone(self,type=None,smac=None,dmac=None,payload=None):
         '''end of rx slot'''
         
         asn   = self.engine.getAsn()
@@ -919,46 +930,41 @@ class Mote(object):
             assert self.schedule[ts]['dir']==self.DIR_RX
             assert self.waitingFor==self.DIR_RX
             
-            # successfully received
             if smac:
-                self.schedule[ts]['numRx']           += 1
-            
-            # collision
-            if failure:
-                self.schedule[ts]['numRxFailures']   += 1
-            
-            if self.dagRoot and smac:
-                # receiving packet at DAG root
+                # I received a packet
                 
-                # update mote stats
-                self._incrementMoteStats('pkReceived')
+                # update schedule stats
+                self.schedule[ts]['numRx'] += 1
                 
-                # calculate end-to-end latency
-                latency = asn-payload[1]
-                self.accumLatency += latency
-            
-            elif not self.dagRoot and self.preferredParent and smac and self.getTxCells():
-                # relaying packet
+                if self.dagRoot:
+                    # receiving packet (at DAG root)
+                    
+                    # update mote stats
+                    self._incrementMoteStats('pkReachesDagroot')
+                    
+                    # calculate end-to-end latency
+                    self.packetLatencies += [asn-payload[1]]
                 
-                # update mote stats
-                self._incrementMoteStats('pkRelayed')
-                
-                # count incoming traffic for each node
-                self._otf_incrementIncomingTraffic(smac)
-                
-                # add to queue
-                
-                if len(self.txQueue)==self.TSCH_QUEUE_SIZE:
-                    self._incrementMoteStats('dataQueueFull')
                 else:
-                    self._incrementMoteStats('dataQueueOK')
-                    self.txQueue += [{
+                    # relaying packet
+                    
+                    # count incoming traffic for each node
+                    self._otf_incrementIncomingTraffic(smac)
+                    
+                    # create packet
+                    relayPacket = {
                         'asn':         asn,
                         'type':        type,
                         'payload':     payload,
                         'retriesLeft': self.TSCH_MAXTXRETRIES
-                    }]
-                
+                    }
+                    
+                    # update mote stats
+                    self._incrementMoteStats('pkRelayed')
+                    
+                    # enqueue packet in TSCH queue
+                    self._tsch_enqueue(relayPacket)
+            
             self.waitingFor = None
             
             # schedule next active cell
@@ -1051,20 +1057,24 @@ class Mote(object):
         with self.dataLock:
             self.motestats = {
                 # app
-                'pkGenerated':         0,
-                'pkRelayed':           0,
-                'pkReceived':          0,
+                'pkGenerated':         0,   # number of packets app layer generated
+                'pkRelayed':           0,   # number of packets relayed
+                'pkReachesDagroot':    0,   # number of packets received at the DAGroot
                 # queue
-                'dataQueueOK':         0,
-                'dataQueueFull':       0,
+                'droppedQueueFull':    0,   # dropped packets because queue is full
                 # rpl
-                'numDIOsTransmitted':  0,
-                'numRxDIO':            0,
-                'numPrefParentChange': 0,
-                'numRankChange':       0,
+                'numTxDIO':            0,   # number of TX'ed DIOs
+                'numRxDIO':            0,   # number of RX'ed DIOs
+                'churnPrefParent':     0,   # number of time the mote changes preferred parent
+                'churnRank':           0,   # number of time the mote changes rank
+                'droppedNoRoute':      0,   # packets dropped because no route (no preferred parent)
                 # otf
-                'numRelocatedCells':   0,
-                'numRelocatedBundles': 0,
+                'droppedNoTxCells':    0,   # packets dropped because no TX cells
+                # 6top
+                'numRelocatedCells':   0,   # number of time 6top relocates a single cell
+                'numRelocatedBundles': 0,   # number of time 6top relocates a bundle
+                # tsch
+                'droppedMacRetries':   0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
             }
     
     def _incrementMoteStats(self,name):
@@ -1101,8 +1111,6 @@ class Mote(object):
                         'numTx':          cell['numTx'],
                         'numTxAck':       cell['numTxAck'],
                         'numRx':          cell['numRx'],
-                        'numTxFailures':  cell['numTxFailures'],
-                        'numRxFailures':  cell['numRxFailures'],
                     }
                     break
         return returnVal
