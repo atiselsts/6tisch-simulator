@@ -134,7 +134,7 @@ def parseCliOptions():
         dest       = 'numRuns',
         nargs      = 1,
         type       = int,
-        default    = 1,
+        default    = 100,
         help       = 'Number of simulation runs per each configurations.',
     )
     

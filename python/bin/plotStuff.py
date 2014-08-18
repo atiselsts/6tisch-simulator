@@ -239,7 +239,7 @@ def genTopologyPlots(dir,infilemame):
     # plot topologies
     for runNum in sorted(motes.keys()):
         
-        outfilename = infilemame.split('.')[0]+'_topology_runNumber_{}.png'.format(runNum)
+        outfilename = 'topology_run_{}.png'.format(runNum)
         outfilepath = os.path.join(dir,outfilename)
         
         # print
