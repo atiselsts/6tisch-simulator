@@ -199,12 +199,13 @@ def genTopologyPlots(dir,infilemame):
                 links[runNum] = []
                 
                 # links
-                m = re.findall('([0-9]+)-([0-9]+)@([\-0-9]+)dBm',line)
-                for (moteA,moteB,rssi) in m:
+                m = re.findall('([0-9]+)-([0-9]+)@([\-0-9]+)dBm@([\.0-9]+)',line)
+                for (moteA,moteB,rssi,pdr) in m:
                     links[runNum] += [{
                         'moteA':  int(moteA),
                         'moteB':  int(moteB),
                         'rssi':   int(rssi),
+                        'pdr':    float(pdr),
                     }]
     
     # verify integrity
@@ -246,11 +247,18 @@ def genTopologyPlots(dir,infilemame):
         
         #=== start new plot
         
-        fig = matplotlib.pyplot.figure(figsize=(8,12), dpi=80)
+        matplotlib.rc('font', size=8)
+        fig = matplotlib.pyplot.figure(
+            figsize     = (8,12),
+            dpi         = 80,
+        )
         
         #=== plot 1: motes and IDs
         
         ax1 = fig.add_subplot(3,2,1,aspect='equal')
+        ax1.set_title('mote positions and IDs')
+        ax1.set_xlabel('x (km)')
+        ax1.set_ylabel('y (km)')
         ax1.set_xlim(xmin=0,xmax=squareSide)
         ax1.set_ylim(ymin=0,ymax=squareSide)
         
@@ -267,9 +275,12 @@ def genTopologyPlots(dir,infilemame):
                 zorder  = 3,
             )
         
-        #=== plot 2: motes, rank and contour
+        #=== plot 2: contour
         
         ax2 = fig.add_subplot(3,2,2,aspect='equal')
+        ax2.set_title('RPL rank contour')
+        ax2.set_xlabel('x (km)')
+        ax2.set_ylabel('y (km)')
         ax2.set_xlim(xmin=0,xmax=squareSide)
         ax2.set_ylim(ymin=0,ymax=squareSide)
         
@@ -302,6 +313,9 @@ def genTopologyPlots(dir,infilemame):
         #=== plot 3: links
         
         ax3 = fig.add_subplot(3,2,3,aspect='equal')
+        ax3.set_title('connectivity (PDR)')
+        ax3.set_xlabel('x (km)')
+        ax3.set_ylabel('y (km)')
         ax3.set_xlim(xmin=0,xmax=squareSide)
         ax3.set_ylim(ymin=0,ymax=squareSide)
         
@@ -311,52 +325,58 @@ def genTopologyPlots(dir,infilemame):
         # links
         cmap       = matplotlib.pyplot.get_cmap('jet')
         cNorm      = matplotlib.colors.Normalize(
-            vmin   = min([link['rssi'] for link in links[runNum]]),
-            vmax   = max([link['rssi'] for link in links[runNum]]),
+            vmin   = min([link['pdr'] for link in links[runNum]]),
+            vmax   = max([link['pdr'] for link in links[runNum]]),
         )
         scalarMap  = matplotlib.cm.ScalarMappable(norm=cNorm, cmap=cmap)
         
         for link in links[runNum]:
-            colorVal = scalarMap.to_rgba(link['rssi'])
+            colorVal = scalarMap.to_rgba(link['pdr'])
             ax3.plot(
                 [xcoord[runNum][link['moteA']],xcoord[runNum][link['moteB']]],
                 [ycoord[runNum][link['moteA']],ycoord[runNum][link['moteB']]],
                 color   = colorVal,
                 zorder  = 1,
-                lw      = 0.1,
+                lw      = 0.3,
             )
         
         #=== plot 4: TODO
         
-        ax4 = fig.add_subplot(3,2,4,aspect='equal')
-        ax4.set_xlim(xmin=0,xmax=squareSide)
-        ax4.set_ylim(ymin=0,ymax=squareSide)
+        ax4 = fig.add_subplot(3,2,4)
+        ax4.set_xlim(xmin=0,xmax=1)
         
-        # motes
-        plotMotes(ax4)
+        pdrs = [link['pdr'] for link in links[runNum]]
+        
+        for pdr in pdrs:
+            assert pdr>=0
+            assert pdr<=1
+        
+        ax4.set_title('PDRs ({0} links)'.format(len(pdrs)))
+        ax4.hist(pdrs)
         
         #=== plot 5: rssi vs. distance
         
         ax5 = fig.add_subplot(3,2,5)
         ax5.set_xlim(xmin=0,xmax=1000*squareSide)
+        ax5.set_xlabel('distance (m)')
+        ax5.set_ylabel('RSSI (dBm)')
         
-        data_x = []
-        data_y = []
+        data_x          = []
+        data_y          = []
         
-        for numRun in links.keys():
-            pos = {}
-            for mote in motes[numRun]:
-                pos[mote['id']] = (mote['x'],mote['y'])
+        pos             = {}
+        for mote in motes[runNum]:
+            pos[mote['id']] = (mote['x'],mote['y'])
+        
+        for link in links[runNum]:
+            distance    = 1000*math.sqrt(
+                (pos[link['moteA']][0] - pos[link['moteB']][0])**2 +
+                (pos[link['moteA']][1] - pos[link['moteB']][1])**2
+            )
+            rssi        = link['rssi']
             
-            for l in links[numRun]:
-                distance = 1000*math.sqrt(
-                    (pos[l['moteA']][0] - pos[l['moteB']][0])**2 +
-                    (pos[l['moteA']][1] - pos[l['moteB']][1])**2
-                )
-                rssi     = l['rssi']
-                
-                data_x += [distance]
-                data_y += [rssi]
+            data_x     += [distance]
+            data_y     += [rssi]
         
         ax5.scatter(
             data_x,
@@ -376,12 +396,25 @@ def genTopologyPlots(dir,infilemame):
         
         #=== plot 6: waterfall (pdr vs rssi)
         
-        ax6 = fig.add_subplot(3,2,6,aspect='equal')
-        ax6.set_xlim(xmin=0,xmax=squareSide)
-        ax6.set_ylim(ymin=0,ymax=squareSide)
+        ax6 = fig.add_subplot(3,2,6)
+        ax6.set_ylim(ymin=-0.100,ymax=1.100)
+        ax6.set_xlabel('RSSI (dBm)')
+        ax6.set_ylabel('PDR')
         
-        # motes
-        plotMotes(ax6)
+        data_x          = []
+        data_y          = []
+        
+        for link in links[runNum]:
+            data_x     += [link['rssi']]
+            data_y     += [link['pdr']]
+        
+        ax6.scatter(
+            data_x,
+            data_y,
+            marker      = '+',
+            c           = 'blue',
+            s           = 3,
+        )
         
         #=== save and close plot
         

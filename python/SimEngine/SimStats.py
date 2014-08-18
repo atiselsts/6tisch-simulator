@@ -193,13 +193,13 @@ class SimStats(object):
                 if (n,m) in links:
                     continue
                 try:
-                    links[(m,n)] = m.getRSSI(n)
+                    links[(m,n)] = (m.getRSSI(n),m.getPDR(n))
                 except KeyError:
                     pass
         output += [
             '#links runNum={0} {1}'.format(
                 self.runNum,
-                ' '.join(['{0}-{1}@{2:.0f}dBm'.format(moteA.id,moteB.id,rssi) for ((moteA,moteB),rssi) in links.items()])
+                ' '.join(['{0}-{1}@{2:.0f}dBm@{3:.3f}'.format(moteA.id,moteB.id,rssi,pdr) for ((moteA,moteB),(rssi,pdr)) in links.items()])
             )
         ]
         output  = '\n'.join(output)
