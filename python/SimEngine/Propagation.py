@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-\brief Wirless propagation model.
+\brief Wireless propagation model.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
@@ -53,8 +53,10 @@ class Propagation(object):
         
         # variables
         self.dataLock                  = threading.Lock()
-        self.receivers                 = []
-        self.transmissions             = []
+        self.receivers                 = [] # motes with radios currently on listening
+        self.transmissions             = [] # ongoing transmissions
+        
+        # 
         self.notransmissions           = []
         self.collisions                = []
         self.rxFailures                = []
@@ -81,8 +83,10 @@ class Propagation(object):
         self._instance                 = None
         self._init                     = False
     
-    def initStats(self):
-        ''' initialize stats at each cycle'''
+    #======================== body ============================================
+    
+    def resetStats(self):
+        '''Reset statistics'''
         with self.dataLock:
 
             self.numAccumPktAtSC       = 0

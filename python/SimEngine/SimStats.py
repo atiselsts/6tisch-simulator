@@ -121,7 +121,7 @@ class SimStats(object):
         #'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
         
         # reset statistics
-        self.propagation.initStats()
+        self.propagation.resetStats()
         
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
