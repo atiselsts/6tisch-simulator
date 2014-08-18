@@ -123,13 +123,12 @@ class SimEngine(threading.Thread):
                 # update the current ASN
                 self.asn = self.events[0][0]
                 
-                # call callbacks at this ASN (NOT monitoring)
+                # call callbacks at this ASN (NOT housekeeping)
                 i = 0
                 while True:
                     if self.events[i][0] != self.asn:
                         break
-                    # last element in tuple of uniqueTag is 'monitoring'/'sendData'/'DIO'/activeCell'
-                    if self.events[i][2][-1] != 'monitoring':
+                    if self.events[i][2][-1] != 'housekeeping':
                         (_,cb,_) = self.events.pop(i)
                         cb()
                     else:
@@ -138,7 +137,7 @@ class SimEngine(threading.Thread):
                 # tell the propagation engine to propagate
                 self.propagation.propagate()
                 
-                # call remainder callbacks (i.e. monitoring)
+                # call remainder callbacks (i.e. housekeeping)
                 while True:
                     if self.events[0][0]!=self.asn:
                         break

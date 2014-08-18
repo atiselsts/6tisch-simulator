@@ -154,13 +154,16 @@ class Topology(object):
     def _computePDR(self,mote,neighbor):
         ''' computes pdr to neighbor according to RSSI'''
         
-        distance   = self._computeDistance(mote,neighbor)
-        
-        rssi       = mote.getRSSI(neighbor)
-        if   rssi<=neighbor.radioSensitivity:
+        rssi            = mote.getRSSI(neighbor)
+        sensitivity     = neighbor.radioSensitivity
+        return self.rssiToPdr(rssi,sensitivity)
+    
+    @classmethod
+    def rssiToPdr(self,rssi,sensitivity):
+        if   rssi<=sensitivity:
             pdr    = 0.0
-        elif neighbor.radioSensitivity<rssi and rssi<neighbor.radioSensitivity+self.WATERFALL_RISING_BAND:
-            pdr    = (rssi-neighbor.radioSensitivity)*(1.0/float(self.WATERFALL_RISING_BAND))
+        elif sensitivity<rssi and rssi<sensitivity+self.WATERFALL_RISING_BAND:
+            pdr    = (rssi-sensitivity)*(1.0/float(self.WATERFALL_RISING_BAND))
         elif rssi>-85:
             pdr    = 1.0
         

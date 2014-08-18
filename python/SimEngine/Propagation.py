@@ -78,8 +78,8 @@ class Propagation(object):
         self.numAccumSuccessAtNSC      = 0
     
     def destroy(self):
-        self._instance       = None
-        self._init           = False
+        self._instance                 = None
+        self._init                     = False
     
     def initStats(self):
         ''' initialize stats at each cycle'''
