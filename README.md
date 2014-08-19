@@ -21,18 +21,21 @@ What is simulated:
     * 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
     * On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
 * the "Pister-hack" propagation model with collisions
-* a energy consumption model
+* the energy consumption model taken from
+    * [A Realistic Energy Consumption Model for TSCH Networks](http://ieeexplore.ieee.org/xpl/login.jsp?tp=&arnumber=6627960&url=http%3A%2F%2Fieeexplore.ieee.org%2Fiel7%2F7361%2F4427201%2F06627960.pdf%3Farnumber%3D6627960). Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
 
 What is *not* simulated:
 
 * downstream traffic
 
-More information about 6TiSCH:
+More about 6TiSCH:
 
-* charter: http://tools.ietf.org/wg/6tisch/charters
-* data tracker: http://tools.ietf.org/wg/6tisch/
-* mailing list: http://www.ietf.org/mail-archive/web/6tisch/current/maillist.html
-* source: https://bitbucket.org/6tisch/
+| what             | where                                                               |
+|------------------|---------------------------------------------------------------------|
+| charter          | http://tools.ietf.org/wg/6tisch/charters                            |
+| data tracker     | http://tools.ietf.org/wg/6tisch/                                    |
+| mailing list     | http://www.ietf.org/mail-archive/web/6tisch/current/maillist.html   |
+| source           | https://bitbucket.org/6tisch/                                       |
 
 Gallery
 -------
