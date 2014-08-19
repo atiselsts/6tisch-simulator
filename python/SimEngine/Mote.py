@@ -1109,6 +1109,7 @@ class Mote(object):
             returnVal['aveQueueDelay']      = self.getAverageQueueDelay()
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
+            returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
         
         # reset the statistics
         self._resetQueueStats()
