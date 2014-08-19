@@ -3,10 +3,10 @@ The 6TiSCH Simulator
 
 Brought to you by:
 
-* Thomas Watteyne \<watteyne@eecs.berkeley.edu\>
-* Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
-* Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
-* Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+* Thomas Watteyne `<`watteyne@eecs.berkeley.edu`>`
+* Kazushi Muraoka `<`k-muraoka@eecs.berkeley.edu`>`
+* Nicola Accettura `<`nicola.accettura@eecs.berkeley.edu`>`
+* Xavier Vilajosana `<`xvilajosana@eecs.berkeley.edu`>`
 
 Goal and scope
 --------------
