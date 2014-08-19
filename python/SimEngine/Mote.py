@@ -208,12 +208,18 @@ class Mote(object):
                 # update mote stats
                 self._incrementMoteStats('rplTxDIO')
                 
+                # log charge usage
+                self._logChargeConsumed(self.CHARGE_TxData_uC)
+                
                 # "send" DIO to all neighbors
                 for neighbor in self._myNeigbors():
                     
                     # don't update DAGroot
                     if neighbor.dagRoot:
                         continue
+                    
+                    # log charge usage (for neighbor)
+                    neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
                     
                     # in neighbor, update my rank/DAGrank
                     neighbor.neighborDagRank[self]    = self.dagRank
@@ -824,6 +830,9 @@ class Mote(object):
                     
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
+                    
+                    # log charge usage
+                    self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
             
             if not self.waitingFor:
                 # schedule next active cell
@@ -925,6 +934,9 @@ class Mote(object):
             if smac:
                 # I received a packet
                 
+                # log charge usage
+                self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
+                
                 # update schedule stats
                 self.schedule[ts]['numRx'] += 1
                 
@@ -956,6 +968,12 @@ class Mote(object):
                     
                     # enqueue packet in TSCH queue
                     self._tsch_enqueue(relayPacket)
+            
+            else:
+                # this was an idle listen
+                
+                # log charge usage
+                self._logChargeConsumed(self.CHARGE_Idle_uC)
             
             self.waitingFor = None
             
@@ -1031,7 +1049,7 @@ class Mote(object):
         self._otf_schedule_housekeeping()
         self._tsch_schedule_activeCell()
     
-    def logChargeConsumed(self,charge):
+    def _logChargeConsumed(self,charge):
         with self.dataLock:
             self.chargeConsumed  += charge
     
