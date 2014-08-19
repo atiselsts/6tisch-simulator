@@ -46,7 +46,7 @@ By default, the simulator output a timeline for each run, as well as some data a
 
 |  |  |
 |--|--|
-| ![](examples/run_0_topology.png) | ![](examples/run_0_timelines.png) |
+| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) |
 
 Code Organization
 -----------------
