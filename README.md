@@ -10,45 +10,54 @@
 
 The 6TiSCH simulator.
 
-Authors
--------
-
+Brought to you by:
 * Thomas Watteyne <watteyne@eecs.berkeley.edu>
 * Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 * Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 * Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 
-Event driven simulator for TSCH schedules developed under IETF 6TSCH working group.
+Goal and scope
+--------------
 
-Requirements
-------------
+6TiSCH is an active IETF standardization working group which defines mechanisms to build and maintain communication schedules in tomorrow's Internet of (Important) Things. This simulator allows you to measure the performance of those different mechanisms under different conditions.
 
-* Python 2.7 - http://www.python.org/download/releases/2.7/
-* Git client (e.g TortoiseGit for Windows or SmartGit for linux)
+What is simulated:
+* IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
+* RPL (http://tools.ietf.org/html/rfc6550)
+* 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
+* On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
+
+What is not simulated:
+* downstream traffic
 
 Installation
 ------------
 
-* Install python
-* Clone simulator code.
+* Install Python 2.7
+* Clone or download this repository
 
 Running
 -------
 
-Execute: `bin/simpleSim/simpleSim.py`
+* Run a simulation: `bin/simpleSim/runSim.py`
+* Plot fancy graphs: `bin/simpleSim/plotStuff.py`
 
-Contribute
-----------
+Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, using `--gui` for a graphical interface to the simulation running.
 
-* You can edit the code with any code editor, including vi, nano, emacs, sublime, notepad, eclipse+pydev, etc...
-* The simulator code is well documented and contributions are welcome. The core of the simulator is structured as follows and can be found in the `SimEngine` directory.
-    * `Propagation` defines the propagation behaviour, Node transmissions and nodes waiting for a packet are queued. It matches collisions and handles transmission to nodes.
-    * `Topology` Used to setup the network, the relation (links) between components. Also implements a propagation model based on the Friis equation and the Pister hack model. The later is used to setup PDR at each link.
-    * `SimEngine` the event driven engine used to take action at each timeslot.
-    * `Mote` The represetation of the state of a mote.
-    * `SimSettings` settings component used to configure some parameters. Also simpleSim component contains some default configurations.
+Code Organization
+-----------------
 
-Issues and wishlist
--------------------
+* `bin`: the script for you to run
+* `SimEngine`: the simulator
+    * `Mote.py`: Models a 6TiSCH mote running the different standards listed above.
+    * `Propagation.py`: Wireless propagation model.
+    * `SimEngine.py`: Event-driven simulation engine at the core of this simulator.
+    * `SimSettings.py`: Data store for all simulation settings.
+    * `SimStats.py`: Periodically collects statistics and writes those to a file.
+    * `Topology.py`: creates a topology of the motes in the network.
+* `SimGui`: the graphical user interface to the simulator
 
-* See https://bitbucket.org/6tsch/simulator/issues
+Issues and bugs
+---------------
+
+* Report at https://bitbucket.org/6tsch/simulator/issues
