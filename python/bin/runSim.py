@@ -62,7 +62,7 @@ def parseCliOptions():
         dest       = 'numMotes',
         nargs      = '+',
         type       = int,
-        default    = [20],#, 40],
+        default    = [20],
         help       = 'Number of simulated motes.',
     )
     
@@ -126,7 +126,7 @@ def parseCliOptions():
         dest       = 'numCyclesPerRun',
         nargs      = 1,
         type       = int,
-        default    = 100,
+        default    = 20,
         help       = 'Duration of one simulation run, in slotframe cycle.',
     )
     
@@ -134,7 +134,7 @@ def parseCliOptions():
         dest       = 'numRuns',
         nargs      = 1,
         type       = int,
-        default    = 100,
+        default    = 2,
         help       = 'Number of simulation runs per each configurations.',
     )
     

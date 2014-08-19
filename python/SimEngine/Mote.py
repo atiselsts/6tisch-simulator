@@ -67,6 +67,15 @@ class Mote(object):
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 3
+    #=== battery
+    # see A Realistic Energy Consumption Model for TSCH Networks.
+    # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
+    # Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
+    CHARGE_Idle_uC                     = 24.60
+    CHARGE_TxDataRxAck_uC              = 64.82
+    CHARGE_TxData_uC                   = 49.37
+    CHARGE_RxDataTxAck_uC              = 76.90
+    CHARGE_RxData_uC                   = 64.65
     
     def __init__(self,id):
         
@@ -113,6 +122,7 @@ class Mote(object):
         self.PDR                       = {}      # indexed by neighbor
         # location
         # battery
+        self.chargeConsumed            = 0
         
         # stats
         self._resetMoteStats()
@@ -1021,6 +1031,10 @@ class Mote(object):
         self._otf_schedule_housekeeping()
         self._tsch_schedule_activeCell()
     
+    def logChargeConsumed(self,charge):
+        with self.dataLock:
+            self.chargeConsumed  += charge
+    
     #======================== private =========================================
     
     #===== getters
@@ -1072,10 +1086,11 @@ class Mote(object):
         # gather statistics
         with self.dataLock:
             returnVal = copy.deepcopy(self.motestats)
-            returnVal['numTxCells']    = len(self.getTxCells())
-            returnVal['numRxCells']    = len(self.getRxCells())
-            returnVal['aveQueueDelay'] = self.getAverageQueueDelay()
-            returnVal['txQueueFill']   = len(self.txQueue)
+            returnVal['numTxCells']         = len(self.getTxCells())
+            returnVal['numRxCells']         = len(self.getRxCells())
+            returnVal['aveQueueDelay']      = self.getAverageQueueDelay()
+            returnVal['txQueueFill']        = len(self.txQueue)
+            returnVal['chargeConsumed']     = self.chargeConsumed
         
         # reset the statistics
         self._resetQueueStats()
