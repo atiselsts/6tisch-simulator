@@ -154,7 +154,7 @@ class SimStats(object):
         output         += ['\n']
         output          = '\n'.join(output)
         
-        with open(self.settings.getOutputFile(),'a') as f:
+        with open(self.settings.getOutputFile(),'w') as f:
             f.write(output)
     
     def _fileWriteStats(self,stats):
