@@ -895,7 +895,7 @@ class Mote(object):
                 self.schedule[ts]['numTxAck'] += 1
                 
                 # update queue stats
-                self._alogQueueDelayStat(asn-self.pktToSend['asn'])
+                self._logQueueDelayStat(asn-self.pktToSend['asn'])
                 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
@@ -1150,7 +1150,7 @@ class Mote(object):
                 'delay':               [],
             }
     
-    def _alogQueueDelayStat(self,delay):
+    def _logQueueDelayStat(self,delay):
         with self.dataLock:
             self.queuestats['delay'] += [delay]
     
