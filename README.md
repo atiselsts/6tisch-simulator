@@ -8,21 +8,33 @@ Brought to you by:
 * Nicola Accettura (nicola.accettura@eecs.berkeley.edu)
 * Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
 
-Goal and scope
---------------
+Scope
+-----
 
 6TiSCH is an active IETF standardization working group which defines mechanisms to build and maintain communication schedules in tomorrow's Internet of (Important) Things. This simulator allows you to measure the performance of those different mechanisms under different conditions.
 
 What is simulated:
 
-* IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
-* RPL (http://tools.ietf.org/html/rfc6550)
-* 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
-* On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
+* protocols
+    * IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
+    * RPL (http://tools.ietf.org/html/rfc6550)
+    * 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
+    * On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
+* the "Pister-hack" propagation model with collisions
+* a energy consumption model
 
 What is *not* simulated:
 
 * downstream traffic
+
+Gallery
+-------
+
+By default, the simulator output a timeline for each run, as well as some data about the topology.
+
+|  |  |
+|--|--|
+| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) |
 
 Installation
 ------------
@@ -38,15 +50,6 @@ Running
 * Plot fancy graphs: `bin/simpleSim/plotStuff.py`
 
 Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
-
-Example output
---------------
-
-By default, the simulator output a timeline for each run, as well as some data about the topology.
-
-|  |  |
-|--|--|
-| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) |
 
 Code Organization
 -----------------
