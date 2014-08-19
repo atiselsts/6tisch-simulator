@@ -27,10 +27,15 @@ What is *not* simulated:
 
 * downstream traffic
 
+More information about 6TiSCH:
+
+* charter: http://tools.ietf.org/wg/6tisch/charters
+* data tracker: http://tools.ietf.org/wg/6tisch/
+* mailing list: http://www.ietf.org/mail-archive/web/6tisch/current/maillist.html
+* source: https://bitbucket.org/6tisch/
+
 Gallery
 -------
-
-By default, the simulator output a timeline for each run, as well as some data about the topology.
 
 |  |  |
 |--|--|
