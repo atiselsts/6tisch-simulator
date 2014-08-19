@@ -40,9 +40,9 @@ More about 6TiSCH:
 Gallery
 -------
 
-|  |  |
-|--|--|
-| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) |
+|  |  |  |
+|--|--|--|
+| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/gui.png) |
 
 Installation
 ------------
