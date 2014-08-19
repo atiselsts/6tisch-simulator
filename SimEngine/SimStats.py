@@ -102,7 +102,8 @@ class SimStats(object):
                     'runNum':              self.runNum,
                     'cycle':               cycle,
                 }.items() +
-                self._collectSumMoteStats().items()
+                self._collectSumMoteStats().items()  +
+                self._collectScheduleStats().items()
             )
         )
         
@@ -145,6 +146,22 @@ class SimStats(object):
                     returnVal[k] += moteStats[k]
         
         return returnVal
+    
+    def _collectScheduleStats(self):
+        
+        # compute the number of schedule collisions
+        scheduleCollisions = 0
+        txCells = []
+        for mote in self.engine.motes:
+            for (ts,cell) in mote.schedule.items():
+                (ts,ch) = (ts,cell['ch'])
+                if cell['dir']==mote.DIR_TX:
+                    if (ts,ch) in txCells:
+                        scheduleCollisions += 1
+                    else:
+                        txCells += [(ts,ch)]
+        
+        return {'scheduleCollisions':scheduleCollisions}
     
     #=== writing to file
     

@@ -3,5 +3,4 @@
 *.log
 *.log.*
 *.dat
-/python/bin/simData
-/python/bin/simFigs
+/bin/simData
