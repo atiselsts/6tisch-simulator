@@ -3,10 +3,10 @@ The 6TiSCH Simulator
 
 Brought to you by:
 
-* Thomas Watteyne `<`watteyne@eecs.berkeley.edu`>`
-* Kazushi Muraoka `<`k-muraoka@eecs.berkeley.edu`>`
-* Nicola Accettura `<`nicola.accettura@eecs.berkeley.edu`>`
-* Xavier Vilajosana `<`xvilajosana@eecs.berkeley.edu`>`
+* Thomas Watteyne (watteyne@eecs.berkeley.edu)
+* Kazushi Muraoka (k-muraoka@eecs.berkeley.edu)
+* Nicola Accettura (nicola.accettura@eecs.berkeley.edu)
+* Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
 
 Goal and scope
 --------------
@@ -38,6 +38,15 @@ Running
 * Plot fancy graphs: `bin/simpleSim/plotStuff.py`
 
 Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
+
+Example output
+--------------
+
+By default, the simulator output a timeline for each run, as well as some data about the topology.
+
+|  |  |
+|--|--|
+| ![](examples/run_0_topology.png) | ![](examples/run_0_timelines.png) |
 
 Code Organization
 -----------------
