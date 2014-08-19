@@ -127,6 +127,7 @@ class Mote(object):
         # stats
         self._resetMoteStats()
         self._resetQueueStats()
+        self._resetLatencyStats()
     
     #======================== stack ===========================================
     
@@ -894,7 +895,7 @@ class Mote(object):
                 self.schedule[ts]['numTxAck'] += 1
                 
                 # update queue stats
-                self._addDelayQueueStats(asn-self.pktToSend['asn'])
+                self._alogQueueDelayStat(asn-self.pktToSend['asn'])
                 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
@@ -947,7 +948,7 @@ class Mote(object):
                     self._incrementMoteStats('appReachesDagroot')
                     
                     # calculate end-to-end latency
-                    self.packetLatencies += [asn-payload[1]]
+                    self._logLatencyStat(asn-payload[1])
                 
                 else:
                     # relaying packet
@@ -1106,14 +1107,16 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
-            returnVal['aveQueueDelay']      = self.getAverageQueueDelay()
+            returnVal['aveQueueDelay']      = self.getAveQueueDelay()
+            returnVal['aveLatency']         = self.getAveLatency()
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
         
         # reset the statistics
-        self._resetQueueStats()
         self._resetMoteStats()
+        self._resetQueueStats()
+        self._resetLatencyStats()
         
         return returnVal
     
@@ -1137,9 +1140,9 @@ class Mote(object):
     
     # queue stats
     
-    def getAverageQueueDelay(self):
-        l = self.queuestats['delay']
-        return float(sum(l))/len(l) if len(l) > 0 else 0
+    def getAveQueueDelay(self):
+        d = self.queuestats['delay']
+        return float(sum(d))/len(d) if len(d)>0 else 0
     
     def _resetQueueStats(self):
         with self.dataLock:
@@ -1147,9 +1150,24 @@ class Mote(object):
                 'delay':               [],
             }
     
-    def _addDelayQueueStats(self,delay):
+    def _alogQueueDelayStat(self,delay):
         with self.dataLock:
             self.queuestats['delay'] += [delay]
+    
+    # latency stats
+    
+    def getAveLatency(self):
+        with self.dataLock:
+            d = self.packetLatencies
+            return float(sum(d))/float(len(d)) if len(d)>0 else 0
+    
+    def _resetLatencyStats(self):
+        with self.dataLock:
+            self.packetLatencies = []
+    
+    def _logLatencyStat(self,latency):
+        with self.dataLock:
+            self.packetLatencies += [latency]
     
     #===== log
     
