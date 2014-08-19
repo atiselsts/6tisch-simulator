@@ -20,7 +20,8 @@ What is simulated:
 * 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
 * On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
 
-What is not simulated:
+What is *not* simulated:
+
 * downstream traffic
 
 Installation
@@ -28,6 +29,7 @@ Installation
 
 * Install Python 2.7
 * Clone or download this repository
+* To plot the graphs, you need Matplotlib and scipy. On Windows, Anaconda (http://continuum.io/downloads) is a good on-stop-shop.
 
 Running
 -------
@@ -35,7 +37,7 @@ Running
 * Run a simulation: `bin/simpleSim/runSim.py`
 * Plot fancy graphs: `bin/simpleSim/plotStuff.py`
 
-Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, using `--gui` for a graphical interface to the simulation running.
+Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
 
 Code Organization
 -----------------
