@@ -150,6 +150,9 @@ class SimStats(object):
     def _collectScheduleStats(self):
         
         # compute the number of schedule collisions
+        
+        # Note that this cannot count past schedule collisions which have been relocated by 6top
+        # as this is called at the end of cycle   
         scheduleCollisions = 0
         txCells = []
         for mote in self.engine.motes:
