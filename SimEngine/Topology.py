@@ -36,8 +36,8 @@ class Topology(object):
     SPEED_OF_LIGHT           = 299792458    # m/s
     
     MIN_RSSI                 = -93          # dBm, corresponds to PDR = 0.5
+    SUFFICIENT_NEIGHBORS     = 3
     WATERFALL_RISING_BAND    = 16.0         # in dB
-    
     def __init__(self, motes):
         
         # store params
@@ -50,10 +50,10 @@ class Topology(object):
     
     def createTopology(self):
         '''
-        Create a topology in which all nodes have at least one path with enough
-        RSSI to DAG root.
-        If the mote does not have a link with enough RSSI, reset the location
-        of the mote.
+        Create a topology in which all nodes have at least SUFFICIENT_NEIGHBORS link 
+        with enough RSSI.
+        If the mote does not have SUFFICIENT_NEIGHBORS links with enough RSSI, 
+        reset the location of the mote.
         '''
         
         # find DAG root
@@ -84,7 +84,9 @@ class Topology(object):
                     y = self.settings.squareSide*random.random()
                 )
                 
-                # make sure it is connected to at least one mote
+                numSuffNeighbors = 0
+                
+                # count number of neighbors with sufficient RSSI
                 for cm in connectedMotes:
                     
                     rssi = self._computeRSSI(mote, cm)
@@ -92,7 +94,13 @@ class Topology(object):
                     cm.setRSSI(mote, rssi)
                     
                     if rssi>self.MIN_RSSI:
-                        connected = True
+                        numSuffNeighbors += 1
+
+                # make sure it is connected to at least SUFFICIENT_NEIGHBORS motes 
+                # or connected to all the currently deployed motes when the number of deployed motes 
+                # are smaller than SUFFICIENT_NEIGHBORS
+                if numSuffNeighbors >= self.SUFFICIENT_NEIGHBORS or numSuffNeighbors == len(connectedMotes):
+                    connected = True
             
             connectedMotes += [mote]
         
