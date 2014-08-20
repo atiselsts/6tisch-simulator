@@ -36,7 +36,7 @@ class Topology(object):
     SPEED_OF_LIGHT           = 299792458    # m/s
     
     MIN_RSSI                 = -93          # dBm, corresponds to PDR = 0.5
-    SUFFICIENT_NEIGHBORS     = 3
+    STABLE_NEIGHBORS     = 3
     WATERFALL_RISING_BAND    = 16.0         # in dB
     def __init__(self, motes):
         
@@ -50,9 +50,9 @@ class Topology(object):
     
     def createTopology(self):
         '''
-        Create a topology in which all nodes have at least SUFFICIENT_NEIGHBORS link 
+        Create a topology in which all nodes have at least STABLE_NEIGHBORS link 
         with enough RSSI.
-        If the mote does not have SUFFICIENT_NEIGHBORS links with enough RSSI, 
+        If the mote does not have STABLE_NEIGHBORS links with enough RSSI, 
         reset the location of the mote.
         '''
         
@@ -84,7 +84,7 @@ class Topology(object):
                     y = self.settings.squareSide*random.random()
                 )
                 
-                numSuffNeighbors = 0
+                numStableNeighbors = 0
                 
                 # count number of neighbors with sufficient RSSI
                 for cm in connectedMotes:
@@ -94,12 +94,12 @@ class Topology(object):
                     cm.setRSSI(mote, rssi)
                     
                     if rssi>self.MIN_RSSI:
-                        numSuffNeighbors += 1
+                        numStableNeighbors += 1
 
-                # make sure it is connected to at least SUFFICIENT_NEIGHBORS motes 
+                # make sure it is connected to at least STABLE_NEIGHBORS motes 
                 # or connected to all the currently deployed motes when the number of deployed motes 
-                # are smaller than SUFFICIENT_NEIGHBORS
-                if numSuffNeighbors >= self.SUFFICIENT_NEIGHBORS or numSuffNeighbors == len(connectedMotes):
+                # are smaller than STABLE_NEIGHBORS
+                if numStableNeighbors >= self.STABLE_NEIGHBORS or numStableNeighbors == len(connectedMotes):
                     connected = True
             
             connectedMotes += [mote]
