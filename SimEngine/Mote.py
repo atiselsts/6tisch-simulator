@@ -66,7 +66,7 @@ class Mote(object):
     TOP_PDR_THRESHOLD                  = 4.0
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
-    TSCH_MAXTXRETRIES                  = 3
+    TSCH_MAXTXRETRIES                  = 5
     #=== battery
     # see A Realistic Energy Consumption Model for TSCH Networks.
     # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
