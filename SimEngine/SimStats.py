@@ -219,6 +219,12 @@ class SimStats(object):
                 ' '.join(['{0}-{1}@{2:.0f}dBm@{3:.3f}'.format(moteA.id,moteB.id,rssi,pdr) for ((moteA,moteB),(rssi,pdr)) in links.items()])
             )
         ]
+        output += [
+            '#averageChargePerCycle runNum={0} {1}'.format(
+                self.runNum,
+                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.settings.numCyclesPerRun) for mote in self.engine.motes])
+            )
+        ]        
         output  = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:
