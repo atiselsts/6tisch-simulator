@@ -49,9 +49,8 @@ def parseCliOptions():
     
     parser.add_argument( '--elemNames',
         dest       = 'elemNames',
-        nargs      = '+',
         type       = str,
-        default    = 'pkPeriod',
+        default    = 'numMotes',
         help       = 'Name of the elements to be used as x axis.',
     )
     
