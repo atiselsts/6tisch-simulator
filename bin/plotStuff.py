@@ -563,24 +563,22 @@ def calce2ePDR(dir,infilename):
                 if m:
                     numCyclesPerRun    = int(m.group(1))
     
-    # find appGenerated, appReachesDagroot, txQueueFill, colnumcycle, colnumrunNum
+    # find appGenerated, appReachesDagroot, txQueueFill, colnumcycle
     with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('# '):
                 elems             = re.sub(' +',' ',line[2:]).split()
                 numcols           = len(elems)
-                colnumappGen      = elems.index('appGenerated')
-                colnumappReach    = elems.index('appReachesDagroot')
+                colnumappGenerated      = elems.index('appGenerated')
+                colnumappReachesDagroot    = elems.index('appReachesDagroot')
                 colnumtxQueueFill = elems.index('txQueueFill')
                 colnumcycle       = elems.index('cycle')
-                colnumrunNum      = elems.index('runNum')
                 break
     
-    assert colnumappGen
-    assert colnumappReach
+    assert colnumappGenerated
+    assert colnumappReachesDagroot
     assert colnumtxQueueFill
     assert colnumcycle
-    assert colnumrunNum
     
     # parse data
     e2ePDR = []
@@ -591,11 +589,10 @@ def calce2ePDR(dir,infilename):
             if line.startswith('#') or not line.strip():
                 continue
             m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-            appGenerated        = int(m.group(colnumappGen+1))
-            appReachesDagroot   = int(m.group(colnumappReach+1))
+            appGenerated        = int(m.group(colnumappGenerated+1))
+            appReachesDagroot   = int(m.group(colnumappReachesDagroot+1))
             txQueueFill         = int(m.group(colnumtxQueueFill+1))      
             cycle               = int(m.group(colnumcycle+1))
-            runNum              = int(m.group(colnumrunNum+1))
             
             totalGenerated     += appGenerated
             totalReaches       += appReachesDagroot
@@ -607,11 +604,55 @@ def calce2ePDR(dir,infilename):
 
     return numMotes, e2ePDR
             
+def calcBatteryLife(dir,infilename):
 
+    CAPACITY = 2200 # in mAh
     
-def genMotesPlots(e2ePDRs, dir):
+    infilepath     = os.path.join(dir,infilename)
 
-    outfilename    = 'output_e2ePDR_numMotes.png'
+    # find numMotes, numCyclesPerRun    
+    with open(infilepath,'r') as f:
+        for line in f:
+            
+            if line.startswith('##'):
+                # slotDuration
+                m = re.search('slotDuration\s+=\s+([\.0-9]+)',line)
+                if m:
+                    slotDuration       = float(m.group(1))
+
+                # slotframeLength
+                m = re.search('slotframeLength\s+=\s+([\.0-9]+)',line)
+                if m:
+                    slotframeLength    = int(m.group(1))
+
+                # numMotes
+                m = re.search('numMotes\s+=\s+([\.0-9]+)',line)
+                if m:
+                    numMotes           = int(m.group(1))
+        
+    minBatteryLives = []
+    with open(infilepath,'r') as f:
+        for line in f:
+            
+            if line.startswith('#aveChargePerCycle'):
+                
+                # runNum
+                m      = re.search('runNum=([0-9]+)',line)
+                runNum = int(m.group(1))
+                                
+                # maximum average charge
+                m           = re.findall('([0-9]+)@([\.0-9]+)',line)
+                lm          = [list(t) for t in m if int(list(t)[0]) != 0] # excluding DAG root
+                maxIdCharge = max(lm, key=lambda x: float(x[1]))
+                maxCurrent  = float(maxIdCharge[1])*10**(-3)/(slotDuration*slotframeLength) # convert from uC/cycle to mA
+                
+                # battery life
+                minBatteryLives += [CAPACITY/maxCurrent/24] # mAh/mA/(h/day), in day
+                
+    return numMotes, minBatteryLives    
+    
+def genMotesPlots(vals, dir, outfilename):
+
     outfilepath    = os.path.join(dir,outfilename)
 
     # print
@@ -620,7 +661,7 @@ def genMotesPlots(e2ePDRs, dir):
     # calculate mean and confidence interval
     meanPerNumMotes    = {}
     confintPerNumMotes = {}
-    for (k,v) in e2ePDRs.items():
+    for (k,v) in vals.items():
         a          = 1.0*numpy.array(v)
         n          = len(a)
         se         = scipy.stats.sem(a)
@@ -655,6 +696,38 @@ def main():
     
     # parse CLI options
     options            = parseCliOptions()
+
+    # plot figure of e2ePDR vs numMotes
+    e2ePdrs    = {}
+    batteryLives = {}
+    for dir in os.listdir(DATADIR):
+        for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+
+            numMotes, e2ePdrEachRun = calce2ePDR(
+                dir               = os.path.join(DATADIR, dir),
+                infilename        = os.path.basename(infilename),
+            )
+            
+            e2ePdrs[numMotes] = e2ePdrEachRun
+            
+            numMotes, batteryLifeEachRun = calcBatteryLife(
+                dir               = os.path.join(DATADIR, dir),
+                infilename        = os.path.basename(infilename),
+            )
+            
+            batteryLives[numMotes] = batteryLifeEachRun
+    
+    genMotesPlots(
+        e2ePdrs,
+        dir = DATADIR,
+        outfilename    = 'output_e2ePDR_numMotes.png'
+    )
+
+    genMotesPlots(
+        batteryLives,
+        dir = DATADIR,
+        outfilename    = 'output_battery_numMotes.png'
+    )
     
     # plot figures
     for dir in os.listdir(DATADIR):
@@ -680,22 +753,6 @@ def main():
                 infilename        = os.path.basename(infilename),
             )
     
-    # plot figure of e2ePDR vs numMotes
-    e2ePDRs = {}
-    for dir in os.listdir(DATADIR):
-        for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
-
-            numMotes, e2ePDR = calce2ePDR(
-                dir               = os.path.join(DATADIR, dir),
-                infilename        = os.path.basename(infilename),
-            )
-            
-            e2ePDRs[numMotes] = e2ePDR
-    
-    genMotesPlots(
-        e2ePDRs,
-        dir = DATADIR
-    )
 
     
 if __name__=="__main__":
