@@ -220,7 +220,7 @@ class SimStats(object):
             )
         ]
         output += [
-            '#averageChargePerCycle runNum={0} {1}'.format(
+            '#aveChargePerCycle runNum={0} {1}'.format(
                 self.runNum,
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.settings.numCyclesPerRun) for mote in self.engine.motes])
             )
