@@ -188,7 +188,15 @@ class SimStats(object):
         # dataline
         formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
         formatString   += '\n'
-        output         += ['  '+formatString.format(*[stats[k] for k in self.columnNames])]
+        
+        vals = []
+        for k in self.columnNames:
+            if type(stats[k])==float:
+                vals += ['{0:.3f}'.format(stats[k])]
+            else:
+                vals += [stats[k]]
+        
+        output += ['  '+formatString.format(*tuple(vals))]
         
         # write to file
         with open(self.settings.getOutputFile(),'a') as f:
