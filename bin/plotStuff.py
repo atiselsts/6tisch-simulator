@@ -610,7 +610,6 @@ def calcBatteryLife(dir,infilename):
     
     infilepath     = os.path.join(dir,infilename)
 
-    # find numMotes, numCyclesPerRun    
     with open(infilepath,'r') as f:
         for line in f:
             
@@ -650,6 +649,64 @@ def calcBatteryLife(dir,infilename):
                 minBatteryLives += [CAPACITY/maxCurrent/24] # mAh/mA/(h/day), in day
                 
     return numMotes, minBatteryLives    
+
+def calcLatency(dir,infilename):
+
+    infilepath     = os.path.join(dir,infilename)
+
+    with open(infilepath,'r') as f:
+        for line in f:
+            
+            if line.startswith('##'):
+
+                # numMotes
+                m = re.search('numMotes\s+=\s+([\.0-9]+)',line)
+                if m:
+                    numMotes           = int(m.group(1))
+        
+                # numCyclesPerRun
+                m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
+                if m:
+                    numCyclesPerRun    = int(m.group(1))
+
+
+    # find appReachesDagroot, aveLatency
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('# '):
+                elems                   = re.sub(' +',' ',line[2:]).split()
+                numcols                 = len(elems)
+                colnumappReachesDagroot = elems.index('appReachesDagroot')
+                colnumaveLatency        = elems.index('aveLatency')
+                colnumcycle             = elems.index('cycle')
+                break
+    
+    assert colnumappReachesDagroot
+    assert colnumaveLatency
+    assert colnumcycle
+    
+    # parse data
+    latencies              = []
+    sumaveLatency          = 0
+    sumappReachesDagroot   = 0
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            m                          = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+            appReachesDagroot          = int(m.group(colnumappReachesDagroot+1))
+            aveLatency                 = float(m.group(colnumaveLatency+1))      
+            cycle                      = int(m.group(colnumcycle+1))
+            
+            sumappReachesDagroot      += appReachesDagroot
+            sumaveLatency             += aveLatency*appReachesDagroot
+            
+            if cycle == numCyclesPerRun-1:
+                latencies             += [sumaveLatency/sumappReachesDagroot]
+                sumaveLatency          = 0
+                sumappReachesDagroot   = 0
+
+    return numMotes, latencies
     
 def genMotesPlots(vals, dir, outfilename):
 
@@ -697,9 +754,10 @@ def main():
     # parse CLI options
     options            = parseCliOptions()
 
-    # plot figure of e2ePDR vs numMotes
-    e2ePdrs    = {}
+    e2ePdrs      = {}
     batteryLives = {}
+    latencies    = {}
+    
     for dir in os.listdir(DATADIR):
         for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
 
@@ -716,17 +774,33 @@ def main():
             )
             
             batteryLives[numMotes] = batteryLifeEachRun
-    
+
+            numMotes, latencyEachRun = calcLatency(
+                dir               = os.path.join(DATADIR, dir),
+                infilename        = os.path.basename(infilename),
+            )
+            
+            latencies[numMotes] = latencyEachRun
+
+    # plot figure of e2ePDR vs numMotes    
     genMotesPlots(
         e2ePdrs,
         dir = DATADIR,
         outfilename    = 'output_e2ePDR_numMotes.png'
     )
 
+    # plot figure of battery life vs numMotes    
     genMotesPlots(
         batteryLives,
         dir = DATADIR,
         outfilename    = 'output_battery_numMotes.png'
+    )
+    
+    # plot figure of latency vs numMotes    
+    genMotesPlots(
+        latencies,
+        dir = DATADIR,
+        outfilename    = 'output_latency_numMotes.png'
     )
     
     # plot figures
