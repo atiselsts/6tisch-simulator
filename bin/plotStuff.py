@@ -544,6 +544,103 @@ def genTopologyPlots(dir,infilename):
         # print
         print 'done.'
 
+def calce2ePDR(dir,infilename):
+    
+    infilepath     = os.path.join(dir,infilename)
+        
+    # find numMotes, numCyclesPerRun    
+    with open(infilepath,'r') as f:
+        for line in f:
+            
+            if line.startswith('##'):
+                # numMotes
+                m = re.search('numMotes\s+=\s+([\.0-9]+)',line)
+                if m:
+                    numMotes           = int(m.group(1))
+
+                # numCyclesPerRun
+                m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
+                if m:
+                    numCyclesPerRun    = int(m.group(1))
+    
+    # find appGenerated, appReachesDagroot, txQueueFill, colnumcycle, colnumrunNum
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('# '):
+                elems             = re.sub(' +',' ',line[2:]).split()
+                numcols           = len(elems)
+                colnumappGen      = elems.index('appGenerated')
+                colnumappReach    = elems.index('appReachesDagroot')
+                colnumtxQueueFill = elems.index('txQueueFill')
+                colnumcycle       = elems.index('cycle')
+                colnumrunNum      = elems.index('runNum')
+                break
+    
+    assert colnumappGen
+    assert colnumappReach
+    assert colnumtxQueueFill
+    assert colnumcycle
+    assert colnumrunNum
+    
+    # parse data
+    e2ePDR = []
+    totalGenerated = 0
+    totalReaches   = 0
+    with open(infilepath,'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+            appGenerated        = int(m.group(colnumappGen+1))
+            appReachesDagroot   = int(m.group(colnumappReach+1))
+            txQueueFill         = int(m.group(colnumtxQueueFill+1))      
+            cycle               = int(m.group(colnumcycle+1))
+            runNum              = int(m.group(colnumrunNum+1))
+            
+            totalGenerated     += appGenerated
+            totalReaches       += appReachesDagroot
+            
+            if cycle == numCyclesPerRun-1:
+                e2ePDR         += [float(totalReaches)/float(totalGenerated-txQueueFill)]
+                totalGenerated  = 0
+                totalReaches    = 0
+
+    return numMotes, e2ePDR
+            
+
+    
+def genMotesPlots(e2ePDRs, dir):
+
+    outfilename    = 'output_e2ePDR_numMotes.png'
+    outfilepath    = os.path.join(dir,outfilename)
+
+    # print
+    print 'Generating {0}...'.format(outfilename),
+    
+    # calculate mean and confidence interval
+    meanPerNumMotes    = {}
+    confintPerNumMotes = {}
+    for (k,v) in e2ePDRs.items():
+        a          = 1.0*numpy.array(v)
+        n          = len(a)
+        se         = scipy.stats.sem(a)
+        m          = numpy.mean(a)
+        confint    = se * scipy.stats.t._ppf((1+CONFINT)/2., n-1)
+        meanPerNumMotes[k]      = m
+        confintPerNumMotes[k]   = confint
+    
+    # plot
+    x         = sorted(meanPerNumMotes.keys())
+    y         = [meanPerNumMotes[k] for k in x]
+    yerr      = [confintPerNumMotes[k] for k in x]
+    matplotlib.pyplot.figure()
+    matplotlib.pyplot.errorbar(x,y,yerr=yerr)
+    matplotlib.pyplot.savefig(outfilepath)
+    matplotlib.pyplot.close('all')
+    
+    # print
+    print 'done.'
+
 #============================ main ============================================
 
 def main():
@@ -582,6 +679,24 @@ def main():
                 dir               = os.path.join(DATADIR, dir),
                 infilename        = os.path.basename(infilename),
             )
+    
+    # plot figure of e2ePDR vs numMotes
+    e2ePDRs = {}
+    for dir in os.listdir(DATADIR):
+        for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
 
+            numMotes, e2ePDR = calce2ePDR(
+                dir               = os.path.join(DATADIR, dir),
+                infilename        = os.path.basename(infilename),
+            )
+            
+            e2ePDRs[numMotes] = e2ePDR
+    
+    genMotesPlots(
+        e2ePDRs,
+        dir = DATADIR
+    )
+
+    
 if __name__=="__main__":
     main()
