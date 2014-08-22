@@ -223,7 +223,7 @@ def calcLatency(dir,infilename,elemName):
 
     return elem, latencies
     
-def genMotesPlots(vals, dir, outfilename):
+def genMotesPlots(vals, dir, outfilename, xlabel, ylabel):
 
     outfilepath    = os.path.join(dir,outfilename)
 
@@ -248,6 +248,8 @@ def genMotesPlots(vals, dir, outfilename):
     yerr      = [confintPerNumMotes[k] for k in x]
     matplotlib.pyplot.figure()
     matplotlib.pyplot.errorbar(x,y,yerr=yerr)
+    matplotlib.pyplot.xlabel(xlabel)
+    matplotlib.pyplot.ylabel(ylabel)
     matplotlib.pyplot.savefig(outfilepath)
     matplotlib.pyplot.close('all')
     
@@ -302,14 +304,22 @@ def main():
             
             latencies[elem] = latencyEachRun
 
-
+    if elemName == 'numMotes':
+        xlabel = 'Number of Motes'
+    elif elemName == 'pkPeriod':
+        xlabel = 'Packet Period (s)'
+    elif elemName == 'otfThreshold':
+        xlabel = 'OTF Threshold'
+    
     outfilename    = 'output_e2ePDR_{}.png'.format(elemName)
     
     # plot figure for e2ePDR    
     genMotesPlots(
         e2ePdrs,
         dir            = DATADIR,
-        outfilename    = outfilename
+        outfilename    = outfilename,
+        xlabel         = xlabel,
+        ylabel         = 'End-to-End PDR',
     )
 
     outfilename    = 'output_battery_{}.png'.format(elemName)
@@ -318,7 +328,9 @@ def main():
     genMotesPlots(
         batteryLives,
         dir            = DATADIR,
-        outfilename    = outfilename
+        outfilename    = outfilename,
+        xlabel         = xlabel,
+        ylabel         = 'Battery Life (day)',
     )
     
     outfilename    = 'output_latency_{}.png'.format(elemName)
@@ -327,7 +339,9 @@ def main():
     genMotesPlots(
         latencies,
         dir            = DATADIR,
-        outfilename    = outfilename
+        outfilename    = outfilename,
+        xlabel         = xlabel,
+        ylabel         = 'Average Latency (slot)',
     )
     
     
