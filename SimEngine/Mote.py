@@ -144,10 +144,10 @@ class Mote(object):
     def _app_schedule_sendData(self):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
         
-        assert self.settings.pkPeriodVar<self.settings.pkPeriod
+        #assert self.settings.pkPeriodVar<self.settings.pkPeriod
         
         # compute random
-        delay           = self.settings.pkPeriod+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar)
+        delay           = self.settings.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar))
         assert delay>0
         
         # schedule

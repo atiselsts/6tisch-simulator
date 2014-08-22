@@ -110,8 +110,8 @@ def parseCliOptions():
         dest       = 'pkPeriodVar',
         nargs      = '+',
         type       = float,
-        default    = 2,
-        help       = 'Variability period (in s). Use 0 for CBR traffic.',
+        default    = 0.5,
+        help       = 'Variability percentage of the period between two generated packets. Use 0 for CBR traffic.',
     )
     
     parser.add_argument( '--otfThreshold',
