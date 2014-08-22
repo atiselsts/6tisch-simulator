@@ -60,18 +60,25 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            'simData',
+            self.simDataDir,
             '_'.join(['{0}_{1}'.format(k,getattr(self,k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         
         # file
-        datafilename         = os.path.join(
-            dirname,
-            #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
-            'output.dat',
-        )
+        if self.processID==None:
+            datafilename         = os.path.join(
+                dirname,
+                #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
+                'output.dat',
+            )
+        else:
+            datafilename         = os.path.join(
+                dirname,
+                #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
+                'output_{0}.dat'.format(self.processID),
+            )
         
         return datafilename
     

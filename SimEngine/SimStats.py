@@ -93,7 +93,8 @@ class SimStats(object):
         
         cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
         
-        print('      cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
+        if self.settings.processID==None:
+            print('      cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
         
         # write statistics to output file
         self._fileWriteStats(
