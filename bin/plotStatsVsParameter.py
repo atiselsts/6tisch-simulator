@@ -71,7 +71,7 @@ def calce2ePDR(dir,infilename,elemName):
                 # elem
                 m = re.search(elemName+'\s+=\s+([\.0-9]+)',line)
                 if m:
-                    elem               = m.group(1)
+                    elem               = float(m.group(1))
                 
                 # numCyclesPerRun
                 m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
@@ -132,7 +132,7 @@ def calcBatteryLife(dir,infilename,elemName):
                 # elem
                 m = re.search(elemName+'\s+=\s+([\.0-9]+)',line)
                 if m:
-                    elem               = m.group(1)
+                    elem               = float(m.group(1))
 
                 # slotDuration
                 m = re.search('slotDuration\s+=\s+([\.0-9]+)',line)
@@ -177,7 +177,7 @@ def calcLatency(dir,infilename,elemName):
                 # elem
                 m = re.search(elemName+'\s+=\s+([\.0-9]+)',line)
                 if m:
-                    elem               = m.group(1)
+                    elem               = float(m.group(1))
                 
                 # numCyclesPerRun
                 m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
