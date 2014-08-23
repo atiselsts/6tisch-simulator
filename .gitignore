@@ -3,4 +3,6 @@
 *.log
 *.log.*
 *.dat
-/bin/simData
+*.png
+*.eps
+*.zip
