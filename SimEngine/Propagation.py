@@ -90,10 +90,15 @@ class Propagation(object):
         
         with self.dataLock:
             
+            arrivalTime = {}
+            # store arrival times of transmission packets 
+            for transmission in self.transmissions:
+                arrivalTime[transmission['smac']] = transmission['smac'].calcTime()
+                        
             for transmission in self.transmissions:
                 
-                i       = 0
-                isACKed = False
+                i           = 0
+                isACKed     = False
                 
                 while i<len(self.receivers):
                     
@@ -106,10 +111,21 @@ class Propagation(object):
                             # other transmissions on the same channel?
                             interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
                             
-                            # calculate pdr, including interference
-                            sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
-                            pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                            lockOn = transmission['smac']
+                            for itfr in interferers:
+                                if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].sensitivity:
+                                    # lock on interference
+                                    lockOn = itfr
+                                    break
                             
+                            if lockOn == transmission['smac']:
+                                # calculate pdr, including interference
+                                sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                                pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                            else:
+                                # fail due to locking on interference
+                                pdr   = 0.0
+                                                            
                             # pick a random number
                             failure = random.random()
                             

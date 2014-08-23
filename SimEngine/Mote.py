@@ -66,7 +66,9 @@ class Mote(object):
     TOP_PDR_THRESHOLD                  = 4.0
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
-    TSCH_MAXTXRETRIES                  = 5
+    TSCH_MAXTXRETRIES                  = 5    
+    #=== radio
+    RADIO_MAXDRIFT                     = 30 # in ppm
     #=== battery
     # see A Realistic Energy Consumption Model for TSCH Networks.
     # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
@@ -112,11 +114,13 @@ class Mote(object):
         self.pktToSend                 = None
         self.schedule                  = {}      # indexed by ts, contains cell
         self.waitingFor                = None
+        self.timeCorrectedSlot        = None
         # radio
         self.txPower                   = 0       # dBm
         self.antennaGain               = 0       # dBi
         self.sensitivity               = self.settings.sensitivity   # dBm
         self.noisepower                = -105    # dBm
+        self.drift                     = random.uniform(-self.RADIO_MAXDRIFT, self.RADIO_MAXDRIFT)
         # wireless
         self.RSSI                      = {}      # indexed by neighbor
         self.PDR                       = {}      # indexed by neighbor
@@ -234,6 +238,11 @@ class Mote(object):
                     
                     # in neighbor, do RPL housekeeping
                     neighbor._rpl_housekeeping()
+                    
+                    # update time correction
+                    if neighbor.preferredParent == self:
+                        asn                        = self.engine.getAsn() 
+                        neighbor.timeCorrectedSlot = asn
             
             # schedule to send the next DIO
             self._rpl_schedule_sendDIO()
@@ -895,8 +904,13 @@ class Mote(object):
                 # update queue stats
                 self._logQueueDelayStat(asn-self.pktToSend['asn'])
                 
+                # time correction
+                if self.schedule[ts]['neighbor'] == self.preferredParent:
+                    self.timeCorrectedSlot = asn
+
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
+                
             
             else:
                 
@@ -978,6 +992,28 @@ class Mote(object):
             
             # schedule next active cell
             self._tsch_schedule_activeCell()
+
+    def calcTime(self):
+        ''' calculate time compared to base time of Dag root '''
+        
+        asn   = self.engine.getAsn()
+        
+        time   = 0.0
+        child  = self
+        parent = self.preferredParent
+        
+        while(True):
+            duration  = (asn-child.timeCorrectedSlot) * self.settings.slotDuration # in sec
+            driftDiff = child.drift - parent.drift # in ppm
+            time += driftDiff * duration # in us
+            if parent.dagRoot:
+                break
+            else:
+                child  = parent
+                parent = child.preferredParent
+        
+        return time
+        
     
     #===== wireless
     
