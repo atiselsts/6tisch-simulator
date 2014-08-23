@@ -44,26 +44,8 @@ CONFINT = 0.95
 
 #============================ body ============================================
 
-def parseCliOptions():
-    
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument( '--elemNames',
-        dest       = 'elemNames',
-        nargs      = '+',
-        type       = str,
-        default    = [
-#            'numTxCells', 'aveQueueDelay', 'OTFevent', 
-            'PacketLoss'
-        ],
-        help       = 'Name of the elements to generate timeline figures for.',
-    )
-    
-    options        = parser.parse_args()
-    
-    return options.__dict__
-
 def parseFiles(infilepaths,elemName):
+    
     valuesPerCycle = {}
     for infilepath in infilepaths:
         
@@ -91,9 +73,9 @@ def parseFiles(infilepaths,elemName):
             for line in f:
                 if line.startswith('#') or not line.strip():
                     continue
-                m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-                cycle  = int(m.group(colnumcycle+1))
-                runNum = int(m.group(colnumrunNum+1))
+                m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+                cycle   = int(m.group(colnumcycle+1))
+                runNum  = int(m.group(colnumrunNum+1))
                 try:
                     elem         = float(m.group(colnumelem+1))
                 except:
@@ -101,48 +83,52 @@ def parseFiles(infilepaths,elemName):
                         elem     =   int(m.group(colnumelem+1))
                     except:
                         elem     =       m.group(colnumelem+1)
-                #print 'cycle={0} runNum={1} elem={2}'.format(cycle,runNum,elem)
+                
                 if cycle not in valuesPerCycle:
                     valuesPerCycle[cycle] = []
                 valuesPerCycle[cycle] += [elem]
         
         # print
         print 'done.'
+    
     assert len(set([len(value) for value in valuesPerCycle.values()]))==1
     return valuesPerCycle
 
 def genTimelineAvgs(infilepaths,elemName):
+    
     if elemName=='OTFevent':
-        otfAdd=parseFiles(infilepaths,'otfAdd')
-        otfRemove=parseFiles(infilepaths,'otfRemove')
-        valuesPerCycle={}
-        for key in otfAdd.iterkeys():
-            valuesPerCycle[key]=list(numpy.array(otfAdd[key]) + numpy.array(otfRemove[key]))
+        otfAdd                    = parseFiles(infilepaths,'otfAdd')
+        otfRemove                 = parseFiles(infilepaths,'otfRemove')
+        valuesPerCycle            = {}
+        for k in otfAdd.keys():
+            valuesPerCycle[k]     = otfAdd[k] + otfRemove[k]
+    
     elif elemName=='PacketLoss':
-        appGenerated=parseFiles(infilepaths,'appGenerated')
-        appReachesDagroot=parseFiles(infilepaths,'appReachesDagroot')
-        txQueueFill=parseFiles(infilepaths,'txQueueFill')
+        appGenerated              = parseFiles(infilepaths,'appGenerated')
+        appReachesDagroot         = parseFiles(infilepaths,'appReachesDagroot')
+        txQueueFill               = parseFiles(infilepaths,'txQueueFill')
         
-        genCum=numpy.cumsum([appGenerated[key] for key in sorted(appGenerated.keys())], axis=0)
-        reaCum=numpy.cumsum([appReachesDagroot[key] for key in sorted(appReachesDagroot.keys())], axis=0)
-        txQueue=numpy.array([txQueueFill[key] for key in sorted(txQueueFill.keys())])
+        genCum                    = numpy.cumsum([appGenerated[key] for key in sorted(appGenerated.keys())], axis=0)
+        reaCum                    = numpy.cumsum([appReachesDagroot[key] for key in sorted(appReachesDagroot.keys())], axis=0)
+        txQueue                   = numpy.array([txQueueFill[key] for key in sorted(txQueueFill.keys())])
         
-        toPutInDict=1-reaCum/(genCum-txQueue)
-        valuesPerCycle=dict([(key, toPutInDict[key]) for key in sorted(appGenerated.keys())])
+        toPutInDict               = 1-reaCum/(genCum-txQueue)
+        valuesPerCycle            = dict([(key, toPutInDict[key]) for key in sorted(appGenerated.keys())])
+    
     else:
-        valuesPerCycle=parseFiles(infilepaths,elemName)
-
+        valuesPerCycle            = parseFiles(infilepaths,elemName)
+    
     # calculate mean and confidence interval
-    meanPerCycle    = {}
-    confintPerCycle = {}
+    meanPerCycle                  = {}
+    confintPerCycle               = {}
     for (k,v) in valuesPerCycle.items():
-        a          = 1.0*numpy.array(v)
-        n          = len(a)
-        se         = scipy.stats.sem(a)
-        m          = numpy.mean(a)
-        confint    = se * scipy.stats.t._ppf((1+CONFINT)/2., n-1)
-        meanPerCycle[k]      = m
-        confintPerCycle[k]   = confint
+        a                         = 1.0*numpy.array(v)
+        n                         = len(a)
+        se                        = scipy.stats.sem(a)
+        m                         = numpy.mean(a)
+        confint                   = se * scipy.stats.t._ppf((1+CONFINT)/2., n-1)
+        meanPerCycle[k]           = m
+        confintPerCycle[k]        = confint
     
     x         = sorted(meanPerCycle.keys())
     y         = [meanPerCycle[k] for k in x]
@@ -150,23 +136,25 @@ def genTimelineAvgs(infilepaths,elemName):
     
     return [x, y, yerr]
 
-def genPlotsOTF(keys, params, dictionary, dir, elemName):
-    assert 'otfThreshold' in keys
-    assert 'pkPeriod' in keys
+def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
+    assert 'otfThreshold'    in keys
+    assert 'pkPeriod'        in keys
     
-    figureKeys=set(keys)-set(['otfThreshold', 'pkPeriod'])
-    toBeTuple=keys[:]
-    col=['r', 'g', 'b', 'm', 'c', 'y']
-    mark=['o', '>', 'd']
+    figureKeys     = set(keys)-set(['otfThreshold', 'pkPeriod'])
+    toBeTuple      = keys[:]
+    col            = ['r', 'g', 'b', 'm', 'c', 'y']
+    mark           = ['o', '>', 'd']
 
     for p in itertools.product(*[params[k] for k in figureKeys]):
-        outfilenameList=[]
+        outfilenameList = []
         for (k,v) in zip(figureKeys,p):
-            outfilenameList+=['{0}_{1}'.format(k, v)]
-            toBeTuple[keys.index(k)]=v
+            outfilenameList           += ['{0}_{1}'.format(k, v)]
+            toBeTuple[keys.index(k)]   = v
         
-        outfilename='_'.join(outfilenameList)+'_timeline_{}.png'.format(elemName)
-        outfilepath    = os.path.join(dir,outfilename)
+        #===== timeline
+        
+        outfilename          = '_'.join(outfilenameList)+'_timeline_{}'.format(elemName)
+        outfilepath          = os.path.join(dir,outfilename)
         
         # print
         print 'Generating {0}...'.format(outfilename),
@@ -174,27 +162,40 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName):
         # plot
         matplotlib.pyplot.figure()
         matplotlib.pyplot.hold(True)
-        otfThresholdList=sorted(params['otfThreshold'])
-        pkPeriodList=sorted(params['pkPeriod'])
+        otfThresholdList     = sorted(params['otfThreshold'])
+        pkPeriodList         = sorted(params['pkPeriod'])
         for otfThreshold in otfThresholdList[0::2]:
             toBeTuple[keys.index('otfThreshold')]=otfThreshold
             for pkPeriod in pkPeriodList:
                 toBeTuple[keys.index('pkPeriod')]=pkPeriod
                 toPlot=dictionary[tuple(toBeTuple)]
                 matplotlib.pyplot.errorbar(
-                                            toPlot[0],toPlot[1],yerr=toPlot[2], color=col[otfThresholdList.index(otfThreshold)], marker=mark[pkPeriodList.index(pkPeriod)], \
-                                            label='otfThresh={0}, pkPeriod={1}'.format(otfThreshold, pkPeriod)
-                                            )
-        matplotlib.pyplot.legend(loc=0, prop=matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'), labelspacing=0.0)
+                    toPlot[0],
+                    toPlot[1],
+                    yerr     = toPlot[2],
+                    color    = col[otfThresholdList.index(otfThreshold)],
+                    marker   = mark[pkPeriodList.index(pkPeriod)],
+                    label    = 'otfThresh={0}, pkPeriod={1:.0f}s'.format(otfThreshold, pkPeriod),
+                )
+        matplotlib.pyplot.legend(
+            loc              = 0,
+            prop             = matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'),
+            labelspacing     = 0.0,
+        )
         matplotlib.pyplot.hold(False)
-        matplotlib.pyplot.savefig(outfilepath)
+        matplotlib.pyplot.xlabel('slotframe cycle')
+        matplotlib.pyplot.ylabel(elemLabel)
+        matplotlib.pyplot.savefig(outfilepath+'.png')
+        matplotlib.pyplot.savefig(outfilepath+'.eps')
         matplotlib.pyplot.close('all')
         
         # print
         print 'done.'
         
-        outfilename='_'.join(outfilenameList)+'_{}.png'.format(elemName)
-        outfilepath    = os.path.join(dir,outfilename)
+        #===== as function of threshhold
+        
+        outfilename          = '_'.join(outfilenameList)+'_{}'.format(elemName)
+        outfilepath          = os.path.join(dir,outfilename)
         
         # print
         print 'Generating {0}...'.format(outfilename),
@@ -202,72 +203,82 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName):
         # plot
         matplotlib.pyplot.figure()
         matplotlib.pyplot.hold(True)
-        otfThresholdList=sorted(params['otfThreshold'])
-        pkPeriodList=sorted(params['pkPeriod'])
+        otfThresholdList     = sorted(params['otfThreshold'])
+        pkPeriodList         = sorted(params['pkPeriod'])
         for pkPeriod in pkPeriodList:
             toBeTuple[keys.index('pkPeriod')]=pkPeriod
-            toPlot=[]
+            toPlot           = []
             for otfThreshold in otfThresholdList:
                 toBeTuple[keys.index('otfThreshold')]=otfThreshold
-                toPlot+=[zip(*dictionary[tuple(toBeTuple)])[-1]]
+                toPlot      += [zip(*dictionary[tuple(toBeTuple)])[-1]]
             toPlot=zip(*toPlot)
             matplotlib.pyplot.errorbar(
-                                            otfThresholdList,toPlot[1],yerr=toPlot[2], color=col[pkPeriodList.index(pkPeriod)],  \
-                                            label='pkPeriod={0}'.format(pkPeriod)
-                                            )
-        matplotlib.pyplot.legend(loc=0, prop=matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'), labelspacing=0.0)
+                otfThresholdList,
+                toPlot[1],
+                yerr         = toPlot[2],
+                color        = col[pkPeriodList.index(pkPeriod)],
+                label        = 'pkPeriod={0}'.format(pkPeriod),
+            )
+        matplotlib.pyplot.legend(
+            loc              = 0,
+            prop             = matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'),
+            labelspacing     = 0.0,
+        )
         matplotlib.pyplot.hold(False)
-        matplotlib.pyplot.savefig(outfilepath)
+        matplotlib.pyplot.xlabel('OTF threshold')
+        matplotlib.pyplot.ylabel(elemLabel)
+        matplotlib.pyplot.savefig(outfilepath+'.png')
+        matplotlib.pyplot.savefig(outfilepath+'.eps')
         matplotlib.pyplot.close('all')
         
         # print
         print 'done.'
 
-
 #============================ main ============================================
 
 def main():
     
-    # initialize logging
-    logging.config.fileConfig('logging.conf')
-
     # verify there is some data to plot
     if not os.path.isdir(DATADIR):
         print 'There are no simulation results to analyze.'
         sys.exit(1)
     
-    # parse CLI options
-    options            = parseCliOptions()
-
+    elems = [
+        ('numTxCells',       'poipoi'),
+        ('aveQueueDelay',    'poipoi'),
+        ('OTFevent',         'poipoi'),
+        ('PacketLoss',       'poipoi'),
+    ]
+    
     # plot figures
-   
-    for elemName in options['elemNames']:
-        params={}
-        numDirs=0
-        keys=[]
-        dictionary={}
+    for (elemName,elemLabel) in elems:
+        print '\n {0}\n'.format(elemName)
+        keys       = []
+        params     = {}
+        dictionary = {}
+        numDirs    = 0
         for dir in os.listdir(DATADIR):
             if os.path.isdir(os.path.join(DATADIR, dir)):
-                numDirs+=1
-                iterdir=iter(dir.split('_'))
-                compare=[]
-                toBeTuple=[]
+                numDirs          += 1
+                iterdir           = iter(dir.split('_'))
+                compare           = []
+                toBeTuple         = []
                 for i, item in [(l, eval(iterdir.next())) for l in iterdir]:
                     if i not in keys:
-                        keys+=[i]
+                        keys     += [i]
                     if i not in compare:
-                        compare+=[i]
+                        compare  += [i]
                     if not params.has_key(i):
-                        params[i]=set()
+                        params[i] = set()
                     params[i].update([item])
-                    toBeTuple+=[item]
+                    toBeTuple    += [item]
                 assert keys==compare
                 dictionary[tuple(toBeTuple)]=genTimelineAvgs(
-                    infilepaths    = glob.glob(os.path.join(DATADIR, dir,'*.dat')),
+                    infilepaths   = glob.glob(os.path.join(DATADIR, dir,'*.dat')),
                     elemName      = elemName,
                 )
         assert numpy.product([len(value) for value in params.itervalues()])==numDirs
-        genPlotsOTF(keys, params, dictionary, DATADIR, elemName)
-    
+        genPlotsOTF(keys, params, dictionary, DATADIR, elemName, elemLabel)
+
 if __name__=="__main__":
     main()
