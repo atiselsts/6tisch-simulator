@@ -42,6 +42,24 @@ import itertools
 DATADIR = 'simDataOTF'
 CONFINT = 0.95
 
+PLOT_LATENCY       = 'latency'
+PLOT_NUMCELLS      = 'numCells'
+PLOT_OTFACTIVITY   = 'otfActivity'
+PLOT_RELIABILITY   = 'reliability'
+PLOT_ALL           = [
+    PLOT_LATENCY,
+    PLOT_NUMCELLS,
+    PLOT_OTFACTIVITY,
+    PLOT_RELIABILITY,
+]
+
+PLOTYLABEL = {
+    PLOT_LATENCY:       'end-to-end latency',
+    PLOT_NUMCELLS:      'number of scheduled cells',
+    PLOT_OTFACTIVITY:   'number of OTF add/remove operations',
+    PLOT_RELIABILITY:   'end-to-end reliability',
+}
+
 #============================ body ============================================
 
 def parseFiles(infilepaths,elemName):
@@ -94,16 +112,27 @@ def parseFiles(infilepaths,elemName):
     assert len(set([len(value) for value in valuesPerCycle.values()]))==1
     return valuesPerCycle
 
-def genTimelineAvgs(infilepaths,elemName):
+def genTimelineAvgs(infilepaths,plotType):
     
-    if elemName=='OTFevent':
+    if   plotType==PLOT_NUMCELLS:
+        
+        valuesPerCycle            = parseFiles(infilepaths,'numTxCells')
+        
+    elif plotType==PLOT_LATENCY:
+        
+        valuesPerCycle            = parseFiles(infilepaths,'aveQueueDelay')
+        
+    elif plotType==PLOT_OTFACTIVITY:
         otfAdd                    = parseFiles(infilepaths,'otfAdd')
         otfRemove                 = parseFiles(infilepaths,'otfRemove')
-        valuesPerCycle            = {}
+        assert sorted(otfAdd.keys())==sorted(otfRemove.keys())
+        
+        valuesPerCycle = {}
         for k in otfAdd.keys():
-            valuesPerCycle[k]     = otfAdd[k] + otfRemove[k]
+            assert len(otfAdd[k])==len(otfRemove[k])
+            valuesPerCycle[k]     = [x+y for (x,y) in zip(otfAdd[k],otfRemove[k])]
     
-    elif elemName=='PacketLoss':
+    elif plotType==PLOT_RELIABILITY:
         appGenerated              = parseFiles(infilepaths,'appGenerated')
         appReachesDagroot         = parseFiles(infilepaths,'appReachesDagroot')
         txQueueFill               = parseFiles(infilepaths,'txQueueFill')
@@ -112,11 +141,11 @@ def genTimelineAvgs(infilepaths,elemName):
         reaCum                    = numpy.cumsum([appReachesDagroot[key] for key in sorted(appReachesDagroot.keys())], axis=0)
         txQueue                   = numpy.array([txQueueFill[key] for key in sorted(txQueueFill.keys())])
         
-        toPutInDict               = 1-reaCum/(genCum-txQueue)
+        toPutInDict               = reaCum/(genCum-txQueue)
         valuesPerCycle            = dict([(key, toPutInDict[key]) for key in sorted(appGenerated.keys())])
     
     else:
-        valuesPerCycle            = parseFiles(infilepaths,elemName)
+        raise SystemError()
     
     # calculate mean and confidence interval
     meanPerCycle                  = {}
@@ -136,7 +165,7 @@ def genTimelineAvgs(infilepaths,elemName):
     
     return [x, y, yerr]
 
-def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
+def genPlotsOTF(keys, params, dictionary, dir, plotType):
     assert 'otfThreshold'    in keys
     assert 'pkPeriod'        in keys
     
@@ -151,9 +180,9 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
             outfilenameList           += ['{0}_{1}'.format(k, v)]
             toBeTuple[keys.index(k)]   = v
         
-        #===== timeline
+        #===== vs. time
         
-        outfilename          = '_'.join(outfilenameList)+'_timeline_{}'.format(elemName)
+        outfilename          = '{0}_vs_time'.format(plotType)
         outfilepath          = os.path.join(dir,outfilename)
         
         # print
@@ -184,7 +213,7 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
         )
         matplotlib.pyplot.hold(False)
         matplotlib.pyplot.xlabel('slotframe cycle')
-        matplotlib.pyplot.ylabel(elemLabel)
+        matplotlib.pyplot.ylabel(PLOTYLABEL[plotType])
         matplotlib.pyplot.savefig(outfilepath+'.png')
         matplotlib.pyplot.savefig(outfilepath+'.eps')
         matplotlib.pyplot.close('all')
@@ -192,9 +221,9 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
         # print
         print 'done.'
         
-        #===== as function of threshhold
+        #===== vs. threshold
         
-        outfilename          = '_'.join(outfilenameList)+'_{}'.format(elemName)
+        outfilename          = '{0}_vs_threshold'.format(plotType)
         outfilepath          = os.path.join(dir,outfilename)
         
         # print
@@ -226,7 +255,7 @@ def genPlotsOTF(keys, params, dictionary, dir, elemName, elemLabel):
         )
         matplotlib.pyplot.hold(False)
         matplotlib.pyplot.xlabel('OTF threshold')
-        matplotlib.pyplot.ylabel(elemLabel)
+        matplotlib.pyplot.ylabel(PLOTYLABEL[plotType])
         matplotlib.pyplot.savefig(outfilepath+'.png')
         matplotlib.pyplot.savefig(outfilepath+'.eps')
         matplotlib.pyplot.close('all')
@@ -243,16 +272,9 @@ def main():
         print 'There are no simulation results to analyze.'
         sys.exit(1)
     
-    elems = [
-        ('numTxCells',       'poipoi'),
-        ('aveQueueDelay',    'poipoi'),
-        ('OTFevent',         'poipoi'),
-        ('PacketLoss',       'poipoi'),
-    ]
-    
     # plot figures
-    for (elemName,elemLabel) in elems:
-        print '\n {0}\n'.format(elemName)
+    for plotType in PLOT_ALL:
+        print '\n   {0}\n'.format(plotType)
         keys       = []
         params     = {}
         dictionary = {}
@@ -273,12 +295,12 @@ def main():
                     params[i].update([item])
                     toBeTuple    += [item]
                 assert keys==compare
-                dictionary[tuple(toBeTuple)]=genTimelineAvgs(
+                dictionary[tuple(toBeTuple)] = genTimelineAvgs(
                     infilepaths   = glob.glob(os.path.join(DATADIR, dir,'*.dat')),
-                    elemName      = elemName,
+                    plotType      = plotType,
                 )
         assert numpy.product([len(value) for value in params.itervalues()])==numDirs
-        genPlotsOTF(keys, params, dictionary, DATADIR, elemName, elemLabel)
+        genPlotsOTF(keys, params, dictionary, DATADIR, plotType)
 
 if __name__=="__main__":
     main()
