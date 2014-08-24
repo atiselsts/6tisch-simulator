@@ -159,8 +159,28 @@ class Mote(object):
             uniqueTag   = (self.id, 'sendData')
         )
     
+    def _app_schedule_enqueueData(self):
+        ''' create an event that is inserted into the simulator engine to send a data burst'''
+        
+        # schedule numPacketsBurst packets at burstTime
+        for i in xrange(self.settings.numPacketsBurst):
+            self.engine.scheduleIn(
+                delay       = self.settings.burstTime,
+                cb          = self._app_action_enqueueData,
+                uniqueTag   = (self.id, 'enqueueData')
+            )
+    
     def _app_action_sendData(self):
         ''' actual send data function. Evaluates queue length too '''
+        
+        # enqueue data
+        self._app_action_enqueueData()
+        
+        # schedule next _app_action_sendData
+        self._app_schedule_sendData()
+    
+    def _app_action_enqueueData(self):
+        ''' actual enqueue data function '''
         
         #self._log(self.DEBUG,"[app] _app_action_sendData")
         
@@ -180,9 +200,6 @@ class Mote(object):
             
             # enqueue packet in TSCH queue
             self._tsch_enqueue(newPacket)
-        
-        # schedule next _app_action_sendData
-        self._app_schedule_sendData()
     
     #===== rpl
     
@@ -1079,6 +1096,8 @@ class Mote(object):
     def boot(self):
         if not self.dagRoot:
             self._app_schedule_sendData()
+            if self.settings.numPacketsBurst != None and self.settings.burstTime != None:
+                self._app_schedule_enqueueData()
         self._rpl_schedule_sendDIO()
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
