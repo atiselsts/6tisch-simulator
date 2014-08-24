@@ -159,8 +159,28 @@ class Mote(object):
             uniqueTag   = (self.id, 'sendData')
         )
     
+    def _app_schedule_enqueueData(self):
+        ''' create an event that is inserted into the simulator engine to send a data burst'''
+        
+        # schedule numPacketsBurst packets at burstTime
+        for i in xrange(self.settings.numPacketsBurst):
+            self.engine.scheduleIn(
+                delay       = self.settings.burstTime,
+                cb          = self._app_action_enqueueData,
+                uniqueTag   = (self.id, 'enqueueData')
+            )
+    
     def _app_action_sendData(self):
         ''' actual send data function. Evaluates queue length too '''
+        
+        # enqueue data
+        self._app_action_enqueueData()
+        
+        # schedule next _app_action_sendData
+        self._app_schedule_sendData()
+    
+    def _app_action_enqueueData(self):
+        ''' actual enqueue data function '''
         
         #self._log(self.DEBUG,"[app] _app_action_sendData")
         
@@ -180,9 +200,6 @@ class Mote(object):
             
             # enqueue packet in TSCH queue
             self._tsch_enqueue(newPacket)
-        
-        # schedule next _app_action_sendData
-        self._app_schedule_sendData()
     
     #===== rpl
     
@@ -211,8 +228,8 @@ class Mote(object):
                 # update mote stats
                 self._incrementMoteStats('rplTxDIO')
                 
-                # log charge usage
-                self._logChargeConsumed(self.CHARGE_TxData_uC)
+                # log charge usage for sending DIO is currently neglected
+                # self._logChargeConsumed(self.CHARGE_TxData_uC)
                 
                 # "send" DIO to all neighbors
                 for neighbor in self._myNeigbors():
@@ -221,8 +238,8 @@ class Mote(object):
                     if neighbor.dagRoot:
                         continue
                     
-                    # log charge usage (for neighbor)
-                    neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
+                    # log charge usage (for neighbor) for receiving DIO is currently neglected
+                    # neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
                     
                     # in neighbor, update my rank/DAGrank
                     neighbor.neighborDagRank[self]    = self.dagRank
@@ -1079,6 +1096,8 @@ class Mote(object):
     def boot(self):
         if not self.dagRoot:
             self._app_schedule_sendData()
+            if self.settings.numPacketsBurst != None and self.settings.burstTime != None:
+                self._app_schedule_enqueueData()
         self._rpl_schedule_sendDIO()
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
