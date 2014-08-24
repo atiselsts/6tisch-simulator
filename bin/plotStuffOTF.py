@@ -87,298 +87,6 @@ PERIOD_ECOLORS = {
 
 pp = pprint.PrettyPrinter(indent=4)
 
-#============================ body ============================================
-'''
-def parseFiles(infilepaths,elemName):
-    
-    valuesPerCycle = {}
-    for infilepath in infilepaths:
-        
-        # print
-        print 'Parsing    {0}...'.format(infilepath),
-        
-        # find colnumelem, colnumcycle, colnumrunNum
-        with open(infilepath,'r') as f:
-            for line in f:
-                if line.startswith('# '):
-                    elems        = re.sub(' +',' ',line[2:]).split()
-                    numcols      = len(elems)
-                    colnumelem   = elems.index(elemName)
-                    colnumcycle  = elems.index('cycle')
-                    colnumrunNum = elems.index('runNum')
-                    break
-        
-        assert colnumelem
-        assert colnumcycle
-        assert colnumrunNum
-        
-        # parse data
-        
-        with open(infilepath,'r') as f:
-            for line in f:
-                if line.startswith('#') or not line.strip():
-                    continue
-                m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-                cycle   = int(m.group(colnumcycle+1))
-                runNum  = int(m.group(colnumrunNum+1))
-                try:
-                    elem         = float(m.group(colnumelem+1))
-                except:
-                    try:
-                        elem     =   int(m.group(colnumelem+1))
-                    except:
-                        elem     =       m.group(colnumelem+1)
-                
-                if cycle not in valuesPerCycle:
-                    valuesPerCycle[cycle] = []
-                valuesPerCycle[cycle] += [elem]
-        
-        # print
-        print 'done.'
-    
-    assert len(set([len(value) for value in valuesPerCycle.values()]))==1
-    return valuesPerCycle
-
-def genTimelineAvgs(infilepaths,plotType):
-    
-    # infilepaths returns
-    # res = {
-    #       <----- numRuns ----->
-    #    0: [12,12,1,12,12,12,12] ^
-    #    1: [12,12,1,12,12,12,12] | numCycles
-    #    2: [12,12,1,12,12,12,12] v
-    #    ...
-    # }
-    
-    if   plotType==PLOT_NUMCELLS:
-        
-        valuesPerCycle            = parseFiles(infilepaths,'numTxCells')
-        
-    elif plotType==PLOT_LATENCY:
-        
-        valuesPerCycle            = parseFiles(infilepaths,'aveQueueDelay')
-        
-    elif plotType==PLOT_OTFACTIVITY:
-        
-        otfAdd                    = parseFiles(infilepaths,'otfAdd')
-        otfRemove                 = parseFiles(infilepaths,'otfRemove')
-        assert sorted(otfAdd.keys())==sorted(otfRemove.keys())
-        
-        valuesPerCycle = {}
-        for cycle in otfAdd.keys():
-            assert len(otfAdd[cycle])==len(otfRemove[cycle])
-            valuesPerCycle[cycle] = [a+r for (a,r) in zip(otfAdd[cycle],otfRemove[cycle])]
-    
-    elif plotType==PLOT_RELIABILITY:
-        
-        output  = []
-        
-        appGenerated              = parseFiles(infilepaths,'appGenerated')
-        appReachesDagroot         = parseFiles(infilepaths,'appReachesDagroot')
-        txQueueFill               = parseFiles(infilepaths,'txQueueFill')
-        assert sorted(appGenerated.keys())==sorted(appReachesDagroot.keys())==sorted(txQueueFill.keys())
-        
-        valuesPerCycle = {}
-        for cycle in appGenerated.keys():
-            
-            output  += ['\ncycle {0}\n'.format(cycle)]
-            
-            assert len(appGenerated[cycle])==len(appReachesDagroot[cycle])==len(txQueueFill[cycle])
-            valuesPerCycle[cycle] = []
-            
-            for (g,r,q) in zip(appGenerated[cycle],appReachesDagroot[cycle],txQueueFill[cycle]):
-                
-                output  += ['g {0}'.format(g)]
-                output  += ['r {0}'.format(r)]
-                output  += ['q {0}'.format(q)]
-                
-                if g:
-                    valuesPerCycle[cycle] += [1.0-((g-r-q)/g)]
-                else:
-                    valuesPerCycle[cycle] += [numpy.nan]
-                
-                
-                valuesPerCycle[cycle] += [thisReliabilty]
-        output  = '\n'.join(output)
-        with open('poipoi.txt','w') as f:
-            f.write(output)
-        
-    else:
-        raise SystemError()
-    
-    # calculate mean and confidence interval
-    meanPerCycle                  = {}
-    confintPerCycle               = {}
-    for (k,v) in valuesPerCycle.items():
-        a                         = 1.0*numpy.array(v)
-        n                         = len(a)
-        se                        = scipy.stats.sem(a)
-        m                         = numpy.mean(a)
-        confint                   = se * scipy.stats.t._ppf((1+CONFINT)/2., n-1)
-        meanPerCycle[k]           = m
-        confintPerCycle[k]        = confint
-    
-    x         = sorted(meanPerCycle.keys())
-    y         = [meanPerCycle[k] for k in x]
-    yerr      = [confintPerCycle[k] for k in x]
-    
-    return [x, y, yerr]
-
-def genPlotsOTF(keys, params, dictionary, dir, plotType):
-    assert 'otfThreshold'    in keys
-    assert 'pkPeriod'        in keys
-    
-    figureKeys     = set(keys)-set(['otfThreshold', 'pkPeriod'])
-    toBeTuple      = keys[:]
-    col            = ['r', 'g', 'b', 'm', 'c', 'y']
-    mark           = ['o', '>', 'd']
-
-    for p in itertools.product(*[params[k] for k in figureKeys]):
-        outfilenameList = []
-        for (k,v) in zip(figureKeys,p):
-            outfilenameList           += ['{0}_{1}'.format(k, v)]
-            toBeTuple[keys.index(k)]   = v
-        
-        #===== vs. time
-        
-        outfilename          = '{0}_vs_time'.format(plotType)
-        outfilepath          = os.path.join(dir,outfilename)
-        
-        # print
-        print 'Generating {0}...'.format(outfilename),
-        
-        # plot
-        matplotlib.pyplot.figure()
-        matplotlib.pyplot.hold(True)
-        otfThresholdList     = sorted(params['otfThreshold'])
-        pkPeriodList         = sorted(params['pkPeriod'])
-        for otfThreshold in otfThresholdList[0::2]:
-            toBeTuple[keys.index('otfThreshold')]=otfThreshold
-            for pkPeriod in pkPeriodList:
-                toBeTuple[keys.index('pkPeriod')]=pkPeriod
-                toPlot=dictionary[tuple(toBeTuple)]
-                matplotlib.pyplot.errorbar(
-                    x        = toPlot[0],
-                    y        = toPlot[1],
-                    yerr     = toPlot[2],
-                    color    = col[otfThresholdList.index(otfThreshold)],
-                    marker   = mark[pkPeriodList.index(pkPeriod)],
-                    label    = 'otfThresh={0}, pkPeriod={1:.0f}s'.format(otfThreshold, pkPeriod),
-                )
-        matplotlib.pyplot.legend(
-            loc              = 0,
-            prop             = matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'),
-            labelspacing     = 0.0,
-        )
-        matplotlib.pyplot.hold(False)
-        matplotlib.pyplot.xlabel('slotframe cycle')
-        matplotlib.pyplot.ylabel(PLOTYLABEL[plotType])
-        matplotlib.pyplot.savefig(outfilepath+'.png')
-        matplotlib.pyplot.savefig(outfilepath+'.eps')
-        matplotlib.pyplot.close('all')
-        
-        # print
-        print 'done.'
-        
-        #===== vs. threshold
-        
-        outfilename          = '{0}_vs_threshold'.format(plotType)
-        outfilepath          = os.path.join(dir,outfilename)
-        
-        # print
-        print 'Generating {0}...'.format(outfilename),
-        
-        # plot
-        matplotlib.pyplot.figure()
-        matplotlib.pyplot.hold(True)
-        otfThresholdList     = sorted(params['otfThreshold'])
-        pkPeriodList         = sorted(params['pkPeriod'])
-        for pkPeriod in pkPeriodList:
-            toBeTuple[keys.index('pkPeriod')]=pkPeriod
-            toPlot           = []
-            for otfThreshold in otfThresholdList:
-                toBeTuple[keys.index('otfThreshold')]=otfThreshold
-                toPlot      += [zip(*dictionary[tuple(toBeTuple)])[-1]]
-            toPlot=zip(*toPlot)
-            matplotlib.pyplot.errorbar(
-                otfThresholdList,
-                toPlot[1],
-                yerr         = toPlot[2],
-                color        = col[pkPeriodList.index(pkPeriod)],
-                label        = 'pkPeriod={0}'.format(pkPeriod),
-            )
-        matplotlib.pyplot.legend(
-            loc              = 0,
-            prop             = matplotlib.font_manager.FontProperties(family='monospace', style='oblique', size='xx-small'),
-            labelspacing     = 0.0,
-        )
-        matplotlib.pyplot.hold(False)
-        matplotlib.pyplot.xlabel('OTF threshold')
-        matplotlib.pyplot.ylabel(PLOTYLABEL[plotType])
-        matplotlib.pyplot.savefig(outfilepath+'.png')
-        matplotlib.pyplot.savefig(outfilepath+'.eps')
-        matplotlib.pyplot.close('all')
-        
-        # print
-        print 'done.'
-'''
-
-def gatherPerCycleData(infilepaths,elemName):
-    
-    valuesPerCycle = {}
-    for infilepath in infilepaths:
-        
-        # print
-        print 'Parsing    {0} for {1}...'.format(infilepath,elemName),
-        
-        # find colnumelem, colnumcycle, colnumrunNum, processID
-        with open(infilepath,'r') as f:
-            for line in f:
-                if line.startswith('# '):
-                    elems        = re.sub(' +',' ',line[2:]).split()
-                    numcols      = len(elems)
-                    colnumelem   = elems.index(elemName)
-                    colnumcycle  = elems.index('cycle')
-                    colnumrunNum = elems.index('runNum')
-                    break
-                
-                if line.startswith('## '):
-                    # processID
-                    m = re.search('processID\s+=\s+([0-9]+)',line)
-                    if m:
-                        processID = int(m.group(1))
-        
-        assert colnumelem
-        assert colnumcycle
-        assert colnumrunNum
-        assert processID
-        
-        # parse data
-        
-        with open(infilepath,'r') as f:
-            for line in f:
-                if line.startswith('#') or not line.strip():
-                    continue
-                m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-                cycle   = int(m.group(colnumcycle+1))
-                runNum  = int(m.group(colnumrunNum+1))
-                try:
-                    elem         = float(m.group(colnumelem+1))
-                except:
-                    try:
-                        elem     =   int(m.group(colnumelem+1))
-                    except:
-                        elem     =       m.group(colnumelem+1)
-                
-                if cycle not in valuesPerCycle:
-                    valuesPerCycle[cycle] = []
-                valuesPerCycle[cycle] += [elem]
-        
-        # print
-        print 'done.'
-    
-    return valuesPerCycle
-
 #============================ helpers =========================================
 
 def binDataFiles():
@@ -423,6 +131,105 @@ def binDataFiles():
     print output
     
     return dataBins
+
+def gatherPerRunData(infilepaths,elemName):
+    
+    valuesPerRun = {}
+    for infilepath in infilepaths:
+        
+        # print
+        print 'Parsing    {0} for {1}...'.format(infilepath,elemName),
+        
+        # find colnumelem, colnumrunNum, processID
+        with open(infilepath,'r') as f:
+            for line in f:
+                if line.startswith('# '):
+                    elems        = re.sub(' +',' ',line[2:]).split()
+                    numcols      = len(elems)
+                    colnumelem   = elems.index(elemName)
+                    colnumrunNum = elems.index('runNum')
+                    break
+                
+                if line.startswith('## '):
+                    # processID
+                    m = re.search('processID\s+=\s+([0-9]+)',line)
+                    if m:
+                        processID = int(m.group(1))
+        
+        assert colnumelem
+        assert colnumrunNum
+        assert processID
+        
+        # parse data
+        
+        with open(infilepath,'r') as f:
+            for line in f:
+                if line.startswith('#') or not line.strip():
+                    continue
+                m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+                runNum  = int(m.group(colnumrunNum+1))
+                try:
+                    elem         = float(m.group(colnumelem+1))
+                except:
+                    try:
+                        elem     =   int(m.group(colnumelem+1))
+                    except:
+                        elem     =       m.group(colnumelem+1)
+                
+                if (processID,runNum) not in valuesPerRun:
+                    valuesPerRun[processID,runNum] = []
+                valuesPerRun[processID,runNum] += [elem]
+        
+        # print
+        print 'done.'
+    
+    return valuesPerRun
+
+def gatherPerCycleData(infilepaths,elemName):
+    
+    valuesPerCycle = {}
+    for infilepath in infilepaths:
+        
+        # print
+        print 'Parsing    {0} for {1}...'.format(infilepath,elemName),
+        
+        # find colnumelem, colnumcycle
+        with open(infilepath,'r') as f:
+            for line in f:
+                if line.startswith('# '):
+                    elems        = re.sub(' +',' ',line[2:]).split()
+                    numcols      = len(elems)
+                    colnumelem   = elems.index(elemName)
+                    colnumcycle  = elems.index('cycle')
+                    break
+        
+        assert colnumelem
+        assert colnumcycle
+        
+        # parse data
+        
+        with open(infilepath,'r') as f:
+            for line in f:
+                if line.startswith('#') or not line.strip():
+                    continue
+                m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
+                cycle   = int(m.group(colnumcycle+1))
+                try:
+                    elem         = float(m.group(colnumelem+1))
+                except:
+                    try:
+                        elem     =   int(m.group(colnumelem+1))
+                    except:
+                        elem     =       m.group(colnumelem+1)
+                
+                if cycle not in valuesPerCycle:
+                    valuesPerCycle[cycle] = []
+                valuesPerCycle[cycle] += [elem]
+        
+        # print
+        print 'done.'
+    
+    return valuesPerCycle
 
 def calcMeanConfInt(vals):
     assert type(vals)==list
@@ -756,9 +563,156 @@ def plot_numCells_vs_threshold(dataBins):
 
 #===== otfActivity
 
-#===== reliability
+def plot_otfActivity_vs_time(dataBins):
+    
+    prettyp   = False
+    
+    # gather raw add/remove data
+    otfAddData     = {}
+    otfRemoveData  = {}
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfAdd')
+        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfRemove')
+    
+    # otfAddData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    # otfRemoveData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    #===== format data
+    
+    # calculate mean and confidence interval
+    for ((otfThreshold,pkPeriod),perCycleData) in otfAddData.items():
+        for cycle in perCycleData.keys():
+            (m,confint) = calcMeanConfInt(perCycleData[cycle])
+            perCycleData[cycle] = {
+                'mean':      m,
+                'confint':   confint,
+            }
+    for ((otfThreshold,pkPeriod),perCycleData) in otfRemoveData.items():
+        for cycle in perCycleData.keys():
+            (m,confint) = calcMeanConfInt(perCycleData[cycle])
+            perCycleData[cycle] = {
+                'mean':      -m,
+                'confint':   confint,
+            }
+    
+    # otfAddData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: {'mean': 12, 'confint':12},
+    #         1: {'mean': 12, 'confint':12},
+    #     }
+    # }
+    # otfRemoveData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: {'mean': 12, 'confint':12},
+    #         1: {'mean': 12, 'confint':12},
+    #     }
+    # }
+    
+    # arrange to be plotted
+    for ((otfThreshold,pkPeriod),perCycleData) in otfAddData.items():
+        x     = sorted(perCycleData.keys())
+        y     = [perCycleData[i]['mean']    for i in x]
+        yerr  = [perCycleData[i]['confint'] for i in x]
+        assert len(x)==len(y)==len(yerr)
+        
+        otfAddData[(otfThreshold,pkPeriod)] = {
+            'x':        x,
+            'y':        y,
+            'yerr':     yerr,
+        }
+    for ((otfThreshold,pkPeriod),perCycleData) in otfRemoveData.items():
+        x     = sorted(perCycleData.keys())
+        y     = [perCycleData[i]['mean']    for i in x]
+        yerr  = [perCycleData[i]['confint'] for i in x]
+        assert len(x)==len(y)==len(yerr)
+        
+        otfRemoveData[(otfThreshold,pkPeriod)] = {
+            'x':        x,
+            'y':        y,
+            'yerr':     yerr,
+        }
+    
+    # otfAddData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         'x':      [ 0, 1, 2, 3, 4, 5, 6],
+    #         'y':      [12,12,12,12,12,12,12],
+    #         'yerr':   [12,12,12,12,12,12,12],
+    #     }
+    # }
+    # otfRemoveData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         'x':      [ 0, 1, 2, 3, 4, 5, 6],
+    #         'y':      [12,12,12,12,12,12,12],
+    #         'yerr':   [12,12,12,12,12,12,12],
+    #     }
+    # }
+    
+    #===== plot
+    
+    fig = matplotlib.pyplot.figure()
+    
+    def plotForEachThreshold(ax,plotData,period):
+        ax.set_xlim(xmin=0,xmax=20)
+        #ax.set_ylim(ymin=ymin,ymax=ymax)
+        ax.text(2,-15,'packet period {0}s'.format(period))
+        plots = []
+        for th in [0,4]:
+            for ((otfThreshold,pkPeriod),data) in plotData.items():
+                if otfThreshold==th and pkPeriod==period:
+                    plots += [
+                        ax.errorbar(
+                            x        = data['x'],
+                            y        = data['y'],
+                            yerr     = data['yerr'],
+                            color    = TH_COLORS[th],
+                            ecolor   = TH_ECOLORS[th],
+                        )
+                    ]
+        return tuple(plots)
+    
+    SUBPLOTHEIGHT = 0.28
+    
+    # pkPeriod=1s
+    ax01 = fig.add_axes([0.10, 0.10+2*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    ax01.get_xaxis().set_visible(False)
+    plotForEachThreshold(ax01,otfAddData,1)
+    plotForEachThreshold(ax01,otfRemoveData,1)
+    
+    # pkPeriod=10s
+    ax10 = fig.add_axes([0.10, 0.10+1*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    ax10.get_xaxis().set_visible(False)
+    plotForEachThreshold(ax10,otfAddData,10)
+    plotForEachThreshold(ax10,otfRemoveData,10)
+    ax10.set_ylabel('number of add/remove OTF operations per cycle')
+    
+    # pkPeriod=60s
+    ax60 = fig.add_axes([0.10, 0.10+0*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    plotForEachThreshold(ax60,otfAddData,60)
+    (th0,th4) = plotForEachThreshold(ax60,otfRemoveData,60)
+    ax60.set_xlabel('time (in slotframe cycles)')
+    
+    fig.legend(
+        (th0,th4),
+        ('OTF threshold 0 cells', 'OTF threshold 4 cells'),
+        'upper right',
+        prop={'size':8},
+    )
+    
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'otfActivity_vs_time.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'otfActivity_vs_time.eps'))
+    matplotlib.pyplot.close('all')
 
-def gather_reliability_data(dataBins):
+def gather_sumOtfActivity_data(dataBins):
     
     prettyp   = False
     
@@ -808,6 +762,181 @@ def gather_reliability_data(dataBins):
     
     return plotData
 
+def plot_otfActivity_vs_threshold(dataBins):
+    
+    plotData  = gather_sumOtfActivity_data(dataBins)
+    
+    plot_vs_threshold(
+        plotData   = plotData,
+        ymin       = 0,
+        ymax       = 25,
+        ylabel     = 'number of add/remove OTF operations per cycle',
+        filename   = 'otfActivity_vs_threshold',
+    )
+
+#===== reliability
+
+def plot_reliability_vs_threshold(dataBins):
+    
+    prettyp = False
+    
+    #===== gather data
+    
+    # gather raw add/remove data
+    appGeneratedData    = {}
+    appReachedData      = {}
+    txQueueFillData     = {}
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        appGeneratedData[(otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'appGenerated')
+        appReachedData[  (otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'appReachesDagroot')
+        txQueueFillData[ (otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'txQueueFill')
+    
+    # appGeneratedData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): [12,12,12,12,12,12,12,12,12],
+    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    # appReachedData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): [12,12,12,12,12,12,12,12,12],
+    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    # txQueueFillData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): [12,12,12,12,12,12,12,12,12],
+    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('gather raw add/remove data'))
+            f.write('appGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
+            f.write('appReachedData={0}'.format(pp.pformat(appReachedData)))
+            f.write('txQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
+    
+    #===== format data
+    
+    # sum up appGeneratedData and appReachedData
+    for ((otfThreshold,pkPeriod),perRunData) in appGeneratedData.items():
+        for runNum in perRunData.keys():
+            perRunData[runNum] = sum(perRunData[runNum])
+    for ((otfThreshold,pkPeriod),perRunData) in appReachedData.items():
+        for runNum in perRunData.keys():
+            perRunData[runNum] = sum(perRunData[runNum])
+    
+    # appGeneratedData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): 12,
+    #         (0,1): 14,
+    #     }
+    # }
+    # appReachedData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): 12,
+    #         (0,1): 12,
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('sum up appGeneratedData and appReachedData'))
+            f.write('appGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
+            f.write('appReachedData={0}'.format(pp.pformat(appReachedData)))
+    
+    # get last of txQueueFillData
+    for ((otfThreshold,pkPeriod),perRunData) in txQueueFillData.items():
+        for runNum in perRunData.keys():
+            perRunData[runNum] = perRunData[runNum][-1]
+    
+    # txQueueFillData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): 12,
+    #         (0,1): 12,
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('get last of txQueueFillData'))
+            f.write('txQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
+    
+    # calculate the end-to-end reliability for each runNum
+    reliabilityData = {}
+    for otfpk in appReachedData.keys():
+        reliabilityData[otfpk] = {}
+        for runNum in appReachedData[otfpk]:
+            g = float(appGeneratedData[otfpk][runNum])
+            r = float(appReachedData[otfpk][runNum])
+            q = float(txQueueFillData[otfpk][runNum])
+            assert g>0
+            reliability = (r+q)/g
+            assert reliability>=0
+            assert reliability<=1
+            reliabilityData[otfpk][runNum] = reliability
+    
+    # reliabilityData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         (0,0): 0.9558,
+    #         (0,1): 1.0000,
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('calculate the end-to-end reliability for each cycle'))
+            f.write('reliabilityData={0}'.format(pp.pformat(reliabilityData)))
+    
+    # calculate the end-to-end reliability per (otfThreshold,pkPeriod)
+    for otfpk in appReachedData.keys():
+        vals = reliabilityData[otfpk].values()
+        (m,confint) = calcMeanConfInt(vals)
+        reliabilityData[otfpk] = {
+            'mean':      m,
+            'confint':   confint,
+        }
+    
+    # reliabilityData = {
+    #     (otfThreshold,pkPeriod) = {'mean': 12, 'confint':12},
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('calculate the end-to-end reliability per (otfThreshold,pkPeriod)'))
+            f.write('reliabilityData={0}'.format(pp.pformat(reliabilityData)))
+    
+    #===== plot
+    
+    fig = matplotlib.pyplot.figure()
+    matplotlib.pyplot.ylim(ymin=0.94,ymax=1.015)
+    matplotlib.pyplot.xlabel('OTF threshold (cells)')
+    matplotlib.pyplot.ylabel('end-to-end reliability')
+    for period in [1,10,60]:
+        
+        d = {}
+        for ((otfThreshold,pkPeriod),data) in reliabilityData.items():
+            if pkPeriod==period:
+                d[otfThreshold] = data
+        x     = sorted(d.keys())
+        y     = [d[k]['mean'] for k in x]
+        yerr  = [d[k]['confint'] for k in x]
+        
+        matplotlib.pyplot.errorbar(
+            x        = x,
+            y        = y,
+            yerr     = yerr,
+            color    = PERIOD_COLORS[period],
+            ecolor   = PERIOD_ECOLORS[period],
+            label    = 'packet period {0}s'.format(period)
+        )
+    matplotlib.pyplot.legend(prop={'size':10})
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'reliability_vs_threshold.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'reliability_vs_threshold.eps'))
+    matplotlib.pyplot.close('all')
+    
 #============================ main ============================================
 
 # latency_vs_threshold
@@ -832,49 +961,11 @@ def main():
     plot_numCells_vs_threshold(dataBins)
     
     # otfActivity
-    # plot_otfActivity_vs_threshold(dataBins)
-    # plot_otfActivity_vs_time(dataBins)
+    #plot_otfActivity_vs_time(dataBins)
+    #plot_otfActivity_vs_threshold(dataBins)
     
     # reliability
-    # plot_reliability_vs_threshold(dataBins)
-    # plot_reliability_vs_time(dataBins)
-    
-    '''
-    # verify there is some data to plot
-    if not os.path.isdir(DATADIR):
-        print 'There are no simulation results to analyze.'
-        sys.exit(1)
-    
-    # plot figures
-    for plotType in PLOT_ALL:
-        print '\n   {0}\n'.format(plotType)
-        keys       = []
-        params     = {}
-        dictionary = {}
-        numDirs    = 0
-        for dir in os.listdir(DATADIR):
-            if os.path.isdir(os.path.join(DATADIR, dir)):
-                numDirs          += 1
-                iterdir           = iter(dir.split('_'))
-                compare           = []
-                toBeTuple         = []
-                for i, item in [(l, eval(iterdir.next())) for l in iterdir]:
-                    if i not in keys:
-                        keys     += [i]
-                    if i not in compare:
-                        compare  += [i]
-                    if not params.has_key(i):
-                        params[i] = set()
-                    params[i].update([item])
-                    toBeTuple    += [item]
-                assert keys==compare
-                dictionary[tuple(toBeTuple)] = genTimelineAvgs(
-                    infilepaths   = glob.glob(os.path.join(DATADIR, dir,'*.dat')),
-                    plotType      = plotType,
-                )
-        assert numpy.product([len(value) for value in params.itervalues()])==numDirs
-        genPlotsOTF(keys, params, dictionary, DATADIR, plotType)
-    '''
+    plot_reliability_vs_threshold(dataBins)
 
 if __name__=="__main__":
     main()
