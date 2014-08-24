@@ -548,6 +548,74 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
     matplotlib.pyplot.savefig(os.path.join(DATADIR,'{0}.eps'.format(filename)))
     matplotlib.pyplot.close('all')
 
+def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
+    
+    prettyp   = False
+    
+    #===== format data
+    
+    # collapse all cycles
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        temp = []
+        for (k,v) in perCycleData.items():
+            temp += v
+        plotData[(otfThreshold,pkPeriod)] = temp
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = [12,12,12,12,12,12,12,12,12],
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('collapse all cycles'))
+            f.write(pp.pformat(plotData))
+    
+    # calculate mean and confidence interval
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        (m,confint) = calcMeanConfInt(perCycleData)
+        plotData[(otfThreshold,pkPeriod)] = {
+            'mean':      m,
+            'confint':   confint,
+        }
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {'mean': 12, 'confint':12},
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
+            f.write(pp.pformat(plotData))
+    
+    #===== plot
+    
+    fig = matplotlib.pyplot.figure()
+    matplotlib.pyplot.ylim(ymin=ymin,ymax=ymax)
+    matplotlib.pyplot.xlabel('OTF threshold (cells)')
+    matplotlib.pyplot.ylabel(ylabel)
+    for period in [1,10,60]:
+        
+        d = {}
+        for ((otfThreshold,pkPeriod),data) in plotData.items():
+            if pkPeriod==period:
+                d[otfThreshold] = data
+        x     = sorted(d.keys())
+        y     = [d[k]['mean'] for k in x]
+        yerr  = [d[k]['confint'] for k in x]
+        
+        matplotlib.pyplot.errorbar(
+            x        = x,
+            y        = y,
+            yerr     = yerr,
+            color    = PERIOD_COLORS[period],
+            ecolor   = PERIOD_ECOLORS[period],
+            label    = 'packet period {0}s'.format(period)
+        )
+    matplotlib.pyplot.legend(prop={'size':10})
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'{0}.png'.format(filename)))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'{0}.eps'.format(filename)))
+    matplotlib.pyplot.close('all')
+
 #===== latency
 
 def gather_latency_data(dataBins):
@@ -627,72 +695,15 @@ def plot_latency_vs_time(dataBins):
 
 def plot_latency_vs_threshold(dataBins):
     
-    prettyp  = False
     plotData  = gather_latency_data(dataBins)
     
-    #===== format data
-    
-    # collapse all cycles
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        temp = []
-        for (k,v) in perCycleData.items():
-            temp += v
-        plotData[(otfThreshold,pkPeriod)] = temp
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = [12,12,12,12,12,12,12,12,12],
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('collapse all cycles'))
-            f.write(pp.pformat(plotData))
-    
-    # calculate mean and confidence interval
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        (m,confint) = calcMeanConfInt(perCycleData)
-        plotData[(otfThreshold,pkPeriod)] = {
-            'mean':      m,
-            'confint':   confint,
-        }
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {'mean': 12, 'confint':12},
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
-            f.write(pp.pformat(plotData))
-    
-    #===== plot
-    
-    fig = matplotlib.pyplot.figure()
-    matplotlib.pyplot.ylim(ymin=0,ymax=1.6)
-    matplotlib.pyplot.xlabel('OTF threshold (cells)')
-    matplotlib.pyplot.ylabel('end-to-end latency (s)')
-    for period in [1,10,60]:
-        
-        d = {}
-        for ((otfThreshold,pkPeriod),data) in plotData.items():
-            if pkPeriod==period:
-                d[otfThreshold] = data
-        x     = sorted(d.keys())
-        y     = [d[k]['mean'] for k in x]
-        yerr  = [d[k]['confint'] for k in x]
-        
-        matplotlib.pyplot.errorbar(
-            x        = x,
-            y        = y,
-            yerr     = yerr,
-            color    = PERIOD_COLORS[period],
-            ecolor   = PERIOD_ECOLORS[period],
-            label    = 'packet period {0}s'.format(period)
-        )
-    matplotlib.pyplot.legend(prop={'size':12})
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_threshold.png'))
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_threshold.eps'))
-    matplotlib.pyplot.close('all')
+    plot_vs_threshold(
+        plotData   = plotData,
+        ymin       = 0,
+        ymax       = 1.6,
+        ylabel     = 'end-to-end latency (s)',
+        filename   = 'latency_vs_threshold',
+    )
 
 #===== numCells
 
@@ -729,6 +740,18 @@ def plot_numCells_vs_time(dataBins):
         ymax     = 600,
         ylabel   = 'number of scheduled cells',
         filename = 'numCells_vs_time',
+    )
+
+def plot_numCells_vs_threshold(dataBins):
+    
+    plotData  = gather_numCells_data(dataBins)
+    
+    plot_vs_threshold(
+        plotData   = plotData,
+        ymin       = 0,
+        ymax       = 600,
+        ylabel     = 'number of scheduled cells',
+        filename   = 'numCells_vs_threshold',
     )
 
 #===== otfActivity
@@ -806,7 +829,7 @@ def main():
     
     # numCells
     plot_numCells_vs_time(dataBins)
-    #plot_numCells_vs_threshold(dataBins)
+    plot_numCells_vs_threshold(dataBins)
     
     # otfActivity
     # plot_otfActivity_vs_threshold(dataBins)
