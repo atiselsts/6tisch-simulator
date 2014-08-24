@@ -43,43 +43,37 @@ import itertools
 DATADIR = 'simDataOTF'
 CONFINT = 0.95
 
-PLOT_LATENCY       = 'latency'
-PLOT_NUMCELLS      = 'numCells'
-PLOT_OTFACTIVITY   = 'otfActivity'
-PLOT_RELIABILITY   = 'reliability'
-PLOT_ALL           = [
-    #PLOT_LATENCY,
-    #PLOT_NUMCELLS,
-    #PLOT_OTFACTIVITY,
-    PLOT_RELIABILITY,
-]
-
-PLOTYLABEL = {
-    PLOT_LATENCY:       'end-to-end latency',
-    PLOT_NUMCELLS:      'number of scheduled cells',
-    PLOT_OTFACTIVITY:   'number of OTF add/remove operations',
-    PLOT_RELIABILITY:   'end-to-end reliability',
-}
-
-TH_COLORS = {
+COLORS_TH = {
     0:   '#FF0000',
     4:   '#008000',
     10:  '#000080',
 }
 
-TH_ECOLORS = {
+LINESTYLE_TH = {
+    0:   '--',
+    4:   '-.',
+    10:  ':',
+}
+
+ECOLORS_TH = {
     0:   '#FA8072',
     4:   '#00FF00',
     10:  '#00FFFF',
 }
 
-PERIOD_COLORS = {
+COLORS_PERIOD = {
     1:   '#FF0000',
     10:  '#008000',
     60:  '#000080',
 }
 
-PERIOD_ECOLORS = {
+LINESTYLE_PERIOD = {
+    1:   '--',
+    10:  '-.',
+    60:  ':',
+}
+
+ECOLORS_PERIOD = {
     1:   '#FA8072',
     10:  '#00FF00',
     60:  '#00FFFF',
@@ -138,7 +132,7 @@ def gatherPerRunData(infilepaths,elemName):
     for infilepath in infilepaths:
         
         # print
-        print 'Parsing    {0} for {1}...'.format(infilepath,elemName),
+        print 'Parsing {0} for {1}...'.format(infilepath,elemName),
         
         # find colnumelem, colnumrunNum, processID
         with open(infilepath,'r') as f:
@@ -191,7 +185,7 @@ def gatherPerCycleData(infilepaths,elemName):
     for infilepath in infilepaths:
         
         # print
-        print 'Parsing    {0} for {1}...'.format(infilepath,elemName),
+        print 'Parsing {0} for {1}...'.format(infilepath,elemName),
         
         # find colnumelem, colnumcycle
         with open(infilepath,'r') as f:
@@ -320,8 +314,9 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
                             x        = data['x'],
                             y        = data['y'],
                             yerr     = data['yerr'],
-                            color    = TH_COLORS[th],
-                            ecolor   = TH_ECOLORS[th],
+                            color    = COLORS_TH[th],
+                            ls       = LINESTYLE_TH[th],
+                            ecolor   = ECOLORS_TH[th],
                         )
                     ]
         return tuple(plots)
@@ -414,8 +409,9 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
             x        = x,
             y        = y,
             yerr     = yerr,
-            color    = PERIOD_COLORS[period],
-            ecolor   = PERIOD_ECOLORS[period],
+            color    = COLORS_PERIOD[period],
+            ls       = LINESTYLE_PERIOD[period],
+            ecolor   = ECOLORS_PERIOD[period],
             label    = 'packet period {0}s'.format(period)
         )
     matplotlib.pyplot.legend(prop={'size':10})
@@ -674,8 +670,9 @@ def plot_otfActivity_vs_time(dataBins):
                             x        = data['x'],
                             y        = data['y'],
                             yerr     = data['yerr'],
-                            color    = TH_COLORS[th],
-                            ecolor   = TH_ECOLORS[th],
+                            color    = COLORS_TH[th],
+                            ls       = LINESTYLE_TH[th],
+                            ecolor   = ECOLORS_TH[th],
                         )
                     ]
         return tuple(plots)
@@ -928,8 +925,9 @@ def plot_reliability_vs_threshold(dataBins):
             x        = x,
             y        = y,
             yerr     = yerr,
-            color    = PERIOD_COLORS[period],
-            ecolor   = PERIOD_ECOLORS[period],
+            color    = COLORS_PERIOD[period],
+            ls       = LINESTYLE_PERIOD[period],
+            ecolor   = ECOLORS_PERIOD[period],
             label    = 'packet period {0}s'.format(period)
         )
     matplotlib.pyplot.legend(prop={'size':10})
@@ -962,7 +960,7 @@ def main():
     
     # otfActivity
     #plot_otfActivity_vs_time(dataBins)
-    #plot_otfActivity_vs_threshold(dataBins)
+    plot_otfActivity_vs_threshold(dataBins)
     
     # reliability
     plot_reliability_vs_threshold(dataBins)
