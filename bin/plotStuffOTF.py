@@ -61,10 +61,34 @@ PLOTYLABEL = {
     PLOT_RELIABILITY:   'end-to-end reliability',
 }
 
+TH_COLORS = {
+    0:   '#FF0000',
+    4:   '#008000',
+    10:  '#000080',
+}
+
+TH_ECOLORS = {
+    0:   '#FA8072',
+    4:   '#00FF00',
+    10:  '#00FFFF',
+}
+
+PERIOD_COLORS = {
+    1:   '#FF0000',
+    10:  '#008000',
+    60:  '#000080',
+}
+
+PERIOD_ECOLORS = {
+    1:   '#FA8072',
+    10:  '#00FF00',
+    60:  '#00FFFF',
+}
+
 pp = pprint.PrettyPrinter(indent=4)
 
 #============================ body ============================================
-
+'''
 def parseFiles(infilepaths,elemName):
     
     valuesPerCycle = {}
@@ -200,18 +224,6 @@ def genTimelineAvgs(infilepaths,plotType):
     
     return [x, y, yerr]
 
-def calcMeanConfInt(vals):
-    assert type(vals)==list
-    for val in vals:
-        assert type(val) in [int,float]
-    
-    a         = 1.0*numpy.array(vals)
-    se        = scipy.stats.sem(a)
-    m         = numpy.mean(a)
-    confint   = se * scipy.stats.t._ppf((1+CONFINT)/2., len(a)-1)
-    
-    return (m,confint)
-
 def genPlotsOTF(keys, params, dictionary, dir, plotType):
     assert 'otfThreshold'    in keys
     assert 'pkPeriod'        in keys
@@ -309,6 +321,7 @@ def genPlotsOTF(keys, params, dictionary, dir, plotType):
         
         # print
         print 'done.'
+'''
 
 def gatherPerCycleData(infilepaths,elemName):
     
@@ -366,202 +379,7 @@ def gatherPerCycleData(infilepaths,elemName):
     
     return valuesPerCycle
 
-def getSlotDuration(dataBins):
-    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
-        for filepath in filepaths:
-            with open(filepath,'r') as f:
-                for line in f:
-                    if line.startswith('## '):
-                        m = re.search('slotDuration\s+=\s+([\.0-9]+)',line)
-                        if m:
-                            return float(m.group(1))
-    
-def plot_latency_vs_time(dataBins):
-    
-    prettyp=False
-    
-    slotDuration = getSlotDuration(dataBins)
-    
-    #===== gather and format data
-    
-    # gather raw data
-    plotData = {}
-    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
-        plotData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'aveLatency')
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12,0,0,0,0],
-    #     }
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
-            f.write(pp.pformat(plotData))
-    
-    # convert slots to seconds
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        for cycle in perCycleData.keys():
-            perCycleData[cycle] = [d*slotDuration for d in perCycleData[cycle]]
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12,0,0,0,0],
-    #     }
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('convert slots to seconds'))
-            f.write(pp.pformat(plotData))
-    
-    # filter out 0 values
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        for cycle in perCycleData.keys():
-            i=0
-            while i<len(perCycleData[cycle]):
-                if perCycleData[cycle][i]==0:
-                    del perCycleData[cycle][i]
-                else:
-                    i += 1
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12],
-    #     }
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('filter out 0 values'))
-            f.write(pp.pformat(plotData))
-    
-    # calculate mean and confidence interval
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        for cycle in perCycleData.keys():
-            (m,confint) = calcMeanConfInt(perCycleData[cycle])
-            perCycleData[cycle] = {
-                'mean':      m,
-                'confint':   confint,
-            }
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {
-    #         0: {'mean': 12, 'confint':12},
-    #         1: {'mean': 12, 'confint':12},
-    #     }
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
-            f.write(pp.pformat(plotData))
-    
-    # arrange to be plotted
-    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
-        x     = sorted(perCycleData.keys())
-        y     = [perCycleData[i]['mean']    for i in x]
-        yerr  = [perCycleData[i]['confint'] for i in x]
-        assert len(x)==len(y)==len(yerr)
-        
-        plotData[(otfThreshold,pkPeriod)] = {
-            'x':        x,
-            'y':        y,
-            'yerr':     yerr,
-        }
-    
-    # plotData = {
-    #     (otfThreshold,pkPeriod) = {
-    #         'x':      [ 0, 1, 2, 3, 4, 5, 6],
-    #         'y':      [12,12,12,12,12,12,12],
-    #         'yerr':   [12,12,12,12,12,12,12],
-    #     }
-    # }
-    
-    if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
-            f.write(pp.pformat(plotData))
-    
-    #===== plot
-    
-    fig = matplotlib.pyplot.figure()
-    
-    COLORS = {
-        0:    '#FF0000',
-        4:    '#008000',
-        10:   '#000080',
-    }
-    
-    ECOLORS = {
-        0:    '#FA8072',
-        4:    '#00FF00',
-        10:   '#00FFFF',
-    }
-    
-    def plotLatencies(ax,plotData,period):
-        ax.set_xlim(xmin=0,xmax=100)
-        ax.set_ylim(ymin=0,ymax=1.6)
-        ax.text(2,1.4,'packet period {0}s'.format(period))
-        plots = []
-        for th in [0,4,10]:
-            for ((otfThreshold,pkPeriod),data) in plotData.items():
-                if otfThreshold==th and pkPeriod==period:
-                    plots += [
-                        ax.errorbar(
-                            x        = data['x'],
-                            y        = data['y'],
-                            yerr     = data['yerr'],
-                            color    = COLORS[th],
-                            ecolor   = ECOLORS[th],
-                            #marker   = mark[pkPeriodList.index(pkPeriod)],
-                        )
-                    ]
-        return tuple(plots)
-    
-    SUBPLOTHEIGHT = 0.28
-    
-    # pkPeriod=1s
-    ax01 = fig.add_axes([0.10, 0.10+2*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax01.get_xaxis().set_visible(False)
-    plotLatencies(ax01,plotData,1)
-    
-    # pkPeriod=10s
-    ax10 = fig.add_axes([0.10, 0.10+1*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax10.get_xaxis().set_visible(False)
-    plotLatencies(ax10,plotData,10)
-    ax10.set_ylabel('end-to-end latency (s)')
-    
-    # pkPeriod=60s
-    ax20 = fig.add_axes([0.10, 0.10+0*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    (th0,th4,th10) = plotLatencies(ax20,plotData,60)
-    ax20.set_xlabel('time (in slotframe cycles)')
-    
-    fig.legend(
-        (th0,th4,th10),
-        ('OTF threshold 0', 'OTF threshold 4','OTF threshold 10'),
-        'upper right',
-        prop={'size':8},
-    )
-    
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_time.png'))
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_time.eps'))
-    matplotlib.pyplot.close('all')
-
-#============================ main ============================================
-
-# latency_vs_time
-# latency_vs_threshold
-# numCells_vs_threshold
-# numCells_vs_time
-# otfActivity_vs_threshold
-# otfActivity_vs_time
-# reliability_vs_threshold
-# reliability_vs_time
+#============================ helpers =========================================
 
 def binDataFiles():
     '''
@@ -606,11 +424,397 @@ def binDataFiles():
     
     return dataBins
 
+def calcMeanConfInt(vals):
+    assert type(vals)==list
+    for val in vals:
+        assert type(val) in [int,float]
+    
+    a         = 1.0*numpy.array(vals)
+    se        = scipy.stats.sem(a)
+    m         = numpy.mean(a)
+    confint   = se * scipy.stats.t._ppf((1+CONFINT)/2., len(a)-1)
+    
+    return (m,confint)
+
+def getSlotDuration(dataBins):
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        for filepath in filepaths:
+            with open(filepath,'r') as f:
+                for line in f:
+                    if line.startswith('## '):
+                        m = re.search('slotDuration\s+=\s+([\.0-9]+)',line)
+                        if m:
+                            return float(m.group(1))
+
+#============================ plotters ========================================
+
+def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
+    
+    prettyp   = False
+    
+    #===== format data
+    
+    # calculate mean and confidence interval
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        for cycle in perCycleData.keys():
+            (m,confint) = calcMeanConfInt(perCycleData[cycle])
+            perCycleData[cycle] = {
+                'mean':      m,
+                'confint':   confint,
+            }
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: {'mean': 12, 'confint':12},
+    #         1: {'mean': 12, 'confint':12},
+    #     }
+    # }
+    
+    # arrange to be plotted
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        x     = sorted(perCycleData.keys())
+        y     = [perCycleData[i]['mean']    for i in x]
+        yerr  = [perCycleData[i]['confint'] for i in x]
+        assert len(x)==len(y)==len(yerr)
+        
+        plotData[(otfThreshold,pkPeriod)] = {
+            'x':        x,
+            'y':        y,
+            'yerr':     yerr,
+        }
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         'x':      [ 0, 1, 2, 3, 4, 5, 6],
+    #         'y':      [12,12,12,12,12,12,12],
+    #         'yerr':   [12,12,12,12,12,12,12],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
+            f.write(pp.pformat(plotData))
+    
+    #===== plot
+    
+    fig = matplotlib.pyplot.figure()
+    
+    def plotForEachThreshold(ax,plotData,period):
+        ax.set_xlim(xmin=0,xmax=100)
+        ax.set_ylim(ymin=ymin,ymax=ymax)
+        ax.text(2,0.9*ymax,'packet period {0}s'.format(period))
+        plots = []
+        for th in [0,4,10]:
+            for ((otfThreshold,pkPeriod),data) in plotData.items():
+                if otfThreshold==th and pkPeriod==period:
+                    plots += [
+                        ax.errorbar(
+                            x        = data['x'],
+                            y        = data['y'],
+                            yerr     = data['yerr'],
+                            color    = TH_COLORS[th],
+                            ecolor   = TH_ECOLORS[th],
+                        )
+                    ]
+        return tuple(plots)
+    
+    SUBPLOTHEIGHT = 0.28
+    
+    # pkPeriod=1s
+    ax01 = fig.add_axes([0.10, 0.10+2*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    ax01.get_xaxis().set_visible(False)
+    plotForEachThreshold(ax01,plotData,1)
+    
+    # pkPeriod=10s
+    ax10 = fig.add_axes([0.10, 0.10+1*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    ax10.get_xaxis().set_visible(False)
+    plotForEachThreshold(ax10,plotData,10)
+    ax10.set_ylabel(ylabel)
+    
+    # pkPeriod=60s
+    ax20 = fig.add_axes([0.10, 0.10+0*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
+    (th0,th4,th10) = plotForEachThreshold(ax20,plotData,60)
+    ax20.set_xlabel('time (in slotframe cycles)')
+    
+    fig.legend(
+        (th0,th4,th10),
+        ('OTF threshold 0 cells', 'OTF threshold 4 cells','OTF threshold 10 cells'),
+        'upper right',
+        prop={'size':8},
+    )
+    
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'{0}.png'.format(filename)))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'{0}.eps'.format(filename)))
+    matplotlib.pyplot.close('all')
+
+#===== latency
+
+def gather_latency_data(dataBins):
+    
+    prettyp   = False
+    
+    # gather raw data
+    plotData  = {}
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        plotData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'aveLatency')
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+            f.write(pp.pformat(plotData))
+    
+    # convert slots to seconds
+    slotDuration = getSlotDuration(dataBins)
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        for cycle in perCycleData.keys():
+            perCycleData[cycle] = [d*slotDuration for d in perCycleData[cycle]]
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('convert slots to seconds'))
+            f.write(pp.pformat(plotData))
+    
+    # filter out 0 values
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        for cycle in perCycleData.keys():
+            i=0
+            while i<len(perCycleData[cycle]):
+                if perCycleData[cycle][i]==0:
+                    del perCycleData[cycle][i]
+                else:
+                    i += 1
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('filter out 0 values'))
+            f.write(pp.pformat(plotData))
+    
+    return plotData
+
+def plot_latency_vs_time(dataBins):
+    
+    plotData  = gather_latency_data(dataBins)
+    
+    plot_vs_time(
+        plotData = plotData,
+        ymin     = 0,
+        ymax     = 1.6,
+        ylabel   = 'end-to-end latency (s)',
+        filename = 'latency_vs_time',
+    )
+
+def plot_latency_vs_threshold(dataBins):
+    
+    prettyp  = False
+    plotData  = gather_latency_data(dataBins)
+    
+    #===== format data
+    
+    # collapse all cycles
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        temp = []
+        for (k,v) in perCycleData.items():
+            temp += v
+        plotData[(otfThreshold,pkPeriod)] = temp
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = [12,12,12,12,12,12,12,12,12],
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('collapse all cycles'))
+            f.write(pp.pformat(plotData))
+    
+    # calculate mean and confidence interval
+    for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
+        (m,confint) = calcMeanConfInt(perCycleData)
+        plotData[(otfThreshold,pkPeriod)] = {
+            'mean':      m,
+            'confint':   confint,
+        }
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {'mean': 12, 'confint':12},
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','a') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
+            f.write(pp.pformat(plotData))
+    
+    #===== plot
+    
+    fig = matplotlib.pyplot.figure()
+    matplotlib.pyplot.ylim(ymin=0,ymax=1.6)
+    matplotlib.pyplot.xlabel('OTF threshold (cells)')
+    matplotlib.pyplot.ylabel('end-to-end latency (s)')
+    for period in [1,10,60]:
+        
+        d = {}
+        for ((otfThreshold,pkPeriod),data) in plotData.items():
+            if pkPeriod==period:
+                d[otfThreshold] = data
+        x     = sorted(d.keys())
+        y     = [d[k]['mean'] for k in x]
+        yerr  = [d[k]['confint'] for k in x]
+        
+        matplotlib.pyplot.errorbar(
+            x        = x,
+            y        = y,
+            yerr     = yerr,
+            color    = PERIOD_COLORS[period],
+            ecolor   = PERIOD_ECOLORS[period],
+            label    = 'packet period {0}s'.format(period)
+        )
+    matplotlib.pyplot.legend(prop={'size':12})
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_threshold.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'latency_vs_threshold.eps'))
+    matplotlib.pyplot.close('all')
+
+#===== numCells
+
+def gather_numCells_data(dataBins):
+    
+    prettyp   = False
+    
+    # gather raw data
+    plotData  = {}
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        plotData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'numTxCells')
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+            f.write(pp.pformat(plotData))
+    
+    return plotData
+
+def plot_numCells_vs_time(dataBins):
+    
+    plotData  = gather_numCells_data(dataBins)
+    
+    plot_vs_time(
+        plotData = plotData,
+        ymin     = 0,
+        ymax     = 600,
+        ylabel   = 'number of scheduled cells',
+        filename = 'numCells_vs_time',
+    )
+
+#===== otfActivity
+
+#===== reliability
+
+def gather_reliability_data(dataBins):
+    
+    prettyp   = False
+    
+    # gather raw add/remove data
+    otfAddData     = {}
+    otfRemoveData  = {}
+    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfAdd')
+        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfRemove')
+    
+    # otfAddData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    # otfRemoveData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    assert sorted(otfAddData.keys())==sorted(otfRemoveData.keys())
+    for otfpk in otfAddData.keys():
+        assert sorted(otfAddData[otfpk].keys())==sorted(otfRemoveData[otfpk].keys())
+    
+    # sum up number of add/remove operations
+    
+    plotData = {}
+    for otfpk in otfAddData.keys():
+        plotData[otfpk] = {}
+        for cycle in otfAddData[otfpk].keys():
+            plotData[otfpk][cycle] = [sum(x) for x in zip(otfAddData[otfpk][cycle],otfRemoveData[otfpk][cycle])]
+    
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         0: [12,12,12,12,12,12,12,12,12],
+    #         1: [12,12,12,12,12,0,0,0,0],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+            f.write(pp.pformat(plotData))
+    
+    return plotData
+
+#============================ main ============================================
+
+# latency_vs_threshold
+# numCells_vs_threshold
+# numCells_vs_time
+# otfActivity_vs_threshold
+# otfActivity_vs_time
+# reliability_vs_threshold
+# reliability_vs_time
+
+
 def main():
     
     dataBins = binDataFiles()
     
+    # latency
     plot_latency_vs_time(dataBins)
+    plot_latency_vs_threshold(dataBins)
+    
+    # numCells
+    plot_numCells_vs_time(dataBins)
+    #plot_numCells_vs_threshold(dataBins)
+    
+    # otfActivity
+    # plot_otfActivity_vs_threshold(dataBins)
+    # plot_otfActivity_vs_time(dataBins)
+    
+    # reliability
+    # plot_reliability_vs_threshold(dataBins)
+    # plot_reliability_vs_time(dataBins)
     
     '''
     # verify there is some data to plot
