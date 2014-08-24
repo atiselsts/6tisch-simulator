@@ -156,6 +156,22 @@ def parseCliOptions():
         help       = 'SimData directory.',
     )
     
+    parser.add_argument( '--numPacketsBurst',
+        dest       = 'numPacketsBurst',
+        nargs      = '+',
+        type       = int,
+        default    = None,
+        help       = 'Number of packets to be enqueued as burst.',
+    )
+    
+    parser.add_argument( '--burstTime',
+        dest       = 'burstTime',
+        nargs      = '+',
+        type       = float,
+        default    = 20.0,
+        help       = 'Burst time (in sec).',
+    )
+    
     options        = parser.parse_args()
     
     return options.__dict__
