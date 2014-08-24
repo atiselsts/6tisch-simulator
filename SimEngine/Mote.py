@@ -211,8 +211,8 @@ class Mote(object):
                 # update mote stats
                 self._incrementMoteStats('rplTxDIO')
                 
-                # log charge usage
-                self._logChargeConsumed(self.CHARGE_TxData_uC)
+                # log charge usage for sending DIO is currently neglected
+                # self._logChargeConsumed(self.CHARGE_TxData_uC)
                 
                 # "send" DIO to all neighbors
                 for neighbor in self._myNeigbors():
@@ -221,8 +221,8 @@ class Mote(object):
                     if neighbor.dagRoot:
                         continue
                     
-                    # log charge usage (for neighbor)
-                    neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
+                    # log charge usage (for neighbor) for receiving DIO is currently neglected
+                    # neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
                     
                     # in neighbor, update my rank/DAGrank
                     neighbor.neighborDagRank[self]    = self.dagRank
