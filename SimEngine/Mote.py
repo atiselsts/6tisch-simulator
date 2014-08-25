@@ -750,24 +750,32 @@ class Mote(object):
             
             # increment mote state
             self._incrementMoteStats('droppedNoRoute')
+            
+            return False
         
         elif not self.getTxCells():
             # I don't have any transmit cells
             
             # increment mote state
             self._incrementMoteStats('droppedNoTxCells')
+
+            return False
         
         elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
             # my TX queue is full
             
             # update mote stats
             self._incrementMoteStats('droppedQueueFull')
+
+            return False
         
         else:
             # all is good
             
             # enqueue packet
             self.txQueue     += [packet]
+
+            return True
     
     def _tsch_schedule_activeCell(self):
         
@@ -901,7 +909,7 @@ class Mote(object):
     
     #===== radio
     
-    def txDone(self,isACKed):
+    def txDone(self,isACKed,isNACKed):
         '''end of tx slot'''
         
         asn   = self.engine.getAsn()
@@ -928,6 +936,27 @@ class Mote(object):
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
                 
+            elif isNACKed:
+                
+                # update schedule stats as if it is successfully tranmitted
+                self.schedule[ts]['numTxAck'] += 1
+                                
+                # time correction
+                if self.schedule[ts]['neighbor'] == self.preferredParent:
+                    self.timeCorrectedSlot = asn
+
+                # decrement 'retriesLeft' counter associated with that packet
+                i = self.txQueue.index(self.pktToSend)
+                self.txQueue[i]['retriesLeft'] -= 1
+                
+                # drop packet if retried too many time
+                if self.txQueue[i]['retriesLeft'] == 0:
+                    
+                    # update mote stats
+                    self._incrementMoteStats('droppedMacRetries')
+                    
+                    # remove packet from queue
+                    self.txQueue.remove(self.pktToSend)
             
             else:
                 
@@ -978,6 +1007,8 @@ class Mote(object):
                     
                     # calculate end-to-end latency
                     self._logLatencyStat(asn-payload[1])
+                    
+                    (isACKed, isNACKed) = (True, False)
                 
                 else:
                     # relaying packet
@@ -993,22 +1024,34 @@ class Mote(object):
                         'retriesLeft': self.TSCH_MAXTXRETRIES
                     }
                     
-                    # update mote stats
-                    self._incrementMoteStats('appRelayed')
                     
                     # enqueue packet in TSCH queue
-                    self._tsch_enqueue(relayPacket)
-            
+                    isEnqueued = self._tsch_enqueue(relayPacket)
+                    
+                    if isEnqueued:
+
+                        # update mote stats
+                        self._incrementMoteStats('appRelayed')
+
+                        (isACKed, isNACKed) = (True, False)
+                    
+                    else:
+                        (isACKed, isNACKed) = (False, True)
+                                    
             else:
                 # this was an idle listen
                 
                 # log charge usage
                 self._logChargeConsumed(self.CHARGE_Idle_uC)
+                
+                (isACKed, isNACKed) = (False, False)
             
             self.waitingFor = None
             
             # schedule next active cell
             self._tsch_schedule_activeCell()
+
+            return isACKed, isNACKed
 
     def calcTime(self):
         ''' calculate time compared to base time of Dag root '''

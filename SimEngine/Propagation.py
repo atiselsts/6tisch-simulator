@@ -99,6 +99,7 @@ class Propagation(object):
                 
                 i           = 0
                 isACKed     = False
+                isNACKed    = False
                 
                 while i<len(self.receivers):
                     
@@ -133,18 +134,16 @@ class Propagation(object):
                                 # packet is received correctly
                                 
                                 # this mote is delivered the packet
-                                self.receivers[i]['mote'].rxDone(
+                                isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
                                     type       = transmission['type'],
                                     smac       = transmission['smac'],
                                     dmac       = transmission['dmac'],
                                     payload    = transmission['payload']
                                 )
                                 
-                                # this mote ACKs succesfully
-                                isACKed = True
-                                
                                 # this mote stops listening
                                 del self.receivers[i]
+                                
                             else:
                                 # packet is NOT received correctly
                                 
@@ -164,7 +163,7 @@ class Propagation(object):
                         i += 1
                 
                 # indicate to source packet was sent
-                transmission['smac'].txDone(isACKed)
+                transmission['smac'].txDone(isACKed, isNACKed)
             
             # to all receivers still listening, indicate no packet received
             for r in self.receivers:
