@@ -109,6 +109,8 @@ class Propagation(object):
                         if self.receivers[i]['mote']==transmission['dmac']:
                             # this packet is destined for this mote
                             
+                            #''' ============= for evaluation with interference=================
+                             
                             # other transmissions on the same channel?
                             interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
                             
@@ -126,7 +128,16 @@ class Propagation(object):
                             else:
                                 # fail due to locking on interference
                                 pdr   = 0.0
-                                                            
+                            # ========================== '''
+                            
+                            ''' ============= for evaluation without interference=================
+                            
+                            interferers = []
+                            # calculate pdr with no interference
+                            sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                            pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                            ========================== ''' 
+                            
                             # pick a random number
                             failure = random.random()
                             
