@@ -77,8 +77,15 @@ def parseCliOptions():
     parser.add_argument( '--sensitivity',
         dest       = 'sensitivity',
         type       = int,
-        default    = -101,
+        default    = -85,
         help       = 'Radio sensitivity, in dBm.',
+    )
+
+    parser.add_argument( '--waterfallRisingBand',
+        dest       = 'waterfallRisingBand',
+        type       = int,
+        default    = 16,
+        help       = 'Waterfall rising band, in dB',
     )
     
     parser.add_argument( '--slotDuration',

@@ -118,7 +118,7 @@ class Mote(object):
         # radio
         self.txPower                   = 0       # dBm
         self.antennaGain               = 0       # dBi
-        self.sensitivity               = self.settings.sensitivity   # dBm
+        self.minRssi                   = self.settings.sensitivity - self.settings.waterfallRisingBand # dBm
         self.noisepower                = -105    # dBm
         self.drift                     = random.uniform(-self.RADIO_MAXDRIFT, self.RADIO_MAXDRIFT)
         # wireless
@@ -649,8 +649,7 @@ class Mote(object):
             
             # calculate the theoretical PDR to that neighbor, using the measured RSSI
             rssi            = self.getRSSI(neighbor)
-            sensitivity     = neighbor.sensitivity
-            theoPDR         = Topology.Topology.rssiToPdr(rssi,sensitivity)
+            theoPDR         = Topology.Topology.rssiToPdr(rssi)
             
             # relocate complete bundle if measured RSSI is significantly worse than theoretical
             if bundlePdr<(theoPDR/self.TOP_PDR_THRESHOLD):

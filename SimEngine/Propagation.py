@@ -116,7 +116,7 @@ class Propagation(object):
                             
                             lockOn = transmission['smac']
                             for itfr in interferers:
-                                if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].sensitivity:
+                                if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
                                     # lock on interference
                                     lockOn = itfr
                                     break
@@ -216,7 +216,7 @@ class Propagation(object):
             self._dBmTomW(sinr+destination.noisepower) + self._dBmTomW(destination.noisepower)
         )
         
-        pdr             = Topology.Topology.rssiToPdr(equivalentRSSI,destination.sensitivity)
+        pdr             = Topology.Topology.rssiToPdr(equivalentRSSI)
         
         return pdr
     

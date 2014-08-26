@@ -35,9 +35,8 @@ class Topology(object):
     PISTER_HACK_LOWER_SHIFT  = 40           # -40 dB
     SPEED_OF_LIGHT           = 299792458    # m/s
     
-    MIN_RSSI                 = -93          # dBm, corresponds to PDR = 0.5
-    STABLE_NEIGHBORS     = 3
-    WATERFALL_RISING_BAND    = 16.0         # in dB
+    STABLE_RSSI              = -93          # dBm, corresponds to PDR = 0.5
+    STABLE_NEIGHBORS         = 3
     def __init__(self, motes):
         
         # store params
@@ -93,7 +92,7 @@ class Topology(object):
                     mote.setRSSI(cm, rssi)
                     cm.setRSSI(mote, rssi)
                     
-                    if rssi>self.MIN_RSSI:
+                    if rssi>self.STABLE_RSSI:
                         numStableNeighbors += 1
 
                 # make sure it is connected to at least STABLE_NEIGHBORS motes 
@@ -109,7 +108,7 @@ class Topology(object):
             for m in self.motes:
                 if mote==m:
                     continue
-                if mote.getRSSI(m)>mote.sensitivity:
+                if mote.getRSSI(m)>mote.minRssi:
                     pdr = self._computePDR(mote,m)
                     mote.setPDR(m,pdr)
                     m.setPDR(mote,pdr)
@@ -162,17 +161,20 @@ class Topology(object):
     def _computePDR(self,mote,neighbor):
         ''' computes pdr to neighbor according to RSSI'''
         
-        rssi            = mote.getRSSI(neighbor)
-        sensitivity     = neighbor.sensitivity
-        return self.rssiToPdr(rssi,sensitivity)
+        rssi        = mote.getRSSI(neighbor)
+        return self.rssiToPdr(rssi)
     
     @classmethod
-    def rssiToPdr(self,rssi,sensitivity):
-        if   rssi<=sensitivity:
+    def rssiToPdr(self,rssi):
+
+        # local variables
+        settings   = SimSettings.SimSettings()        
+        minRssi    = settings.sensitivity - settings.waterfallRisingBand
+        if   rssi<=minRssi:
             pdr    = 0.0
-        elif sensitivity<rssi and rssi<sensitivity+self.WATERFALL_RISING_BAND:
-            pdr    = (rssi-sensitivity)*(1.0/float(self.WATERFALL_RISING_BAND))
-        elif rssi>-85:
+        elif minRssi<rssi and rssi<settings.sensitivity:
+            pdr    = (rssi-minRssi)*(1.0/float(settings.waterfallRisingBand))
+        elif rssi>settings.sensitivity:
             pdr    = 1.0
         
         assert pdr>=0.0

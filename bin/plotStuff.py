@@ -282,6 +282,11 @@ def genTopologyPlots(dir,infilename):
                 if m:
                     sensitivity   = int(m.group(1))
                 
+                # waterfallRisingBand
+                m = re.search('waterfallRisingBand\s+=\s+([-0-9]+)',line)
+                if m:
+                    waterfallRisingBand   = int(m.group(1))
+                
             if line.startswith('#pos'):
                 
                 # runNum
@@ -506,9 +511,11 @@ def genTopologyPlots(dir,infilename):
             s           = 3,
             zorder      = 1,
         )
+        
+        minRssi = sensitivity - waterfallRisingBand
         ax5.plot(
             [0,1000*squareSide],
-            [sensitivity,sensitivity],
+            [minRssi,minRssi],
             color       = 'red',
             zorder      = 2,
             lw          = 0.5,
