@@ -480,7 +480,8 @@ class Mote(object):
                         self.INFO,
                         "[otf] removing cell to {0}, since not in parentSet {1}",
                         (neighbor.id,[p.id for p in self.parentSet]),
-
+                    )
+                    
                     numCellsToRemove = self.numCellsToNeighbors[neighbor]
                     for _ in xrange(numCellsToRemove):
                         self._6top_removeCell(neighbor)
