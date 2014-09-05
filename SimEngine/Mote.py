@@ -701,36 +701,25 @@ class Mote(object):
         for (ts,cell) in self.schedule.items():
             if cell['neighbor']==neighbor:
                 
-                # don't consider cells we've never TX'ed on
-                if cell['numTx'] == 0: # we don't select unused cells
-                    continue
-                
-                pdr = float(cell['numTxAck']) / float(cell['numTx'])
+                if cell['numTx'] == 0: # substitute pdr that is estimated by RSSI
+                    pdr = self.PDR[neighbor]
+                else:
+                    pdr = float(cell['numTxAck']) / float(cell['numTx'])
                 
                 if worst_ts==None or pdr<worst_pdr:
                     worst_ts      = ts
                     worst_pdr     = pdr
         
-        # remove that cell
-        if worst_ts!=None:
-            
-            # log
-            self._log(
-                self.INFO,
-                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
-                (worst_ts,neighbor.id,worst_pdr),
-            )
-            
-            # remove cell
-            self._6top_removeSpecifiedCell(worst_ts,neighbor)
+        # log
+        self._log(
+            self.INFO,
+            "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+            (worst_ts,neighbor.id,worst_pdr),
+        )
         
-        else:
-            # log
-            self._log(
-                self.WARNING,
-                "[otf] could not find a cell to {0} to remove",
-                (neighbor.id,),
-            )
+        # remove cell
+        self._6top_removeSpecifiedCell(worst_ts,neighbor)
+        
 
     def _6top_removeRandomCell(self,neighbor):
         '''
@@ -748,6 +737,14 @@ class Mote(object):
         # remove that cell
         if tss!=[]:
             ts = random.choice(tss)
+
+            # log
+            self._log(
+                self.INFO,
+                "[otf] randomly remove cell ts={0} to {1}",
+                (ts,neighbor.id),
+            )
+
             # remove cell
             self._6top_removeSpecifiedCell(ts,neighbor)
 
