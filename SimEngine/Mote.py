@@ -450,7 +450,7 @@ class Mote(object):
                     
                     # have 6top remove cells
                     for _ in xrange(numCellsToRemove):
-                        self._otf_removeWorstCell(parent)
+                        self._6top_removeCell(parent)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -470,20 +470,21 @@ class Mote(object):
                         self.timeBetweenOTFevents += [now-self.asnOTFevent]
                     self.asnOTFevent = now
             
+            
             # remove TX cells to neighbor who are not in parent set
-            for (ts,cell) in self.schedule.items():
-                if cell['dir']==self.DIR_TX and (cell['neighbor'] not in self.parentSet):
-                    
+            for neighbor in self.numCellsToNeighbors.keys():
+                if neighbor not in self.parentSet:
+                
                     # log
                     self._log(
                         self.INFO,
                         "[otf] removing cell to {0}, since not in parentSet {1}",
-                        (cell['neighbor'].id,[p.id for p in self.parentSet]),
-                    )
-                    
-                    # remove cell
-                    self._6top_removeCell(ts,cell['neighbor'])
-            
+                        (neighbor.id,[p.id for p in self.parentSet]),
+
+                    numCellsToRemove = self.numCellsToNeighbors[neighbor]
+                    for _ in xrange(numCellsToRemove):
+                        self._6top_removeCell(neighbor)
+
             # trigger 6top housekeeping
             self._6top_housekeeping()
             
@@ -504,48 +505,7 @@ class Mote(object):
         with self.dataLock:
             self.inTraffic[neighbor] += 1
     
-    def _otf_removeWorstCell(self,neighbor):
-        '''
-        Finds cells with worst PDR to neighbor, and remove it.
-        '''
         
-        worst_ts   = None
-        worst_pdr  = None
-        
-        # find the cell with the worth PDR to that neighbor
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor:
-                
-                # don't consider cells we've never TX'ed on
-                if cell['numTx'] == 0: # we don't select unused cells
-                    continue
-                
-                pdr = float(cell['numTxAck']) / float(cell['numTx'])
-                
-                if worst_ts==None or pdr<worst_pdr:
-                    worst_ts      = ts
-                    worst_pdr     = pdr
-        
-        # remove that cell
-        if worst_ts!=None:
-            
-            # log
-            self._log(
-                self.INFO,
-                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
-                (worst_ts,neighbor.id,worst_pdr),
-            )
-            
-            # remove cell
-            self._6top_removeCell(worst_ts,neighbor)
-        
-        else:
-            # log
-            self._log(
-                self.WARNING,
-                "[otf] could not find a cell to {0} to remove",
-                (neighbor.id,),
-            )
     
     #===== 6top
     
@@ -630,7 +590,7 @@ class Mote(object):
                 
                 # relocate: add new, remove old
                 self._6top_addCell(neighbor)
-                self._6top_removeCell(worst_ts,neighbor)
+                self._6top_removeSpecifiedCell(worst_ts,neighbor)
                 
                 # update stats
                 self._incrementMoteStats('6topRelocatedCells')
@@ -664,7 +624,7 @@ class Mote(object):
                     
                     # relocate: add new, remove old
                     self._6top_addCell(neighbor)
-                    self._6top_removeCell(ts,neighbor)
+                    self._6top_removeSpecifiedCell(ts,neighbor)
                 
                 # update stats
                 self._incrementMoteStats('6topRelocatedBundles')
@@ -716,7 +676,81 @@ class Mote(object):
                 (trial+1,self.id,neighbor.id),
             )
     
-    def _6top_removeCell(self,ts,neighbor):
+    def _6top_removeCell(self,neighbor):
+        '''
+        Removes a cell to neighbor.
+        '''
+
+        # case that housekeeping is ON
+        self._6top_removeWorstCell(neighbor)        
+        
+        # case that housekeeping is OFF
+        # self._6top_removeRandomCell(neighbor)
+        
+
+    def _6top_removeWorstCell(self,neighbor):
+        '''
+        Finds cells with worst PDR to neighbor, and remove it.
+        '''
+        
+        worst_ts   = None
+        worst_pdr  = None
+        
+        # find the cell with the worth PDR to that neighbor
+        for (ts,cell) in self.schedule.items():
+            if cell['neighbor']==neighbor:
+                
+                # don't consider cells we've never TX'ed on
+                if cell['numTx'] == 0: # we don't select unused cells
+                    continue
+                
+                pdr = float(cell['numTxAck']) / float(cell['numTx'])
+                
+                if worst_ts==None or pdr<worst_pdr:
+                    worst_ts      = ts
+                    worst_pdr     = pdr
+        
+        # remove that cell
+        if worst_ts!=None:
+            
+            # log
+            self._log(
+                self.INFO,
+                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                (worst_ts,neighbor.id,worst_pdr),
+            )
+            
+            # remove cell
+            self._6top_removeSpecifiedCell(worst_ts,neighbor)
+        
+        else:
+            # log
+            self._log(
+                self.WARNING,
+                "[otf] could not find a cell to {0} to remove",
+                (neighbor.id,),
+            )
+
+    def _6top_removeRandomCell(self,neighbor):
+        '''
+        Randomly finds a cell to neighbor, and remove it.
+        '''
+        
+        tss = []
+        
+        # find a cell to that neighbor
+        for (ts,cell) in self.schedule.items():
+            if cell['neighbor']==neighbor:
+                
+                tss += [ts]
+        
+        # remove that cell
+        if tss!=[]:
+            ts = random.choice(tss)
+            # remove cell
+            self._6top_removeSpecifiedCell(ts,neighbor)
+
+    def _6top_removeSpecifiedCell(self,ts,neighbor):
         
         # log
         self._log(
@@ -735,6 +769,7 @@ class Mote(object):
                 neighbor     = self,
             )
             self.numCellsToNeighbors[neighbor] -= 1
+
     
     def _6top_isUnusedSlot(self,ts):
         with self.dataLock:
