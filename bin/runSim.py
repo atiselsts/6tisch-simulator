@@ -127,6 +127,14 @@ def parseCliOptions():
         default    = [5],
         help       = 'OTF threshold, in cells.',
     )
+
+    parser.add_argument( '--topPdrThreshold',
+        dest       = 'topPdrThreshold',
+        nargs      = '+',
+        type       = int,
+        default    = 4.0,
+        help       = '6top PDR threshold for cell relocation',
+    )
     
     parser.add_argument( '--numCyclesPerRun',
         dest       = 'numCyclesPerRun',

@@ -59,11 +59,6 @@ class Mote(object):
     OTF_HOUSEKEEPING_PERIOD_S          = 1
     OTF_TRAFFIC_SMOOTHING              = 0.5
     #=== 6top
-    # ratio 1/4 -- changing this threshold the detection of a bad cell can be
-    # tuned, if as higher the slower to detect a wrong cell but the more prone
-    # to avoid churn as lower the faster but with some chances to introduces
-    # churn due to unstable medium
-    TOP_PDR_THRESHOLD                  = 4.0
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 5    
@@ -109,12 +104,18 @@ class Mote(object):
         self.inTrafficMovingAve        = {}      # indexed by neighbor
         # 6top
         self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
+        # changing this threshold the detection of a bad cell can be
+        # tuned, if as higher the slower to detect a wrong cell but the more prone
+        # to avoid churn as lower the faster but with some chances to introduces
+        # churn due to unstable medium
+        self.topPdrThreshold           = self.settings.topPdrThreshold
+
         # tsch
         self.txQueue                   = []
         self.pktToSend                 = None
         self.schedule                  = {}      # indexed by ts, contains cell
         self.waitingFor                = None
-        self.timeCorrectedSlot        = None
+        self.timeCorrectedSlot         = None
         # radio
         self.txPower                   = 0       # dBm
         self.antennaGain               = 0       # dBi
@@ -558,7 +559,7 @@ class Mote(object):
         
         #===== step 2. relocate worst cell in bundle, if any
         # this step will identify the cell with the lowest PDR in the bundle.
-        # It it's PDR is TOP_PDR_THRESHOLD lower than the average of the bundle
+        # It it's PDR is self.topPdrThreshold lower than the average of the bundle
         # this step will move that cell.
         
         relocation = False
@@ -580,7 +581,7 @@ class Mote(object):
             assert worst_pdr!=None
             
             # relocate worst cell is "bad enough"
-            if worst_pdr<(ave_pdr/self.TOP_PDR_THRESHOLD):
+            if worst_pdr<(ave_pdr/self.topPdrThreshold):
                 
                 # log
                 self._log(
@@ -613,7 +614,7 @@ class Mote(object):
             theoPDR         = Topology.Topology.rssiToPdr(rssi)
             
             # relocate complete bundle if measured RSSI is significantly worse than theoretical
-            if bundlePdr<(theoPDR/self.TOP_PDR_THRESHOLD):
+            if bundlePdr<(theoPDR/self.topPdrThreshold):
                 for (ts,_) in cell_pdr:
                     
                     # log
