@@ -695,17 +695,22 @@ class Mote(object):
         Finds cells with worst PDR to neighbor, and remove it.
         '''
         
-        worst_ts   = None
-        worst_pdr  = None
+        # shuffle schedule list to avoid biased selection
+        scheduleList = self.schedule.items()
+        random.shuffle(scheduleList)
+
+        # set initial values for numTx and numTxAck assuming PDR is exactly estimated
+        pdr          = self.getPDR(neighbor)
+        numTx        = self.NUM_SUFFICIENT_TX
+        numTxAck     = math.floor(pdr*numTx)
         
+        worst_ts     = None
+        worst_pdr    = None        
         # find the cell with the worth PDR to that neighbor
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor:
+        for (ts,cell) in scheduleList:
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
                 
-                if cell['numTx'] == 0: # substitute pdr that is estimated by RSSI
-                    pdr = self.PDR[neighbor]
-                else:
-                    pdr = float(cell['numTxAck']) / float(cell['numTx'])
+                pdr = (float(cell['numTxAck'])+numTxAck)/(float(cell['numTx'])+numTx)
                 
                 if worst_ts==None or pdr<worst_pdr:
                     worst_ts      = ts
@@ -731,7 +736,7 @@ class Mote(object):
         
         # find a cell to that neighbor
         for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor:
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
                 
                 tss += [ts]
         
