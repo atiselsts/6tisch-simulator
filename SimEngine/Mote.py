@@ -38,6 +38,8 @@ class Mote(object):
     
     # sufficient num. of tx to estimate pdr by ACK
     NUM_SUFFICIENT_TX                  = 10
+    # maximum number of tx counter to forget old data
+    NUM_MAX_COUNTER                    = NUM_SUFFICIENT_TX*2
     
     DIR_TX                             = 'TX'
     DIR_RX                             = 'RX'
@@ -531,6 +533,18 @@ class Mote(object):
         For a particular neighbor, decide to relocate cells if needed.
         '''
         
+        #===== step 0. refresh old statistics
+        
+        for (ts,cell) in self.schedule.items():
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+                # this is a TX cell to that neighbor
+                
+                # refresh statistics if it gets old
+                if cell['numTx'] > self.NUM_MAX_COUNTER:
+                    cell['numTx']    /= 2
+                    cell['numTxAck'] /= 2
+                
+            
         #===== step 1. collect statistics:
         
         # pdr for each cell
