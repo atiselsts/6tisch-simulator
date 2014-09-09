@@ -95,17 +95,17 @@ class Mote(object):
         self.dagRank                   = None
         self.parentSet                 = []
         self.preferredParent           = None
-        self.rplRxDIO                  = {}      # indexed by neighbor, contains int
-        self.neighborRank              = {}      # indexed by neighbor
-        self.neighborDagRank           = {}      # indexed by neighbor
-        self.trafficPortionPerParent   = {}      # indexed by parent, portion of outgoing traffic
+        self.rplRxDIO                  = {}                    # indexed by neighbor, contains int
+        self.neighborRank              = {}                    # indexed by neighbor
+        self.neighborDagRank           = {}                    # indexed by neighbor
+        self.trafficPortionPerParent   = {}                    # indexed by parent, portion of outgoing traffic
         # otf
         self.asnOTFevent               = None
         self.timeBetweenOTFevents      = []
-        self.inTraffic                 = {}      # indexed by neighbor
-        self.inTrafficMovingAve        = {}      # indexed by neighbor
+        self.inTraffic                 = {}                    # indexed by neighbor
+        self.inTrafficMovingAve        = {}                    # indexed by neighbor
         # 6top
-        self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
+        self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
         # changing this threshold the detection of a bad cell can be
         # tuned, if as higher the slower to detect a wrong cell but the more prone
         # to avoid churn as lower the faster but with some chances to introduces
@@ -115,18 +115,18 @@ class Mote(object):
         # tsch
         self.txQueue                   = []
         self.pktToSend                 = None
-        self.schedule                  = {}      # indexed by ts, contains cell
+        self.schedule                  = {}                    # indexed by ts, contains cell
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
         # radio
-        self.txPower                   = 0       # dBm
-        self.antennaGain               = 0       # dBi
-        self.minRssi                   = self.settings.sensitivity - self.settings.waterfallRisingBand # dBm
-        self.noisepower                = -105    # dBm
+        self.txPower                   = 0                     # dBm
+        self.antennaGain               = 0                     # dBi
+        self.minRssi                   = self.settings.minRssi # dBm, extracted from table of rssi-pdr relationship
+        self.noisepower                = -105                  # dBm
         self.drift                     = random.uniform(-self.RADIO_MAXDRIFT, self.RADIO_MAXDRIFT)
         # wireless
-        self.RSSI                      = {}      # indexed by neighbor
-        self.PDR                       = {}      # indexed by neighbor
+        self.RSSI                      = {}                    # indexed by neighbor
+        self.PDR                       = {}                    # indexed by neighbor
         # location
         # battery
         self.chargeConsumed            = 0

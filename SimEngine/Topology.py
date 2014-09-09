@@ -35,7 +35,7 @@ class Topology(object):
     PISTER_HACK_LOWER_SHIFT  = 40           # -40 dB
     SPEED_OF_LIGHT           = 299792458    # m/s
     
-    STABLE_RSSI              = -93          # dBm, corresponds to PDR = 0.5
+    STABLE_RSSI              = -93.6        # dBm, corresponds to PDR = 0.5
     STABLE_NEIGHBORS         = 3
     def __init__(self, motes):
         
@@ -44,7 +44,7 @@ class Topology(object):
         
         # local variables
         self.settings        = SimSettings.SimSettings()
-    
+            
     #======================== public ==========================================
     
     def createTopology(self):
@@ -168,14 +168,43 @@ class Topology(object):
     def rssiToPdr(self,rssi):
 
         # local variables
-        settings   = SimSettings.SimSettings()        
-        minRssi    = settings.sensitivity - settings.waterfallRisingBand
-        if   rssi<=minRssi:
+
+        # rssi and pdr relationship obtained by experiment below
+        # http://wsn.eecs.berkeley.edu/connectivity/?dataset=dust
+        rssiPdrTable    = {
+                                -97:    0.0000, #this value is not from experiment
+                                -96:    0.1494,
+                                -95:    0.2340,
+                                -94:    0.4071,
+                                -93:    0.6359,
+                                -92:    0.6866,
+                                -91:    0.7476,
+                                -90:    0.8603,
+                                -89:    0.8702,
+                                -88:    0.9324,
+                                -87:    0.9427,
+                                -86:    0.9562,
+                                -85:    0.9611,
+                                -84:    0.9739,
+                                -83:    0.9745,
+                                -82:    0.9844,
+                                -81:    0.9854,
+                                -80:    0.9903,
+                                -79:    1.0000, #this value is not from experiment
+                                }
+        
+        minRssi    = min(rssiPdrTable.keys())
+        maxRssi    = max(rssiPdrTable.keys())
+
+        if   rssi<minRssi:
             pdr    = 0.0
-        elif minRssi<rssi and rssi<settings.sensitivity:
-            pdr    = (rssi-minRssi)*(1.0/float(settings.waterfallRisingBand))
-        elif rssi>settings.sensitivity:
+        elif rssi>maxRssi:
             pdr    = 1.0
+        else:
+            floorRssi = int(math.floor(rssi))
+            pdrLow    = rssiPdrTable[floorRssi]
+            pdrHigh   = rssiPdrTable[floorRssi+1]
+            pdr       = (pdrHigh-pdrLow)*(rssi-float(floorRssi))+pdrLow
         
         assert pdr>=0.0
         assert pdr<=1.0

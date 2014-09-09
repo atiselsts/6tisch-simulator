@@ -74,18 +74,11 @@ def parseCliOptions():
         help       = 'Number of frequency channels (between 1 and 16).',
     )
     
-    parser.add_argument( '--sensitivity',
-        dest       = 'sensitivity',
+    parser.add_argument( '--minRssi',
+        dest       = 'minRssi',
         type       = int,
-        default    = -85,
-        help       = 'Radio sensitivity, in dBm.',
-    )
-
-    parser.add_argument( '--waterfallRisingBand',
-        dest       = 'waterfallRisingBand',
-        type       = int,
-        default    = 16,
-        help       = 'Waterfall rising band, in dB',
+        default    = -97,
+        help       = 'Mininum RSSI with positive PDR, in dBm.',
     )
     
     parser.add_argument( '--slotDuration',
