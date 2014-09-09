@@ -429,8 +429,7 @@ class Mote(object):
                     self._incrementMoteStats('otfAdd')
                     
                     # have 6top add cells
-                    for _ in xrange(numCellsToAdd):
-                        self._6top_addCell(parent)
+                    self._sixtop_cell_reservation_request(parent,numCellsToAdd)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -605,7 +604,7 @@ class Mote(object):
                 )
                 
                 # relocate: add new, remove old
-                self._6top_addCell(neighbor)
+                self._sixtop_cell_reservation_request(neighbor,1)
                 self._6top_removeSpecifiedCell(worst_ts,neighbor)
                 
                 # update stats
@@ -639,58 +638,69 @@ class Mote(object):
                     )
                     
                     # relocate: add new, remove old
-                    self._6top_addCell(neighbor)
+                    self._sixtop_cell_reservation_request(neighbor,1)
                     self._6top_removeSpecifiedCell(ts,neighbor)
                 
                 # update stats
                 self._incrementMoteStats('6topRelocatedBundles')
-    
-    def _6top_addCell(self,neighbor):
-        ''' tries to allocate a cell to a neighbor. It retries until it finds one available slot. '''
+        
+    def _sixtop_cell_reservation_request(self,neighbor,numCells):
+        ''' tries to reserve numCells TX cells to a neighbor. '''
         
         with self.dataLock:
-            for trial in range(0,10000):
-                ts      = random.randint(0,self.settings.slotframeLength-1)
-                ch      = random.randint(0,self.settings.numChans-1)
-                if  (
-                        self._6top_isUnusedSlot(ts) and
-                        neighbor._6top_isUnusedSlot(ts)
-                    ):
-                    
-                    # log
-                    self._log(
-                        self.INFO,
-                        '[6top] add cell ts={0},ch={1} to {2}',
-                        (ts,ch,neighbor.id),
-                    )
-                    
-                    # have tsch add these cells
-                    self._tsch_addCell(
-                        ts             = ts,
-                        ch             = ch,
-                        dir            = self.DIR_TX,
-                        neighbor       = neighbor,
-                    )
-                    neighbor._tsch_addCell(
-                        ts             = ts,
-                        ch             = ch,
-                        dir            = self.DIR_RX,
-                        neighbor       = self,
-                    )
-                    
-                    # update counters
-                    if neighbor not in self.numCellsToNeighbors:
-                        self.numCellsToNeighbors[neighbor]    = 0
-                    self.numCellsToNeighbors[neighbor]  += 1
-                    
-                    return True
+            cells=neighbor.sixtop_cell_reservation_response(self,numCells)
             
-            # log
-            self._log(
-                self.ERROR,
-                '[6top] tried {0} times but unable to find an empty time slot for nodes {1} and {2}',
-                (trial+1,self.id,neighbor.id),
-            )
+            for ts, ch in cells.iteritems():
+                self._tsch_addCell(
+                    ts             = ts,
+                    ch             = ch,
+                    dir            = self.DIR_TX,
+                    neighbor       = neighbor,
+                ) 
+                # log
+                self._log(
+                    self.INFO,
+                    '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
+                    (ts,ch,self.id,neighbor.id),
+                )
+            
+            # update counters
+            if neighbor not in self.numCellsToNeighbors:
+                self.numCellsToNeighbors[neighbor]    = 0
+            self.numCellsToNeighbors[neighbor]  += len(cells)
+            
+            if len(cells)!=numCells:
+                # log
+                self._log(
+                    self.ERROR,
+                    '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}',
+                    (len(cells),numCells,self.id,neighbor.id),
+                )
+                print '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}'.format(len(cells),numCells,self.id,neighbor.id)
+    
+    def sixtop_cell_reservation_response(self,neighbor,numCells):
+        ''' tries to reserve numCells RX cells to a neighbor. '''
+        
+        with self.dataLock:
+            availableTimeslots=list(set(range(1,self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
+            random.shuffle(availableTimeslots)
+            cells={}
+            for ts in availableTimeslots[:numCells]:
+                ch=random.randint(0,self.settings.numChans-1)
+                cells[ts]=ch
+                self._tsch_addCell(
+                    ts             = ts,
+                    ch             = ch,
+                    dir            = self.DIR_RX,
+                    neighbor       = neighbor,
+                )
+                # log
+                self._log(
+                    self.INFO,
+                    '[6top] add RX cell ts={0},ch={1} from {2} to {3}',
+                    (ts,ch,self.id,neighbor.id),
+                )
+            return cells
     
     def _6top_removeCell(self,neighbor):
         '''
