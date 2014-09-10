@@ -431,7 +431,7 @@ class Mote(object):
                     self._incrementMoteStats('otfAdd')
                     
                     # have 6top add cells
-                    self._sixtop_cell_reservation_request(parent,numCellsToAdd)
+                    self._top_cell_reservation_request(parent,numCellsToAdd)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -454,7 +454,7 @@ class Mote(object):
                     
                     # have 6top remove cells
                     for _ in xrange(numCellsToRemove):
-                        self._6top_removeCell(parent)
+                        self._top_removeCell(parent)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -488,10 +488,10 @@ class Mote(object):
                     
                     numCellsToRemove = self.numCellsToNeighbors[neighbor]
                     for _ in xrange(numCellsToRemove):
-                        self._6top_removeCell(neighbor)
+                        self._top_removeCell(neighbor)
 
             # trigger 6top housekeeping
-            self._6top_housekeeping()
+            self._top_housekeeping()
             
             # schedule my and my neighbor's next active cell
             self._tsch_schedule_activeCell()
@@ -514,7 +514,7 @@ class Mote(object):
     
     #===== 6top
     
-    def _6top_housekeeping(self):
+    def _top_housekeeping(self):
         '''
         For each neighbor I have TX cells to, relocate cells if needed.
         '''
@@ -527,9 +527,9 @@ class Mote(object):
         
         # do some housekeeping for each neighbor
         for neighbor in txNeighbors:
-            self._6top_housekeeping_per_neighbor(neighbor)
+            self._top_housekeeping_per_neighbor(neighbor)
         
-    def _6top_housekeeping_per_neighbor(self,neighbor):
+    def _top_housekeeping_per_neighbor(self,neighbor):
         '''
         For a particular neighbor, decide to relocate cells if needed.
         '''
@@ -606,11 +606,11 @@ class Mote(object):
                 )
                 
                 # relocate: add new, remove old
-                self._sixtop_cell_reservation_request(neighbor,1)
-                self._6top_removeSpecifiedCell(worst_ts,neighbor)
+                self._top_cell_reservation_request(neighbor,1)
+                self._top_removeSpecifiedCell(worst_ts,neighbor)
                 
                 # update stats
-                self._incrementMoteStats('6topRelocatedCells')
+                self._incrementMoteStats('topRelocatedCells')
                 
                 # remember I relocated a cell for that bundle
                 relocation = True
@@ -640,17 +640,17 @@ class Mote(object):
                     )
                     
                     # relocate: add new, remove old
-                    self._sixtop_cell_reservation_request(neighbor,1)
-                    self._6top_removeSpecifiedCell(ts,neighbor)
+                    self._top_cell_reservation_request(neighbor,1)
+                    self._top_removeSpecifiedCell(ts,neighbor)
                 
                 # update stats
-                self._incrementMoteStats('6topRelocatedBundles')
+                self._incrementMoteStats('topRelocatedBundles')
         
-    def _sixtop_cell_reservation_request(self,neighbor,numCells):
+    def _top_cell_reservation_request(self,neighbor,numCells):
         ''' tries to reserve numCells TX cells to a neighbor. '''
         
         with self.dataLock:
-            cells=neighbor.sixtop_cell_reservation_response(self,numCells)
+            cells=neighbor.top_cell_reservation_response(self,numCells)
             
             for ts, ch in cells.iteritems():
                 self._tsch_addCell(
@@ -680,7 +680,7 @@ class Mote(object):
                 )
                 print '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}'.format(len(cells),numCells,self.id,neighbor.id)
     
-    def sixtop_cell_reservation_response(self,neighbor,numCells):
+    def top_cell_reservation_response(self,neighbor,numCells):
         ''' tries to reserve numCells RX cells to a neighbor. '''
         
         with self.dataLock:
@@ -705,19 +705,19 @@ class Mote(object):
                 )
             return cells
     
-    def _6top_removeCell(self,neighbor):
+    def _top_removeCell(self,neighbor):
         '''
         Removes a cell to neighbor.
         '''
 
         # case that housekeeping is ON
-        self._6top_removeWorstCell(neighbor)        
+        self._top_removeWorstCell(neighbor)        
         
         # case that housekeeping is OFF
-        # self._6top_removeRandomCell(neighbor)
+        # self._top_removeRandomCell(neighbor)
         
 
-    def _6top_removeWorstCell(self,neighbor):
+    def _top_removeWorstCell(self,neighbor):
         '''
         Finds cells with worst PDR to neighbor, and remove it.
         '''
@@ -751,10 +751,10 @@ class Mote(object):
         )
         
         # remove cell
-        self._6top_removeSpecifiedCell(worst_ts,neighbor)
+        self._top_removeSpecifiedCell(worst_ts,neighbor)
         
 
-    def _6top_removeRandomCell(self,neighbor):
+    def _top_removeRandomCell(self,neighbor):
         '''
         Randomly finds a cell to neighbor, and remove it.
         '''
@@ -779,9 +779,9 @@ class Mote(object):
             )
 
             # remove cell
-            self._6top_removeSpecifiedCell(ts,neighbor)
+            self._top_removeSpecifiedCell(ts,neighbor)
 
-    def _6top_removeSpecifiedCell(self,ts,neighbor):
+    def _top_removeSpecifiedCell(self,ts,neighbor):
         
         # log
         self._log(
@@ -802,7 +802,7 @@ class Mote(object):
             self.numCellsToNeighbors[neighbor] -= 1
 
     
-    def _6top_isUnusedSlot(self,ts):
+    def _top_isUnusedSlot(self,ts):
         with self.dataLock:
             return not (ts in self.schedule)
     
@@ -1251,8 +1251,8 @@ class Mote(object):
                 'otfAdd':              0,   # OTF adds some cells
                 'otfRemove':           0,   # OTF removes some cells
                 # 6top
-                '6topRelocatedCells':  0,   # number of time 6top relocates a single cell
-                '6topRelocatedBundles':0,   # number of time 6top relocates a bundle
+                'topRelocatedCells':  0,   # number of time 6top relocates a single cell
+                'topRelocatedBundles':0,   # number of time 6top relocates a bundle
                 # tsch
                 'droppedMacRetries':   0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
             }
