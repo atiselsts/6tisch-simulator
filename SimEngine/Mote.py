@@ -197,13 +197,16 @@ class Mote(object):
                 'payload':        [self.id,self.engine.getAsn()], # the payload is used for latency calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES
             }
+
+            # update mote stats
+            self._incrementMoteStats('appGenerated')
                         
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
             
-            if isEnqueued:
+            if not isEnqueued:
                 # update mote stats
-                self._incrementMoteStats('appGenerated')
+                self._incrementMoteStats('droppedAppFailedEnqueue')
                 
     
     #===== rpl
@@ -711,10 +714,10 @@ class Mote(object):
         '''
 
         # case that housekeeping is ON
-        self._top_removeWorstCell(neighbor)        
+        #self._top_removeWorstCell(neighbor)        
         
         # case that housekeeping is OFF
-        # self._top_removeRandomCell(neighbor)
+        self._top_removeRandomCell(neighbor)
         
 
     def _top_removeWorstCell(self,neighbor):
@@ -1235,26 +1238,27 @@ class Mote(object):
         with self.dataLock:
             self.motestats = {
                 # app
-                'appGenerated':        0,   # number of packets app layer generated
-                'appRelayed':          0,   # number of packets relayed
-                'appReachesDagroot':   0,   # number of packets received at the DAGroot
+                'appGenerated':            0,   # number of packets app layer generated
+                'appRelayed':              0,   # number of packets relayed
+                'appReachesDagroot':       0,   # number of packets received at the DAGroot
+                'droppedAppFailedEnqueue': 0,# dropped packets because app failed enqueue them
                 # queue
-                'droppedQueueFull':    0,   # dropped packets because queue is full
+                'droppedQueueFull':        0,   # dropped packets because queue is full
                 # rpl
-                'rplTxDIO':            0,   # number of TX'ed DIOs
-                'rplRxDIO':            0,   # number of RX'ed DIOs
-                'rplChurnPrefParent':  0,   # number of time the mote changes preferred parent
-                'rplChurnRank':        0,   # number of time the mote changes rank
-                'droppedNoRoute':      0,   # packets dropped because no route (no preferred parent)
+                'rplTxDIO':                0,   # number of TX'ed DIOs
+                'rplRxDIO':                0,   # number of RX'ed DIOs
+                'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
+                'rplChurnRank':            0,   # number of time the mote changes rank
+                'droppedNoRoute':          0,   # packets dropped because no route (no preferred parent)
                 # otf
-                'droppedNoTxCells':    0,   # packets dropped because no TX cells
-                'otfAdd':              0,   # OTF adds some cells
-                'otfRemove':           0,   # OTF removes some cells
+                'droppedNoTxCells':        0,   # packets dropped because no TX cells
+                'otfAdd':                  0,   # OTF adds some cells
+                'otfRemove':               0,   # OTF removes some cells
                 # 6top
-                'topRelocatedCells':  0,   # number of time 6top relocates a single cell
-                'topRelocatedBundles':0,   # number of time 6top relocates a bundle
+                'topRelocatedCells':       0,   # number of time 6top relocates a single cell
+                'topRelocatedBundles':     0,   # number of time 6top relocates a bundle
                 # tsch
-                'droppedMacRetries':   0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
+                'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
             }
     
     def _incrementMoteStats(self,name):
