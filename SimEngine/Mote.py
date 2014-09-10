@@ -135,6 +135,7 @@ class Mote(object):
         self._resetMoteStats()
         self._resetQueueStats()
         self._resetLatencyStats()
+        self._resetHopsStats()
     
     #======================== stack ===========================================
     
@@ -145,6 +146,7 @@ class Mote(object):
         self.rank                 = 0
         self.dagRank              = 0
         self.packetLatencies      = [] # in slots
+        self.packetHops           = []
     
     #===== application
     
@@ -194,7 +196,7 @@ class Mote(object):
             newPacket = {
                 'asn':            self.engine.getAsn(),
                 'type':           self.APP_TYPE_DATA,
-                'payload':        [self.id,self.engine.getAsn()], # the payload is used for latency calculation
+                'payload':        [self.id,self.engine.getAsn(),1], # the payload is used for latency and number of hops calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES
             }
 
@@ -1076,6 +1078,9 @@ class Mote(object):
                     # calculate end-to-end latency
                     self._logLatencyStat(asn-payload[1])
                     
+                    # log the number of hops
+                    self._logHopsStat(payload[2])
+                    
                     (isACKed, isNACKed) = (True, False)
                 
                 else:
@@ -1084,11 +1089,15 @@ class Mote(object):
                     # count incoming traffic for each node
                     self._otf_incrementIncomingTraffic(smac)
                     
+                    # update the number of hops
+                    newPayload     = copy.deepcopy(payload)
+                    newPayload[2] += 1
+                    
                     # create packet
                     relayPacket = {
                         'asn':         asn,
                         'type':        type,
-                        'payload':     payload,
+                        'payload':     newPayload,
                         'retriesLeft': self.TSCH_MAXTXRETRIES
                     }
                     
@@ -1274,6 +1283,7 @@ class Mote(object):
             returnVal['numRxCells']         = len(self.getRxCells())
             returnVal['aveQueueDelay']      = self.getAveQueueDelay()
             returnVal['aveLatency']         = self.getAveLatency()
+            returnVal['aveHops']            = self.getAveHops()            
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
@@ -1282,7 +1292,8 @@ class Mote(object):
         self._resetMoteStats()
         self._resetQueueStats()
         self._resetLatencyStats()
-        
+        self._resetHopsStats()
+                
         return returnVal
     
     # cell stats
@@ -1333,6 +1344,21 @@ class Mote(object):
     def _logLatencyStat(self,latency):
         with self.dataLock:
             self.packetLatencies += [latency]
+
+    # hops stats
+    
+    def getAveHops(self):
+        with self.dataLock:
+            d = self.packetHops
+            return float(sum(d))/float(len(d)) if len(d)>0 else 0
+    
+    def _resetHopsStats(self):
+        with self.dataLock:
+            self.packetHops = []
+    
+    def _logHopsStat(self,hops):
+        with self.dataLock:
+            self.packetHops += [hops]
     
     #===== log
     
