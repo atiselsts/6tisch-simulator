@@ -121,7 +121,7 @@ class Mote(object):
         # radio
         self.txPower                   = 0                     # dBm
         self.antennaGain               = 0                     # dBi
-        self.minRssi                   = self.settings.minRssi # dBm, extracted from table of rssi-pdr relationship
+        self.minRssi                   = self.settings.minRssi # dBm
         self.noisepower                = -105                  # dBm
         self.drift                     = random.uniform(-self.RADIO_MAXDRIFT, self.RADIO_MAXDRIFT)
         # wireless
@@ -197,12 +197,14 @@ class Mote(object):
                 'payload':        [self.id,self.engine.getAsn()], # the payload is used for latency calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES
             }
-            
-            # update mote stats
-            self._incrementMoteStats('appGenerated')
-            
+                        
             # enqueue packet in TSCH queue
-            self._tsch_enqueue(newPacket)
+            isEnqueued = self._tsch_enqueue(newPacket)
+            
+            if isEnqueued:
+                # update mote stats
+                self._incrementMoteStats('appGenerated')
+                
     
     #===== rpl
     
@@ -682,6 +684,7 @@ class Mote(object):
         ''' tries to reserve numCells RX cells to a neighbor. '''
         
         with self.dataLock:
+            # timeslot = 0 is reserved for a shared cell (not implemented yet) and thus not used as a dedicated cell
             availableTimeslots=list(set(range(1,self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
             cells={}
