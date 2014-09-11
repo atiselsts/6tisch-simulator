@@ -710,7 +710,7 @@ class Mote(object):
         
         with self.dataLock:
             # timeslot = 0 is reserved for a shared cell (not implemented yet) and thus not used as a dedicated cell
-            availableTimeslots=list(set(range(1,self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
+            availableTimeslots=list(set(range(self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
             cells={}
             for ts in availableTimeslots[:numCells]:
