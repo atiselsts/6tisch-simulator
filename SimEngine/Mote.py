@@ -1037,14 +1037,14 @@ class Mote(object):
 
                 # decrement 'retriesLeft' counter associated with that packet
                 i = self.txQueue.index(self.pktToSend)
-                self.txQueue[i]['retriesLeft'] -= 1
+                if self.txQueue[i]['retriesLeft'] > 0:
+                    self.txQueue[i]['retriesLeft'] -= 1
                 
                 # drop packet if retried too many time
                 if self.txQueue[i]['retriesLeft'] == 0:
                     
-                    if  len(self.txQueue) < self.TSCH_QUEUE_SIZE:
-                        self.txQueue[i]['retriesLeft'] = self.TSCH_MAXTXRETRIES
-                    else:
+                    if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
+
                         # update mote stats
                         self._incrementMoteStats('droppedMacRetries')
                         
@@ -1055,14 +1055,14 @@ class Mote(object):
                 
                 # decrement 'retriesLeft' counter associated with that packet
                 i = self.txQueue.index(self.pktToSend)
-                self.txQueue[i]['retriesLeft'] -= 1
+                if self.txQueue[i]['retriesLeft'] > 0:
+                    self.txQueue[i]['retriesLeft'] -= 1
                 
                 # drop packet if retried too many time
                 if self.txQueue[i]['retriesLeft'] == 0:
                     
-                    if  len(self.txQueue) < self.TSCH_QUEUE_SIZE:
-                        self.txQueue[i]['retriesLeft'] = self.TSCH_MAXTXRETRIES
-                    else:
+                    if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
+
                         # update mote stats
                         self._incrementMoteStats('droppedMacRetries')
                         
