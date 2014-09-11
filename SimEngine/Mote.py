@@ -404,9 +404,20 @@ class Mote(object):
             # convert to pkts/cycle
             genTraffic      *= self.settings.slotframeLength*self.settings.slotDuration
             
+            remainingPortion = 0.0
+            parent_portion = self.trafficPortionPerParent.items()
+            # sort list so that the parent assigned larger traffic can be checked first
+            sorted_parent_portion = sorted(parent_portion, key = lambda x: x[1], reverse=True)
+
             # split genTraffic across parents, trigger 6top to add/delete cells accordingly
-            for (parent,portion) in self.trafficPortionPerParent.items():
+            for (parent,portion) in sorted_parent_portion:
                 
+                # if some portion is remaining, this is added to this parent
+                if remainingPortion != 0.0:
+                    portion                             += remainingPortion
+                    remainingPortion                     = 0.0
+                    self.trafficPortionPerParent[parent] = portion
+                    
                 # calculate required number of cells to that parent
                 etx = self._estimateETX(parent)
                 if etx>self.RPL_MAX_ETX: # cap ETX
@@ -437,6 +448,15 @@ class Mote(object):
                     
                     # have 6top add cells
                     self._top_cell_reservation_request(parent,numCellsToAdd)
+                    
+                    # measure how many cells I have now to that parent
+                    nowCells     = self.numCellsToNeighbors.get(parent,0)
+                    
+                    # store handled portion and remaining portion
+                    if nowCells<reqCells:
+                        handledPortion   = (float(nowCells)/etx)/genTraffic
+                        remainingPortion = portion - handledPortion
+                        self.trafficPortionPerParent[parent] = handledPortion
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -683,8 +703,8 @@ class Mote(object):
                     '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}',
                     (len(cells),numCells,self.id,neighbor.id),
                 )
-                print '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}'.format(len(cells),numCells,self.id,neighbor.id)
-    
+                #print '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}'.format(len(cells),numCells,self.id,neighbor.id)
+            
     def top_cell_reservation_response(self,neighbor,numCells):
         ''' tries to reserve numCells RX cells to a neighbor. '''
         
