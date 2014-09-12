@@ -471,7 +471,7 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, log = Fals
             label    = dataSetDir
         )
     
-    matplotlib.pyplot.legend(prop={'size':10})
+    matplotlib.pyplot.legend(prop={'size':10},loc=3)
     matplotlib.pyplot.savefig(outfilename + '.png')
     matplotlib.pyplot.savefig(outfilename + '.eps')    
     matplotlib.pyplot.close('all')
