@@ -55,7 +55,8 @@ class Mote(object):
     RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
     RPL_MIN_HOP_RANK_INCREASE          = 256
     RPL_MAX_ETX                        = 4
-    RPL_MAX_RANK_INCREASE              = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
+    RPL_MAX_RANK_INCREASE              = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
+    RPL_MAX_TOTAL_RANK                 = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
     RPL_PARENT_SET_SIZE                = 3
     #=== otf
     OTF_HOUSEKEEPING_PERIOD_S          = 1
@@ -248,6 +249,10 @@ class Mote(object):
                     if neighbor.dagRoot:
                         continue
                     
+                    # don't update poor link
+                    if neighbor._rpl_calcRankIncrease(self)>self.RPL_MAX_RANK_INCREASE:
+                        continue
+                    
                     # log charge usage (for neighbor) for receiving DIO is currently neglected
                     # neighbor._logChargeConsumed(self.CHARGE_RxData_uC)
                     
@@ -297,9 +302,13 @@ class Mote(object):
                 if rankIncrease==None:
                     # could not calculate, don't consider this neighbor
                     continue
-                
-                # don't consider this neighbor it it's too costly to communicate with
+
+                # don't consider this neighbor as it's too costly to communicate with
                 if rankIncrease>self.RPL_MAX_RANK_INCREASE:
+                    continue
+                
+                # don't consider this neighbor as it's too costly to communicate with
+                if neighborRank+rankIncrease>self.RPL_MAX_TOTAL_RANK:
                     continue
                 
                 # record this potential rank
