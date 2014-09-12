@@ -630,15 +630,21 @@ class Mote(object):
                     (worst_ts,neighbor,worst_pdr,cell_pdr),
                 )
                 
-                # relocate: add new, remove old
+                # measure how many cells I have now to that parent
+                nowCells = self.numCellsToNeighbors.get(neighbor,0)
+                
+                # relocate: add new first
                 self._top_cell_reservation_request(neighbor,1)
-                self._top_removeSpecifiedCell(worst_ts,neighbor)
                 
-                # update stats
-                self._incrementMoteStats('topRelocatedCells')
+                # relocate: remove old only when successfully added 
+                if nowCells < self.numCellsToNeighbors.get(neighbor,0):
+                    self._top_removeSpecifiedCell(worst_ts,neighbor)
                 
-                # remember I relocated a cell for that bundle
-                relocation = True
+                    # update stats
+                    self._incrementMoteStats('topRelocatedCells')
+                
+                    # remember I relocated a cell for that bundle
+                    relocation = True
         
         #===== step 3. relocate the complete bundle
         # this step only runs if the previous hasn't, and we were able to
@@ -646,6 +652,8 @@ class Mote(object):
         # this step verifies that the average PDR for the complete bundle is
         # expected, given the RSSI to that neighbor. If it's lower, this step
         # will move all cells in the bundle.
+        
+        bundleRelocation = False
         
         if (not relocation) and bundlePdr!=None:
             
@@ -663,13 +671,23 @@ class Mote(object):
                         "[6top] relocating cell ts {0} to {1} (bundle pdr {2} << theoretical pdr {3})",
                         (ts,neighbor,bundlePdr,theoPDR),
                     )
+
+                    # measure how many cells I have now to that parent
+                    nowCells = self.numCellsToNeighbors.get(neighbor,0)
                     
-                    # relocate: add new, remove old
+                    # relocate: add new first
                     self._top_cell_reservation_request(neighbor,1)
-                    self._top_removeSpecifiedCell(ts,neighbor)
+
+                    # relocate: remove old only when successfully added 
+                    if nowCells < self.numCellsToNeighbors.get(neighbor,0):
+
+                        self._top_removeSpecifiedCell(ts,neighbor)
+                        
+                        bundleRelocation = True
                 
                 # update stats
-                self._incrementMoteStats('topRelocatedBundles')
+                if bundleRelocation:
+                    self._incrementMoteStats('topRelocatedBundles')
         
     def _top_cell_reservation_request(self,neighbor,numCells):
         ''' tries to reserve numCells TX cells to a neighbor. '''
@@ -736,10 +754,10 @@ class Mote(object):
         '''
 
         # case that housekeeping is ON
-        #self._top_removeWorstCell(neighbor)        
+        self._top_removeWorstCell(neighbor)        
         
         # case that housekeeping is OFF
-        self._top_removeRandomCell(neighbor)
+        #self._top_removeRandomCell(neighbor)
         
 
     def _top_removeWorstCell(self,neighbor):
