@@ -25,6 +25,7 @@ import random
 import math
 
 import Topology
+import SimSettings
 
 #============================ defines =========================================
 
@@ -52,6 +53,7 @@ class Propagation(object):
         #===== end singleton
         
         # store params
+        self.settings                  = SimSettings.SimSettings()
         
         # variables
         self.dataLock                  = threading.Lock()
@@ -108,36 +110,36 @@ class Propagation(object):
                         
                         if self.receivers[i]['mote']==transmission['dmac']:
                             # this packet is destined for this mote
-                            
-                            #''' ============= for evaluation with interference=================
-                             
-                            # other transmissions on the same channel?
-                            interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
-                            
-                            lockOn = transmission['smac']
-                            for itfr in interferers:
-                                if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
-                                    # lock on interference
-                                    lockOn = itfr
-                                    break
-                            
-                            if lockOn == transmission['smac']:
-                                # calculate pdr, including interference
+                                                                                      
+                            if not self.settings.noInterference:
+  
+                                #''' ============= for evaluation with interference=================
+                                 
+                                # other transmissions on the same channel?
+                                interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
+                                
+                                lockOn = transmission['smac']
+                                for itfr in interferers:
+                                    if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                        # lock on interference
+                                        lockOn = itfr
+                                        break
+                                
+                                if lockOn == transmission['smac']:
+                                    # calculate pdr, including interference
+                                    sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                                    pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                                else:
+                                    # fail due to locking on interference
+                                    pdr   = 0.0
+                              
+                            else:
+                                # ============= for evaluation without interference=================
+                                interferers = []
+                                # calculate pdr with no interference
                                 sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
                                 pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
-                            else:
-                                # fail due to locking on interference
-                                pdr   = 0.0
-                            # ========================== '''
-                            
-                            ''' ============= for evaluation without interference=================
-                            
-                            interferers = []
-                            # calculate pdr with no interference
-                            sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
-                            pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
-                            ========================== ''' 
-                            
+                                
                             # pick a random number
                             failure = random.random()
                             
