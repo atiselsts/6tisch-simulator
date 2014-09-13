@@ -525,7 +525,8 @@ class Mote(object):
                         self._top_removeCell(neighbor)
 
             # trigger 6top housekeeping
-            self._top_housekeeping()
+            if not self.settings.noTopHousekeeping:
+                self._top_housekeeping()
             
             # schedule my and my neighbor's next active cell
             self._tsch_schedule_activeCell()

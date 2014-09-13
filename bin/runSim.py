@@ -149,6 +149,20 @@ def parseCliOptions():
         default    = False,
         help       = 'Display the GUI during execution.',
     )
+
+    parser.add_argument('--noInterference',
+        dest       = 'noInterference',
+        action     = 'store_true',
+        default    = False,
+        help       = 'Turn off interference in the same cell transmission.',
+    )
+
+    parser.add_argument('--noTopHousekeeping',
+        dest       = 'noTopHousekeeping',
+        action     = 'store_true',
+        default    = False,
+        help       = 'Turn off 6top housekeeping.',
+    )
     
     parser.add_argument( '--processID',
         dest       = 'processID',
