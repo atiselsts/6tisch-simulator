@@ -163,6 +163,13 @@ def parseCliOptions():
         default    = False,
         help       = 'Turn off 6top housekeeping.',
     )
+
+    parser.add_argument('--noRemoveWorstCell',
+        dest       = 'noRemoveWorstCell',
+        action     = 'store_true',
+        default    = False,
+        help       = 'Turn on removing random cell function instead of removing the worst.',
+    )
     
     parser.add_argument( '--processID',
         dest       = 'processID',

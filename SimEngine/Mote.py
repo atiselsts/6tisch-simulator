@@ -763,11 +763,10 @@ class Mote(object):
         Removes a cell to neighbor.
         '''
 
-        # case that housekeeping is ON
-        self._top_removeWorstCell(neighbor)        
-        
-        # case that housekeeping is OFF
-        #self._top_removeRandomCell(neighbor)
+        if not self.settings.noRemoveWorstCell:
+            self._top_removeWorstCell(neighbor)        
+        else:
+            self._top_removeRandomCell(neighbor)
         
 
     def _top_removeWorstCell(self,neighbor):
