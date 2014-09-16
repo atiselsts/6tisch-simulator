@@ -778,29 +778,36 @@ class Mote(object):
         for (ts,cell) in self.schedule.items():
             if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
                 scheduleList += [(ts,cell)]
-        
+
         # shuffle schedule list to avoid biased selection
         random.shuffle(scheduleList)
-
-        worst_ts     = None
-        worst_pdr    = None        
-
+        
+        worst_ts_cell   = None
+        worst_pdr       = None        
         # find the cell with the worth PDR to that neighbor
         for (ts,cell) in scheduleList:
-
-            # set initial values for numTx and numTxAck assuming PDR is exactly estimated
-            numTx      = self.NUM_SUFFICIENT_TX
-            numTxAck   = math.floor(self.getPDR(neighbor)*self.NUM_SUFFICIENT_TX)
             
-            # add statistics
-            numTx     += float(cell['numTx'])
-            numTxAck  += float(cell['numTxAck'])
+            # calculate pdr
+            if cell['numTx'] > 0:
+                pdr        = float(cell['numTxAck'])/float(cell['numTx'])
+            else:
+                # when no tx happens, set 1.0 to have low possibility to be selected  
+                pdr        = 1.0
             
-            pdr        = numTxAck/numTx
-            
-            if worst_ts==None or pdr<worst_pdr:
-                worst_ts      = ts
-                worst_pdr     = pdr
+            if worst_ts_cell==None or pdr<worst_pdr:
+                worst_ts_cell     = [(ts,cell)]
+                worst_pdr         = pdr
+            elif pdr == worst_pdr:
+                worst_ts_cell    += [(ts,cell)]
+        
+        if worst_pdr==1.0:
+            worst = min(worst_ts_cell, key = lambda x: x[1]['numTx'])
+        elif worst_pdr==0.0:
+            worst = max(worst_ts_cell, key = lambda x: x[1]['numTx'])
+        else:
+            worst = random.choice(worst_ts_cell)
+        
+        worst_ts = worst[0]
         
         # log
         self._log(
@@ -808,6 +815,7 @@ class Mote(object):
             "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
             (worst_ts,neighbor.id,worst_pdr),
         )
+        
         
         # remove cell
         self._top_removeSpecifiedCell(worst_ts,neighbor)
