@@ -487,7 +487,7 @@ class Mote(object):
                     self._incrementMoteStats('otfRemove')
                     
                     # have 6top remove cells
-                    self._top_removeCells(parent,numCellsRemove)
+                    self._top_removeCells(parent,numCellsToRemove)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -762,20 +762,23 @@ class Mote(object):
         '''
         
         # get cells to the neighbors
-        scheduleList = [[ts,cell['numTxAck'],cell['numTx']] for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
+        scheduleList = []
+        for ts, cell in self.schedule.iteritems():
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+                if cell['numTx']==0:
+                    cellPDR=1.0
+                else:
+                    cellPDR=float(cell['numTxAck'])/cell['numTx']
+                scheduleList+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
         
         if not self.settings.noRemoveWorstCell:
             
             # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
             scheduleListByPDR={}
             for tscell in scheduleList:
-                if tscell[2]==0:
-                    cellPDR=1.0
-                else:
-                    cellPDR=float(tscell[1])/tscell[2]
-                if not scheduleListByPDR.has_key(cellPDR):
-                    scheduleListByPDR[cellPDR]=[]
-                scheduleListByPDR[cellPDR]+=[tscell+[cellPDR]]
+                if not scheduleListByPDR.has_key(tscell[3]):
+                    scheduleListByPDR[tscell[3]]=[]
+                scheduleListByPDR[tscell[3]]+=[tscell]
             rssi            = self.getRSSI(neighbor)
             theoPDR         = Topology.Topology.rssiToPdr(rssi)
             scheduleList=[]
