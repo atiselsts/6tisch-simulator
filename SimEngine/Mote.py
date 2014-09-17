@@ -771,6 +771,9 @@ class Mote(object):
                     cellPDR=float(cell['numTxAck'])/cell['numTx']
                 scheduleList+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
         
+        # introduce randomness in the cell list order
+        random.shuffle(scheduleList)
+        
         if not self.settings.noRemoveWorstCell:
             
             # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
@@ -787,10 +790,6 @@ class Mote(object):
                     scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
                 else:
                     scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])
-        else:
-            
-            # triggered only when random cell selection is due (introduce randomness in the cell list)
-            random.shuffle(scheduleList)
         
         # remove a given number of cells from the list of available cells (picks the first numCellToRemove)
         for tscell in scheduleList[:numCellsToRemove]:
