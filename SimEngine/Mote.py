@@ -758,46 +758,50 @@ class Mote(object):
     
     def _top_removeCells(self,neighbor,numCellsToRemove):
         '''
-        Finds cells with worst PDR to neighbor, and remove it.
+        Finds cells to neighbor, and remove it.
         '''
         
-        scheduleList = [(ts,cell['numTxAck'],cell['numTx']) for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
-        scheduleListByPDR={}
-        for tscell in scheduleList:
-            if tscell[2]==0:
-                cellPDR=1.0
-            else:
-                cellPDR=float(tscell[1])/tscell[2]
-            if not scheduleListByPDR.has_key(cellPDR):
-                scheduleListByPDR[cellPDR]=[]
-            scheduleListByPDR[cellPDR]+=[tscell]
-        rssi            = self.getRSSI(neighbor)
-        theoPDR         = Topology.Topology.rssiToPdr(rssi)
-        scheduleList=[]
-        for pdr in sorted(scheduleListByPDR.keys()):
-            if pdr<theoPDR:
-                scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
-            else:
-                scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])
+        # get cells to the neighbors
+        scheduleList = [[ts,cell['numTxAck'],cell['numTx']] for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
+        
+        if not self.settings.noRemoveWorstCell:
+            
+            # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
+            scheduleListByPDR={}
+            for tscell in scheduleList:
+                if tscell[2]==0:
+                    cellPDR=1.0
+                else:
+                    cellPDR=float(tscell[1])/tscell[2]
+                if not scheduleListByPDR.has_key(cellPDR):
+                    scheduleListByPDR[cellPDR]=[]
+                scheduleListByPDR[cellPDR]+=[tscell+[cellPDR]]
+            rssi            = self.getRSSI(neighbor)
+            theoPDR         = Topology.Topology.rssiToPdr(rssi)
+            scheduleList=[]
+            for pdr in sorted(scheduleListByPDR.keys()):
+                if pdr<theoPDR:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
+                else:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])
+        else:
+            
+            # triggered only when random cell selection is due (introduce randomness in the cell list)
+            random.shuffle(scheduleList)
+        
+        # remove a given number of cells from the list of available cells (picks the first numCellToRemove)
         for tscell in scheduleList[:numCellsToRemove]:
-            if tscell[2]==0:
-                # log
-                self._log(
-                    self.INFO,
-                    "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
-                    (tscell[0],neighbor.id,1.0),
-                )
-            else:
-                # log
-                self._log(
-                    self.INFO,
-                    "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
-                    (tscell[0],neighbor.id,float(tscell[1])/tscell[2]),
-                )
+            
+            # log
+            self._log(
+                self.INFO,
+                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                (tscell[0],neighbor.id,tscell[3]),
+            )
         
             # remove cell
             self._top_removeSpecifiedCell(tscell[0],neighbor)
-
+            
     def _top_removeSpecifiedCell(self,ts,neighbor):
         
         # log
