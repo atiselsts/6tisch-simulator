@@ -487,8 +487,7 @@ class Mote(object):
                     self._incrementMoteStats('otfRemove')
                     
                     # have 6top remove cells
-                    for _ in xrange(numCellsToRemove):
-                        self._top_removeCell(parent)
+                    self._top_removeCells(parent,numCellsRemove)
                     
                     # remember OTF triggered
                     otfTriggered = True
@@ -521,8 +520,7 @@ class Mote(object):
                     )
                     
                     numCellsToRemove = self.numCellsToNeighbors[neighbor]
-                    for _ in xrange(numCellsToRemove):
-                        self._top_removeCell(neighbor)
+                    self._top_removeCells(neighbor,numCellsToRemove)
 
             # trigger 6top housekeeping
             if not self.settings.noTopHousekeeping:
@@ -758,95 +756,47 @@ class Mote(object):
                 )
             return cells
     
-    def _top_removeCell(self,neighbor):
-        '''
-        Removes a cell to neighbor.
-        '''
-
-        if not self.settings.noRemoveWorstCell:
-            self._top_removeWorstCell(neighbor)        
-        else:
-            self._top_removeRandomCell(neighbor)
-        
-
-    def _top_removeWorstCell(self,neighbor):
+    def _top_removeCells(self,neighbor,numCellsToRemove):
         '''
         Finds cells with worst PDR to neighbor, and remove it.
         '''
         
-        scheduleList = []
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
-                scheduleList += [(ts,cell)]
-
-        # shuffle schedule list to avoid biased selection
-        random.shuffle(scheduleList)
-        
-        worst_ts_cell   = None
-        worst_pdr       = None        
-        # find the cell with the worth PDR to that neighbor
-        for (ts,cell) in scheduleList:
-            
-            # calculate pdr
-            if cell['numTx'] > 0:
-                pdr        = float(cell['numTxAck'])/float(cell['numTx'])
+        scheduleList = [(ts,cell['numTxAck'],cell['numTx']) for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
+        scheduleListByPDR={}
+        for tscell in scheduleList:
+            if tscell[2]==0:
+                cellPDR=1.0
             else:
-                # when no tx happens, set 1.0 to have low possibility to be selected  
-                pdr        = 1.0
-            
-            if worst_ts_cell==None or pdr<worst_pdr:
-                worst_ts_cell     = [(ts,cell)]
-                worst_pdr         = pdr
-            elif pdr == worst_pdr:
-                worst_ts_cell    += [(ts,cell)]
+                cellPDR=float(tscell[1])/tscell[2]
+            if not scheduleListByPDR.has_key(cellPDR):
+                scheduleListByPDR[cellPDR]=[]
+            scheduleListByPDR[cellPDR]+=[tscell]
+        rssi            = self.getRSSI(neighbor)
+        theoPDR         = Topology.Topology.rssiToPdr(rssi)
+        scheduleList=[]
+        for pdr in sorted(scheduleListByPDR.keys()):
+            if pdr<theoPDR:
+                scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
+            else:
+                scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])
+        for tscell in scheduleList[:numCellsToRemove]:
+            if tscell[2]==0:
+                # log
+                self._log(
+                    self.INFO,
+                    "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                    (tscell[0],neighbor.id,1.0),
+                )
+            else:
+                # log
+                self._log(
+                    self.INFO,
+                    "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                    (tscell[0],neighbor.id,float(tscell[1])/tscell[2]),
+                )
         
-        if worst_pdr==1.0:
-            worst = min(worst_ts_cell, key = lambda x: x[1]['numTx'])
-        elif worst_pdr==0.0:
-            worst = max(worst_ts_cell, key = lambda x: x[1]['numTx'])
-        else:
-            worst = random.choice(worst_ts_cell)
-        
-        worst_ts = worst[0]
-        
-        # log
-        self._log(
-            self.INFO,
-            "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
-            (worst_ts,neighbor.id,worst_pdr),
-        )
-        
-        
-        # remove cell
-        self._top_removeSpecifiedCell(worst_ts,neighbor)
-        
-
-    def _top_removeRandomCell(self,neighbor):
-        '''
-        Randomly finds a cell to neighbor, and remove it.
-        '''
-        
-        tss = []
-        
-        # find a cell to that neighbor
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
-                
-                tss += [ts]
-        
-        # remove that cell
-        if tss!=[]:
-            ts = random.choice(tss)
-
-            # log
-            self._log(
-                self.INFO,
-                "[otf] randomly remove cell ts={0} to {1}",
-                (ts,neighbor.id),
-            )
-
             # remove cell
-            self._top_removeSpecifiedCell(ts,neighbor)
+            self._top_removeSpecifiedCell(tscell[0],neighbor)
 
     def _top_removeSpecifiedCell(self,ts,neighbor):
         
