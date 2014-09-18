@@ -317,10 +317,41 @@ class Mote(object):
             # sort potential ranks
             sorted_potentialRanks = sorted(potentialRanks.iteritems(), key=lambda x:x[1])
             
+            
+            # switch parents only when rank difference is large enough
+            for i in range(1,len(sorted_potentialRanks)):
+                # skip mote who is not a current parent
+                if sorted_potentialRanks[i][0] not in self.parentSet:
+                    continue
+                # compare the selected current parent with motes who have lower potential ranks 
+                # and who are not in the current parent set 
+                for j in range(i):                    
+                    
+                    if sorted_potentialRanks[j][0] in self.parentSet:
+                        continue
+                    
+                    if sorted_potentialRanks[i][1]-sorted_potentialRanks[j][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
+                        mote_rank = sorted_potentialRanks.pop(i)
+                        sorted_potentialRanks.insert(j,mote_rank)
+                        break
+                
             # pick my preferred parent and resulting rank
             if sorted_potentialRanks:
+                
                 (newPreferredParent,newrank) = sorted_potentialRanks[0]
                 
+                
+                # compare a current preferred parent with new one
+                if self.preferredParent and newPreferredParent!=self.preferredParent:
+                    for (mote,rank) in sorted_potentialRanks[:self.RPL_PARENT_SET_SIZE]:
+                        
+                        if mote != self.preferredParent:
+                            continue                       
+                        # switch preferred parent only when rank difference is large enough
+                        if rank-sorted_potentialRanks[0][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
+                            (newPreferredParent,newrank) = (mote,rank)
+                
+                    
                 # update mote stats
                 if self.preferredParent and newPreferredParent!=self.preferredParent:
                     self._incrementMoteStats('rplChurnPrefParent')
@@ -347,9 +378,17 @@ class Mote(object):
                 # calculate DAGrank
                 self.dagRank = int(self.rank/self.RPL_MIN_HOP_RANK_INCREASE)
             
+            oldParentSet = []
+            if self.parentSet:
+                oldParentSet   = copy.copy(self.parentSet)
+                    
             # pick my parent set
             self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
+            assert self.preferredParent==None or self.preferredParent in self.parentSet
             
+            if set(oldParentSet)!=set(self.parentSet):
+                self._incrementMoteStats('rplChurnParentSet')
+                
             #===
             # refresh the following parameters:
             # - self.trafficPortionPerParent
@@ -1282,6 +1321,7 @@ class Mote(object):
                 'rplRxDIO':                0,   # number of RX'ed DIOs
                 'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
                 'rplChurnRank':            0,   # number of time the mote changes rank
+                'rplChurnParentSet':       0,   # number of time the mote changes parent set
                 'droppedNoRoute':          0,   # packets dropped because no route (no preferred parent)
                 # otf
                 'droppedNoTxCells':        0,   # packets dropped because no TX cells
