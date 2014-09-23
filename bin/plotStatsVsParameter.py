@@ -143,7 +143,7 @@ def plot_reliability(elemName):
         ylabel         = 'end-to-end reliability',
     )
 
-    outfilename    = 'output_drop_{}'.format(elemName)
+    outfilename    = 'output_loss_{}'.format(elemName)
 
     bar_reliabilities = {}
 
@@ -160,7 +160,7 @@ def plot_reliability(elemName):
         dirs           = dataSetDirs,
         outfilename    = outfilename,
         xlabel         = xlabel,
-        ylabel         = 'packet drop rate',
+        ylabel         = 'end-to-end packet loss ratio',
         log            = True,
     )
 
@@ -194,12 +194,14 @@ def calcReliability(dir,infilename,elemName):
                 colnumappReachesDagroot = elems.index('appReachesDagroot')
                 colnumtxQueueFill       = elems.index('txQueueFill')
                 colnumcycle             = elems.index('cycle')
+                colnumrunNum            = elems.index('runNum')                
                 break
         
     # parse data
-    reliabilities = []
+    reliabilities  = []
     totalGenerated = 0
     totalReaches   = 0
+    previousCycle  = None
     with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('#') or not line.strip():
@@ -209,6 +211,7 @@ def calcReliability(dir,infilename,elemName):
             appReachesDagroot   = int(m.group(colnumappReachesDagroot+1))
             txQueueFill         = int(m.group(colnumtxQueueFill+1))      
             cycle               = int(m.group(colnumcycle+1))
+            runNum              = int(m.group(colnumrunNum+1))
             
             totalGenerated     += appGenerated
             totalReaches       += appReachesDagroot
@@ -217,7 +220,14 @@ def calcReliability(dir,infilename,elemName):
                 reliabilities  += [float(totalReaches)/float(totalGenerated-txQueueFill)]
                 totalGenerated  = 0
                 totalReaches    = 0
-    
+            
+            if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
+                print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
+                # initialize counters and skip the incomplete data
+                totalGenerated  = appGenerated
+                totalReaches    = appReachesDagroot
+                
+            previousCycle = cycle
     return elem, reliabilities
 
 #===== battery life
@@ -408,6 +418,7 @@ def calcLatency(dir,infilename,elemName):
                 colnumappReachesDagroot = elems.index('appReachesDagroot')
                 colnumaveLatency        = elems.index('aveLatency')
                 colnumcycle             = elems.index('cycle')
+                colnumrunNum            = elems.index('runNum')                
                 break
     
     assert colnumappReachesDagroot
@@ -418,6 +429,7 @@ def calcLatency(dir,infilename,elemName):
     latencies              = []
     sumaveLatency          = 0
     sumappReachesDagroot   = 0
+    previousCycle          = None
     with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('#') or not line.strip():
@@ -426,6 +438,7 @@ def calcLatency(dir,infilename,elemName):
             appReachesDagroot          = int(m.group(colnumappReachesDagroot+1))
             aveLatency                 = float(m.group(colnumaveLatency+1))      
             cycle                      = int(m.group(colnumcycle+1))
+            runNum                     = int(m.group(colnumrunNum+1))
             
             sumappReachesDagroot      += appReachesDagroot
             sumaveLatency             += aveLatency*appReachesDagroot
@@ -435,6 +448,14 @@ def calcLatency(dir,infilename,elemName):
                 sumaveLatency          = 0
                 sumappReachesDagroot   = 0
 
+            if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
+                print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
+                # initialize counters and skip incomplete data
+                sumaveLatency          = appReachesDagroot
+                sumappReachesDagroot   = aveLatency*appReachesDagroot
+                
+            previousCycle = cycle
+            
     return elem, latencies
 
 #===== one of statistics of the last cycle in output.dat
@@ -524,10 +545,12 @@ def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
                 numcols                 = len(elems)
                 colnumstatsName         = elems.index(statsName)
                 colnumcycle             = elems.index('cycle')
+                colnumrunNum            = elems.index('runNum')                
                 break
         
     # parse data
     stats = []
+    previousCycle  = None
     with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('#') or not line.strip():
@@ -535,9 +558,14 @@ def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
             m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
             stat                = int(m.group(colnumstatsName+1))
             cycle               = int(m.group(colnumcycle+1))
-            
+            runNum              = int(m.group(colnumrunNum+1))
             if cycle == numCyclesPerRun-1:
                 stats += [stat]
+
+            if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
+                print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
+                
+            previousCycle = cycle
     
     return elem, stats
 
