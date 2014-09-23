@@ -54,7 +54,7 @@ def parseCliOptions():
         dest       = 'squareSide',
         nargs      = '+',
         type       = float,
-        default    = 1.000,
+        default    = 2.000,
         help       = 'Length of the side of the square area the motes are deployed in, in km.',
     )
     
@@ -117,7 +117,7 @@ def parseCliOptions():
         dest       = 'otfThreshold',
         nargs      = '+',
         type       = int,
-        default    = [5],
+        default    = 0,
         help       = 'OTF threshold, in cells.',
     )
 
@@ -152,22 +152,25 @@ def parseCliOptions():
 
     parser.add_argument('--noInterference',
         dest       = 'noInterference',
-        action     = 'store_true',
-        default    = False,
+        nargs      = '+',
+        type       = int,
+        default    = 0,
         help       = 'Turn off interference in the same cell transmission.',
     )
 
     parser.add_argument('--noTopHousekeeping',
         dest       = 'noTopHousekeeping',
-        action     = 'store_true',
-        default    = False,
+        nargs      = '+',
+        type       = int,
+        default    = 0,
         help       = 'Turn off 6top housekeeping.',
     )
 
     parser.add_argument('--noRemoveWorstCell',
         dest       = 'noRemoveWorstCell',
-        action     = 'store_true',
-        default    = False,
+        nargs      = '+',
+        type       = int,
+        default    = 0,
         help       = 'Turn on removing random cell function instead of removing the worst.',
     )
     
