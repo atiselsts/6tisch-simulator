@@ -335,6 +335,10 @@ class Mote(object):
                         sorted_potentialRanks.insert(j,mote_rank)
                         break
                 
+            oldParentSet = []
+            if self.parentSet:
+                oldParentSet   = copy.copy(self.parentSet)
+                    
             # pick my preferred parent and resulting rank
             if sorted_potentialRanks:
                 
@@ -378,13 +382,13 @@ class Mote(object):
                 # calculate DAGrank
                 self.dagRank = int(self.rank/self.RPL_MIN_HOP_RANK_INCREASE)
             
-            oldParentSet = []
-            if self.parentSet:
-                oldParentSet   = copy.copy(self.parentSet)
-                    
-            # pick my parent set
-            self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
-            assert self.preferredParent==None or self.preferredParent in self.parentSet
+                # pick my parent set
+                self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
+                assert self.preferredParent in self.parentSet
+            else:
+                # tentatively use old parents if no parents are available
+                if oldParentSet:
+                    self.parentSet = copy.copy(oldParentSet)              
             
             if set(oldParentSet)!=set(self.parentSet):
                 self._incrementMoteStats('rplChurnParentSet')
@@ -558,8 +562,20 @@ class Mote(object):
                         (neighbor.id,[p.id for p in self.parentSet]),
                     )
                     
+                    '''
                     numCellsToRemove = self.numCellsToNeighbors[neighbor]
                     self._top_removeCells(neighbor,numCellsToRemove)
+                    '''
+                    
+                    # this is alternative of above so that all the cells are removed despite of the worst cell removing functions
+                    # this should be replaced by above after 6top evaluation is finished
+                    scheduleToNeighbor = []               
+                    for ts, cell in self.schedule.iteritems():
+                        if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+                            scheduleToNeighbor += [ts]
+                    for ts in scheduleToNeighbor:
+                        self._top_removeSpecifiedCell(ts,neighbor)
+
 
             # trigger 6top housekeeping
             if not self.settings.noTopHousekeeping:
@@ -802,6 +818,8 @@ class Mote(object):
         
         # get cells to the neighbors
         scheduleList = []
+        
+        ''' ########## basic worst cell removing ##########
         for ts, cell in self.schedule.iteritems():
             if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
                 if cell['numTx']==0:
@@ -829,6 +847,71 @@ class Mote(object):
                     scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
                 else:
                     scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])
+        
+        '''
+
+        ''' ########## worst cell removing initialized by theoritical pdr ##########
+        for ts, cell in self.schedule.iteritems():
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+                cellPDR=(float(cell['numTxAck'])+(self.getPDR(neighbor)*self.NUM_SUFFICIENT_TX))/(cell['numTx']+self.NUM_SUFFICIENT_TX)
+                scheduleList+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
+        
+        # introduce randomness in the cell list order
+        random.shuffle(scheduleList)
+        
+        if not self.settings.noRemoveWorstCell:
+            
+            # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
+            scheduleListByPDR={}
+            for tscell in scheduleList:
+                if not scheduleListByPDR.has_key(tscell[3]):
+                    scheduleListByPDR[tscell[3]]=[]
+                scheduleListByPDR[tscell[3]]+=[tscell]
+            rssi            = self.getRSSI(neighbor)
+            theoPDR         = Topology.Topology.rssiToPdr(rssi)
+            scheduleList=[]
+            for pdr in sorted(scheduleListByPDR.keys()):
+                if pdr<theoPDR:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
+                else:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])        
+        '''
+
+        #''' ########## remove only cells whose reliability is low ##########
+        nonRemovingCells = [] # cells that are not removed
+        rssi            = self.getRSSI(neighbor)
+        theoPDR         = Topology.Topology.rssiToPdr(rssi)
+
+        for ts, cell in self.schedule.iteritems():
+            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+                if cell['numTx']<self.NUM_SUFFICIENT_TX:
+                    cellPDR=1.0
+                    nonRemovingCells+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
+                else:
+                    cellPDR=float(cell['numTxAck'])/cell['numTx']
+                    if cellPDR > theoPDR:
+                        nonRemovingCells+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
+                    else:
+                        scheduleList+=[(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
+        
+        # introduce randomness in the cell list order
+        random.shuffle(scheduleList)
+        
+        if not self.settings.noRemoveWorstCell:
+            
+            # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
+            scheduleListByPDR={}
+            for tscell in scheduleList:
+                if not scheduleListByPDR.has_key(tscell[3]):
+                    scheduleListByPDR[tscell[3]]=[]
+                scheduleListByPDR[tscell[3]]+=[tscell]
+            scheduleList=[]
+            for pdr in sorted(scheduleListByPDR.keys()):
+                if pdr<theoPDR:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2], reverse=True)
+                else:
+                    scheduleList+=sorted(scheduleListByPDR[pdr], key=lambda x: x[2])        
+        #'''
         
         # remove a given number of cells from the list of available cells (picks the first numCellToRemove)
         for tscell in scheduleList[:numCellsToRemove]:
