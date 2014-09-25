@@ -121,6 +121,14 @@ def parseCliOptions():
         help       = 'OTF threshold, in cells.',
     )
 
+    parser.add_argument( '--otfHousekeepingPeriod',
+        dest       = 'otfHousekeepingPeriod',
+        nargs      = '+',
+        type       = float,
+        default    = 1.0,
+        help       = 'OTF Housekeeping Period, in sec.',
+    )
+
     parser.add_argument( '--topPdrThreshold',
         dest       = 'topPdrThreshold',
         nargs      = '+',
