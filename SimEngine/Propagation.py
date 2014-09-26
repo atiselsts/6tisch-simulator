@@ -26,6 +26,7 @@ import math
 
 import Topology
 import SimSettings
+import SimEngine
 
 #============================ defines =========================================
 
@@ -54,11 +55,15 @@ class Propagation(object):
         
         # store params
         self.settings                  = SimSettings.SimSettings()
+        self.engine                    = SimEngine.SimEngine()
         
         # variables
         self.dataLock                  = threading.Lock()
         self.receivers                 = [] # motes with radios currently on listening
         self.transmissions             = [] # ongoing transmissions
+        
+        # schedule propagation task
+        self._schedule_propagate()
     
     def destroy(self):
         self._instance                 = None
@@ -185,8 +190,18 @@ class Propagation(object):
             # clear all outstanding transmissions
             self.transmissions              = []
             self.receivers                  = []
+        self._schedule_propagate()
     
     #======================== private =========================================
+    
+    def _schedule_propagate(self):
+        with self.dataLock:
+            self.engine.scheduleAtAsn(
+                asn         = self.engine.getAsn()+1,
+                cb          = self.propagate,
+                uniqueTag   = (None,'propagation'),
+                priority    = 1,
+            )
     
     def _computeSINR(self,source,destination,interferers):
         ''' compute SINR  '''

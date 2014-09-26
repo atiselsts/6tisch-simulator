@@ -79,10 +79,8 @@ class SimEngine(threading.Thread):
         # initialize parent class
         threading.Thread.__init__(self)
         self.name                           = 'SimEngine'
-        self.debugfile=open('debug.txt','w')
     
     def destroy(self):
-        self.debugfile.close()
         # destroy the propagation singleton
         self.propagation.destroy()
         
@@ -105,10 +103,6 @@ class SimEngine(threading.Thread):
             uniqueTag   = (None,'_actionEndSim'),
         )
         
-        print >> self.debugfile, '\n',self.asn
-        for elem in self.events:
-            print >> self.debugfile, elem[0],elem[1],elem[3]
-        
         # call the start callbacks
         for cb in self.startCb:
             cb()
@@ -126,19 +120,6 @@ class SimEngine(threading.Thread):
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
                 
-            self.scheduleAtAsn(
-                asn         = self.events[0][0],
-                cb          = self.propagation.propagate,
-                uniqueTag   = (None,'propagation'),
-                priority    = 1,
-            )
-            
-            with self.dataLock:
-                
-                print >> self.debugfile, '\n',self.asn
-                for elem in self.events:
-                    print >> self.debugfile, elem[0],elem[1],elem[3]
-                
                 # update the current ASN
                 self.asn = self.events[0][0]
                 
@@ -149,17 +130,9 @@ class SimEngine(threading.Thread):
                     (_,_,cb,_) = self.events.pop(0)
                     cb()
         
-        print >> self.debugfile, '\n',self.asn
-        for elem in self.events:
-            print >> self.debugfile, elem[0],elem[1],elem[3]
-        
         # call the end callbacks
         for cb in self.endCb:
             cb()
-        
-        print >> self.debugfile, '\n',self.asn
-        for elem in self.events:
-            print >> self.debugfile, elem[0],elem[1],elem[3]
         
         # log
         log.info("thread {0} ends".format(self.name))
