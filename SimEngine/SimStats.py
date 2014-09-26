@@ -72,6 +72,7 @@ class SimStats(object):
             asn         = self.engine.getAsn()+self.settings.slotframeLength-1,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
+            priority    = 10,
         )
         self.engine.scheduleAtEnd(
             cb          = self._actionEnd,
@@ -127,6 +128,7 @@ class SimStats(object):
             asn         = self.engine.getAsn()+self.settings.slotframeLength,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
+            priority    = 10,
         )
     
     def _actionEnd(self):

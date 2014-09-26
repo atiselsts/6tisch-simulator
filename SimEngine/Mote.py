@@ -162,7 +162,8 @@ class Mote(object):
         self.engine.scheduleIn(
             delay       = delay,
             cb          = self._app_action_sendData,
-            uniqueTag   = (self.id, 'sendData')
+            uniqueTag   = (self.id, 'sendData'),
+            priority    = 2,
         )
     
     def _app_schedule_enqueueData(self):
@@ -173,7 +174,8 @@ class Mote(object):
             self.engine.scheduleIn(
                 delay       = self.settings.burstTime,
                 cb          = self._app_action_enqueueData,
-                uniqueTag   = (self.id, 'enqueueData')
+                uniqueTag   = (self.id, 'enqueueData'),
+                priority    = 2,
             )
     
     def _app_action_sendData(self):
@@ -226,6 +228,7 @@ class Mote(object):
                 asn         = asn-ts+self.settings.slotframeLength,
                 cb          = self._rpl_action_sendDIO,
                 uniqueTag   = (self.id,'DIO'),
+                priority    = 3,
             )
     
     def _rpl_action_sendDIO(self):
@@ -400,6 +403,20 @@ class Mote(object):
             etxs        = dict([(p, 1.0/(self.neighborRank[p]+self._rpl_calcRankIncrease(p))) for p in self.parentSet])
             sumEtxs     = float(sum(etxs.values()))
             self.trafficPortionPerParent = dict([(p, etxs[p]/sumEtxs) for p in self.parentSet])
+            
+            # remove TX cells to neighbor who are not in parent set
+            for neighbor in self.numCellsToNeighbors.keys():
+                if neighbor not in self.parentSet:
+                
+                    # log
+                    self._log(
+                        self.INFO,
+                        "[otf] removing cell to {0}, since not in parentSet {1}",
+                        (neighbor.id,[p.id for p in self.parentSet]),
+                    )
+                    
+                    tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor]
+                    self._top_cell_deletion_sender(neighbor,tsList)
     
     def _rpl_calcRankIncrease(self, neighbor):
         
@@ -422,7 +439,8 @@ class Mote(object):
         self.engine.scheduleIn(
             delay       = self.OTF_HOUSEKEEPING_PERIOD_S*(0.9+0.2*random.random()),
             cb          = self._otf_housekeeping,
-            uniqueTag   = (self.id,'housekeeping')
+            uniqueTag   = (self.id,'housekeeping'),
+            priority    = 4,
         )
     
     def _otf_housekeeping(self):
@@ -550,41 +568,9 @@ class Mote(object):
                         self.timeBetweenOTFevents += [now-self.asnOTFevent]
                     self.asnOTFevent = now
             
-            
-            # remove TX cells to neighbor who are not in parent set
-            for neighbor in self.numCellsToNeighbors.keys():
-                if neighbor not in self.parentSet:
-                
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[otf] removing cell to {0}, since not in parentSet {1}",
-                        (neighbor.id,[p.id for p in self.parentSet]),
-                    )
-                    
-                    '''
-                    numCellsToRemove = self.numCellsToNeighbors[neighbor]
-                    self._top_removeCells(neighbor,numCellsToRemove)
-                    '''
-                    
-                    # this is alternative of above so that all the cells are removed despite of the worst cell removing functions
-                    # this should be replaced by above after 6top evaluation is finished
-                    scheduleToNeighbor = []               
-                    for ts, cell in self.schedule.iteritems():
-                        if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
-                            scheduleToNeighbor += [ts]
-                    for ts in scheduleToNeighbor:
-                        self._top_removeSpecifiedCell(ts,neighbor)
-
-
             # trigger 6top housekeeping
             if not self.settings.noTopHousekeeping:
                 self._top_housekeeping()
-            
-            # schedule my and my neighbor's next active cell
-            self._tsch_schedule_activeCell()
-            for neighbor in self._myNeigbors():
-                neighbor._tsch_schedule_activeCell()
             
             # schedule next housekeeping
             self._otf_schedule_housekeeping()
@@ -701,7 +687,7 @@ class Mote(object):
                 
                 # relocate: remove old only when successfully added 
                 if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-                    self._top_removeSpecifiedCell(worst_ts,neighbor)
+                    self._top_cell_deletion_sender(neighbor,[worst_ts])
                 
                     # update stats
                     self._incrementMoteStats('topRelocatedCells')
@@ -743,8 +729,8 @@ class Mote(object):
 
                     # relocate: remove old only when successfully added 
                     if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-
-                        self._top_removeSpecifiedCell(ts,neighbor)
+                        
+                        self._top_cell_deletion_sender(neighbor,[ts])
                         
                         bundleRelocation = True
                 
@@ -757,20 +743,16 @@ class Mote(object):
         
         with self.dataLock:
             cells=neighbor.top_cell_reservation_response(self,numCells)
-            
+            cellList=[]
             for ts, ch in cells.iteritems():
-                self._tsch_addCell(
-                    ts             = ts,
-                    ch             = ch,
-                    dir            = self.DIR_TX,
-                    neighbor       = neighbor,
-                ) 
                 # log
                 self._log(
                     self.INFO,
                     '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
                     (ts,ch,self.id,neighbor.id),
                 )
+                cellList += [(ts,ch,self.DIR_TX)]
+            self._tsch_addCells(neighbor,cellList)
             
             # update counters
             if neighbor not in self.numCellsToNeighbors:
@@ -793,23 +775,40 @@ class Mote(object):
             # timeslot = 0 is reserved for a shared cell (not implemented yet) and thus not used as a dedicated cell
             availableTimeslots=list(set(range(self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
-            cells={}
-            for ts in availableTimeslots[:numCells]:
-                ch=random.randint(0,self.settings.numChans-1)
-                cells[ts]=ch
-                self._tsch_addCell(
-                    ts             = ts,
-                    ch             = ch,
-                    dir            = self.DIR_RX,
-                    neighbor       = neighbor,
-                )
+            cells=dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+            cellList=[]
+            for ts, ch in cells.iteritems():
                 # log
                 self._log(
                     self.INFO,
                     '[6top] add RX cell ts={0},ch={1} from {2} to {3}',
                     (ts,ch,self.id,neighbor.id),
                 )
+                cellList += [(ts,ch,self.DIR_RX)]
+            self._tsch_addCells(neighbor,cellList)
             return cells
+    
+    def _top_cell_deletion_sender(self,neighbor,tsList):
+        with self.dataLock:
+            # log
+            self._log(
+                self.INFO,
+                "[6top] remove timeslots={0} with {1}",
+                (tsList,neighbor.id),
+            )
+            self._tsch_removeCells(
+                neighbor     = neighbor,
+                tsList       = tsList,
+            )
+            neighbor.top_cell_deletion_receiver(self,tsList)
+            self.numCellsToNeighbors[neighbor] -= len(tsList)
+    
+    def top_cell_deletion_receiver(self,neighbor,tsList):
+        with self.dataLock:
+            self._tsch_removeCells(
+                neighbor     = neighbor,
+                tsList       = tsList,
+            )
     
     def _top_removeCells(self,neighbor,numCellsToRemove):
         '''
@@ -914,6 +913,7 @@ class Mote(object):
         #'''
         
         # remove a given number of cells from the list of available cells (picks the first numCellToRemove)
+        tsList=[]
         for tscell in scheduleList[:numCellsToRemove]:
             
             # log
@@ -922,30 +922,9 @@ class Mote(object):
                 "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
                 (tscell[0],neighbor.id,tscell[3]),
             )
-        
-            # remove cell
-            self._top_removeSpecifiedCell(tscell[0],neighbor)
-            
-    def _top_removeSpecifiedCell(self,ts,neighbor):
-        
-        # log
-        self._log(
-            self.INFO,
-            "[6top] remove ts={0} with {1}",
-            (ts,neighbor.id),
-        )
-        
-        with self.dataLock:
-            self._tsch_removeCell(
-                ts           = ts,
-                neighbor     = neighbor,
-            )
-            neighbor._tsch_removeCell(
-                ts           = ts,
-                neighbor     = self,
-            )
-            self.numCellsToNeighbors[neighbor] -= 1
-
+            tsList += [tscell[0]]
+        # remove cells
+        self._top_cell_deletion_sender(neighbor,tsList)
     
     def _top_isUnusedSlot(self,ts):
         with self.dataLock:
@@ -997,6 +976,7 @@ class Mote(object):
             
             if not self.schedule:
                 #self._log(self.DEBUG,"[tsch] empty schedule")
+                self.engine.removeEvent(uniqueTag=(self.id,'activeCell'))
                 return
             
             tsDiffMin             = None
@@ -1018,6 +998,7 @@ class Mote(object):
             asn         = asn+tsDiffMin,
             cb          = self._tsch_action_activeCell,
             uniqueTag   = (self.id,'activeCell'),
+            priority    = 0,
         )
     
     def _tsch_action_activeCell(self):
@@ -1081,42 +1062,44 @@ class Mote(object):
                 # schedule next active cell
                 self._tsch_schedule_activeCell()
     
-    def _tsch_addCell(self,ts,ch,dir,neighbor):
-        ''' adds a cell to the schedule '''
-        
-        # log
-        self._log(
-            self.INFO,
-            "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
-            (ts,ch,dir,neighbor.id),
-        )
+    def _tsch_addCells(self,neighbor,cellList):
+        ''' adds cells to the schedule '''
         
         with self.dataLock:
-            assert ts not in self.schedule.keys()
-            self.schedule[ts] = {
-                'ch':                 ch,
-                'dir':                dir,
-                'neighbor':           neighbor,
-                'numTx':              0,
-                'numTxAck':           0,
-                'numRx':              0,
-            }
+            for cell in cellList:
+                assert cell[0] not in self.schedule.keys()
+                self.schedule[cell[0]] = {
+                    'ch':                 cell[1],
+                    'dir':                cell[2],
+                    'neighbor':           neighbor,
+                    'numTx':              0,
+                    'numTxAck':           0,
+                    'numRx':              0,
+                }
+                # log
+                self._log(
+                    self.INFO,
+                    "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
+                    (cell[0],cell[1],cell[2],neighbor.id),
+                )
+            self._tsch_schedule_activeCell()
     
-    def _tsch_removeCell(self,ts,neighbor):
+    def _tsch_removeCells(self,neighbor,tsList):
         ''' removes a cell from the schedule '''
         
-        # log
-        self._log(
-            self.INFO,
-            "[tsch] remove ts={0} with {1}",
-            (ts,neighbor.id),
-        )
-        
         with self.dataLock:
-            assert ts in self.schedule.keys()
-            assert self.schedule[ts]['neighbor']==neighbor
-            del self.schedule[ts]
-    
+            # log
+            self._log(
+                self.INFO,
+                "[tsch] remove timeslots={0} with {1}",
+                (tsList,neighbor.id),
+            )
+            for ts in tsList:
+                assert ts in self.schedule.keys()
+                assert self.schedule[ts]['neighbor']==neighbor
+                self.schedule.pop(ts)
+            self._tsch_schedule_activeCell()
+            
     #===== radio
     
     def txDone(self,isACKed,isNACKed):
@@ -1190,9 +1173,6 @@ class Mote(object):
                         self.txQueue.remove(self.pktToSend)
             
             self.waitingFor = None
-            
-            # schedule next active cell
-            self._tsch_schedule_activeCell()
     
     def rxDone(self,type=None,smac=None,dmac=None,payload=None):
         '''end of rx slot'''
@@ -1270,9 +1250,6 @@ class Mote(object):
                 (isACKed, isNACKed) = (False, False)
             
             self.waitingFor = None
-            
-            # schedule next active cell
-            self._tsch_schedule_activeCell()
 
             return isACKed, isNACKed
 

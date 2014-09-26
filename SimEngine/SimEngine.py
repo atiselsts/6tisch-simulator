@@ -79,8 +79,10 @@ class SimEngine(threading.Thread):
         # initialize parent class
         threading.Thread.__init__(self)
         self.name                           = 'SimEngine'
+        self.debugfile=open('debug.txt','w')
     
     def destroy(self):
+        self.debugfile.close()
         # destroy the propagation singleton
         self.propagation.destroy()
         
@@ -103,6 +105,10 @@ class SimEngine(threading.Thread):
             uniqueTag   = (None,'_actionEndSim'),
         )
         
+        print >> self.debugfile, '\n',self.asn
+        for elem in self.events:
+            print >> self.debugfile, elem[0],elem[1],elem[3]
+        
         # call the start callbacks
         for cb in self.startCb:
             cb()
@@ -120,33 +126,40 @@ class SimEngine(threading.Thread):
                 # make sure we are in the future
                 assert self.events[0][0] >= self.asn
                 
+            self.scheduleAtAsn(
+                asn         = self.events[0][0],
+                cb          = self.propagation.propagate,
+                uniqueTag   = (None,'propagation'),
+                priority    = 1,
+            )
+            
+            with self.dataLock:
+                
+                print >> self.debugfile, '\n',self.asn
+                for elem in self.events:
+                    print >> self.debugfile, elem[0],elem[1],elem[3]
+                
                 # update the current ASN
                 self.asn = self.events[0][0]
                 
-                # call callbacks at this ASN (NOT housekeeping)
-                i = 0
-                while True:
-                    if self.events[i][0] != self.asn:
-                        break
-                    if self.events[i][2][-1] != 'housekeeping':
-                        (_,cb,_) = self.events.pop(i)
-                        cb()
-                    else:
-                        i += 1
-                
-                # tell the propagation engine to propagate
-                self.propagation.propagate()
-                
-                # call remainder callbacks (i.e. housekeeping)
+                # call callbacks at this ASN
                 while True:
                     if self.events[0][0]!=self.asn:
                         break
-                    (_,cb,_) = self.events.pop(0)
+                    (_,_,cb,_) = self.events.pop(0)
                     cb()
+        
+        print >> self.debugfile, '\n',self.asn
+        for elem in self.events:
+            print >> self.debugfile, elem[0],elem[1],elem[3]
         
         # call the end callbacks
         for cb in self.endCb:
             cb()
+        
+        print >> self.debugfile, '\n',self.asn
+        for elem in self.events:
+            print >> self.debugfile, elem[0],elem[1],elem[3]
         
         # log
         log.info("thread {0} ends".format(self.name))
@@ -159,62 +172,42 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.startCb    += [cb]
     
-    def scheduleIn(self,delay,cb,uniqueTag=None):
+    def scheduleIn(self,delay,cb,uniqueTag=None,priority=0,exceptCurrentASN=True):
         ''' used to generate events. Puts an event to the queue '''
         
         with self.dataLock:
             asn = int(self.asn+(float(delay)/float(self.settings.slotDuration)))
             
-            self.scheduleAtAsn(asn,cb,uniqueTag)
+            self.scheduleAtAsn(asn,cb,uniqueTag,priority,exceptCurrentASN)
     
-    def scheduleAtAsn(self,asn,cb,uniqueTag=None):
+    def scheduleAtAsn(self,asn,cb,uniqueTag=None,priority=0,exceptCurrentASN=True):
         ''' schedule an event at specific ASN '''
+        
+        # make sure we are scheduling in the future
+        assert asn>self.asn
+        
+        # remove all events with same uniqueTag (the event will be rescheduled)
+        if uniqueTag:
+            self.removeEvent(uniqueTag,exceptCurrentASN)
         
         with self.dataLock:
             
-            # make sure we are scheduling in the future
-            assert asn>self.asn
-            
-            # remove all events with same uniqueTag
-            if uniqueTag:
-                i = 0
-                while i<len(self.events):
-                    (a,c,t) = self.events[i]
-                    # remove the future event but do not remove events at the current asn
-                    if (t==uniqueTag) and (a > self.asn):
-                        del self.events[i]
-                    else:
-                        i += 1
-            
             # find correct index in schedule
             i = 0
-            found = False
-            while found==False:
-                if (i>=len(self.events) or self.events[i][0]>asn):
-                    found = True
-                else:
-                    i += 1
+            while i<len(self.events) and (self.events[i][0]<asn or (self.events[i][0]==asn and self.events[i][1]<=priority)):
+                i +=1
             
             # add to schedule
-            self.events.insert(i,(asn,cb,uniqueTag))
+            self.events.insert(i,(asn,priority,cb,uniqueTag))
     
-    def removeEvent(self,uniqueTag,exceptCurrentASN=False):
-        i = 0
+    def removeEvent(self,uniqueTag,exceptCurrentASN=True):
         with self.dataLock:
+            i = 0
             while i<len(self.events):
-                (a,c,t) = self.events[i]
-                if not exceptCurrentASN:
-                    if t==uniqueTag:
-                        del self.events[i]
-                    else:
-                        # only increment when not removing
-                        i += 1
-                else: # events at current asn are not removed
-                    if t==uniqueTag and a>self.asn:
-                        del self.events[i]
-                    else:
-                        # only increment when not removing
-                        i += 1
+                if self.events[i][3]==uniqueTag and not (exceptCurrentASN and self.events[i][0]==self.asn):
+                    self.events.pop(i)
+                else:
+                    i += 1
     
     def scheduleAtEnd(self,cb):
         with self.dataLock:
