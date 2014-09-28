@@ -58,6 +58,10 @@ class Mote(object):
     RPL_MAX_RANK_INCREASE              = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
     RPL_MAX_TOTAL_RANK                 = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
     RPL_PARENT_SET_SIZE                = 3
+    DEFAULT_DIO_INTERVAL_MIN           = 3
+    DEFAULT_DIO_INTERVAL_DOUBLINGS     = 20
+    DEFAULT_DIO_REDUNDANCY_CONSTANT    = 10
+    
     #=== otf
     OTF_TRAFFIC_SMOOTHING              = 0.5
     #=== 6top
@@ -216,7 +220,7 @@ class Mote(object):
     
     #===== rpl
     
-    def _rpl_schedule_sendDIO(self):
+    def _rpl_schedule_sendDIO(self,):
         
         with self.dataLock:
             
@@ -285,10 +289,6 @@ class Mote(object):
     def _rpl_housekeeping(self):
         with self.dataLock:
             
-            # no RPL housekeeping needed on DAGroot
-            if self.dagRoot:
-                return
-            
             #===
             # refresh the following parameters:
             # - self.preferredParent
@@ -299,68 +299,43 @@ class Mote(object):
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
             for (neighbor,neighborRank) in self.neighborRank.items():
-                
                 # calculate the rank increase to that neighbor
                 rankIncrease = self._rpl_calcRankIncrease(neighbor)
-                if rankIncrease==None:
-                    # could not calculate, don't consider this neighbor
-                    continue
-
-                # don't consider this neighbor as it's too costly to communicate with
-                if rankIncrease>self.RPL_MAX_RANK_INCREASE:
-                    continue
-                
-                # don't consider this neighbor as it's too costly to communicate with
-                if neighborRank+rankIncrease>self.RPL_MAX_TOTAL_RANK:
-                    continue
-                
-                # record this potential rank
-                potentialRanks[neighbor] = neighborRank+rankIncrease
+                if rankIncrease!=None and rankIncrease<=min([self.RPL_MAX_RANK_INCREASE, self.RPL_MAX_TOTAL_RANK-neighborRank]):                
+                    # record this potential rank
+                    potentialRanks[neighbor] = neighborRank+rankIncrease
             
             # sort potential ranks
             sorted_potentialRanks = sorted(potentialRanks.iteritems(), key=lambda x:x[1])
             
-            
             # switch parents only when rank difference is large enough
             for i in range(1,len(sorted_potentialRanks)):
-                # skip mote who is not a current parent
-                if sorted_potentialRanks[i][0] not in self.parentSet:
-                    continue
-                # compare the selected current parent with motes who have lower potential ranks 
-                # and who are not in the current parent set 
-                for j in range(i):                    
-                    
-                    if sorted_potentialRanks[j][0] in self.parentSet:
-                        continue
-                    
-                    if sorted_potentialRanks[i][1]-sorted_potentialRanks[j][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
-                        mote_rank = sorted_potentialRanks.pop(i)
-                        sorted_potentialRanks.insert(j,mote_rank)
-                        break
-                
-            oldParentSet = []
-            if self.parentSet:
-                oldParentSet   = copy.copy(self.parentSet)
+                if sorted_potentialRanks[i][0] in self.parentSet:
+                    # compare the selected current parent with motes who have lower potential ranks 
+                    # and who are not in the current parent set 
+                    for j in range(i):                    
+                        if sorted_potentialRanks[j][0] not in self.parentSet:
+                            if sorted_potentialRanks[i][1]-sorted_potentialRanks[j][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
+                                mote_rank = sorted_potentialRanks.pop(i)
+                                sorted_potentialRanks.insert(j,mote_rank)
+                                break
                     
             # pick my preferred parent and resulting rank
             if sorted_potentialRanks:
+                oldParentSet = set([parent.id for parent in self.parentSet])
                 
                 (newPreferredParent,newrank) = sorted_potentialRanks[0]
-                
                 
                 # compare a current preferred parent with new one
                 if self.preferredParent and newPreferredParent!=self.preferredParent:
                     for (mote,rank) in sorted_potentialRanks[:self.RPL_PARENT_SET_SIZE]:
                         
-                        if mote != self.preferredParent:
-                            continue                       
-                        # switch preferred parent only when rank difference is large enough
-                        if rank-sorted_potentialRanks[0][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
-                            (newPreferredParent,newrank) = (mote,rank)
-                
-                    
-                # update mote stats
-                if self.preferredParent and newPreferredParent!=self.preferredParent:
+                        if mote == self.preferredParent:                      
+                            # switch preferred parent only when rank difference is large enough
+                            if rank-newrank<self.RPL_PARENT_SWITCH_THRESHOLD:
+                                (newPreferredParent,newrank) = (mote,rank)
+                            
+                    # update mote stats
                     self._incrementMoteStats('rplChurnPrefParent')
                     # log
                     self._log(
@@ -388,13 +363,9 @@ class Mote(object):
                 # pick my parent set
                 self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
                 assert self.preferredParent in self.parentSet
-            else:
-                # tentatively use old parents if no parents are available
-                if oldParentSet:
-                    self.parentSet = copy.copy(oldParentSet)              
-            
-            if set(oldParentSet)!=set(self.parentSet):
-                self._incrementMoteStats('rplChurnParentSet')
+                
+                if oldParentSet!=set([parent.id for parent in self.parentSet]):
+                    self._incrementMoteStats('rplChurnParentSet')
                 
             #===
             # refresh the following parameters:
@@ -403,6 +374,17 @@ class Mote(object):
             etxs        = dict([(p, 1.0/(self.neighborRank[p]+self._rpl_calcRankIncrease(p))) for p in self.parentSet])
             sumEtxs     = float(sum(etxs.values()))
             self.trafficPortionPerParent = dict([(p, etxs[p]/sumEtxs) for p in self.parentSet])
+            
+            # # uncomment the following lines to debug parent selection
+            # print self.id
+            # print [(parent.id, parent.rank) for parent in self.parentSet]
+            # print [(parent[0].id, parent[0].rank) for parent in sorted_potentialRanks]
+            # nonParents=set([(parent[0].id, parent[0].rank) for parent in sorted_potentialRanks])-set([(parent.id, parent.rank) for parent in self.parentSet])
+            # print nonParents
+            # if nonParents:
+                # print max([parent.rank for parent in self.parentSet])
+                # print min([parent[1] for parent in nonParents])
+                # assert max([parent.rank for parent in self.parentSet])<=min([parent[1] for parent in nonParents])
             
             # remove TX cells to neighbor who are not in parent set
             for neighbor in self.numCellsToNeighbors.keys():
