@@ -58,9 +58,9 @@ class Mote(object):
     RPL_MAX_RANK_INCREASE              = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
     RPL_MAX_TOTAL_RANK                 = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
     RPL_PARENT_SET_SIZE                = 3
-    DEFAULT_DIO_INTERVAL_MIN           = 3
-    DEFAULT_DIO_INTERVAL_DOUBLINGS     = 20
-    DEFAULT_DIO_REDUNDANCY_CONSTANT    = 10
+    DEFAULT_DIO_INTERVAL_MIN           = 3 # log2(DIO_INTERVAL_MIN), with DIO_INTERVAL_MIN expressed in ms
+    DEFAULT_DIO_INTERVAL_DOUBLINGS     = 20 # maximum number of doublings of DIO_INTERVAL_MIN (DIO_INTERVAL_MAX = 2^(DEFAULT_DIO_INTERVAL_MIN+DEFAULT_DIO_INTERVAL_DOUBLINGS) ms)
+    DEFAULT_DIO_REDUNDANCY_CONSTANT    = 10 # number of hearings to suppress next transmission in the current interval
     
     #=== otf
     OTF_TRAFFIC_SMOOTHING              = 0.5
@@ -220,7 +220,7 @@ class Mote(object):
     
     #===== rpl
     
-    def _rpl_schedule_sendDIO(self,):
+    def _rpl_schedule_sendDIO(self):
         
         with self.dataLock:
             
@@ -234,6 +234,23 @@ class Mote(object):
                 uniqueTag   = (self.id,'DIO'),
                 priority    = 3,
             )
+            
+            # this function is used for debugging RPL
+            self.engine.scheduleAtAsn(
+                asn         = asn-ts+self.settings.slotframeLength,
+                cb          = self._rpl_action_checkRPL,
+                uniqueTag   = (self.id,'checkRPL'),
+                priority    = 4,
+            )
+    
+    def _rpl_action_checkRPL(self):
+        parentSet=[(parent.id, parent.rank) for parent in self.parentSet]
+        if parentSet:
+            max_parent_id, max_parent_rank = max(parentSet,key=lambda x:x[1])
+            if self.rank<=max_parent_rank:
+                print self.id, self.rank
+                print parentSet
+            assert self.rank>max_parent_rank
     
     def _rpl_action_sendDIO(self):
         
@@ -422,7 +439,7 @@ class Mote(object):
             delay       = self.otfHousekeepingPeriod*(0.9+0.2*random.random()),
             cb          = self._otf_housekeeping,
             uniqueTag   = (self.id,'housekeeping'),
-            priority    = 4,
+            priority    = 5,
         )
     
     def _otf_housekeeping(self):
