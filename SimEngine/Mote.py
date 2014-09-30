@@ -1055,6 +1055,9 @@ class Mote(object):
                     
                     # log charge usage
                     self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
+            
+            # schedule next active cell
+            self._tsch_schedule_activeCell()
     
     def _tsch_addCells(self,neighbor,cellList):
         ''' adds cells to the schedule '''
@@ -1167,9 +1170,6 @@ class Mote(object):
                         self.txQueue.remove(self.pktToSend)
             
             self.waitingFor = None
-            
-            # schedule next active cell
-            self._tsch_schedule_activeCell()
     
     def rxDone(self,type=None,smac=None,dmac=None,payload=None):
         '''end of rx slot'''
@@ -1247,9 +1247,6 @@ class Mote(object):
                 (isACKed, isNACKed) = (False, False)
             
             self.waitingFor = None
-            
-            # schedule next active cell
-            self._tsch_schedule_activeCell()
 
             return isACKed, isNACKed
 
