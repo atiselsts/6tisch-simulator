@@ -236,12 +236,14 @@ class Mote(object):
             )
             
             # this function is used for debugging RPL
+            '''
             self.engine.scheduleAtAsn(
                 asn         = asn-ts+self.settings.slotframeLength,
                 cb          = self._rpl_action_checkRPL,
                 uniqueTag   = (self.id,'checkRPL'),
                 priority    = 4,
             )
+            '''
     
     def _rpl_action_checkRPL(self):
         parentSet=[(parent.id, parent.rank) for parent in self.parentSet]
@@ -292,8 +294,11 @@ class Mote(object):
                     # update mote stats
                     self._incrementMoteStats('rplRxDIO')
                     
-                    # in neighbor, do RPL housekeeping
-                    neighbor._rpl_housekeeping()
+                    # skip useless housekeeping
+                    if not neighbor.rank or self.rank<neighbor.rank:
+                        # in neighbor, do RPL housekeeping
+                        neighbor._rpl_housekeeping()                        
+                    
                     
                     # update time correction
                     if neighbor.preferredParent == self:
