@@ -38,7 +38,6 @@ import argparse
 
 #============================ defines =========================================
 
-DATADIR = 'simData'
 CONFINT = 0.95
 
 #============================ body ============================================
@@ -56,7 +55,14 @@ def parseCliOptions():
         ],
         help       = 'Name of the elements to generate timeline figures for.',
     )
-    
+
+    parser.add_argument('--simDataDir',
+        dest       = 'simDataDir',
+        type       = str,
+        default    = 'simData',
+        help       = 'SimData directory.',
+    )
+        
     options        = parser.parse_args()
     
     return options.__dict__
@@ -553,38 +559,40 @@ def main():
     # initialize logging
     logging.config.fileConfig('logging.conf')
     
+    # parse CLI options
+    options            = parseCliOptions()
+    simDataDir         = options['simDataDir']
+
     # verify there is some data to plot
-    if not os.path.isdir(DATADIR):
+    if not os.path.isdir(simDataDir):
         print 'There are no simulation results to analyze.'
         sys.exit(1)
     
-    # parse CLI options
-    options            = parseCliOptions()
-
+    
     # plot figures
-    for dir in os.listdir(DATADIR):
-        for infilename in glob.glob(os.path.join(DATADIR, dir,'*.dat')):
+    for dir in os.listdir(simDataDir):
+        for infilename in glob.glob(os.path.join(simDataDir, dir,'*.dat')):
             
             # plot timelines
             for elemName in options['elemNames']:
                 genTimelinePlots(
-                    dir           = os.path.join(DATADIR, dir),
+                    dir           = os.path.join(simDataDir, dir),
                     infilename    = os.path.basename(infilename),
                     elemName      = elemName,
                 )
             
             # plot timelines for each run
             genSingleRunTimelinePlots(
-                dir               = os.path.join(DATADIR, dir),
+                dir               = os.path.join(simDataDir, dir),
                 infilename        = os.path.basename(infilename),
             )
             
             # plot topologies
             genTopologyPlots(
-                dir               = os.path.join(DATADIR, dir),
+                dir               = os.path.join(simDataDir, dir),
                 infilename        = os.path.basename(infilename),
             )
-    
+            
 
     
 if __name__=="__main__":
