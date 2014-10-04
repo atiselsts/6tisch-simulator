@@ -299,7 +299,6 @@ class Mote(object):
                         # in neighbor, do RPL housekeeping
                         neighbor._rpl_housekeeping()                        
                     
-                    
                     # update time correction
                     if neighbor.preferredParent == self:
                         asn                        = self.engine.getAsn() 
@@ -419,7 +418,7 @@ class Mote(object):
                         (neighbor.id,[p.id for p in self.parentSet]),
                     )
                     
-                    tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor]
+                    tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
                     self._top_cell_deletion_sender(neighbor,tsList)
     
     def _rpl_calcRankIncrease(self, neighbor):
@@ -806,6 +805,7 @@ class Mote(object):
             )
             neighbor.top_cell_deletion_receiver(self,tsList)
             self.numCellsToNeighbors[neighbor] -= len(tsList)
+            assert self.numCellsToNeighbors[neighbor]>=0
     
     def top_cell_deletion_receiver(self,neighbor,tsList):
         with self.dataLock:
