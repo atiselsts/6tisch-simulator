@@ -155,13 +155,17 @@ class Mote(object):
     
     #===== application
     
-    def _app_schedule_sendData(self):
+    def _app_schedule_sendData(self,init=False):
         ''' create an event that is inserted into the simulator engine to send the data according to the traffic'''
         
-        # compute random
-        delay           = self.settings.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar))
-        assert delay>0
-        
+        if not init:
+            # compute random delay
+            delay       = self.settings.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar))            
+        else:
+            # compute initial time within the range of [next asn, next asn+pkPeriod]
+            delay       = self.settings.slotDuration + self.settings.pkPeriod*random.random()
+            
+        assert delay>0    
         # schedule
         self.engine.scheduleIn(
             delay       = delay,
@@ -1340,7 +1344,7 @@ class Mote(object):
     
     def boot(self):
         if not self.dagRoot:
-            self._app_schedule_sendData()
+            self._app_schedule_sendData(init=True)
             if self.settings.numPacketsBurst != None and self.settings.burstTime != None:
                 self._app_schedule_enqueueData()
         self._rpl_schedule_sendDIO()
