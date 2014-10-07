@@ -116,6 +116,7 @@ class Mote(object):
         # to avoid churn as lower the faster but with some chances to introduces
         # churn due to unstable medium
         self.topPdrThreshold           = self.settings.topPdrThreshold
+        self.topHousekeepingPeriod     = self.settings.topHousekeepingPeriod
 
         # tsch
         self.txQueue                   = []
@@ -446,8 +447,8 @@ class Mote(object):
         self.engine.scheduleIn(
             delay       = self.otfHousekeepingPeriod*(0.9+0.2*random.random()),
             cb          = self._otf_housekeeping,
-            uniqueTag   = (self.id,'housekeeping'),
-            priority    = 5,
+            uniqueTag   = (self.id,'otfHousekeeping'),
+            priority    = 4,
         )
     
     def _otf_housekeeping(self):
@@ -575,10 +576,6 @@ class Mote(object):
                         self.timeBetweenOTFevents += [now-self.asnOTFevent]
                     self.asnOTFevent = now
             
-            # trigger 6top housekeeping
-            if not self.settings.noTopHousekeeping:
-                self._top_housekeeping()
-            
             # schedule next housekeeping
             self._otf_schedule_housekeeping()
     
@@ -594,6 +591,15 @@ class Mote(object):
         
     
     #===== 6top
+
+    def _top_schedule_housekeeping(self):
+        
+        self.engine.scheduleIn(
+            delay       = self.topHousekeepingPeriod*(0.9+0.2*random.random()),
+            cb          = self._top_housekeeping,
+            uniqueTag   = (self.id,'topHousekeeping'),
+            priority    = 5,
+        )
     
     def _top_housekeeping(self):
         '''
@@ -609,6 +615,8 @@ class Mote(object):
         # do some housekeeping for each neighbor
         for neighbor in txNeighbors:
             self._top_housekeeping_per_neighbor(neighbor)
+        
+        self._top_schedule_housekeeping()
         
     def _top_housekeeping_per_neighbor(self,neighbor):
         '''
@@ -1350,6 +1358,7 @@ class Mote(object):
         self._rpl_schedule_sendDIO()
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
+        self._top_schedule_housekeeping()
         self._tsch_schedule_activeCell()
     
     def _logChargeConsumed(self,charge):

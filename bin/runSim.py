@@ -129,6 +129,14 @@ def parseCliOptions():
         help       = 'OTF Housekeeping Period, in sec.',
     )
 
+    parser.add_argument( '--topHousekeepingPeriod',
+        dest       = 'topHousekeepingPeriod',
+        nargs      = '+',
+        type       = float,
+        default    = 1.0,
+        help       = '6top Housekeeping Period, in sec.',
+    )
+
     parser.add_argument( '--topPdrThreshold',
         dest       = 'topPdrThreshold',
         nargs      = '+',
