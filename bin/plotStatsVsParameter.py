@@ -38,7 +38,8 @@ import argparse
 
 #============================ defines =========================================
 
-CONFINT = 0.95
+CONFINT         = 0.95
+START_CYCLE     = 100 # statistics (reliability, packet loss, latency) are collected after this cycle
 
 COLORS = [
    '#0000ff', #'b'
@@ -197,6 +198,8 @@ def calcReliability(dir,infilename,elemName):
                 colnumrunNum            = elems.index('runNum')                
                 break
         
+    assert numCyclesPerRun > START_CYCLE
+    
     # parse data
     reliabilities  = []
     totalGenerated = 0
@@ -213,11 +216,17 @@ def calcReliability(dir,infilename,elemName):
             cycle               = int(m.group(colnumcycle+1))
             runNum              = int(m.group(colnumrunNum+1))
             
-            totalGenerated     += appGenerated
-            totalReaches       += appReachesDagroot
+            if cycle==START_CYCLE-1:
+                initTxQueueFill     = txQueueFill
+                
+            if cycle>=START_CYCLE:
+                totalGenerated     += appGenerated
+                totalReaches       += appReachesDagroot
             
             if cycle == numCyclesPerRun-1:
-                reliabilities  += [float(totalReaches)/float(totalGenerated-txQueueFill)]
+                if START_CYCLE==0:
+                    initTxQueueFill = 0
+                reliabilities  += [float(totalReaches)/float(totalGenerated+initTxQueueFill-txQueueFill)]
                 totalGenerated  = 0
                 totalReaches    = 0
             
@@ -408,7 +417,8 @@ def calcLatency(dir,infilename,elemName):
                 if m:
                     numCyclesPerRun    = int(m.group(1))
 
-
+    assert numCyclesPerRun > START_CYCLE
+    
     # find appReachesDagroot, aveLatency
     with open(infilepath,'r') as f:
         for line in f:
@@ -440,8 +450,9 @@ def calcLatency(dir,infilename,elemName):
             cycle                      = int(m.group(colnumcycle+1))
             runNum                     = int(m.group(colnumrunNum+1))
             
-            sumappReachesDagroot      += appReachesDagroot
-            sumaveLatency             += aveLatency*appReachesDagroot
+            if cycle>=START_CYCLE:
+                sumappReachesDagroot      += appReachesDagroot
+                sumaveLatency             += aveLatency*appReachesDagroot
             
             if cycle == numCyclesPerRun-1:
                 latencies             += [sumaveLatency/sumappReachesDagroot]
