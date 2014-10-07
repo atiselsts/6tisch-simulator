@@ -76,6 +76,7 @@ def parseCliOptions():
     
     parser.add_argument( '--statsName',
         dest       = 'statsName',
+        nargs      = '+',
         type       = str,
         default    = 'numTxCells',
         help       = 'Name of the statistics to be used as y axis.',
@@ -154,9 +155,11 @@ def plot_statsVsCycle(statsName):
     xlabel         = 'number of slotframe cycles'
     
     if statsName == 'numTxCells':
-        ylabel = 'number of Tx cells'
+        ylabel = 'Tx cells'
     elif statsName == 'scheduleCollisions':
-        ylabel = 'number of schedule collisions'
+        ylabel = 'schedule collisions'
+    elif statsName == 'droppedAppFailedEnqueue':
+        ylabel = 'dropped packets due to full queue'
     else:
         ylabel = statsName
     
@@ -167,7 +170,7 @@ def plot_statsVsCycle(statsName):
         stats,
         dirs           = dataDirs,
         outfilename    = outfilename,
-        xlabel         = 'number of slotframe cycles',
+        xlabel         = 'slotframe cycles',
         ylabel         = ylabel,
     )
 
@@ -227,9 +230,10 @@ def main():
     # parse CLI option
     options      = parseCliOptions()
     statsName    = options['statsName']
-
-    # stats vs cycle
-    plot_statsVsCycle(statsName)
+    
+    for statsName in options['statsName']:
+        # stats vs cycle
+        plot_statsVsCycle(statsName)
 
 if __name__=="__main__":
     main()
