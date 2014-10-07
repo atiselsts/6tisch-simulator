@@ -225,16 +225,21 @@ class Mote(object):
     
     #===== rpl
     
-    def _rpl_schedule_sendDIO(self):
+    def _rpl_schedule_sendDIO(self,init=False):
         
         with self.dataLock:
-            
+
             asn    = self.engine.getAsn()
             ts     = asn%self.settings.slotframeLength
+                            
+            if not init:
+                cycle = int(math.ceil(self.settings.dioPeriod/(self.settings.slotframeLength*self.settings.slotDuration)))
+            else:
+                cycle = 1            
             
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
-                asn         = asn-ts+self.settings.slotframeLength,
+                asn         = asn-ts+cycle*self.settings.slotframeLength,
                 cb          = self._rpl_action_sendDIO,
                 uniqueTag   = (self.id,'DIO'),
                 priority    = 3,
@@ -1355,7 +1360,7 @@ class Mote(object):
             self._app_schedule_sendData(init=True)
             if self.settings.numPacketsBurst != None and self.settings.burstTime != None:
                 self._app_schedule_enqueueData()
-        self._rpl_schedule_sendDIO()
+        self._rpl_schedule_sendDIO(init=True)
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
         self._top_schedule_housekeeping()

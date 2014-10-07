@@ -112,6 +112,14 @@ def parseCliOptions():
         default    = 0.5,
         help       = 'Variability percentage of the period between two generated packets. Use 0 for CBR traffic.',
     )
+
+    parser.add_argument( '--dioPeriod',
+        dest       = 'dioPeriod',
+        nargs      = '+',
+        type       = float,
+        default    = 1.0,
+        help       = 'DIO period, in sec',
+    )
     
     parser.add_argument( '--otfThreshold',
         dest       = 'otfThreshold',
