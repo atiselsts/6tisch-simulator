@@ -467,7 +467,21 @@ class Mote(object):
             
             # calculate the "moving average" incoming traffic, in pkts since last cycle, per neighbor
             with self.dataLock:
-                for neighbor in self._myNeigbors():
+                
+                # collect all neighbors I have RX cells to
+                rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX]
+                
+                # remove duplicates
+                rxNeighbors = list(set(rxNeighbors))
+                
+                # reset inTrafficMovingAve                
+                neighbors = self.inTrafficMovingAve.keys()
+                for neighbor in neighbors:
+                    if neighbor not in rxNeighbors:
+                        del self.inTrafficMovingAve[neighbor]
+                
+                # set inTrafficMovingAve 
+                for neighbor in rxNeighbors:
                     if neighbor in self.inTrafficMovingAve:
                         newTraffic  = 0
                         newTraffic += self.inTraffic[neighbor]*self.OTF_TRAFFIC_SMOOTHING               # new
