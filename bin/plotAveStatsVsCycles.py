@@ -160,6 +160,8 @@ def plot_statsVsCycle(statsName):
         ylabel = 'schedule collisions'
     elif statsName == 'droppedAppFailedEnqueue':
         ylabel = 'dropped packets due to full queue'
+    elif statsName == 'effectiveCollidedTxs':
+        ylabel = 'effectively collided Tx'
     else:
         ylabel = statsName
     
