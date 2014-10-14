@@ -1377,7 +1377,8 @@ class Mote(object):
         self._rpl_schedule_sendDIO(init=True)
         self._otf_resetInTraffic()
         self._otf_schedule_housekeeping()
-        self._top_schedule_housekeeping()
+        if not self.settings.noTopHousekeeping:
+            self._top_schedule_housekeeping()
         self._tsch_schedule_activeCell()
     
     def _logChargeConsumed(self,charge):
