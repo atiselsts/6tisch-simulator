@@ -167,7 +167,37 @@ class SimStats(object):
                     else:
                         txCells += [(ts,ch)]
         
-        return {'scheduleCollisions':scheduleCollisions}
+        # collect collided links
+        txLinks = {}
+        for mote in self.engine.motes:
+            for (ts,cell) in mote.schedule.items():
+                if cell['dir']==mote.DIR_TX:
+                    (ts,ch) = (ts,cell['ch'])
+                    (tx,rx) = (mote,cell['neighbor'])
+                    if (ts,ch) in txLinks:
+                        txLinks[(ts,ch)] += [(tx,rx)] 
+                    else:
+                        txLinks[(ts,ch)]  = [(tx,rx)]
+                        
+        collidedLinks = [txLinks[(ts,ch)] for (ts,ch) in txLinks if len(txLinks[(ts,ch)])>=2]
+        
+        # compute the number of Tx in schedule collision cells
+        collidedTxs = 0
+        for links in collidedLinks:
+            collidedTxs += len(links)
+        
+        # compute the number of effective collided Tx    
+        effectiveCollidedTxs = 0 
+        for links in collidedLinks:
+            for (tx1,rx1) in links:
+                for (tx2,rx2) in links:
+                    if tx1!=tx2 and rx1!=rx2:
+                        # check whether interference from tx1 to rx2 is effective
+                        if tx1.getRSSI(rx2) > rx2.minRssi:
+                            effectiveCollidedTxs += 1
+                
+        
+        return {'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs}
     
     #=== writing to file
     
