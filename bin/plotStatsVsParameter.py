@@ -160,6 +160,8 @@ def plot_reliability(elemName):
         bar_reliabilities,
         dirs           = dataSetDirs,
         outfilename    = outfilename,
+        ymin           = 0.0001,
+        ymax           = 0.1,
         xlabel         = xlabel,
         ylabel         = 'end-to-end packet loss ratio',
         log            = True,
@@ -582,7 +584,7 @@ def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
 
 #============================ plotters ========================================
  
-def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, log = False):
+def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, ymin=False, ymax=False, log=False):
 
     # print
     print 'Generating {0}...'.format(outfilename),
@@ -622,6 +624,10 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, log = Fals
         )
     
     matplotlib.pyplot.legend(prop={'size':10},loc=0)
+    if ymin:
+        matplotlib.pyplot.ylim(ymin=ymin)
+    if ymax:
+        matplotlib.pyplot.ylim(ymax=ymax)
     matplotlib.pyplot.savefig(outfilename + '.png')
     matplotlib.pyplot.savefig(outfilename + '.eps')    
     matplotlib.pyplot.close('all')
