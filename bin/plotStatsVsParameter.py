@@ -132,6 +132,10 @@ def plot_reliability(elemName):
         xlabel = 'OTF threshold'
     elif elemName == 'topPdrThreshold':
         xlabel = 'threshold for cell relocation'
+    elif elemName == 'numChans':
+        xlabel = 'number of channels'
+    else:
+        xlabel = elemName
     
     outfilename    = 'output_reliability_{}'.format(elemName)
     
@@ -285,6 +289,10 @@ def plot_batteryLife(elemName):
         xlabel = 'OTF threshold'
     elif elemName == 'topPdrThreshold':
         xlabel = 'threshold for cell relocation'
+    elif elemName == 'numChans':
+        xlabel = 'number of channels'
+    else:
+        xlabel = elemName
     
     outfilename    = 'output_battery_{}'.format(elemName)
 
@@ -388,6 +396,10 @@ def plot_latency(elemName):
         xlabel = 'OTF threshold'
     elif elemName == 'topPdrThreshold':
         xlabel = 'threshold for cell relocation'
+    elif elemName == 'numChans':
+        xlabel = 'number of channels'
+    else:
+        xlabel = elemName
     
     outfilename    = 'output_latency_{}'.format(elemName)
 
@@ -511,6 +523,10 @@ def plot_statsOfLastCycle(elemName,statsName):
         xlabel = 'OTF threshold'
     elif elemName == 'topPdrThreshold':
         xlabel = 'threshold for cell relocation'
+    elif elemName == 'numChans':
+        xlabel = 'number of channels'
+    else:
+        xlabel = elemName
     
     if statsName == 'numTxCells':
         ylabel = 'number of Tx cells'
