@@ -54,7 +54,7 @@ def parseCliOptions():
         dest       = 'squareSide',
         nargs      = '+',
         type       = float,
-        default    = 2.000,
+        default    = 1.000,
         help       = 'Length of the side of the square area the motes are deployed in, in km.',
     )
     
@@ -109,7 +109,7 @@ def parseCliOptions():
         dest       = 'pkPeriodVar',
         nargs      = '+',
         type       = float,
-        default    = 0.5,
+        default    = 0.05,
         help       = 'Variability percentage of the period between two generated packets. Use 0 for CBR traffic.',
     )
 
@@ -133,7 +133,7 @@ def parseCliOptions():
         dest       = 'otfHousekeepingPeriod',
         nargs      = '+',
         type       = float,
-        default    = 1.0,
+        default    = 5.0,
         help       = 'OTF Housekeeping Period, in sec.',
     )
 
@@ -149,7 +149,7 @@ def parseCliOptions():
         dest       = 'topPdrThreshold',
         nargs      = '+',
         type       = float,
-        default    = 2.0,
+        default    = 1.5,
         help       = '6top PDR threshold for cell relocation',
     )
     
