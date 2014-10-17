@@ -659,7 +659,7 @@ class Mote(object):
                 
                 # store result
                 cell_pdr += [(ts,pdr)]
-        
+                
         # pdr for the bundle as a whole
         bundleNumTx     = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
         bundleNumTxAck  = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
@@ -681,7 +681,6 @@ class Mote(object):
             
             worst_ts   = None
             worst_pdr  = None
-            ave_pdr    = float(sum([pdr for (ts,pdr) in cell_pdr]))/float(len(cell_pdr))
             
             for (ts,pdr) in cell_pdr:
                 if worst_pdr==None or pdr<worst_pdr:
@@ -690,9 +689,17 @@ class Mote(object):
             
             assert worst_ts!=None
             assert worst_pdr!=None
-            
+
+            # ave pdr for other cells
+            othersNumTx     = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])
+            othersNumTxAck  = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])           
+            if othersNumTx<self.NUM_SUFFICIENT_TX:
+                ave_pdr   = None
+            else:
+                ave_pdr   = float(othersNumTxAck) / float(othersNumTx)
+
             # relocate worst cell is "bad enough"
-            if worst_pdr<(ave_pdr/self.topPdrThreshold):
+            if ave_pdr and worst_pdr<(ave_pdr/self.topPdrThreshold):
                 
                 # log
                 self._log(
