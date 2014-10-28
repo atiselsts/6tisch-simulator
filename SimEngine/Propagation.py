@@ -97,6 +97,9 @@ class Propagation(object):
         
         with self.dataLock:
             
+            asn   = self.engine.getAsn()
+            ts    = asn%self.settings.slotframeLength
+
             arrivalTime = {}
             # store arrival times of transmission packets 
             for transmission in self.transmissions:
@@ -123,6 +126,13 @@ class Propagation(object):
                                 # other transmissions on the same channel?
                                 interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
                                 
+                                # for debug
+                                interferenceFlag = 0
+                                for itfr in interferers:
+                                    if transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                        interferenceFlag = 1
+                                transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag]
+                                    
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
                                     if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
@@ -134,10 +144,16 @@ class Propagation(object):
                                     # calculate pdr, including interference
                                     sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
                                     pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                                    
+                                    # for debug
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
                                 else:
                                     # fail due to locking on interference
                                     pdr   = 0.0
-                              
+                                    
+                                    # for debug
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
+                                    
                             else:
                                 # ============= for evaluation without interference=================
                                 interferers = []

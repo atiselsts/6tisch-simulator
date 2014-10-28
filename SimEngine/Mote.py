@@ -1103,7 +1103,11 @@ class Mote(object):
                     'numTx':              0,
                     'numTxAck':           0,
                     'numRx':              0,
-                    'history':            []
+                    'history':            [],
+                    'debug_canbeInterfered':    [], # for debug purpose, shows schedule collision that can be interfered with minRssi or larger level 
+                    'debug_interference':       [], # for debug purpose, shows an interference packet with minRssi or larger level 
+                    'debug_lockInterference':   [], # for debug purpose, shows locking on the interference packet
+                    'debug_cellCreatedAsn':     self.engine.getAsn(), # for debug purpose
                 }
                 # log
                 self._log(
@@ -1211,6 +1215,19 @@ class Mote(object):
                         self.txQueue.remove(self.pktToSend)
             
             self.waitingFor = None
+            
+            # for debug
+            ch = self.schedule[ts]['ch']
+            rx = self.schedule[ts]['neighbor']
+            canbeInterfered = 0
+            for mote in self.engine.motes:
+                if mote == self:
+                    continue
+                if ts in mote.schedule and ch == mote.schedule[ts]['ch'] and mote.schedule[ts]['dir'] == self.DIR_TX:
+                    if mote.getRSSI(rx)>rx.minRssi:
+                        canbeInterfered = 1
+            self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]        
+                    
     
     def rxDone(self,type=None,smac=None,dmac=None,payload=None):
         '''end of rx slot'''
