@@ -99,7 +99,7 @@ class Propagation(object):
             
             asn   = self.engine.getAsn()
             ts    = asn%self.settings.slotframeLength
-
+            
             arrivalTime = {}
             # store arrival times of transmission packets 
             for transmission in self.transmissions:
@@ -135,54 +135,94 @@ class Propagation(object):
                                     
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
-                                    if arrivalTime[itfr] < arrivalTime[transmission['smac']] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                    if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
                                         # lock on interference
                                         lockOn = itfr
-                                        break
                                 
                                 if lockOn == transmission['smac']:
+                                    # for debug
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
+                                    
                                     # calculate pdr, including interference
                                     sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
                                     pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
                                     
-                                    # for debug
-                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
+                                    # pick a random number
+                                    failure = random.random()                                    
+                                    if pdr>=failure:
+                                        # packet is received correctly                                        
+                                        # this mote is delivered the packet
+                                        isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
+                                            type       = transmission['type'],
+                                            smac       = transmission['smac'],
+                                            dmac       = transmission['dmac'],
+                                            payload    = transmission['payload']
+                                        )                                        
+                                        # this mote stops listening
+                                        del self.receivers[i]
+                                        
+                                    else:
+                                        # packet is NOT received correctly
+                                        self.receivers[i]['mote'].rxDone()
+                                        del self.receivers[i]
+                                    
                                 else:
                                     # fail due to locking on interference
-                                    pdr   = 0.0
                                     
                                     # for debug
                                     transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
                                     
+                                    # receive the interference as if it's a desired packet
+                                    interferers.remove(lockOn)
+                                    pseudo_interferers = interferers + [transmission['smac']]
+                                    
+                                    # calculate SINR where locked interference and other signals are considered S and I+N respectively
+                                    pseudo_sinr  = self._computeSINR(lockOn,transmission['dmac'],pseudo_interferers)
+                                    pseudo_pdr   = self._computePdrFromSINR(pseudo_sinr, transmission['dmac'])
+                                    
+                                    # pick a random number
+                                    failure = random.random()
+                                    if pseudo_pdr>=failure:
+                                        # success to receive the interference and realize collision
+                                        transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
+                                    
+                                    # desired packet is not received
+                                    self.receivers[i]['mote'].rxDone()
+                                    del self.receivers[i]
+                                                                                                            
                             else:
                                 # ============= for evaluation without interference=================
                                 interferers = []
+                                
+                                # for debug
+                                transmission['smac'].schedule[ts]['debug_interference'] += [0]
+                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
+                                
                                 # calculate pdr with no interference
                                 sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
                                 pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
                                 
-                            # pick a random number
-                            failure = random.random()
-                            
-                            if (pdr>=failure):
-                                # packet is received correctly
+                                # pick a random number
+                                failure = random.random()
                                 
-                                # this mote is delivered the packet
-                                isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
-                                    type       = transmission['type'],
-                                    smac       = transmission['smac'],
-                                    dmac       = transmission['dmac'],
-                                    payload    = transmission['payload']
-                                )
-                                
-                                # this mote stops listening
-                                del self.receivers[i]
-                                
-                            else:
-                                # packet is NOT received correctly
-                                
-                                # move to the next receiver
-                                i += 1
+                                if pdr>=failure:
+                                    # packet is received correctly
+                                    
+                                    # this mote is delivered the packet
+                                    isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
+                                        type       = transmission['type'],
+                                        smac       = transmission['smac'],
+                                        dmac       = transmission['dmac'],
+                                        payload    = transmission['payload']
+                                    )
+                                    
+                                    # this mote stops listening
+                                    del self.receivers[i]
+                                    
+                                else:
+                                    # packet is NOT received correctly
+                                    self.receivers[i]['mote'].rxDone()
+                                    del self.receivers[i]
                             
                         else:
                             # this packet is NOT destined for this mote
@@ -199,10 +239,43 @@ class Propagation(object):
                 # indicate to source packet was sent
                 transmission['smac'].txDone(isACKed, isNACKed)
             
-            # to all receivers still listening, indicate no packet received
-            for r in self.receivers:
-                r['mote'].rxDone()
             
+            # remaining receivers that does not receive a desired packet
+            for r in self.receivers:
+
+                if not self.settings.noInterference:
+                    
+                    interferers = [t['smac'] for t in self.transmissions if t['dmac']!=r['mote'] and t['channel']==r['channel']]
+                    
+                    lockOn = None
+                    for itfr in interferers:
+                        
+                        if not lockOn:
+                            if r['mote'].getRSSI(itfr)>r['mote'].minRssi:
+                                lockOn = itfr
+                        else:
+                            if r['mote'].getRSSI(itfr)>r['mote'].minRssi and arrivalTime[itfr]<arrivalTime[lockOn]:
+                                lockOn = itfr
+                                                
+                    if lockOn:
+                        # pdr calculation
+                        
+                        # receive the interference as if it's a desired packet
+                        interferers.remove(lockOn)
+    
+                        # calculate SINR where locked interference and other signals are considered S and I+N respectively
+                        pseudo_sinr  = self._computeSINR(lockOn,r['mote'],interferers)
+                        pseudo_pdr   = self._computePdrFromSINR(pseudo_sinr,r['mote'])
+                        
+                        # pick a random number
+                        failure = random.random()
+                        if pseudo_pdr>=failure:
+                            # success to receive the interference and realize collision
+                            r['mote'].schedule[ts]['rxDetectedCollision'] = True
+                    
+                # desired packet is not received
+                r['mote'].rxDone()
+                
             # clear all outstanding transmissions
             self.transmissions              = []
             self.receivers                  = []

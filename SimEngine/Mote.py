@@ -111,6 +111,7 @@ class Mote(object):
         self.inTrafficMovingAve        = {}                    # indexed by neighbor
         # 6top
         self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
+        self.numCellsFromNeighbors     = {}                    # indexed by neighbor, contains int
         # changing this threshold the detection of a bad cell can be
         # tuned, if as higher the slower to detect a wrong cell but the more prone
         # to avoid churn as lower the faster but with some chances to introduces
@@ -428,7 +429,7 @@ class Mote(object):
                     )
                     
                     tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
-                    self._top_cell_deletion_sender(neighbor,tsList)
+                    self.top_cell_deletion_sender(neighbor,tsList)
     
     def _rpl_calcRankIncrease(self, neighbor):
         
@@ -623,20 +624,71 @@ class Mote(object):
         '''
         For each neighbor I have TX cells to, relocate cells if needed.
         '''
+
+        
+        # tx-triggered housekeeping 
         
         # collect all neighbors I have TX cells to
         txNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_TX]
         
         # remove duplicates
         txNeighbors = list(set(txNeighbors))
+
+        for neighbor in txNeighbors:
+            nowCells = self.numCellsToNeighbors.get(neighbor,0)
+            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_TX and c['neighbor']==neighbor])
         
         # do some housekeeping for each neighbor
         for neighbor in txNeighbors:
-            self._top_housekeeping_per_neighbor(neighbor)
+            self._top_txhousekeeping_per_neighbor(neighbor)
         
+        # rx-triggered housekeeping 
+
+        # collect neighbors from which I have RX cells that is detected as collision cell
+        rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision']]
+        
+        # remove duplicates
+        rxNeighbors = list(set(rxNeighbors))
+        
+        for neighbor in rxNeighbors:
+            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
+            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_RX and c['neighbor']==neighbor])
+        
+        # do some housekeeping for each neighbor
+        for neighbor in rxNeighbors:
+            self._top_rxhousekeeping_per_neighbor(neighbor)
+                
         self._top_schedule_housekeeping()
         
-    def _top_housekeeping_per_neighbor(self,neighbor):
+        
+        
+    def _top_rxhousekeeping_per_neighbor(self,neighbor):
+                
+        rxCells = [(ts,cell) for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision'] and cell['neighbor']==neighbor]
+        
+        relocation = False
+        for ts,cell in rxCells:
+            
+            # measure how many cells I have now from that child
+            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
+            
+            # relocate: add new first
+            self._top_cell_reservation_request(neighbor,1,dir=self.DIR_RX)
+
+            # relocate: remove old only when successfully added 
+            if nowCells < self.numCellsFromNeighbors.get(neighbor,0):
+                neighbor.top_cell_deletion_sender(self,[ts])
+                
+                # remember I relocated a cell
+                relocation = True
+                
+        if relocation:
+            # update stats
+            self._incrementMoteStats('topRxRelocatedCells')
+
+
+        
+    def _top_txhousekeeping_per_neighbor(self,neighbor):
         '''
         For a particular neighbor, decide to relocate cells if needed.
         '''
@@ -716,10 +768,10 @@ class Mote(object):
                 
                 # relocate: remove old only when successfully added 
                 if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-                    self._top_cell_deletion_sender(neighbor,[worst_ts])
+                    self.top_cell_deletion_sender(neighbor,[worst_ts])
                 
                     # update stats
-                    self._incrementMoteStats('topRelocatedCells')
+                    self._incrementMoteStats('topTxRelocatedCells')
                 
                     # remember I relocated a cell for that bundle
                     relocation = True
@@ -759,19 +811,19 @@ class Mote(object):
                     # relocate: remove old only when successfully added 
                     if nowCells < self.numCellsToNeighbors.get(neighbor,0):
                         
-                        self._top_cell_deletion_sender(neighbor,[ts])
+                        self.top_cell_deletion_sender(neighbor,[ts])
                         
                         bundleRelocation = True
                 
                 # update stats
                 if bundleRelocation:
-                    self._incrementMoteStats('topRelocatedBundles')
+                    self._incrementMoteStats('topTxRelocatedBundles')
         
-    def _top_cell_reservation_request(self,neighbor,numCells):
-        ''' tries to reserve numCells TX cells to a neighbor. '''
+    def _top_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
+        ''' tries to reserve numCells cells to a neighbor. '''
         
         with self.dataLock:
-            cells=neighbor.top_cell_reservation_response(self,numCells)
+            cells=neighbor.top_cell_reservation_response(self,numCells,dir)
             cellList=[]
             for ts, ch in cells.iteritems():
                 # log
@@ -780,14 +832,19 @@ class Mote(object):
                     '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
                     (ts,ch,self.id,neighbor.id),
                 )
-                cellList += [(ts,ch,self.DIR_TX)]
+                cellList += [(ts,ch,dir)]
             self._tsch_addCells(neighbor,cellList)
             
             # update counters
-            if neighbor not in self.numCellsToNeighbors:
-                self.numCellsToNeighbors[neighbor]    = 0
-            self.numCellsToNeighbors[neighbor]  += len(cells)
-            
+            if dir==self.DIR_TX:
+                if neighbor not in self.numCellsToNeighbors:
+                    self.numCellsToNeighbors[neighbor]    = 0
+                self.numCellsToNeighbors[neighbor]  += len(cells)
+            else:
+                if neighbor not in self.numCellsFromNeighbors:
+                    self.numCellsFromNeighbors[neighbor]    = 0
+                self.numCellsFromNeighbors[neighbor]  += len(cells)
+                
             if len(cells)!=numCells:
                 # log
                 self._log(
@@ -797,11 +854,17 @@ class Mote(object):
                 )
                 #print '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}'.format(len(cells),numCells,self.id,neighbor.id)
             
-    def top_cell_reservation_response(self,neighbor,numCells):
-        ''' tries to reserve numCells RX cells to a neighbor. '''
+    def top_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
+        ''' tries to reserve numCells cells to a neighbor. '''
         
         with self.dataLock:
-            # timeslot = 0 is reserved for a shared cell (not implemented yet) and thus not used as a dedicated cell
+            
+            # set direction of cells
+            if dirNeighbor == self.DIR_TX:
+                dir = self.DIR_RX
+            else:
+                dir = self.DIR_TX
+                
             availableTimeslots=list(set(range(self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
             cells=dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
@@ -813,11 +876,22 @@ class Mote(object):
                     '[6top] add RX cell ts={0},ch={1} from {2} to {3}',
                     (ts,ch,self.id,neighbor.id),
                 )
-                cellList += [(ts,ch,self.DIR_RX)]
+                cellList += [(ts,ch,dir)]
             self._tsch_addCells(neighbor,cellList)
+
+            # update counters
+            if dir==self.DIR_TX:
+                if neighbor not in self.numCellsToNeighbors:
+                    self.numCellsToNeighbors[neighbor]    = 0
+                self.numCellsToNeighbors[neighbor]  += len(cells)
+            else:
+                if neighbor not in self.numCellsFromNeighbors:
+                    self.numCellsFromNeighbors[neighbor]    = 0
+                self.numCellsFromNeighbors[neighbor]  += len(cells)
+            
             return cells
     
-    def _top_cell_deletion_sender(self,neighbor,tsList):
+    def top_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
             # log
             self._log(
@@ -839,6 +913,8 @@ class Mote(object):
                 neighbor     = neighbor,
                 tsList       = tsList,
             )
+            self.numCellsFromNeighbors[neighbor] -= len(tsList)
+            assert self.numCellsFromNeighbors[neighbor]>=0
     
     def _top_removeCells(self,neighbor,numCellsToRemove):
         '''
@@ -954,7 +1030,7 @@ class Mote(object):
             )
             tsList += [tscell[0]]
         # remove cells
-        self._top_cell_deletion_sender(neighbor,tsList)
+        self.top_cell_deletion_sender(neighbor,tsList)
     
     def _top_isUnusedSlot(self,ts):
         with self.dataLock:
@@ -1104,6 +1180,7 @@ class Mote(object):
                     'numTxAck':           0,
                     'numRx':              0,
                     'history':            [],
+                    'rxDetectedCollision':  False,
                     'debug_canbeInterfered':    [], # for debug purpose, shows schedule collision that can be interfered with minRssi or larger level 
                     'debug_interference':       [], # for debug purpose, shows an interference packet with minRssi or larger level 
                     'debug_lockInterference':   [], # for debug purpose, shows locking on the interference packet
@@ -1445,8 +1522,9 @@ class Mote(object):
                 'otfAdd':                  0,   # OTF adds some cells
                 'otfRemove':               0,   # OTF removes some cells
                 # 6top
-                'topRelocatedCells':       0,   # number of time 6top relocates a single cell
-                'topRelocatedBundles':     0,   # number of time 6top relocates a bundle
+                'topTxRelocatedCells':     0,   # number of time tx-triggered 6top relocates a single cell
+                'topTxRelocatedBundles':   0,   # number of time tx-triggered 6top relocates a bundle
+                'topRxRelocatedCells':     0,   # number of time rx-triggered 6top relocates a single cell
                 # tsch
                 'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
             }
