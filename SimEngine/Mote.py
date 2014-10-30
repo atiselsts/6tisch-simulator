@@ -142,6 +142,7 @@ class Mote(object):
         self._resetQueueStats()
         self._resetLatencyStats()
         self._resetHopsStats()
+        self._resetRadioStats()
     
     #======================== stack ===========================================
     
@@ -643,7 +644,7 @@ class Mote(object):
             self._top_txhousekeeping_per_neighbor(neighbor)
         
         # rx-triggered housekeeping 
-
+        '''
         # collect neighbors from which I have RX cells that is detected as collision cell
         rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision']]
         
@@ -657,7 +658,7 @@ class Mote(object):
         # do some housekeeping for each neighbor
         for neighbor in rxNeighbors:
             self._top_rxhousekeeping_per_neighbor(neighbor)
-                
+        '''        
         self._top_schedule_housekeeping()
         
         
@@ -1542,7 +1543,8 @@ class Mote(object):
             returnVal['numRxCells']         = len(self.getRxCells())
             returnVal['aveQueueDelay']      = self.getAveQueueDelay()
             returnVal['aveLatency']         = self.getAveLatency()
-            returnVal['aveHops']            = self.getAveHops()            
+            returnVal['aveHops']            = self.getAveHops()
+            returnVal['collidedPackets']    = self.getRadioStats('collidedPackets')            
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
@@ -1552,6 +1554,7 @@ class Mote(object):
         self._resetQueueStats()
         self._resetLatencyStats()
         self._resetHopsStats()
+        self._resetRadioStats()
                 
         return returnVal
     
@@ -1619,6 +1622,21 @@ class Mote(object):
         with self.dataLock:
             self.packetHops += [hops]
     
+    # radio stats
+    
+    def getRadioStats(self,name):
+        return self.radiostats[name]
+    
+    def _resetRadioStats(self):
+        with self.dataLock:
+            self.radiostats = {
+                'collidedPackets':      0,   # number of packets that actually collided with another packets (used for debugging) 
+            }
+
+    def incrementRadioStats(self,name):
+        with self.dataLock:
+            self.radiostats[name] += 1
+        
     #===== log
     
     def _log(self,severity,template,params=()):
