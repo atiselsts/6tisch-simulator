@@ -164,9 +164,9 @@ def plot_reliability(elemName):
         bar_reliabilities,
         dirs           = dataSetDirs,
         outfilename    = outfilename,
-        xmin           = 1.0,
-        xmax           = 3.0,
-        ymin           = 0.0005,
+        #xmin           = 20,#1.0
+        #xmax           = 150,#3.0,
+        #ymin           = 0.0005,
         ymax           = 0.1,
         xlabel         = xlabel,
         ylabel         = 'end-to-end packet loss ratio',
@@ -608,8 +608,8 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
     print 'Generating {0}...'.format(outfilename),
     
     matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel(xlabel)
-    matplotlib.pyplot.ylabel(ylabel)
+    matplotlib.pyplot.xlabel(xlabel, fontsize='large')
+    matplotlib.pyplot.ylabel(ylabel, fontsize='large')
     if log:
         matplotlib.pyplot.yscale('log')
 
@@ -631,17 +631,34 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
         y         = [meanPerParameter[k] for k in x]
         yerr      = [confintPerParameter[k] for k in x]
         
+        if dataSetDir == 'tx-housekeeping':
+            index = 0
+        elif dataSetDir == 'rx-housekeeping':
+            index = 1
+        elif dataSetDir == 'tx-rx-housekeeping':
+            index = 2
+        elif dataSetDir == 'no housekeeping':
+            index = 3
+        elif dataSetDir == 'no interference':
+            index = 4
+
         matplotlib.pyplot.errorbar(
             x        = x,
             y        = y,
             yerr     = yerr,
-            color    = COLORS[dirs.index(dataSetDir)],
-            ls       = LINESTYLE[dirs.index(dataSetDir)],
-            ecolor   = ECOLORS[dirs.index(dataSetDir)],
+            color    = COLORS[index],
+            ls       = LINESTYLE[index],
+            ecolor   = ECOLORS[index],
             label    = dataSetDir
         )
+        
+        datafile=open(outfilename+'.dat', "a")
+        print >> datafile,dataSetDir
+        print >> datafile,xlabel,x
+        print >> datafile,ylabel,y
+        #print >> datafile,'conf. inverval',yerr
     
-    matplotlib.pyplot.legend(prop={'size':10},loc=0)
+    matplotlib.pyplot.legend(prop={'size':12},loc=0)
     if xmin:
         matplotlib.pyplot.xlim(xmin=xmin)
     if xmax:
