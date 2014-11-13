@@ -93,6 +93,8 @@ def plot_statsVsCycle(statsName):
     dataDirs = []
     for dataDir in os.listdir(os.path.curdir):
         if os.path.isdir(dataDir):
+            if (statsName == 'probableCollisions' or statsName == 'effectiveCollidedTxs') and dataDir=='no interference':
+                continue
             dataDirs += [dataDir]
     
     stats      = {}
@@ -161,7 +163,9 @@ def plot_statsVsCycle(statsName):
     elif statsName == 'droppedAppFailedEnqueue':
         ylabel = 'dropped packets due to full queue'
     elif statsName == 'effectiveCollidedTxs':
-        ylabel = 'effectively collided Tx'
+        ylabel = 'potentially colliding transmitters'
+    elif statsName == 'probableCollisions':
+        ylabel = 'probable collisions'
     else:
         ylabel = statsName
     
@@ -174,6 +178,8 @@ def plot_statsVsCycle(statsName):
         outfilename    = outfilename,
         xlabel         = 'slotframe cycles',
         ylabel         = ylabel,
+        ymax           = 20,
+        ymin           = -0.000001
     )
 
 #===== dropped packets vs cycle
@@ -255,15 +261,20 @@ def plot_droppedPacketsVsCycle():
         outfilename    = outfilename,
         xlabel         = xlabel,
         ylabel         = ylabel,
+        ymin           = -0.000001
     )
 
 #===== signaling for 6top housekeeping vs cycle
 
-def plot_topHousekeepingSingalingVsCycle():
+def plot_topHousekeepingSignalingVsCycle():
+    
+    PACKETS_PER_SIGNALING = 3
     
     dataDirs = []
     for dataDir in os.listdir(os.path.curdir):
         if os.path.isdir(dataDir):
+            if dataDir=='no housekeeping' or dataDir=='no interference':
+                continue
             dataDirs += [dataDir]
     
     stats      = {}
@@ -293,10 +304,14 @@ def plot_topHousekeepingSingalingVsCycle():
                     if line.startswith('# '):
                         elems                         = re.sub(' +',' ',line[2:]).split()
                         numcols                       = len(elems)
-                        colnumtopRelocatedCells       = elems.index('topRelocatedCells')
-                        colnumtopRelocatedBundles     = elems.index('topRelocatedBundles')
+                        colnumtopTxRelocatedCells     = elems.index('topTxRelocatedCells')
+                        colnumtopTxRelocatedBundles   = elems.index('topTxRelocatedBundles')
                         colnumcycle                   = elems.index('cycle')
                         colnumrunNum                  = elems.index('runNum')                
+                        colnumtopRxRelocatedCells     = None
+                        if 'topRxRelocatedCells' in elems:
+                            colnumtopRxRelocatedCells       = elems.index('topRxRelocatedCells')
+
                         break
                 
             # parse data
@@ -307,14 +322,19 @@ def plot_topHousekeepingSingalingVsCycle():
                     if line.startswith('#') or not line.strip():
                         continue
                     m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-                    topRelocatedCells = int(m.group(colnumtopRelocatedCells+1))
-                    topRelocatedBundles       = int(m.group(colnumtopRelocatedBundles+1))
+                    topTxRelocatedCells     = int(m.group(colnumtopTxRelocatedCells+1))
+                    topTxRelocatedBundles   = int(m.group(colnumtopTxRelocatedBundles+1))
+                    
+                    topRxRelocatedCells     = 0
+                    if colnumtopRxRelocatedCells:
+                        topRxRelocatedCells     = int(m.group(colnumtopRxRelocatedCells+1))
+                    
                     cycle                   = int(m.group(colnumcycle+1))
                     runNum                  = int(m.group(colnumrunNum+1))
                     
                     if cycle not in statsPerFile:
                          statsPerFile[cycle] = []
-                    statsPerFile[cycle] += [topRelocatedCells+topRelocatedBundles]
+                    statsPerFile[cycle] += [PACKETS_PER_SIGNALING*(topTxRelocatedCells+topTxRelocatedBundles+topRxRelocatedCells)]
                         
                     if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
                         print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
@@ -326,7 +346,7 @@ def plot_topHousekeepingSingalingVsCycle():
             
     
     xlabel = 'slotframe cycles'
-    ylabel = 'signaling for 6top housekeeping'
+    ylabel = 'signaling packets for 6top housekeeping'
     outfilename    = 'output_signaling_cycle'
     
     # plot figure for  
@@ -336,18 +356,20 @@ def plot_topHousekeepingSingalingVsCycle():
         outfilename    = outfilename,
         xlabel         = xlabel,
         ylabel         = ylabel,
+        ymax           = 20,
+        ymin           = -0.000001
     )
 
 #============================ plotters ========================================
  
-def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, log = False):
+def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False, xmax=False, ymin=False, ymax=False, log = False):
 
     # print
     print 'Generating {0}...'.format(outfilename),
     
     matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel(xlabel)
-    matplotlib.pyplot.ylabel(ylabel)
+    matplotlib.pyplot.xlabel(xlabel, fontsize='large')
+    matplotlib.pyplot.ylabel(ylabel, fontsize='large')
     if log:
         matplotlib.pyplot.yscale('log')
 
@@ -369,18 +391,43 @@ def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, log = False):
         y         = [meanPerParameter[k] for k in x]
         yerr      = [confintPerParameter[k] for k in x]
         
+        if dataDir == 'tx-housekeeping':
+            index = 0
+        elif dataDir == 'rx-housekeeping':
+            index = 1
+        elif dataDir == 'tx-rx-housekeeping':
+            index = 2
+        elif dataDir == 'no housekeeping':
+            index = 3
+        elif dataDir == 'no interference':
+            index = 4
+        
         matplotlib.pyplot.errorbar(
             x        = x,
             y        = y,
             #yerr     = yerr,
-            color    = COLORS[dirs.index(dataDir)],
-            ls       = LINESTYLE[dirs.index(dataDir)],
-            ecolor   = ECOLORS[dirs.index(dataDir)],
+            color    = COLORS[index],
+            ls       = LINESTYLE[index],
+            ecolor   = ECOLORS[index],
             label    = dataDir
         )
         
+        datafile=open(outfilename+'.dat', "a")
+        print >> datafile,dataDir
+        print >> datafile,xlabel,x
+        print >> datafile,ylabel,y
+        #print >> datafile,'conf. inverval',yerr
     
-    matplotlib.pyplot.legend(prop={'size':10},loc=0)
+    matplotlib.pyplot.legend(prop={'size':12},loc=0)
+    if xmin:
+        matplotlib.pyplot.xlim(xmin=xmin)
+    if xmax:
+        matplotlib.pyplot.xlim(xmax=xmax)
+    if ymin:
+        matplotlib.pyplot.ylim(ymin=ymin)
+    if ymax:
+        matplotlib.pyplot.ylim(ymax=ymax)
+
     matplotlib.pyplot.savefig(outfilename + '.png')
     matplotlib.pyplot.savefig(outfilename + '.eps')    
     matplotlib.pyplot.close('all')
@@ -403,7 +450,7 @@ def main():
     plot_droppedPacketsVsCycle()
     
     # plot singaling for 6top housekeeping vs cycle
-    plot_topHousekeepingSingalingVsCycle()
+    plot_topHousekeepingSignalingVsCycle()
     
 if __name__=="__main__":
     main()
