@@ -109,20 +109,6 @@ class SimStats(object):
             )
         )
         
-        #'numAccumScheduledCells':       self.numAccumScheduledCells,
-        #'numAccumScheduledCollisions':  self.numAccumScheduledCollisions,
-        #'numAccumNoPktAtNSC':           self.propagation.numAccumNoPktAtNSC,
-        #'numAccumPktAtNSC':             self.propagation.numAccumPktAtNSC,
-        #'numAccumSuccessAtNSC':         self.propagation.numAccumSuccessAtNSC,
-        #'numAccumNoPktAtSC':            self.propagation.numAccumNoPktAtSC,
-        #'numAccumPktAtSC':              self.propagation.numAccumPktAtSC,
-        #'numAccumSuccessAtSC':          self.propagation.numAccumSuccessAtSC,
-        #'numPacketsReached':            numPacketsReached,
-        #'numOverflow':                  numOverflow,
-        #'e2ePDR':                       e2ePDR,
-        #'avgLatency':                   avgLatency,
-        #'avgTimeBetweenOTFevents':      avgTimeBetweenOTFevents,
-        
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
             asn         = self.engine.getAsn()+self.settings.slotframeLength,
@@ -197,48 +183,7 @@ class SimStats(object):
                         if tx1.getRSSI(rx2) > rx2.minRssi:
                             effectiveCollidedTxs += 1
                             
-                            # for debug
-                            '''
-                            for k,v in txLinks.iteritems():
-                                if v==links:
-                                    (ts,ch)=k
-                                    break                            
-                            assert len(tx2.schedule[ts]['history']) == len(tx2.schedule[ts]['debug_canbeInterfered'])
-                            print '          tx:{0}, interferer:{1}'.format(tx2.id,tx1.id)
                             
-                            cell = tx2.schedule[ts]
-                            print '          history:                  {0}'.format(tx2.schedule[ts]['history'])
-                            print '          can be Interfered:        {0}'.format(cell['debug_canbeInterfered'])
-                            print '          interference exists:      {0}'.format(cell['debug_interference'])
-                            print '          lock on the interference: {0}'.format(cell['debug_lockInterference'])
-
-                            recentHistory = cell['history'][-tx2.NUM_MAX_HISTORY:]
-                            recentCanbeInterfered = cell['debug_canbeInterfered'][-tx2.NUM_MAX_HISTORY:]
-                            recentInterference = cell['debug_interference'][-tx2.NUM_MAX_HISTORY:]
-                            recentLockInterference = cell['debug_lockInterference'][-tx2.NUM_MAX_HISTORY:]
-                            
-                            print '          length of history:             {0}'.format(len(recentHistory))
-                            if len(recentHistory) < tx2.NUM_SUFFICIENT_TX:
-                                insufficientLength += 1
-                            print '          num. tx that can be interfered:{0}'.format(sum(recentCanbeInterfered))
-                            print '          num. interference:             {0}'.format(sum(recentInterference))
-                            print '          num. locking on Interference:  {0}'.format(sum(recentLockInterference))
-                            if len(recentHistory) > 0:
-                                pdr = float(sum(recentHistory)) / float(len(recentHistory))                            
-                                print '          pdr:{0}'.format(pdr)
-                            
-                            age = 1+int(self.engine.getAsn()-cell['debug_cellCreatedAsn'])/self.settings.slotframeLength
-                            print '          age of cell in cycle:{0}'.format(age)
-                            print '          time usage:          {0}'.format(float(len(cell['history']))/age)
-                            print ''
-                            '''
-                            
-        # for debug
-        '''
-        print '          insufficientLength/effectiveCollidedTxs: {0}/{1}'.format(insufficientLength,effectiveCollidedTxs)
-        print ''                            
-        '''     
-        
         return {'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs}
     
     #=== writing to file
