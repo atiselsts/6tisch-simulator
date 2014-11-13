@@ -1460,7 +1460,7 @@ class Mote(object):
             returnVal['aveQueueDelay']      = self.getAveQueueDelay()
             returnVal['aveLatency']         = self.getAveLatency()
             returnVal['aveHops']            = self.getAveHops()
-            returnVal['collidedPackets']    = self.getRadioStats('collidedPackets')            
+            returnVal['probableCollisions']    = self.getRadioStats('probableCollisions')            
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
@@ -1546,7 +1546,7 @@ class Mote(object):
     def _resetRadioStats(self):
         with self.dataLock:
             self.radiostats = {
-                'collidedPackets':      0,   # number of packets that actually collided with another packets (used for debugging) 
+                'probableCollisions':      0,   # number of packets that can collide with another packets 
             }
 
     def incrementRadioStats(self,name):

@@ -133,7 +133,7 @@ class Propagation(object):
                                         interferenceFlag = 1
                                 transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag]
                                 if interferenceFlag:
-                                    transmission['smac'].incrementRadioStats('collidedPackets')    
+                                    transmission['smac'].incrementRadioStats('probableCollisions')    
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
                                     if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
