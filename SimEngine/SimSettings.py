@@ -70,13 +70,11 @@ class SimSettings(object):
         if self.processID==None:
             datafilename         = os.path.join(
                 dirname,
-                #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
                 'output.dat',
             )
         else:
             datafilename         = os.path.join(
                 dirname,
-                #'output_{0}_{1}.dat'.format(int(self.startTime), os.getpid()),
                 'output_{0}.dat'.format(self.processID),
             )
         

@@ -25,7 +25,7 @@ import logging
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
-log = logging.getLogger('BatchSim')
+log = logging.getLogger('runConcurrentSimsOTF')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
@@ -43,35 +43,55 @@ def parseCliOptions():
     parser = argparse.ArgumentParser()
     
     parser.add_argument( '--processIDs',
-        dest       = 'processIDs',
-        nargs      = '+',
-        type       = int,
-        default    = None,
-        help       = 'IDs related to concurrent simulation processes.',
+        dest            = 'processIDs',
+        nargs           = '+',
+        type            = int,
+        default         = None,
+        help            = 'IDs related to concurrent simulation processes.',
     )
     
     parser.add_argument( '--numRuns',
-        dest       = 'numRuns',
-        type       = int,
-        default    = 2,
-        help       = 'Number of simulation runs per each configurations.',
+        dest            = 'numRuns',
+        type            = int,
+        default         = 2,
+        help            = 'Number of simulation runs per each configurations.',
     )
     
-    options        = parser.parse_args()
+    options             = parser.parse_args()
     
     return options.__dict__
     
 def main():
     
     # parse CLI options
-    options        = parseCliOptions()
+    options             = parseCliOptions()
     
     if options['processIDs']==None:
-        command='python runSim.py --numMotes 50 --squareSide 2.0 --pkPeriod 60 10 1 --otfThreshold 0 2 4 6 8 10 --numCyclesPerRun 100 --numRuns {0} --simDataDir simDataOTF'.format(options['numRuns'])
+        command         = []
+        command        += ['python runSim.py']
+        command        += ['--numMotes 50']
+        command        += ['--squareSide 2.0']
+        command        += ['--pkPeriod 60 10 1']
+        command        += ['--otfThreshold 0 2 4 6 8 10']
+        command        += ['--numCyclesPerRun 100']
+        command        += ['--simDataDir simDataOTF']
+        command        += ['--numRuns {0}'.format(options['numRuns'])]
+        command         = ' '.join(command)
         os.system(command)
     else:
         for processID in options['processIDs']:
-            command='python runSim.py --numMotes 50 --squareSide 2.0 --pkPeriod 60 10 1 --otfThreshold 0 2 4 6 8 10 --numCyclesPerRun 100 --numRuns {0} --processID {1} --simDataDir simDataOTF &'.format(options['numRuns'], processID)
+            command     = []
+            command    += ['python runSim.py']
+            command    += ['--numMotes 50']
+            command    += ['--squareSide 2.0']
+            command    += ['--pkPeriod 60 10 1']
+            command    += ['--otfThreshold 0 2 4 6 8 10']
+            command    += ['--numCyclesPerRun 2']
+            command    += ['--simDataDir simDataOTF']
+            command    += ['--numRuns {0}'.format(options['numRuns'])]
+            command    += ['--processID {0}'.format(processID)]
+            #command    += ['&']
+            command     = ' '.join(command)
             multiprocessing.Process(target=os.system(command)).start()
 
 #============================ main ============================================

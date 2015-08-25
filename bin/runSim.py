@@ -137,8 +137,8 @@ def parseCliOptions():
         help       = 'OTF Housekeeping Period, in sec.',
     )
 
-    parser.add_argument( '--topHousekeepingPeriod',
-        dest       = 'topHousekeepingPeriod',
+    parser.add_argument( '--sixtopHousekeepingPeriod',
+        dest       = 'sixtopHousekeepingPeriod',
         nargs      = '+',
         type       = float,
         default    = 1.0,
@@ -182,8 +182,8 @@ def parseCliOptions():
         help       = 'Turn off interference in the same cell transmission.',
     )
 
-    parser.add_argument('--noTopHousekeeping',
-        dest       = 'noTopHousekeeping',
+    parser.add_argument('--noSixtopHousekeeping',
+        dest       = 'noSixtopHousekeeping',
         nargs      = '+',
         type       = int,
         default    = 0,

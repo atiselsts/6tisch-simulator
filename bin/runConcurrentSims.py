@@ -26,7 +26,7 @@ import logging
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
-log = logging.getLogger('BatchSim')
+log = logging.getLogger('runConcurrentSims')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
@@ -41,42 +41,42 @@ import subprocess
 
 def parseCliOptions():
     
-    parser = argparse.ArgumentParser()
+    parser              = argparse.ArgumentParser()
     
     parser.add_argument( '--processIDs',
-        dest       = 'processIDs',
-        nargs      = '+',
-        type       = int,
-        default    = None,
-        help       = 'IDs related to concurrent simulation processes.',
+        dest            = 'processIDs',
+        nargs           = '+',
+        type            = int,
+        default         = None,
+        help            = 'IDs related to concurrent simulation processes.',
     )
     
     parser.add_argument( '--parameters',
-        dest       = 'parameters',
-        type       = str,
-        default    = '',
-        help       = 'Simulation parameters (bound in quotation marks).',
+        dest            = 'parameters',
+        type            = str,
+        default         = '',
+        help            = 'Simulation parameters (bound in quotation marks).',
     )
     
-    options        = parser.parse_args()
+    options             = parser.parse_args()
     
     return options.__dict__ 
 
 def main():
     
     # parse CLI options
-    options        = parseCliOptions()
+    options             = parseCliOptions()
     
     processIDs=[]
     if options['processIDs']==None:
-        command='python runSim.py {0}'.format(options['parameters'])
-        p=subprocess.Popen(command, shell=True)
-        processIDs+=[p]
+        command         = 'python runSim.py {0}'.format(options['parameters'])
+        p               = subprocess.Popen(command, shell=True)
+        processIDs     += [p]
     else:
         for processID in options['processIDs']:
-            command='python runSim.py {0}'.format(options['parameters'], processID)
-            p=subprocess.Popen(command, shell=True)
-            processIDs+=[p]
+            command     = 'python runSim.py {0}'.format(options['parameters'], processID)
+            p           = subprocess.Popen(command, shell=True)
+            processIDs += [p]
     while True:
         try:
             time.sleep(100)
@@ -84,7 +84,6 @@ def main():
             for p in processIDs:
                 p.kill()
             break
-          
 
 #============================ main ============================================
 

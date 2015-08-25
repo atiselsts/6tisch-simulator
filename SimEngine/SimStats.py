@@ -22,7 +22,6 @@ log.addHandler(NullHandler())
 
 import SimEngine
 import SimSettings
-import Propagation
 
 #============================ defines =========================================
 
@@ -54,7 +53,6 @@ class SimStats(object):
         # local variables
         self.engine                         = SimEngine.SimEngine()
         self.settings                       = SimSettings.SimSettings()
-        self.propagation                    = Propagation.Propagation()
         
         # stats
         self.stats                          = {}
@@ -90,7 +88,7 @@ class SimStats(object):
         pass
     
     def _actionEndCycle(self):
-        '''Called at each end of cyle.'''
+        '''Called at each end of cycle.'''
         
         cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
         

@@ -219,5 +219,3 @@ class SimEngine(threading.Thread):
     def _actionEndSim(self):
         with self.dataLock:
             self.goOn = False
-    
-    

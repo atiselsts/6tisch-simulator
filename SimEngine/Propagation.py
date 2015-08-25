@@ -59,7 +59,7 @@ class Propagation(object):
         
         # variables
         self.dataLock                  = threading.Lock()
-        self.receivers                 = [] # motes with radios currently on listening
+        self.receivers                 = [] # motes with radios currently listening
         self.transmissions             = [] # ongoing transmissions
         
         # schedule propagation task
@@ -82,7 +82,7 @@ class Propagation(object):
             }]
     
     def startTx(self,channel,type,smac,dmac,payload):
-        ''' add a mote as using a ch. for tx'''
+        ''' add a mote as using a channel for tx'''
         with self.dataLock:
             self.transmissions  += [{
                 'channel':             channel,
@@ -101,13 +101,14 @@ class Propagation(object):
             ts    = asn%self.settings.slotframeLength
             
             arrivalTime = {}
-            # store arrival times of transmission packets 
+            
+            # store arrival times of transmitted packets 
             for transmission in self.transmissions:
-                arrivalTime[transmission['smac']] = transmission['smac'].calcTime()
-                        
+                arrivalTime[transmission['smac']] = transmission['smac'].clock_getOffsetToDagRoot()
+            
             for transmission in self.transmissions:
                 
-                i           = 0
+                i           = 0 # index of a receiver
                 isACKed     = False
                 isNACKed    = False
                 
@@ -121,19 +122,21 @@ class Propagation(object):
                                                                                       
                             if not self.settings.noInterference:
   
-                                #''' ============= for evaluation with interference=================
+                                #================ with interference ===========
                                  
                                 # other transmissions on the same channel?
                                 interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
                                 
-                                # for debug
                                 interferenceFlag = 0
                                 for itfr in interferers:
                                     if transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
                                         interferenceFlag = 1
-                                transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag]
+                                
+                                transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
+                                
                                 if interferenceFlag:
-                                    transmission['smac'].incrementRadioStats('probableCollisions')    
+                                    transmission['smac'].stats_incrementRadioStats('probableCollisions')    
+                                
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
                                     if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
@@ -141,8 +144,9 @@ class Propagation(object):
                                         lockOn = itfr
                                 
                                 if lockOn == transmission['smac']:
-                                    # for debug
-                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
+                                    # mote locked in the current signal
+                                    
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # debug only
                                     
                                     # calculate pdr, including interference
                                     sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
@@ -153,7 +157,7 @@ class Propagation(object):
                                     if pdr>=failure:
                                         # packet is received correctly                                        
                                         # this mote is delivered the packet
-                                        isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
+                                        isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
                                             type       = transmission['type'],
                                             smac       = transmission['smac'],
                                             dmac       = transmission['dmac'],
@@ -164,11 +168,11 @@ class Propagation(object):
                                         
                                     else:
                                         # packet is NOT received correctly
-                                        self.receivers[i]['mote'].rxDone()
+                                        self.receivers[i]['mote'].radio_rxDone()
                                         del self.receivers[i]
                                     
                                 else:
-                                    # fail due to locking on interference
+                                    # mote locked in an interfering signal
                                     
                                     # for debug
                                     transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
@@ -188,16 +192,17 @@ class Propagation(object):
                                         transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
                                     
                                     # desired packet is not received
-                                    self.receivers[i]['mote'].rxDone()
+                                    self.receivers[i]['mote'].radio_rxDone()
                                     del self.receivers[i]
-                                                                                                            
+                                
                             else:
-                                # ============= for evaluation without interference=================
+                                
+                                #================ without interference ========
+                                
                                 interferers = []
                                 
-                                # for debug
-                                transmission['smac'].schedule[ts]['debug_interference'] += [0]
-                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0]
+                                transmission['smac'].schedule[ts]['debug_interference']     += [0] # for debug only
+                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # for debug only
                                 
                                 # calculate pdr with no interference
                                 sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
@@ -210,7 +215,7 @@ class Propagation(object):
                                     # packet is received correctly
                                     
                                     # this mote is delivered the packet
-                                    isACKed, isNACKed = self.receivers[i]['mote'].rxDone(
+                                    isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
                                         type       = transmission['type'],
                                         smac       = transmission['smac'],
                                         dmac       = transmission['dmac'],
@@ -222,7 +227,7 @@ class Propagation(object):
                                     
                                 else:
                                     # packet is NOT received correctly
-                                    self.receivers[i]['mote'].rxDone()
+                                    self.receivers[i]['mote'].radio_rxDone()
                                     del self.receivers[i]
                             
                         else:
@@ -238,13 +243,14 @@ class Propagation(object):
                         i += 1
                 
                 # indicate to source packet was sent
-                transmission['smac'].txDone(isACKed, isNACKed)
-            
+                transmission['smac'].radio_txDone(isACKed, isNACKed)
             
             # remaining receivers that does not receive a desired packet
             for r in self.receivers:
 
                 if not self.settings.noInterference:
+                    
+                    #================ with interference ===========
                     
                     interferers = [t['smac'] for t in self.transmissions if t['dmac']!=r['mote'] and t['channel']==r['channel']]
                     
@@ -257,7 +263,7 @@ class Propagation(object):
                         else:
                             if r['mote'].getRSSI(itfr)>r['mote'].minRssi and arrivalTime[itfr]<arrivalTime[lockOn]:
                                 lockOn = itfr
-                                                
+                    
                     if lockOn:
                         # pdr calculation
                         
@@ -275,11 +281,12 @@ class Propagation(object):
                             r['mote'].schedule[ts]['rxDetectedCollision'] = True
                     
                 # desired packet is not received
-                r['mote'].rxDone()
-                
+                r['mote'].radio_rxDone()
+            
             # clear all outstanding transmissions
             self.transmissions              = []
             self.receivers                  = []
+        
         self._schedule_propagate()
     
     #======================== private =========================================
@@ -287,7 +294,7 @@ class Propagation(object):
     def _schedule_propagate(self):
         with self.dataLock:
             self.engine.scheduleAtAsn(
-                asn         = self.engine.getAsn()+1,
+                asn         = self.engine.getAsn()+1,# so propagation happens in next slot
                 cb          = self.propagate,
                 uniqueTag   = (None,'propagation'),
                 priority    = 1,
@@ -317,7 +324,7 @@ class Propagation(object):
         return self._mWTodBm(sinr)
     
     def _computePdrFromSINR(self, sinr, destination):
-        ''' compute PDR from SINR  '''
+        ''' compute PDR from SINR '''
         
         equivalentRSSI  = self._mWTodBm(
             self._dBmTomW(sinr+destination.noisepower) + self._dBmTomW(destination.noisepower)
