@@ -134,7 +134,7 @@ def gatherPerRunData(infilepaths,elemName):
         # print
         print 'Parsing {0} for {1}...'.format(infilepath,elemName),
         
-        # find colnumelem, colnumrunNum, processID
+        # find colnumelem, colnumrunNum, cpuID
         with open(infilepath,'r') as f:
             for line in f:
                 if line.startswith('# '):
@@ -145,14 +145,14 @@ def gatherPerRunData(infilepaths,elemName):
                     break
                 
                 if line.startswith('## '):
-                    # processID
-                    m = re.search('processID\s+=\s+([0-9]+)',line)
+                    # cpuID
+                    m = re.search('cpuID\s+=\s+([0-9]+)',line)
                     if m:
-                        processID = int(m.group(1))
+                        cpuID = int(m.group(1))
         
         assert colnumelem
         assert colnumrunNum
-        assert processID
+        assert cpuID
         
         # parse data
         
@@ -170,9 +170,9 @@ def gatherPerRunData(infilepaths,elemName):
                     except:
                         elem     =       m.group(colnumelem+1)
                 
-                if (processID,runNum) not in valuesPerRun:
-                    valuesPerRun[processID,runNum] = []
-                valuesPerRun[processID,runNum] += [elem]
+                if (cpuID,runNum) not in valuesPerRun:
+                    valuesPerRun[cpuID,runNum] = []
+                valuesPerRun[cpuID,runNum] += [elem]
         
         # print
         print 'done.'

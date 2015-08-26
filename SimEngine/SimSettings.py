@@ -67,16 +67,11 @@ class SimSettings(object):
             os.makedirs(dirname)
         
         # file
-        if self.processID==None:
-            datafilename         = os.path.join(
-                dirname,
-                'output.dat',
-            )
+        if self.cpuID==None:
+            tempname         = 'output.dat'
         else:
-            datafilename         = os.path.join(
-                dirname,
-                'output_{0}.dat'.format(self.processID),
-            )
+            tempname         = 'output_cpu{0}.dat'.format(self.cpuID)
+        datafilename         = os.path.join(dirname,tempname)
         
         return datafilename
     

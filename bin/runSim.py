@@ -56,11 +56,11 @@ def parseCliOptions():
         default    = False,
         help       = '[sim] Display the GUI.',
     )
-    parser.add_argument( '--processID',
-        dest       = 'processID',
+    parser.add_argument( '--cpuID',
+        dest       = 'cpuID',
         type       = int,
         default    = None,
-        help       = '[sim] id of this simulation (for batch).',
+        help       = '[sim] id of the CPU running this simulation (for batch).',
     )
     parser.add_argument( '--numRuns',
         dest       = 'numRuns',
@@ -226,10 +226,12 @@ def runSims(options):
     for (simParamNum,simParam) in enumerate(simParams):
         
         # print
-        if simParam['processID']==None:
-            print('parameters {0}/{1}'.format(simParamNum+1,len(simParams)))
-        else:
-            print('parameters {0}/{1}, processID {2}'.format(simParamNum+1,len(simParams), simParam['processID']))
+        output  = []
+        output += ['parameters {0}/{1}'.format(simParamNum+1,len(simParams))]
+        if simParam['cpuID']==None:
+            output += [', cpuID {0}'.format(simParam['cpuID'])]
+        output  = ''.join(output)
+        print output
         
         # record run start time
         runStartTime = time.time()
@@ -238,8 +240,7 @@ def runSims(options):
         for runNum in xrange(simParam['numRuns']):
             
             # print
-            if simParam['processID']==None:
-                print('   run {0}/{1}'.format(runNum+1,simParam['numRuns']))
+            print('   run {0}/{1}'.format(runNum+1,simParam['numRuns']))
             
             # create singletons
             settings         = SimSettings.SimSettings(**simParam)

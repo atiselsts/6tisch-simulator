@@ -117,7 +117,7 @@ class Mote(object):
         # tuned, if as higher the slower to detect a wrong cell but the more prone
         # to avoid churn as lower the faster but with some chances to introduces
         # churn due to unstable medium
-        self.topPdrThreshold           = self.settings.topPdrThreshold
+        self.sixtopPdrThreshold           = self.settings.sixtopPdrThreshold
         self.sixtopHousekeepingPeriod  = self.settings.sixtopHousekeepingPeriod
         # tsch
         self.txQueue                   = []
@@ -183,10 +183,10 @@ class Mote(object):
     def _app_schedule_sendPacketBurst(self):
         ''' create an event that is inserted into the simulator engine to send a data burst'''
         
-        # schedule numPacketsBurst packets at burstTime
+        # schedule numPacketsBurst packets at burstPeriod
         for i in xrange(self.settings.numPacketsBurst):
             self.engine.scheduleIn(
-                delay        = self.settings.burstTime,
+                delay        = self.settings.burstPeriod,
                 cb           = self._app_action_enqueueData,
                 uniqueTag    = (self.id, '_app_action_enqueueData'),
                 priority     = 2,
@@ -654,7 +654,7 @@ class Mote(object):
         
         #===== step 2. relocate worst cell in bundle, if any
         # this step will identify the cell with the lowest PDR in the bundle.
-        # If its PDR is self.topPdrThreshold lower than the average of the bundle
+        # If its PDR is self.sixtopPdrThreshold lower than the average of the bundle
         # this step will move that cell.
         
         relocation = False
@@ -683,7 +683,7 @@ class Mote(object):
                 ave_pdr      = float(othersNumTxAck) / float(othersNumTx)
 
             # relocate worst cell if "bad enough"
-            if ave_pdr and worst_pdr<(ave_pdr/self.topPdrThreshold):
+            if ave_pdr and worst_pdr<(ave_pdr/self.sixtopPdrThreshold):
                 
                 # log
                 self._log(
@@ -724,7 +724,7 @@ class Mote(object):
             theoPDR         = Topology.Topology.rssiToPdr(rssi)
             
             # relocate complete bundle if measured RSSI is significantly worse than theoretical
-            if bundlePdr<(theoPDR/self.topPdrThreshold):
+            if bundlePdr<(theoPDR/self.sixtopPdrThreshold):
                 for (ts,_) in cell_pdr:
                     
                     # log
@@ -893,9 +893,9 @@ class Mote(object):
         # introduce randomness in the cell list order
         random.shuffle(scheduleList)
         
-        if not self.settings.noRemoveWorstCell:
-            
-            # triggered only when worst cell selection is due (cell list is sorted according to worst cell selection)
+        if not self.settings.sixtopNoRemoveWorstCell:
+            # triggered only when worst cell selection is due
+            # (cell list is sorted according to worst cell selection)
             scheduleListByPDR     = {}
             for tscell in scheduleList:
                 if not scheduleListByPDR.has_key(tscell[3]):
@@ -1361,12 +1361,12 @@ class Mote(object):
     def boot(self):
         if not self.dagRoot:
             self._app_schedule_sendSinglePacket(firstPacket=True)
-            if self.settings.numPacketsBurst!=None and self.settings.burstTime!=None:
+            if self.settings.numPacketsBurst!=None and self.settings.burstPeriod!=None:
                 self._app_schedule_sendPacketBurst()
         self._rpl_schedule_sendDIO(firstDIO=True)
         self._otf_resetInboundTrafficCounters()
         self._otf_schedule_housekeeping()
-        if not self.settings.noSixtopHousekeeping:
+        if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
         self._tsch_schedule_activeCell()
     
