@@ -40,7 +40,7 @@ import itertools
 
 #============================ defines =========================================
 
-DATADIR = 'simDataOTF'
+DATADIR = 'simData'
 CONFINT = 0.95
 
 COLORS_TH = {
@@ -87,7 +87,7 @@ def binDataFiles():
     '''
     bin the data files according to the otfThreshold and pkPeriod.
     
-    Returns a dictionaty of format:
+    Returns a dictionary of format:
     {
         (otfThreshold,pkPeriod): [
             filepath,
@@ -293,22 +293,30 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
     # }
     
     if prettyp:
-        with open('poipoi.txt','a') as f:
+        with open('poipoi.txt','w') as f:
             f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
             f.write(pp.pformat(plotData))
+    
+    pkPeriods           = []
+    otfThresholds       = []
+    for (otfThreshold,pkPeriod) in plotData.keys():
+        pkPeriods      += [pkPeriod]
+        otfThresholds  += [otfThreshold]
+    pkPeriods           = list(set(pkPeriods))
+    otfThresholds       = list(set(otfThresholds))
     
     #===== plot
     
     fig = matplotlib.pyplot.figure()
     
-    def plotForEachThreshold(ax,plotData,period):
+    def plotForEachPkPeriod(ax,plotData,pkPeriod_p):
         ax.set_xlim(xmin=0,xmax=100)
         ax.set_ylim(ymin=ymin,ymax=ymax)
-        ax.text(2,0.9*ymax,'packet period {0}s'.format(period))
+        ax.text(2,0.9*ymax,'packet period {0}s'.format(pkPeriod_p))
         plots = []
-        for th in [0,4,10]:
+        for th in otfThresholds:
             for ((otfThreshold,pkPeriod),data) in plotData.items():
-                if otfThreshold==th and pkPeriod==period:
+                if otfThreshold==th and pkPeriod==pkPeriod_p:
                     plots += [
                         ax.errorbar(
                             x        = data['x'],
@@ -321,27 +329,27 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
                     ]
         return tuple(plots)
     
-    SUBPLOTHEIGHT = 0.28
+    # plot axis
+    allaxes = []
+    subplotHeight = 0.85/len(pkPeriods)
+    for (plotIdx,pkPeriod) in enumerate(pkPeriods):
+        ax = fig.add_axes([0.10, 0.10+plotIdx*subplotHeight, 0.85, subplotHeight])
+        legendPlots = plotForEachPkPeriod(ax,plotData,pkPeriod)
+        allaxes += [ax]
     
-    # pkPeriod=1s
-    ax01 = fig.add_axes([0.10, 0.10+2*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax01.get_xaxis().set_visible(False)
-    plotForEachThreshold(ax01,plotData,1)
+    # add x label
+    for ax in allaxes[1:]:
+        ax.get_xaxis().set_visible(False)
+    allaxes[0].set_xlabel('time (slotframe cycles)')
     
-    # pkPeriod=10s
-    ax10 = fig.add_axes([0.10, 0.10+1*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax10.get_xaxis().set_visible(False)
-    plotForEachThreshold(ax10,plotData,10)
-    ax10.set_ylabel(ylabel)
+    # add y label
+    allaxes[int(len(allaxes)/2)].set_ylabel(ylabel)
     
-    # pkPeriod=60s
-    ax20 = fig.add_axes([0.10, 0.10+0*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    (th0,th4,th10) = plotForEachThreshold(ax20,plotData,60)
-    ax20.set_xlabel('time (in slotframe cycles)')
-    
+    # add legend
+    legendText = tuple(['OTF threshold {0} cells'.format(t) for t in otfThresholds])
     fig.legend(
-        (th0,th4,th10),
-        ('OTF threshold 0 cells', 'OTF threshold 4 cells','OTF threshold 10 cells'),
+        legendPlots,
+        legendText,
         'upper right',
         prop={'size':8},
     )
@@ -432,8 +440,8 @@ def gather_latency_data(dataBins):
     
     # plotData = {
     #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12,0,0,0,0],
+    #         cycle0: [run0,run1, ...],
+    #         cycle1: [run0,run1, ...],
     #     }
     # }
     
@@ -450,8 +458,8 @@ def gather_latency_data(dataBins):
     
     # plotData = {
     #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12,0,0,0,0],
+    #         cycle0: [run0,run1, ...],
+    #         cycle1: [run0,run1, ...],
     #     }
     # }
     
@@ -472,8 +480,8 @@ def gather_latency_data(dataBins):
     
     # plotData = {
     #     (otfThreshold,pkPeriod) = {
-    #         0: [12,12,12,12,12,12,12,12,12],
-    #         1: [12,12,12,12,12],
+    #         cycle0: [run0,run1, ...],
+    #         cycle1: [run0,run1, ...],
     #     }
     # }
     
@@ -491,7 +499,7 @@ def plot_latency_vs_time(dataBins):
     plot_vs_time(
         plotData = plotData,
         ymin     = 0,
-        ymax     = 1.6,
+        ymax     = 4.0,
         ylabel   = 'end-to-end latency (s)',
         filename = 'latency_vs_time',
     )
@@ -945,13 +953,14 @@ def plot_reliability_vs_threshold(dataBins):
 # reliability_vs_threshold
 # reliability_vs_time
 
-
 def main():
     
     dataBins = binDataFiles()
+    print dataBins
     
     # latency
     plot_latency_vs_time(dataBins)
+    '''
     plot_latency_vs_threshold(dataBins)
     
     # numCells
@@ -964,6 +973,7 @@ def main():
     
     # reliability
     plot_reliability_vs_threshold(dataBins)
+    '''
 
 if __name__=="__main__":
     main()
