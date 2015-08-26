@@ -15,7 +15,7 @@ MIN_TOTAL_RUNRUNS = 8 # poipoi should be 100
 def runOneSim(params):
     (cpuID,numRuns) = params
     command     = []
-    command    += ['python runSim.py']
+    command    += ['python runOneSim.py']
     command    += ['--numRuns 20'] # poipoi should be 100
     command    += ['--numRuns {0}'.format(numRuns)]
     command    += ['--cpuID {0}'.format(cpuID)]
