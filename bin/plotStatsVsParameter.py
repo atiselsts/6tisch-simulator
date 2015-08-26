@@ -130,7 +130,7 @@ def plot_reliability(elemName):
         xlabel = 'packet period (s)'
     elif elemName == 'otfThreshold':
         xlabel = 'OTF threshold'
-    elif elemName == 'topPdrThreshold':
+    elif elemName == 'sixtopPdrThreshold':
         xlabel = 'threshold for cell relocation'
     elif elemName == 'numChans':
         xlabel = 'number of channels'
@@ -289,7 +289,7 @@ def plot_batteryLife(elemName):
         xlabel = 'packet period (s)'
     elif elemName == 'otfThreshold':
         xlabel = 'OTF threshold'
-    elif elemName == 'topPdrThreshold':
+    elif elemName == 'sixtopPdrThreshold':
         xlabel = 'threshold for cell relocation'
     elif elemName == 'numChans':
         xlabel = 'number of channels'
@@ -396,7 +396,7 @@ def plot_latency(elemName):
         xlabel = 'packet period (s)'
     elif elemName == 'otfThreshold':
         xlabel = 'OTF threshold'
-    elif elemName == 'topPdrThreshold':
+    elif elemName == 'sixtopPdrThreshold':
         xlabel = 'threshold for cell relocation'
     elif elemName == 'numChans':
         xlabel = 'number of channels'
@@ -523,7 +523,7 @@ def plot_statsOfLastCycle(elemName,statsName):
         xlabel = 'packet period (s)'
     elif elemName == 'otfThreshold':
         xlabel = 'OTF threshold'
-    elif elemName == 'topPdrThreshold':
+    elif elemName == 'sixtopPdrThreshold':
         xlabel = 'threshold for cell relocation'
     elif elemName == 'numChans':
         xlabel = 'number of channels'

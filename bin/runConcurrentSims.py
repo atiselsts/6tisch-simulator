@@ -60,7 +60,7 @@ def parseCliOptions():
     
     options             = parser.parse_args()
     
-    return options.__dict__ 
+    return options.__dict__
 
 def main():
     
