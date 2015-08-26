@@ -8,3 +8,4 @@
 *.zip
 Thumbs.db
 *.templog
+/bin/poipoi.txt
