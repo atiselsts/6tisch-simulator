@@ -16,7 +16,6 @@ def runOneSim(params):
     (cpuID,numRuns) = params
     command     = []
     command    += ['python runSimOneCpu.py']
-    command    += ['--numCyclesPerRun 10']  # poipoi should be 100
     command    += ['--otfThreshold 0 10']   # poipoi should be 0,1,2,6,8,10
     command    += ['--pkPeriod 60 1']       # poipoi should be 60.0,10.0,1.0
     command    += ['--numRuns {0}'.format(numRuns)]
@@ -44,18 +43,6 @@ def printProgress(num_cpus):
     for cpu in range(num_cpus):
         os.remove('cpu{0}.templog'.format(cpu))
 
-def combineLogFiles():
-    for logdir in os.listdir('simData'):
-        for logfile in os.listdir(os.path.join('simData',logdir)):
-            infile  = os.path.join('simData',logdir,logfile)
-            outfile = os.path.join('simData',logdir,'output.dat')
-            lines = []
-            lines += ['\n\n### from {0}\n\n'.format(logfile)]
-            with open(infile,'r') as f:
-                lines += f.readlines()
-            with open(outfile,'a') as f:
-                f.writelines(lines)
-
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     num_cpus = multiprocessing.cpu_count()
@@ -63,5 +50,4 @@ if __name__ == '__main__':
     pool = multiprocessing.Pool(num_cpus)
     pool.map_async(runOneSim,[(i,runsPerCpu) for i in range(num_cpus)])
     printProgress(num_cpus)
-    combineLogFiles()
     raw_input("Done. Press Enter to close.")
