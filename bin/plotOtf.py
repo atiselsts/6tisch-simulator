@@ -8,72 +8,53 @@
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 '''
 
-#============================ adjust path =====================================
-
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('plotTimelines')
-log.setLevel(logging.ERROR)
-log.addHandler(NullHandler())
-
-#============================ imports =========================================
-
 import os
 import re
 import glob
-import sys
-import math
 import pprint
 
 import numpy
 import scipy
 import scipy.stats
 
-import logging.config
 import matplotlib.pyplot
-import argparse
-import itertools
 
 #============================ defines =========================================
 
-DATADIR = 'simData'
-CONFINT = 0.95
+DATADIR            = 'simData'
+CONFINT            = 0.95
 
-COLORS_TH = {
+COLORS_TH          = {
     0:   '#FF0000',
     4:   '#008000',
     10:  '#000080',
 }
 
-LINESTYLE_TH = {
+LINESTYLE_TH       = {
     0:   '--',
     4:   '-.',
     10:  ':',
 }
 
-ECOLORS_TH = {
+ECOLORS_TH         = {
     0:   '#FA8072',
     4:   '#00FF00',
     10:  '#00FFFF',
 }
 
-COLORS_PERIOD = {
+COLORS_PERIOD      = {
     1:   '#FF0000',
     10:  '#008000',
     60:  '#000080',
 }
 
-LINESTYLE_PERIOD = {
+LINESTYLE_PERIOD   = {
     1:   '--',
     10:  '-.',
     60:  ':',
 }
 
-ECOLORS_PERIOD = {
+ECOLORS_PERIOD     = {
     1:   '#FA8072',
     10:  '#00FF00',
     60:  '#00FFFF',
@@ -122,7 +103,6 @@ def binDataFiles():
         for f in filepaths:
             output     += ['   {0}'.format(f)]
     output  = '\n'.join(output)
-    print output
     
     return dataBins
 
@@ -134,14 +114,18 @@ def gatherPerRunData(infilepaths,elemName):
         # print
         print 'Parsing {0} for {1}...'.format(infilepath,elemName),
         
-        # find colnumelem, colnumrunNum, cpuID
+        # find col_elemName, col_runNum, cpuID
+        col_elemName    = None
+        col_runNum      = None
+        cpuID           = None
         with open(infilepath,'r') as f:
             for line in f:
                 if line.startswith('# '):
+                    # col_elemName, col_runNum
                     elems        = re.sub(' +',' ',line[2:]).split()
                     numcols      = len(elems)
-                    colnumelem   = elems.index(elemName)
-                    colnumrunNum = elems.index('runNum')
+                    col_elemName = elems.index(elemName)
+                    col_runNum   = elems.index('runNum')
                     break
                 
                 if line.startswith('## '):
@@ -149,26 +133,24 @@ def gatherPerRunData(infilepaths,elemName):
                     m = re.search('cpuID\s+=\s+([0-9]+)',line)
                     if m:
                         cpuID = int(m.group(1))
-        
-        assert colnumelem
-        assert colnumrunNum
-        assert cpuID
+        assert col_elemName!=None
+        assert col_runNum!=None
+        assert cpuID!=None
         
         # parse data
-        
         with open(infilepath,'r') as f:
             for line in f:
                 if line.startswith('#') or not line.strip():
                     continue
                 m       = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-                runNum  = int(m.group(colnumrunNum+1))
+                runNum  = int(m.group(col_runNum+1))
                 try:
-                    elem         = float(m.group(colnumelem+1))
+                    elem         = float(m.group(col_elemName+1))
                 except:
                     try:
-                        elem     =   int(m.group(colnumelem+1))
+                        elem     =   int(m.group(col_elemName+1))
                     except:
-                        elem     =       m.group(colnumelem+1)
+                        elem     =       m.group(col_elemName+1)
                 
                 if (cpuID,runNum) not in valuesPerRun:
                     valuesPerRun[cpuID,runNum] = []
@@ -293,8 +275,8 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('arrange to be plotted'))
             f.write(pp.pformat(plotData))
     
     pkPeriods           = []
@@ -372,8 +354,8 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('initial data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('initial data'))
             f.write(pp.pformat(plotData))
     
     # collapse all cycles
@@ -395,8 +377,8 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
     # }
     
     if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('collapse all cycles'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('collapse all cycles'))
             f.write(pp.pformat(plotData))
     
     # calculate mean and confidence interval
@@ -412,8 +394,8 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
     # }
     
     if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('calculate mean and confidence interval'))
             f.write(pp.pformat(plotData))
     
     pkPeriods           = []
@@ -473,8 +455,8 @@ def gather_latency_data(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('gather raw data'))
             f.write(pp.pformat(plotData))
     
     # convert slots to seconds
@@ -491,8 +473,8 @@ def gather_latency_data(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('convert slots to seconds'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('convert slots to seconds'))
             f.write(pp.pformat(plotData))
     
     # filter out 0 values
@@ -513,13 +495,15 @@ def gather_latency_data(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','a') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('filter out 0 values'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('filter out 0 values'))
             f.write(pp.pformat(plotData))
     
     return plotData
 
 def plot_latency_vs_time(dataBins):
+    
+    print 'poipoi'
     
     plotData  = gather_latency_data(dataBins)
     
@@ -532,6 +516,8 @@ def plot_latency_vs_time(dataBins):
     )
 
 def plot_latency_vs_threshold(dataBins):
+    
+    print 'poipoi'
     
     plotData  = gather_latency_data(dataBins)
     
@@ -562,8 +548,8 @@ def gather_numCells_data(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('gather raw data'))
             f.write(pp.pformat(plotData))
     
     return plotData
@@ -596,7 +582,7 @@ def plot_numCells_vs_threshold(dataBins):
 
 def plot_otfActivity_vs_time(dataBins):
     
-    prettyp   = True
+    prettyp   = False
     
     # gather raw add/remove data
     otfAddData     = {}
@@ -619,8 +605,8 @@ def plot_otfActivity_vs_time(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw add/remove data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('gather raw add/remove data'))
             f.write(pp.pformat(otfAddData))
             f.write(pp.pformat(otfRemoveData))
     
@@ -656,8 +642,8 @@ def plot_otfActivity_vs_time(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('calculate mean and confidence interval'))
             f.write(pp.pformat(otfAddData))
             f.write(pp.pformat(otfRemoveData))
     
@@ -701,8 +687,8 @@ def plot_otfActivity_vs_time(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('arrange to be plotted'))
             f.write(pp.pformat(otfAddData))
             f.write(pp.pformat(otfRemoveData))
     
@@ -812,8 +798,8 @@ def gather_sumOtfActivity_data(dataBins):
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('gather raw data'))
             f.write(pp.pformat(plotData))
     
     return plotData
@@ -834,7 +820,7 @@ def plot_otfActivity_vs_threshold(dataBins):
 
 def plot_reliability_vs_threshold(dataBins):
     
-    prettyp = False
+    prettyp = True
     
     #===== gather data
     
@@ -849,120 +835,126 @@ def plot_reliability_vs_threshold(dataBins):
     
     # appGeneratedData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): [12,12,12,12,12,12,12,12,12],
-    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #         (cpuID,runNum): [12,12,12,12,12,12,12,12,12],
+    #         (cpuID,runNum): [12,12,12,12,12,0,0,0,0],
     #     }
     # }
     # appReachedData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): [12,12,12,12,12,12,12,12,12],
-    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #         (cpuID,runNum): [12,12,12,12,12,12,12,12,12],
+    #         (cpuID,runNum): [12,12,12,12,12,0,0,0,0],
     #     }
     # }
     # txQueueFillData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): [12,12,12,12,12,12,12,12,12],
-    #         (0,1): [12,12,12,12,12,0,0,0,0],
+    #         (cpuID,runNum): [12,12,12,12,12,12,12,12,12],
+    #         (cpuID,runNum): [12,12,12,12,12,0,0,0,0],
     #     }
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('gather raw add/remove data'))
+        with open('templog.txt','w') as f:
+            f.write('\n============ {0}\n'.format('gather raw add/remove data'))
             f.write('appGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
             f.write('appReachedData={0}'.format(pp.pformat(appReachedData)))
             f.write('txQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
     
     #===== format data
     
-    # sum up appGeneratedData and appReachedData
+    # sum up appGeneratedData
     for ((otfThreshold,pkPeriod),perRunData) in appGeneratedData.items():
-        for runNum in perRunData.keys():
-            perRunData[runNum] = sum(perRunData[runNum])
+        for cpuID_runNum in perRunData.keys():
+            perRunData[cpuID_runNum] = sum(perRunData[cpuID_runNum])
+    # sum up appReachedData
     for ((otfThreshold,pkPeriod),perRunData) in appReachedData.items():
-        for runNum in perRunData.keys():
-            perRunData[runNum] = sum(perRunData[runNum])
+        for cpuID_runNum in perRunData.keys():
+            perRunData[cpuID_runNum] = sum(perRunData[cpuID_runNum])
+    # get last of txQueueFillData
+    for ((otfThreshold,pkPeriod),perRunData) in txQueueFillData.items():
+        for cpuID_runNum in perRunData.keys():
+            perRunData[cpuID_runNum] = perRunData[cpuID_runNum][-1]
     
     # appGeneratedData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): 12,
-    #         (0,1): 14,
+    #         (cpuID,runNum): sum_over_all_cycles,
+    #         (cpuID,runNum): sum_over_all_cycles,
     #     }
     # }
     # appReachedData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): 12,
-    #         (0,1): 12,
+    #         (cpuID,runNum): sum_over_all_cycles,
+    #         (cpuID,runNum): sum_over_all_cycles,
     #     }
     # }
-    
-    if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('sum up appGeneratedData and appReachedData'))
-            f.write('appGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
-            f.write('appReachedData={0}'.format(pp.pformat(appReachedData)))
-    
-    # get last of txQueueFillData
-    for ((otfThreshold,pkPeriod),perRunData) in txQueueFillData.items():
-        for runNum in perRunData.keys():
-            perRunData[runNum] = perRunData[runNum][-1]
-    
     # txQueueFillData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): 12,
-    #         (0,1): 12,
+    #         (cpuID,runNum): value_last_cycles,
+    #         (cpuID,runNum): value_last_cycles,
     #     }
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('get last of txQueueFillData'))
-            f.write('txQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('format data'))
+            f.write('\nappGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
+            f.write('\nappReachedData={0}'.format(pp.pformat(appReachedData)))
+            f.write('\ntxQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
     
-    # calculate the end-to-end reliability for each runNum
+    #===== calculate the end-to-end reliability for each runNum
+    
     reliabilityData = {}
-    for otfpk in appReachedData.keys():
-        reliabilityData[otfpk] = {}
-        for runNum in appReachedData[otfpk]:
-            g = float(appGeneratedData[otfpk][runNum])
-            r = float(appReachedData[otfpk][runNum])
-            q = float(txQueueFillData[otfpk][runNum])
+    for otfThreshold_pkPeriod in appReachedData.keys():
+        reliabilityData[otfThreshold_pkPeriod] = {}
+        for cpuID_runNum in appReachedData[otfThreshold_pkPeriod]:
+            g = float(appGeneratedData[otfThreshold_pkPeriod][cpuID_runNum])
+            r = float(appReachedData[otfThreshold_pkPeriod][cpuID_runNum])
+            q = float(txQueueFillData[otfThreshold_pkPeriod][cpuID_runNum])
             assert g>0
             reliability = (r+q)/g
             assert reliability>=0
             assert reliability<=1
-            reliabilityData[otfpk][runNum] = reliability
+            reliabilityData[otfThreshold_pkPeriod][cpuID_runNum] = reliability
     
     # reliabilityData = {
     #     (otfThreshold,pkPeriod) = {
-    #         (0,0): 0.9558,
-    #         (0,1): 1.0000,
+    #         (cpuID,runNum): 0.9558,
+    #         (cpuID,runNum): 1.0000,
     #     }
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate the end-to-end reliability for each cycle'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('calculate the end-to-end reliability for each cycle'))
             f.write('reliabilityData={0}'.format(pp.pformat(reliabilityData)))
     
     # calculate the end-to-end reliability per (otfThreshold,pkPeriod)
-    for otfpk in appReachedData.keys():
-        vals = reliabilityData[otfpk].values()
+    for otfThreshold_pkPeriod in reliabilityData.keys():
+        vals = reliabilityData[otfThreshold_pkPeriod].values()
         (m,confint) = calcMeanConfInt(vals)
-        reliabilityData[otfpk] = {
+        reliabilityData[otfThreshold_pkPeriod] = {
             'mean':      m,
             'confint':   confint,
         }
     
     # reliabilityData = {
-    #     (otfThreshold,pkPeriod) = {'mean': 12, 'confint':12},
+    #     (otfThreshold,pkPeriod) = {
+    #         'mean': 12,
+    #         'confint':12,
     #     }
     # }
     
     if prettyp:
-        with open('poipoi.txt','w') as f:
-            f.write('\npoipoipoipoi {0}\n'.format('calculate the end-to-end reliability per (otfThreshold,pkPeriod)'))
+        with open('templog.txt','a') as f:
+            f.write('\n============ {0}\n'.format('calculate the end-to-end reliability per (otfThreshold,pkPeriod)'))
             f.write('reliabilityData={0}'.format(pp.pformat(reliabilityData)))
+    
+    pkPeriods           = []
+    otfThresholds       = []
+    for (otfThreshold,pkPeriod) in reliabilityData.keys():
+        pkPeriods      += [pkPeriod]
+        otfThresholds  += [otfThreshold]
+    pkPeriods           = list(set(pkPeriods))
+    otfThresholds       = list(set(otfThresholds))
     
     #===== plot
     
@@ -970,7 +962,7 @@ def plot_reliability_vs_threshold(dataBins):
     matplotlib.pyplot.ylim(ymin=0.94,ymax=1.015)
     matplotlib.pyplot.xlabel('OTF threshold (cells)')
     matplotlib.pyplot.ylabel('end-to-end reliability')
-    for period in [1,10,60]:
+    for period in pkPeriods:
         
         d = {}
         for ((otfThreshold,pkPeriod),data) in reliabilityData.items():
@@ -996,34 +988,24 @@ def plot_reliability_vs_threshold(dataBins):
     
 #============================ main ============================================
 
-# latency_vs_threshold
-# numCells_vs_threshold
-# numCells_vs_time
-# otfActivity_vs_threshold
-# otfActivity_vs_time
-# reliability_vs_threshold
-# reliability_vs_time
-
 def main():
     
     dataBins = binDataFiles()
-    print dataBins
     
     # latency
-    #plot_latency_vs_time(dataBins)
-    #plot_latency_vs_threshold(dataBins)
+    plot_latency_vs_time(dataBins)
+    plot_latency_vs_threshold(dataBins)
     
     # numCells
-    #plot_numCells_vs_time(dataBins)
-    #plot_numCells_vs_threshold(dataBins)
+    plot_numCells_vs_time(dataBins)
+    plot_numCells_vs_threshold(dataBins)
     
     # otfActivity
     plot_otfActivity_vs_time(dataBins)
-    #plot_otfActivity_vs_threshold(dataBins)
-    '''
+    plot_otfActivity_vs_threshold(dataBins)
+    
     # reliability
     plot_reliability_vs_threshold(dataBins)
-    '''
 
 if __name__=="__main__":
     main()
