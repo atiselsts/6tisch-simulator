@@ -15,7 +15,7 @@ MIN_TOTAL_RUNRUNS = 16 # poipoi should be 100
 def runOneSim(params):
     (cpuID,numRuns) = params
     command     = []
-    command    += ['python runOneSim.py']
+    command    += ['python runSimOneCpu.py']
     command    += ['--numCyclesPerRun 10']  # poipoi should be 100
     command    += ['--otfThreshold 0 10']   # poipoi should be 0,1,2,6,8,10
     command    += ['--pkPeriod 60 1']       # poipoi should be 60.0,10.0,1.0
