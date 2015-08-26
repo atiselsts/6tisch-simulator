@@ -364,6 +364,18 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
     
     #===== format data
     
+    # plotData = {
+    #     (otfThreshold,pkPeriod) = {
+    #         cycle0: [run0,run1, ...],
+    #         cycle1: [run0,run1, ...],
+    #     }
+    # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('initial data'))
+            f.write(pp.pformat(plotData))
+    
     # collapse all cycles
     for ((otfThreshold,pkPeriod),perCycleData) in plotData.items():
         temp = []
@@ -372,7 +384,14 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
         plotData[(otfThreshold,pkPeriod)] = temp
     
     # plotData = {
-    #     (otfThreshold,pkPeriod) = [12,12,12,12,12,12,12,12,12],
+    #     (otfThreshold,pkPeriod) = [
+    #         cycle0_run0,
+    #         cycle0_run1,
+    #         ...,
+    #         cycle1_run0,
+    #         cycle1_run1,
+    #         ...,
+    #     ]
     # }
     
     if prettyp:
@@ -397,13 +416,21 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
             f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
             f.write(pp.pformat(plotData))
     
+    pkPeriods           = []
+    otfThresholds       = []
+    for (otfThreshold,pkPeriod) in plotData.keys():
+        pkPeriods      += [pkPeriod]
+        otfThresholds  += [otfThreshold]
+    pkPeriods           = list(set(pkPeriods))
+    otfThresholds       = list(set(otfThresholds))
+    
     #===== plot
     
     fig = matplotlib.pyplot.figure()
     matplotlib.pyplot.ylim(ymin=ymin,ymax=ymax)
     matplotlib.pyplot.xlabel('OTF threshold (cells)')
     matplotlib.pyplot.ylabel(ylabel)
-    for period in [1,10,60]:
+    for period in pkPeriods:
         
         d = {}
         for ((otfThreshold,pkPeriod),data) in plotData.items():
@@ -569,7 +596,7 @@ def plot_numCells_vs_threshold(dataBins):
 
 def plot_otfActivity_vs_time(dataBins):
     
-    prettyp   = False
+    prettyp   = True
     
     # gather raw add/remove data
     otfAddData     = {}
@@ -590,6 +617,12 @@ def plot_otfActivity_vs_time(dataBins):
     #         1: [12,12,12,12,12,0,0,0,0],
     #     }
     # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('gather raw add/remove data'))
+            f.write(pp.pformat(otfAddData))
+            f.write(pp.pformat(otfRemoveData))
     
     #===== format data
     
@@ -621,6 +654,12 @@ def plot_otfActivity_vs_time(dataBins):
     #         1: {'mean': 12, 'confint':12},
     #     }
     # }
+    
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('calculate mean and confidence interval'))
+            f.write(pp.pformat(otfAddData))
+            f.write(pp.pformat(otfRemoveData))
     
     # arrange to be plotted
     for ((otfThreshold,pkPeriod),perCycleData) in otfAddData.items():
@@ -661,18 +700,32 @@ def plot_otfActivity_vs_time(dataBins):
     #     }
     # }
     
+    if prettyp:
+        with open('poipoi.txt','w') as f:
+            f.write('\npoipoipoipoi {0}\n'.format('arrange to be plotted'))
+            f.write(pp.pformat(otfAddData))
+            f.write(pp.pformat(otfRemoveData))
+    
+    pkPeriods           = []
+    otfThresholds       = []
+    for (otfThreshold,pkPeriod) in otfAddData.keys():
+        pkPeriods      += [pkPeriod]
+        otfThresholds  += [otfThreshold]
+    pkPeriods           = list(set(pkPeriods))
+    otfThresholds       = list(set(otfThresholds))
+    
     #===== plot
     
     fig = matplotlib.pyplot.figure()
     
-    def plotForEachThreshold(ax,plotData,period):
-        ax.set_xlim(xmin=0,xmax=20)
-        #ax.set_ylim(ymin=ymin,ymax=ymax)
-        ax.text(2,-15,'packet period {0}s'.format(period))
+    def plotForEachPkPeriod(ax,plotData,pkPeriod_p):
+        #ax.set_xlim(xmin=poi,xmax=poi)
+        #ax.set_ylim(ymin=0,ymax=50)
+        ax.text(1,70,'packet period {0}s'.format(pkPeriod_p))
         plots = []
-        for th in [0,4]:
+        for th in otfThresholds:
             for ((otfThreshold,pkPeriod),data) in plotData.items():
-                if otfThreshold==th and pkPeriod==period:
+                if otfThreshold==th and pkPeriod==pkPeriod_p:
                     plots += [
                         ax.errorbar(
                             x        = data['x'],
@@ -685,30 +738,28 @@ def plot_otfActivity_vs_time(dataBins):
                     ]
         return tuple(plots)
     
-    SUBPLOTHEIGHT = 0.28
+    # plot axis
+    allaxes = []
+    subplotHeight = 0.85/len(pkPeriods)
+    for (plotIdx,pkPeriod) in enumerate(pkPeriods):
+        ax = fig.add_axes([0.12, 0.10+plotIdx*subplotHeight, 0.85, subplotHeight])
+        legendPlots = plotForEachPkPeriod(ax,otfAddData,pkPeriod)
+        legendPlots = plotForEachPkPeriod(ax,otfRemoveData,pkPeriod)
+        allaxes += [ax]
     
-    # pkPeriod=1s
-    ax01 = fig.add_axes([0.10, 0.10+2*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax01.get_xaxis().set_visible(False)
-    plotForEachThreshold(ax01,otfAddData,1)
-    plotForEachThreshold(ax01,otfRemoveData,1)
+    # add x label
+    for ax in allaxes[1:]:
+        ax.get_xaxis().set_visible(False)
+    allaxes[0].set_xlabel('time (slotframe cycles)')
     
-    # pkPeriod=10s
-    ax10 = fig.add_axes([0.10, 0.10+1*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    ax10.get_xaxis().set_visible(False)
-    plotForEachThreshold(ax10,otfAddData,10)
-    plotForEachThreshold(ax10,otfRemoveData,10)
-    ax10.set_ylabel('number of add/remove OTF operations per cycle')
+    # add y label
+    allaxes[int(len(allaxes)/2)].set_ylabel('number of add/remove OTF\noperations per cycle')
     
-    # pkPeriod=60s
-    ax60 = fig.add_axes([0.10, 0.10+0*SUBPLOTHEIGHT, 0.85, SUBPLOTHEIGHT])
-    plotForEachThreshold(ax60,otfAddData,60)
-    (th0,th4) = plotForEachThreshold(ax60,otfRemoveData,60)
-    ax60.set_xlabel('time (in slotframe cycles)')
-    
+    # add legend
+    legendText = tuple(['OTF threshold {0} cells'.format(t) for t in otfThresholds])
     fig.legend(
-        (th0,th4),
-        ('OTF threshold 0 cells', 'OTF threshold 4 cells'),
+        legendPlots,
+        legendText,
         'upper right',
         prop={'size':8},
     )
@@ -959,18 +1010,17 @@ def main():
     print dataBins
     
     # latency
-    plot_latency_vs_time(dataBins)
-    '''
-    plot_latency_vs_threshold(dataBins)
+    #plot_latency_vs_time(dataBins)
+    #plot_latency_vs_threshold(dataBins)
     
     # numCells
-    plot_numCells_vs_time(dataBins)
-    plot_numCells_vs_threshold(dataBins)
+    #plot_numCells_vs_time(dataBins)
+    #plot_numCells_vs_threshold(dataBins)
     
     # otfActivity
-    #plot_otfActivity_vs_time(dataBins)
-    plot_otfActivity_vs_threshold(dataBins)
-    
+    plot_otfActivity_vs_time(dataBins)
+    #plot_otfActivity_vs_threshold(dataBins)
+    '''
     # reliability
     plot_reliability_vs_threshold(dataBins)
     '''
