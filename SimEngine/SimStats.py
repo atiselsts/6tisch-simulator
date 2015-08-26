@@ -94,7 +94,7 @@ class SimStats(object):
         
         # print
         if self.settings.cpuID==None:
-            print('      cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
+            print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
         
         # write statistics to output file
         self._fileWriteStats(

@@ -44,7 +44,7 @@ from SimGui        import SimGui
 
 #============================ defines =========================================
 
-#============================ body ============================================
+#============================ helpers =========================================
 
 def parseCliOptions():
     
@@ -208,7 +208,17 @@ def parseCliOptions():
     
     return options.__dict__
 
+def printOrLog(simParam,output):
+    if simParam['cpuID']!=None:
+        with open('cpu{0}.templog'.format(simParam['cpuID']),'w') as f:
+            f.write(output)
+    else:
+        print output
+
 def runSims(options):
+    
+    # record simulation start time
+    simStartTime   = time.time()
     
     # compute all the simulation parameter combinations
     combinationKeys     = sorted([k for (k,v) in options.items() if type(v)==list])
@@ -225,14 +235,6 @@ def runSims(options):
     # run a simulation for each set of simParams
     for (simParamNum,simParam) in enumerate(simParams):
         
-        # print
-        output  = []
-        output += ['parameters {0}/{1}'.format(simParamNum+1,len(simParams))]
-        if simParam['cpuID']==None:
-            output += [', cpuID {0}'.format(simParam['cpuID'])]
-        output  = ''.join(output)
-        print output
-        
         # record run start time
         runStartTime = time.time()
         
@@ -240,7 +242,13 @@ def runSims(options):
         for runNum in xrange(simParam['numRuns']):
             
             # print
-            print('   run {0}/{1}'.format(runNum+1,simParam['numRuns']))
+            output  = 'parameters {0}/{1}, run {2}/{3}'.format(
+               simParamNum+1,
+               len(simParams),
+               runNum+1,
+               simParam['numRuns']
+            )
+            printOrLog(simParam,output)
             
             # create singletons
             settings         = SimSettings.SimSettings(**simParam)
@@ -259,7 +267,13 @@ def runSims(options):
             simstats.destroy()
             simengine.destroy()
             settings.destroy()
-    
+        
+        # print
+        output  = 'simulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
+        printOrLog(simParam,output)
+
+#============================ main ============================================
+
 def main():
     # initialize logging
     logging.config.fileConfig('logging.conf')
@@ -277,17 +291,9 @@ def main():
         
         # start GUI's mainloop (in main thread)
         gui.mainloop()
-    else:
-        # record simulation start time
-        simStartTime   = time.time()
-        
+    else:        
         # run the simulations
         runSims(options)
-        
-        # print
-        print '\nSimulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
-
-#============================ main ============================================
 
 if __name__=="__main__":
     main()
