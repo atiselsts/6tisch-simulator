@@ -99,7 +99,7 @@ def parseCliOptions():
         dest       = 'pkPeriod',
         nargs      = '+',
         type       = float,
-        default    = [60.0,10.0,1.0],
+        default    = None,
         help       = '[app] Average period between two data packets (s).',
     )
     parser.add_argument( '--pkPeriodVar',
@@ -108,19 +108,19 @@ def parseCliOptions():
         default    = 0.05,
         help       = '[app] Variability of pkPeriod (0.00-1.00).',
     )
-    parser.add_argument( '--burstPeriod',
-        dest       = 'burstPeriod',
+    parser.add_argument( '--burstTimestamp',
+        dest       = 'burstTimestamp',
         nargs      = '+',
         type       = float,
-        default    = 20.0,
-        help       = '[app] Period between burst (s).',
+        default    = 20,
+        help       = '[app] Timestamp when the burst happens (s).',
     )
     parser.add_argument( '--numPacketsBurst',
         dest       = 'numPacketsBurst',
         nargs      = '+',
         type       = int,
-        default    = None,
-        help       = '[app] Number of packets in a burst.',
+        default    = 5,
+        help       = '[app] Number of packets in a burst, per node.',
     )
     # rpl
     parser.add_argument( '--dioPeriod',
@@ -134,7 +134,7 @@ def parseCliOptions():
         dest       = 'otfThreshold',
         nargs      = '+',
         type       = int,
-        default    = [0,1,2,6,8,10],
+        default    = [1,4,8],
         help       = '[otf] OTF threshold (cells).',
     )
     parser.add_argument( '--otfHousekeepingPeriod',

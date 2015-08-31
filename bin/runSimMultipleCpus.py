@@ -10,14 +10,12 @@ import time
 import math
 import multiprocessing
 
-MIN_TOTAL_RUNRUNS = 16 # poipoi should be 100
+MIN_TOTAL_RUNRUNS = 100
 
 def runOneSim(params):
     (cpuID,numRuns) = params
     command     = []
     command    += ['python runSimOneCpu.py']
-    command    += ['--otfThreshold 0 10']   # poipoi should be 0,1,2,6,8,10
-    command    += ['--pkPeriod 60 1']       # poipoi should be 60.0,10.0,1.0
     command    += ['--numRuns {0}'.format(numRuns)]
     command    += ['--cpuID {0}'.format(cpuID)]
     #command    += ['&']

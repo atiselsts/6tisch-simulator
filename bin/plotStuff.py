@@ -21,43 +21,52 @@ import matplotlib.pyplot
 
 #============================ defines =========================================
 
-DATADIR            = 'simData'
-CONFINT            = 0.95
+DATADIR       = 'simData'
+CONFINT       = 0.95
 
-COLORS_TH          = {
-    0:   '#FF0000',
-    4:   '#008000',
-    10:  '#000080',
+COLORS_TH     = {
+    0:        'red',
+    1:        'green',
+    4:        'blue',
+    8:        'magenta',
+    10:       'black',
 }
 
 LINESTYLE_TH       = {
-    0:   '--',
-    4:   '-.',
-    10:  ':',
+    0:        '--',
+    1:        '--',
+    4:        '-.',
+    8:        '-.',
+    10:       ':',
 }
 
 ECOLORS_TH         = {
-    0:   '#FA8072',
-    4:   '#00FF00',
-    10:  '#00FFFF',
+    0:        'red',
+    1:        'green',
+    4:        'blue',
+    8:        'magenta',
+    10:       'black',
 }
 
 COLORS_PERIOD      = {
-    1:   '#FF0000',
-    10:  '#008000',
-    60:  '#000080',
+    'NA':     'red',
+    1:        'green',
+    10:       'blue',
+    60:       'black',
 }
 
 LINESTYLE_PERIOD   = {
-    1:   '--',
-    10:  '-.',
-    60:  ':',
+    'NA':     '--',
+    1:        '--',
+    10:       '-.',
+    60:       ':',
 }
 
 ECOLORS_PERIOD     = {
-    1:   '#FA8072',
-    10:  '#00FF00',
-    60:  '#00FFFF',
+    'NA':     'red',
+    1:        'green',
+    10:       'blue',
+    60:       'magenta',
 }
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -93,6 +102,8 @@ def binDataFiles():
                 m = re.search('pkPeriod\s+=\s+([\.0-9]+)',line)
                 if m:
                     pkPeriod     = float(m.group(1))
+                else:
+                    pkPeriod     = 'NA'
             if (otfThreshold,pkPeriod) not in dataBins:
                 dataBins[(otfThreshold,pkPeriod)] = []
             dataBins[(otfThreshold,pkPeriod)] += [infilepath]
@@ -231,7 +242,7 @@ def getSlotDuration(dataBins):
 
 #============================ plotters ========================================
 
-def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
+def plot_vs_time(plotData,ymin=None,ymax=None,ylabel=None,filename=None,doPlot=True):
     
     prettyp   = False
     
@@ -279,22 +290,26 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
             f.write('\n============ {0}\n'.format('arrange to be plotted'))
             f.write(pp.pformat(plotData))
     
+    if not doPlot:
+        return plotData
+    
+    #===== plot
+    
     pkPeriods           = []
     otfThresholds       = []
     for (otfThreshold,pkPeriod) in plotData.keys():
         pkPeriods      += [pkPeriod]
         otfThresholds  += [otfThreshold]
-    pkPeriods           = list(set(pkPeriods))
-    otfThresholds       = list(set(otfThresholds))
-    
-    #===== plot
+    pkPeriods           = sorted(list(set(pkPeriods)))
+    otfThresholds       = sorted(list(set(otfThresholds)), reverse=True)
     
     fig = matplotlib.pyplot.figure()
     
     def plotForEachPkPeriod(ax,plotData,pkPeriod_p):
         ax.set_xlim(xmin=0,xmax=100)
         ax.set_ylim(ymin=ymin,ymax=ymax)
-        ax.text(2,0.9*ymax,'packet period {0}s'.format(pkPeriod_p))
+        if pkPeriod_p!='NA':
+            ax.text(2,0.9*ymax,'packet period {0}s'.format(pkPeriod_p))
         plots = []
         for th in otfThresholds:
             for ((otfThreshold,pkPeriod),data) in plotData.items():
@@ -313,10 +328,31 @@ def plot_vs_time(plotData,ymin,ymax,ylabel,filename):
     
     # plot axis
     allaxes = []
-    subplotHeight = 0.85/len(pkPeriods)
-    for (plotIdx,pkPeriod) in enumerate(pkPeriods):
-        ax = fig.add_axes([0.10, 0.10+plotIdx*subplotHeight, 0.85, subplotHeight])
-        legendPlots = plotForEachPkPeriod(ax,plotData,pkPeriod)
+    if 'NA' not in pkPeriods:
+        subplotHeight = 0.85/len(pkPeriods)
+        for (plotIdx,pkPeriod) in enumerate(pkPeriods):
+            ax = fig.add_axes([0.10, 0.10+plotIdx*subplotHeight, 0.85, subplotHeight])
+            legendPlots = plotForEachPkPeriod(ax,plotData,pkPeriod)
+            allaxes += [ax]
+    else:
+        ax = fig.add_axes([0.10, 0.10, 0.85, 0.85])
+        ax.set_xlim(xmin=0,xmax=100)
+        ax.set_ylim(ymin=ymin,ymax=ymax)
+        plots = []
+        for th in otfThresholds:
+            for ((otfThreshold,pkPeriod),data) in plotData.items():
+                if otfThreshold==th:
+                    plots += [
+                        ax.errorbar(
+                            x        = data['x'],
+                            y        = data['y'],
+                            yerr     = data['yerr'],
+                            color    = COLORS_TH[th],
+                            ls       = LINESTYLE_TH[th],
+                            ecolor   = ECOLORS_TH[th],
+                        )
+                    ]
+        legendPlots = tuple(plots)
         allaxes += [ax]
     
     # add x label
@@ -403,8 +439,8 @@ def plot_vs_threshold(plotData,ymin,ymax,ylabel,filename):
     for (otfThreshold,pkPeriod) in plotData.keys():
         pkPeriods      += [pkPeriod]
         otfThresholds  += [otfThreshold]
-    pkPeriods           = list(set(pkPeriods))
-    otfThresholds       = list(set(otfThresholds))
+    pkPeriods           = sorted(list(set(pkPeriods)))
+    otfThresholds       = sorted(list(set(otfThresholds)), reverse=True)
     
     #===== plot
     
@@ -503,28 +539,24 @@ def gather_latency_data(dataBins):
 
 def plot_latency_vs_time(dataBins):
     
-    print 'poipoi'
-    
     plotData  = gather_latency_data(dataBins)
     
     plot_vs_time(
         plotData = plotData,
         ymin     = 0,
-        ymax     = 4.0,
+        ymax     = 8,
         ylabel   = 'end-to-end latency (s)',
         filename = 'latency_vs_time',
     )
 
 def plot_latency_vs_threshold(dataBins):
     
-    print 'poipoi'
-    
     plotData  = gather_latency_data(dataBins)
     
     plot_vs_threshold(
         plotData   = plotData,
         ymin       = 0,
-        ymax       = 1.6,
+        ymax       = 3,
         ylabel     = 'end-to-end latency (s)',
         filename   = 'latency_vs_threshold',
     )
@@ -561,7 +593,7 @@ def plot_numCells_vs_time(dataBins):
     plot_vs_time(
         plotData = plotData,
         ymin     = 0,
-        ymax     = 600,
+        ymax     = 200,
         ylabel   = 'number of scheduled cells',
         filename = 'numCells_vs_time',
     )
@@ -578,9 +610,165 @@ def plot_numCells_vs_threshold(dataBins):
         filename   = 'numCells_vs_threshold',
     )
 
+def plot_numCells_otfActivity_vs_time(dataBins):
+    
+    plotData  = gather_numCells_data(dataBins)
+    
+    plotDataNumCells = plot_vs_time(
+        plotData   = plotData,
+        doPlot     = False,
+    )
+    
+    (otfAddData,otfRemoveData) = plot_otfActivity_vs_time(
+        dataBins   = dataBins,
+        doPlot     = False,
+    )
+    
+    #===== plot
+    
+    allaxes = []
+    pkPeriods           = []
+    otfThresholds       = []
+    for (otfThreshold,pkPeriod) in plotDataNumCells.keys():
+        pkPeriods      += [pkPeriod]
+        otfThresholds  += [otfThreshold]
+    pkPeriods           = sorted(list(set(pkPeriods)))
+    otfThresholds       = sorted(list(set(otfThresholds)), reverse=True)
+    
+    fig = matplotlib.pyplot.figure(figsize=(8, 4))
+    
+    #=== otfActivity
+    
+    def plotForEachPkPeriodOtfActivity(ax,plotData,pkPeriod_p):
+        plots = []
+        for th in otfThresholds:
+            for ((otfThreshold,pkPeriod),data) in plotData.items():
+                if otfThreshold==th and pkPeriod==pkPeriod_p:
+                    plots += [
+                        ax.errorbar(
+                            x        = data['x'],
+                            y        = data['y'],
+                            yerr     = data['yerr'],
+                            color    = COLORS_TH[th],
+                            ls       = LINESTYLE_TH[th],
+                            ecolor   = ECOLORS_TH[th],
+                        )
+                    ]
+        return tuple(plots)
+    
+    def maxY(plotData):
+        returnVal = []
+        for ((otfThreshold,pkPeriod),data) in plotData.items():
+            returnVal += data['y']
+        return max(returnVal)
+    
+    # plot axis
+    ax = fig.add_axes([0.12, 0.54, 0.85, 0.40])
+    ax.set_xlim(xmin= 0,xmax=100)
+    ax.set_ylim(ymin=-4,ymax=8)
+    ax.annotate(
+        'max. value {0:.0f}'.format(maxY(otfAddData)),
+        xy=(10, 7.9),
+        xycoords='data',
+        xytext=(22, 4),
+        textcoords='data',
+        arrowprops=dict(arrowstyle="->",facecolor='black'),
+        horizontalalignment='right',
+        verticalalignment='top',
+    )
+    ax.annotate(
+        'add cells',
+        xytext=(50,0.2),
+        xy    =(50,3.8),
+        xycoords='data',
+        textcoords='data',
+        arrowprops=dict(arrowstyle="->",facecolor='black'),
+        horizontalalignment='center',
+        verticalalignment='bottom',
+    )
+    ax.annotate(
+        'remove cells',
+        xytext=(50,-0.2),
+        xy    =(50,-3.8),
+        xycoords='data',
+        textcoords='data',
+        arrowprops=dict(arrowstyle="->",facecolor='black'),
+        horizontalalignment='center',
+        verticalalignment='top',
+    )
+    plotForEachPkPeriodOtfActivity(ax,otfAddData,pkPeriod)
+    plotForEachPkPeriodOtfActivity(ax,otfRemoveData,pkPeriod)
+    allaxes += [ax]    
+    
+    # add x/y labels
+    ax.set_xticks([])
+    ax.set_ylabel('num. add/remove OTF\noperations per cycle')
+    
+    #=== numCells
+    
+    # plot axis
+    ax = fig.add_axes([0.12, 0.14, 0.85, 0.40])
+    ax.set_xlim(xmin=0,xmax=100)
+    ax.set_ylim(ymin=0,ymax=199)
+    plots = []
+    for th in otfThresholds:
+        for ((otfThreshold,pkPeriod),data) in plotDataNumCells.items():
+            if otfThreshold==th:
+                plots += [
+                    ax.errorbar(
+                        x        = data['x'],
+                        y        = data['y'],
+                        yerr     = data['yerr'],
+                        color    = COLORS_TH[th],
+                        ls       = LINESTYLE_TH[th],
+                        ecolor   = ECOLORS_TH[th],
+                    )
+                ]
+    legendPlots = tuple(plots)
+    
+    # add x/y labels
+    ax.set_xlabel('time (slotframe cycles)')
+    ax.set_ylabel('number of\nscheduled cells')
+    ax.annotate(
+        'first burst\n(5 packets per node)',
+        xy=(20, 120),
+        xycoords='data',
+        xytext=(20, 35),
+        textcoords='data',
+        arrowprops=dict(arrowstyle="->",facecolor='black'),
+        horizontalalignment='center',
+        verticalalignment='center',
+    )
+    ax.annotate(
+        'second burst\n(5 packets per node)',
+        xy=(60, 120),
+        xycoords='data',
+        xytext=(60, 35),
+        textcoords='data',
+        arrowprops=dict(arrowstyle="->",facecolor='black'),
+        horizontalalignment='center',
+        verticalalignment='center',
+    )
+    
+    #=== legend
+    
+    legendText = tuple(['OTF threshold {0} cells'.format(t) for t in otfThresholds])
+    fig.legend(
+        legendPlots,
+        legendText,
+        'upper right',
+        prop={'size':11},
+    )
+    
+    allaxes += [ax]
+    
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'numCells_otfActivity_vs_time.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,'numCells_otfActivity_vs_time.eps'))
+    matplotlib.pyplot.close('all')
+    
 #===== otfActivity
 
-def plot_otfActivity_vs_time(dataBins):
+def plot_otfActivity_vs_time(dataBins,doPlot=True):
     
     prettyp   = False
     
@@ -692,13 +880,16 @@ def plot_otfActivity_vs_time(dataBins):
             f.write(pp.pformat(otfAddData))
             f.write(pp.pformat(otfRemoveData))
     
+    if not doPlot:
+        return (otfAddData,otfRemoveData)
+    
     pkPeriods           = []
     otfThresholds       = []
     for (otfThreshold,pkPeriod) in otfAddData.keys():
         pkPeriods      += [pkPeriod]
         otfThresholds  += [otfThreshold]
-    pkPeriods           = list(set(pkPeriods))
-    otfThresholds       = list(set(otfThresholds))
+    pkPeriods           = sorted(list(set(pkPeriods)))
+    otfThresholds       = sorted(list(set(otfThresholds)), reverse=True)
     
     #===== plot
     
@@ -707,7 +898,8 @@ def plot_otfActivity_vs_time(dataBins):
     def plotForEachPkPeriod(ax,plotData,pkPeriod_p):
         #ax.set_xlim(xmin=poi,xmax=poi)
         #ax.set_ylim(ymin=0,ymax=50)
-        ax.text(1,70,'packet period {0}s'.format(pkPeriod_p))
+        if pkPeriod_p!='NA':
+            ax.text(1,70,'packet period {0}s'.format(pkPeriod_p))
         plots = []
         for th in otfThresholds:
             for ((otfThreshold,pkPeriod),data) in plotData.items():
@@ -953,8 +1145,8 @@ def plot_reliability_vs_threshold(dataBins):
     for (otfThreshold,pkPeriod) in reliabilityData.keys():
         pkPeriods      += [pkPeriod]
         otfThresholds  += [otfThreshold]
-    pkPeriods           = list(set(pkPeriods))
-    otfThresholds       = list(set(otfThresholds))
+    pkPeriods           = sorted(list(set(pkPeriods)))
+    otfThresholds       = sorted(list(set(otfThresholds)), reverse=True)
     
     #===== plot
     
@@ -999,6 +1191,7 @@ def main():
     # numCells
     plot_numCells_vs_time(dataBins)
     plot_numCells_vs_threshold(dataBins)
+    plot_numCells_otfActivity_vs_time(dataBins)
     
     # otfActivity
     plot_otfActivity_vs_time(dataBins)
