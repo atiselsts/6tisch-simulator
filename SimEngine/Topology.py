@@ -219,3 +219,82 @@ class Topology(object):
             (mote.x - neighbor.x)**2 +
             (mote.y - neighbor.y)**2
         )
+
+#============================ main ============================================
+        
+def main():
+    import Mote
+    import SimSettings
+    
+    NOTVISITED     = 'notVisited'
+    MARKED         = 'marked'
+    VISITED        = 'visited'
+    
+    allRanks = []
+    for _ in range(100):
+        print '.',
+        # create topology
+        settings                           = SimSettings.SimSettings()
+        settings.numMotes                  = 50
+        settings.pkPeriod                  = 1.0
+        settings.otfHousekeepingPeriod     = 1.0
+        settings.sixtopPdrThreshold        = None
+        settings.sixtopHousekeepingPeriod  = 1.0
+        settings.minRssi                   = None
+        settings.squareSide                = 2.0
+        settings.slotframeLength           = 101
+        settings.slotDuration              = 0.010
+        settings.sixtopNoHousekeeping      = 0
+        settings.numPacketsBurst           = None
+        motes                              = [Mote.Mote(id) for id in range(settings.numMotes)]
+        topology                           = Topology(motes)
+        topology.createTopology()
+        
+        # print stats
+        hopVal    = {}
+        moteState = {}
+        for mote in motes:
+            if mote.id==0:
+                hopVal[mote]     = 0
+                moteState[mote]  = MARKED
+            else:
+                hopVal[mote]     = None
+                moteState[mote]  = NOTVISITED
+        
+        while (NOTVISITED in moteState.values()) or (MARKED in moteState.values()):
+            
+            # find marked mote
+            for (currentMote,s) in moteState.items():
+                if s==MARKED:
+                   break
+            assert moteState[currentMote]==MARKED
+            
+            # mark all of its neighbors with pdr >50%
+            for neighbor in motes:
+                try:
+                    if currentMote.getPDR(neighbor)>0.5:
+                        if moteState[neighbor]==NOTVISITED:
+                            moteState[neighbor]      = MARKED
+                            hopVal[neighbor]         = hopVal[currentMote]+1
+                        if moteState[neighbor]==VISITED:
+                            if hopVal[currentMote]+1<hopVal[neighbor]:
+                                hopVal[neighbor]     = hopVal[currentMote]+1
+                except KeyError as err:
+                    pass # happens when no a neighbor
+            
+            # mark it as visited
+            moteState[currentMote]=VISITED
+        
+        allRanks += hopVal.values()
+    
+    assert len(allRanks)==100*50
+    
+    print ''
+    print 'average rank: {0}'.format(float(sum(allRanks))/float(len(allRanks)))
+    print 'max rank:     {0}'.format(max(allRanks))
+    print ''
+    
+    raw_input("Script ended. Press Enter to close.")
+    
+if __name__=="__main__":
+    main()
