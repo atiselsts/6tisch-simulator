@@ -15,7 +15,7 @@ MIN_TOTAL_RUNRUNS = 100
 def runOneSim(params):
     (cpuID,numRuns) = params
     command     = []
-    command    += ['python runSimOneCpu.py']
+    command    += ['python runSimOneCPU.py']
     command    += ['--numRuns {0}'.format(numRuns)]
     command    += ['--cpuID {0}'.format(cpuID)]
     #command    += ['&']

@@ -43,6 +43,8 @@ class Mote(object):
     
     DIR_TX                             = 'TX'
     DIR_RX                             = 'RX'
+    DIR_TXRX_SHARED                    = 'SHARED'
+    
     
     DEBUG                              = 'DEBUG'
     INFO                               = 'INFO'
@@ -51,6 +53,8 @@ class Mote(object):
     
     #=== app
     APP_TYPE_DATA                      = 'DATA'
+    RPL_TYPE_DIO                       = 'DIO'
+
     #=== rpl
     RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
     RPL_MIN_HOP_RANK_INCREASE          = 256
@@ -79,6 +83,8 @@ class Mote(object):
     CHARGE_TxData_uC                   = 49.37
     CHARGE_RxDataTxAck_uC              = 76.90
     CHARGE_RxData_uC                   = 64.65
+    
+    BROADCAST_ADDRESS                  = 0xffff
     
     def __init__(self,id):
         
@@ -206,7 +212,9 @@ class Mote(object):
         
         # schedule next _app_action_sendSinglePacket
         self._app_schedule_sendSinglePacket()
-    
+        
+        
+          
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
         
@@ -235,6 +243,35 @@ class Mote(object):
                 self._stats_incrementMoteStats('droppedAppFailedEnqueue')
             
     
+    def _rpl_action_enqueueDIO(self):
+        ''' enqueue DIO packet into stack '''
+        
+        # only start sending data if I have some TX cells
+        if self.getTxCells():
+            
+            # create new packet
+            newPacket = {
+                'asn':            self.engine.getAsn(),
+                'type':           self.RPL_TYPE_DIO,
+                'payload':        [self.rank], # the payload is the rpl rank
+                'retriesLeft':    self.TSCH_MAXTXRETRIES
+            }
+            
+            # update mote stats
+            self._stats_incrementMoteStats('appGenerated')
+            
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+            
+            if isEnqueued:
+                # increment traffic
+                self._otf_incrementIncomingTraffic(self)
+            else:
+                # update mote stats
+                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+            
+    
+    
     #===== rpl
     
     def _rpl_schedule_sendDIO(self,firstDIO=False):
@@ -257,50 +294,88 @@ class Mote(object):
                 priority    = 3,
             )
     
+    def _rpl_action_receiveDIO(self,type,smac,payload):             
+                   
+     
+        if self.dagRoot:
+            return
+                    
+        if self.rank!=None and self.dagRank!=None:
+            nei = self._myNeigbors()[smac]
+            rank = payload
+            
+            if nei not in self.rplRxDIO:
+                    self.rplRxDIO[nei]       = 0
+            self.rplRxDIO[nei]              += 1
+        
+                        #check if my rank is higher than the rank to this neighbor
+            mynewCandidateRank = rank + self._rpl_calcRankIncrease(nei)            
+            if ( mynewCandidateRank < self.rank ):
+                #swap rank
+                self.rank =  mynewCandidateRank
+                self.dagRank = self.rank/self.RPL_MIN_HOP_RANK_INCREASE
+            
+            # update time correction
+            if nei.preferredParent == self:
+               asn                     = self.engine.getAsn() 
+               nei.timeCorrectedSlot   = asn
+                      
+  
+    
+#     def _rpl_action_sendDIO(self):
+#          
+#         with self.dataLock:
+#              
+#             if self.rank!=None and self.dagRank!=None:
+#                  
+#                 # update mote stats
+#                 self._stats_incrementMoteStats('rplTxDIO')
+#                  
+#                 # "send" DIO to all neighbors
+#                 for neighbor in self._myNeigbors():
+#                      
+#                     # don't update DAGroot
+#                     if neighbor.dagRoot:
+#                         continue
+#                      
+#                     # don't update poor link
+#                     if neighbor._rpl_calcRankIncrease(self)>self.RPL_MAX_RANK_INCREASE:
+#                         continue
+#                      
+#                     # in neighbor, update my rank/DAGrank
+#                     neighbor.neighborDagRank[self]    = self.dagRank
+#                     neighbor.neighborRank[self]       = self.rank
+#                      
+#                     # in neighbor, update number of DIOs received
+#                     if self not in neighbor.rplRxDIO:
+#                         neighbor.rplRxDIO[self]       = 0
+#                     neighbor.rplRxDIO[self]          += 1
+#                      
+#                     # update my mote stats
+#                     self._stats_incrementMoteStats('rplRxDIO') # TODO: TX DIO?
+#                      
+#                     # skip useless housekeeping
+#                     if not neighbor.rank or self.rank<neighbor.rank:
+#                         # in neighbor, do RPL housekeeping
+#                         neighbor._rpl_housekeeping()                        
+#                      
+#                     # update time correction
+#                     if neighbor.preferredParent == self:
+#                         asn                        = self.engine.getAsn() 
+#                         neighbor.timeCorrectedSlot = asn
+#              
+#             # schedule to send the next DIO
+#             self._rpl_schedule_sendDIO()
+#      
+#     
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
+      
+            self._rpl_action_enqueueDIO()
             
-            if self.rank!=None and self.dagRank!=None:
-                
-                # update mote stats
-                self._stats_incrementMoteStats('rplTxDIO')
-                
-                # "send" DIO to all neighbors
-                for neighbor in self._myNeigbors():
-                    
-                    # don't update DAGroot
-                    if neighbor.dagRoot:
-                        continue
-                    
-                    # don't update poor link
-                    if neighbor._rpl_calcRankIncrease(self)>self.RPL_MAX_RANK_INCREASE:
-                        continue
-                    
-                    # in neighbor, update my rank/DAGrank
-                    neighbor.neighborDagRank[self]    = self.dagRank
-                    neighbor.neighborRank[self]       = self.rank
-                    
-                    # in neighbor, update number of DIOs received
-                    if self not in neighbor.rplRxDIO:
-                        neighbor.rplRxDIO[self]       = 0
-                    neighbor.rplRxDIO[self]          += 1
-                    
-                    # update my mote stats
-                    self._stats_incrementMoteStats('rplRxDIO') # TODO: TX DIO?
-                    
-                    # skip useless housekeeping
-                    if not neighbor.rank or self.rank<neighbor.rank:
-                        # in neighbor, do RPL housekeeping
-                        neighbor._rpl_housekeeping()                        
-                    
-                    # update time correction
-                    if neighbor.preferredParent == self:
-                        asn                        = self.engine.getAsn() 
-                        neighbor.timeCorrectedSlot = asn
-            
-            # schedule to send the next DIO
             self._rpl_schedule_sendDIO()
+        
     
     def _rpl_housekeeping(self):
         with self.dataLock:
@@ -416,9 +491,9 @@ class Mote(object):
             if not etx:
                 return
             
-            # per draft-ietf-6tisch-minimal, rank increase is 2*ETX*RPL_MIN_HOP_RANK_INCREASE
-            return int(2*self.RPL_MIN_HOP_RANK_INCREASE*etx)
-    
+            # per draft-ietf-6tisch-minimal, rank increase is (3*ETX-2)*RPL_MIN_HOP_RANK_INCREASE
+            return int(((3*etx) - 2)*self.RPL_MIN_HOP_RANK_INCREASE) 
+        
     #===== otf
     
     def _otf_schedule_housekeeping(self):
@@ -1046,9 +1121,11 @@ class Mote(object):
                 # check whether packet to send
                 self.pktToSend = None
                 if self.txQueue:
-                    self.pktToSend = self.txQueue[0]
-                
-                # send packet
+                    for pkt in self.txQueue:
+                        if pkt.type == self.APP_TYPE_DATA:
+                            self.pktToSend = pkt
+                    
+                # seind packet
                 if self.pktToSend:
                     
                     cell['numTx'] += 1
@@ -1066,7 +1143,45 @@ class Mote(object):
                     
                     # log charge usage
                     self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
-            
+             
+            elif cell['dir']==self.DIR_TXRX_SHARED:
+                self.pktToSend = None
+                if self.txQueue:
+                    for pkt in self.txQueue:
+                        if pkt.type == self.RPL_TYPE_DIO:
+                            self.pktToSend = pkt
+                
+                # send packet
+                if self.pktToSend:
+                    
+                    cell['numTx'] += 1
+                    
+                    self.propagation.startBroadcastTx(
+                        channel   = cell['ch'],
+                        type      = self.pktToSend['type'],
+                        smac      = self,
+                        dmac      = self.BROADCAST_ADDRESS,
+                        payload   = self.pktToSend['payload'],
+                    )
+                
+                    self._logChargeConsumed(self.CHARGE_TxData_uC)
+                
+                else:
+                    # start listening
+                     self.propagation.startRx(
+                         mote          = self,
+                        channel       = cell['ch'],
+                     )
+                     # log charge usage
+                    #self._logChargeConsumed(self.CHARGE_RxData_uC)
+                
+               # indicate that we're waiting for the TXRXSHARED operation to finish
+                
+                self.waitingFor   = self.DIR_TXRX_SHARED
+                    
+                    
+                
+
             # schedule next active cell
             self._tsch_schedule_activeCell()
     
@@ -1097,6 +1212,37 @@ class Mote(object):
                     (cell[0],cell[1],cell[2],neighbor.id),
                 )
             self._tsch_schedule_activeCell()
+    
+    
+    def _tsch_addBroadcastCells(self,address,cellList):
+        ''' adds cell(s) to the schedule '''
+        
+        with self.dataLock:
+            for cell in cellList:
+                assert cell[0] not in self.schedule.keys()
+                self.schedule[cell[0]] = {
+                    'ch':                        cell[1],
+                    'dir':                       cell[2],
+                    'neighbor':                  None,
+                    'numTx':                     0,
+                    'numTxAck':                  0,
+                    'numRx':                     0,
+                    'history':                   [],
+                    'rxDetectedCollision':       False,
+                    'debug_canbeInterfered':     [],                      # [debug] shows schedule collision that can be interfered with minRssi or larger level 
+                    'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level 
+                    'debug_lockInterference':    [],                      # [debug] shows locking on the interference packet
+                    'debug_cellCreatedAsn':      self.engine.getAsn(),    # [debug]
+                }
+                # log
+                self._log(
+                    self.INFO,
+                    "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
+                    (cell[0],cell[1],cell[2],address),
+                )
+            self._tsch_schedule_activeCell()
+    
+    
     
     def _tsch_removeCells(self,neighbor,tsList):
         ''' removes cell(s) from the schedule '''
@@ -1247,12 +1393,24 @@ class Mote(object):
                     self._stats_logHopsStat(payload[2])
                     
                     (isACKed, isNACKed) = (True, False)
-                
+                    
                 else:
                     # relaying packet
-                    
                     # count incoming traffic for each node
                     self._otf_incrementIncomingTraffic(smac)
+                    
+                    if (type == self.RPL_TYPE_DIO):
+                        # GOT A DIO!
+                        self._rpl_action_receiveDIO(type,smac,payload)
+                        
+                        (isACKed, isNACKed) = (False, False)
+                
+                        self.waitingFor = None
+            
+                        return isACKed, isNACKed
+                        
+                        # todo account for stats.
+                        break;
                     
                     # update the number of hops
                     newPayload     = copy.deepcopy(payload)
@@ -1265,6 +1423,7 @@ class Mote(object):
                         'payload':     newPayload,
                         'retriesLeft': self.TSCH_MAXTXRETRIES
                     }
+                    
                     
                     # enqueue packet in TSCH queue
                     isEnqueued = self._tsch_enqueue(relayPacket)
@@ -1384,6 +1543,11 @@ class Mote(object):
                 self._app_schedule_sendPacketBurst()
             else:
                 self._app_schedule_sendSinglePacket(firstPacket=True)
+        
+        # add minimal cell
+        self._tsch_addBroadcastCells(self.BROADCAST_ADDRESS,[{0,0,self.DIR_TXRX_SHARED}])
+
+        
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
         # OTF
@@ -1392,6 +1556,7 @@ class Mote(object):
         # 6top
         if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
+        
         # tsch
         self._tsch_schedule_activeCell()
     
