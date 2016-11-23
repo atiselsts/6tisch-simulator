@@ -247,7 +247,7 @@ class Mote(object):
         ''' enqueue DIO packet into stack '''
         
         # only start sending data if I have some TX cells
-        if self.getTxCells():
+        if self.getSharedCells():
             
             # create new packet
             newPacket = {
@@ -1029,7 +1029,7 @@ class Mote(object):
             
             return False
         
-        elif not self.getTxCells():
+        elif not (self.getTxCells() or self.getSharedCells()):
             # I don't have any transmit cells
             
             # increment mote state
@@ -1575,6 +1575,11 @@ class Mote(object):
         with self.dataLock:
             return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
     
+
+    def getSharedCells(self):
+        with self.dataLock:
+            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == self.DIR_TXRX_SHARED]
+
     #===== stats
     
     # mote state
@@ -1586,6 +1591,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
+            returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
             returnVal['aveHops']            = self._stats_getAveHops()
