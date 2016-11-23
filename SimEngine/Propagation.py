@@ -38,7 +38,6 @@ class Propagation(object):
     _instance      = None
     _init          = False
     
-    
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(Propagation,cls).__new__(cls, *args, **kwargs)
@@ -62,7 +61,7 @@ class Propagation(object):
         self.dataLock                  = threading.Lock()
         self.receivers                 = [] # motes with radios currently listening
         self.transmissions             = [] # ongoing transmissions
-        self.transmissionsBroadcast    = [] # ongoing transmissions broadcast
+        
         # schedule propagation task
         self._schedule_propagate()
     
@@ -93,217 +92,6 @@ class Propagation(object):
                 'payload':             payload,
             }]
     
-    def startBroadcastTx(self,channel,type,smac,dmac,payload):
-        ''' add a mote as using a channel for tx'''
-        with self.dataLock:
-            self.transmissionsBroadcast  += [{
-                'channel':             channel,
-                'type':                type,
-                'smac':                smac,
-                'dmac':                dmac,
-                'payload':             payload,
-            }]
-            
-            
-    
-
-    def handleTransmissions(self, ts, arrivalTime, transmission):
-        for transmission in self.transmissions:
-            i = 0 # index of a receiver
-            isACKed = False
-            isNACKed = False
-            while i < len(self.receivers):
-                if self.receivers[i]['channel'] == transmission['channel']:
-                    # this receiver is listening on the right channel
-                    if self.receivers[i]['mote'] == transmission['dmac']:
-                        # this packet is destined for this mote
-                        if not self.settings.noInterference:
-                            #================ with interference ===========
-                            # other transmissions on the same channel?
-                            interferers = [t['smac'] for t in self.transmissions if t != transmission and t['channel'] == transmission['channel']]
-                            interferenceFlag = 0
-                            for itfr in interferers:
-                                if transmission['dmac'].getRSSI(itfr) > transmission['dmac'].minRssi:
-                                    interferenceFlag = 1
-                            
-                            transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
-                            if interferenceFlag:
-                                transmission['smac'].stats_incrementRadioStats('probableCollisions')
-                            lockOn = transmission['smac']
-                            for itfr in interferers:
-                                if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr) > transmission['dmac'].minRssi:
-                            # lock on interference
-                                    lockOn = itfr
-                            
-                            if lockOn == transmission['smac']:
-                                # mote locked in the current signal
-                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # debug only
-                                # calculate pdr, including interference
-                                sinr = self._computeSINR(transmission['smac'], transmission['dmac'], interferers)
-                                pdr = self._computePdrFromSINR(sinr, transmission['dmac'])
-                                # pick a random number
-                                failure = random.random()
-                                if pdr >= failure: # packet is received correctly
-                            # this mote is delivered the packet
-                                    isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(type=transmission['type'], 
-                                        smac=transmission['smac'], 
-                                        dmac=transmission['dmac'], 
-                                        payload=transmission['payload'])
-                            # this mote stops listening
-                                    del self.receivers[i]
-                                else:
-                                    self.receivers[i]['mote'].radio_rxDone()
-                                    del self.receivers[i] # packet is NOT received correctly
-                            else:
-                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
-                                # receive the interference as if it's a desired packet
-                                interferers.remove(lockOn)
-                                pseudo_interferers = interferers + [transmission['smac']]
-                                # calculate SINR where locked interference and other signals are considered S and I+N respectively
-                                pseudo_sinr = self._computeSINR(lockOn, transmission['dmac'], pseudo_interferers)
-                                pseudo_pdr = self._computePdrFromSINR(pseudo_sinr, transmission['dmac'])
-                                # pick a random number
-                                failure = random.random()
-                                if pseudo_pdr >= failure: # success to receive the interference and realize collision
-                                    transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
-                                # desired packet is not received
-                                self.receivers[i]['mote'].radio_rxDone()
-                                del self.receivers[i] # mote locked in an interfering signal
-                                # for debug
-                        else:
-                            interferers = []
-                            transmission['smac'].schedule[ts]['debug_interference'] += [0] # for debug only
-                            transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # for debug only
-                            # calculate pdr with no interference
-                            sinr = self._computeSINR(transmission['smac'], transmission['dmac'], interferers)
-                            pdr = self._computePdrFromSINR(sinr, transmission['dmac'])
-                            # pick a random number
-                            failure = random.random()
-                            if pdr >= failure:
-                                # packet is received correctly
-                                # this mote is delivered the packet
-                                isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(type=transmission['type'], 
-                                    smac=transmission['smac'], 
-                                    dmac=transmission['dmac'], 
-                                    payload=transmission['payload'])
-                                # this mote stops listening
-                                del self.receivers[i]
-                            else:
-                                self.receivers[i]['mote'].radio_rxDone()
-                                del self.receivers[i] # packet is NOT received correctly
-                                #================ without interference ========
-                    else:
-                        i += 1 # this packet is NOT destined for this mote
-                                # move to the next receiver
-                else:
-                    i += 1 # this receiver is NOT listening on the right channel
-            
-                                # move to the next receiver
-            # indicate to source packet was sent
-            transmission['smac'].radio_txDone(isACKed, isNACKed)
-        
-        return interferers, t, lockOn, itfr, pseudo_sinr, pseudo_pdr, failure
-
-
-        def handleBroadcastTransmissions(self, ts, arrivalTime, transmission):
-            for transmission in self.transmissionsBroadcast:
-                i = 0 # index of a receiver
-                isACKed = False
-                isNACKed = False
-                while i < len(self.receivers):
-                    if self.receivers[i]['channel'] == transmission['channel']:
-                            # this packet is destined for any mote that can listen to it
-                            if not self.settings.noInterference:
-                                #================ with interference ===========
-                                # other transmissions on the same channel?
-                                interferers = [t['smac'] for t in self.transmissionsBroadcast 
-                                               if t != transmission and t['channel'] == transmission['channel']]
-                                interferenceFlag = 0
-                                for itfr in interferers:
-                                    # if two nodes are seen by the receiver with almost same RSSI, then thye collide
-                                    if receivers[i]['mote'].getRSSI(itfr) - receivers[i]['mote'].getRSSI(transmission) < 6:
-                                        interferenceFlag = 1
-                                
-                                #transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
-                                if interferenceFlag:
-                                    transmission['smac'].stats_incrementRadioStats('probableCollisions')
-                                lockOn = transmission['smac']
-                                for itfr in interferers:
-                                    if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr) > transmission['dmac'].minRssi:
-                                # lock on interference
-                                        lockOn = itfr
-                                
-                                if lockOn == transmission['smac']:
-                                    # mote locked in the current signal
-                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # debug only
-                                    # calculate pdr, including interference
-                                    sinr = self._computeSINR(transmission['smac'], transmission['dmac'], interferers)
-                                    pdr = self._computePdrFromSINR(sinr, transmission['dmac'])
-                                    # pick a random number
-                                    failure = random.random()
-                                    if pdr >= failure: # packet is received correctly
-                                # this mote is delivered the packet
-                                        isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(type=transmission['type'], 
-                                            smac=transmission['smac'], 
-                                            dmac=transmission['dmac'], 
-                                            payload=transmission['payload'])
-                                # this mote stops listening
-                                        del self.receivers[i]
-                                    else:
-                                        self.receivers[i]['mote'].radio_rxDone()
-                                        del self.receivers[i] # packet is NOT received correctly
-                                else:
-                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
-                                    # receive the interference as if it's a desired packet
-                                    interferers.remove(lockOn)
-                                    pseudo_interferers = interferers + [transmission['smac']]
-                                    # calculate SINR where locked interference and other signals are considered S and I+N respectively
-                                    pseudo_sinr = self._computeSINR(lockOn, transmission['dmac'], pseudo_interferers)
-                                    pseudo_pdr = self._computePdrFromSINR(pseudo_sinr, transmission['dmac'])
-                                    # pick a random number
-                                    failure = random.random()
-                                    if pseudo_pdr >= failure: # success to receive the interference and realize collision
-                                        transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
-                                    # desired packet is not received
-                                    self.receivers[i]['mote'].radio_rxDone()
-                                    del self.receivers[i] # mote locked in an interfering signal
-                                    # for debug
-                            else:
-                                interferers = []
-                                transmission['smac'].schedule[ts]['debug_interference'] += [0] # for debug only
-                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # for debug only
-                                # calculate pdr with no interference
-                                sinr = self._computeSINR(transmission['smac'], transmission['dmac'], interferers)
-                                pdr = self._computePdrFromSINR(sinr, transmission['dmac'])
-                                # pick a random number
-                                failure = random.random()
-                                if pdr >= failure:
-                                    # packet is received correctly
-                                    # this mote is delivered the packet
-                                    isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(type=transmission['type'], 
-                                        smac=transmission['smac'], 
-                                        dmac=transmission['dmac'], 
-                                        payload=transmission['payload'])
-                                    # this mote stops listening
-                                    del self.receivers[i]
-                                else:
-                                    self.receivers[i]['mote'].radio_rxDone()
-                                    del self.receivers[i] # packet is NOT received correctly
-                                    #================ without interference ========
-                        else:
-                            i += 1 # this packet is NOT destined for this mote
-                                    # move to the next receiver
-                    else:
-                        i += 1 # this receiver is NOT listening on the right channel
-                
-                                    # move to the next receiver
-                # indicate to source packet was sent
-                transmission['smac'].radio_txDone(isACKed, isNACKed)
-            
-            return interferers, t, lockOn, itfr, pseudo_sinr, pseudo_pdr, failure
-
-
-
     def propagate(self):
         ''' Simulate the propagation of pkts in a slot. '''
         
@@ -318,14 +106,151 @@ class Propagation(object):
             for transmission in self.transmissions:
                 arrivalTime[transmission['smac']] = transmission['smac'].clock_getOffsetToDagRoot()
             
-            interferers, t, lockOn, itfr, pseudo_sinr, pseudo_pdr, failure = self.handleTransmissions(ts, arrivalTime, transmission)
+            for transmission in self.transmissions:
+                
+                i           = 0 # index of a receiver
+                isACKed     = False
+                isNACKed    = False
+                
+                while i<len(self.receivers):
+                    
+                    if self.receivers[i]['channel']==transmission['channel']:
+                        # this receiver is listening on the right channel
+                        
+                        if self.receivers[i]['mote']==transmission['dmac']:
+                            # this packet is destined for this mote
+                                                                                      
+                            if not self.settings.noInterference:
+  
+                                #================ with interference ===========
+                                 
+                                # other transmissions on the same channel?
+                                interferers = [t['smac'] for t in self.transmissions if (t!=transmission) and (t['channel']==transmission['channel'])]
+                                
+                                interferenceFlag = 0
+                                for itfr in interferers:
+                                    if transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                        interferenceFlag = 1
+                                
+                                transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
+                                
+                                if interferenceFlag:
+                                    transmission['smac'].stats_incrementRadioStats('probableCollisions')    
+                                
+                                lockOn = transmission['smac']
+                                for itfr in interferers:
+                                    if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                        # lock on interference
+                                        lockOn = itfr
+                                
+                                if lockOn == transmission['smac']:
+                                    # mote locked in the current signal
+                                    
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # debug only
+                                    
+                                    # calculate pdr, including interference
+                                    sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                                    pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                                    
+                                    # pick a random number
+                                    failure = random.random()                                    
+                                    if pdr>=failure:
+                                        # packet is received correctly                                        
+                                        # this mote is delivered the packet
+                                        isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
+                                            type       = transmission['type'],
+                                            smac       = transmission['smac'],
+                                            dmac       = transmission['dmac'],
+                                            payload    = transmission['payload']
+                                        )                                        
+                                        # this mote stops listening
+                                        del self.receivers[i]
+                                        
+                                    else:
+                                        # packet is NOT received correctly
+                                        self.receivers[i]['mote'].radio_rxDone()
+                                        del self.receivers[i]
+                                    
+                                else:
+                                    # mote locked in an interfering signal
+                                    
+                                    # for debug
+                                    transmission['smac'].schedule[ts]['debug_lockInterference'] += [1]
+                                    
+                                    # receive the interference as if it's a desired packet
+                                    interferers.remove(lockOn)
+                                    pseudo_interferers = interferers + [transmission['smac']]
+                                    
+                                    # calculate SINR where locked interference and other signals are considered S and I+N respectively
+                                    pseudo_sinr  = self._computeSINR(lockOn,transmission['dmac'],pseudo_interferers)
+                                    pseudo_pdr   = self._computePdrFromSINR(pseudo_sinr, transmission['dmac'])
+                                    
+                                    # pick a random number
+                                    failure = random.random()
+                                    if pseudo_pdr>=failure:
+                                        # success to receive the interference and realize collision
+                                        transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
+                                    
+                                    # desired packet is not received
+                                    self.receivers[i]['mote'].radio_rxDone()
+                                    del self.receivers[i]
+                                
+                            else:
+                                
+                                #================ without interference ========
+                                
+                                interferers = []
+                                
+                                transmission['smac'].schedule[ts]['debug_interference']     += [0] # for debug only
+                                transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # for debug only
+                                
+                                # calculate pdr with no interference
+                                sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
+                                pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
+                                
+                                # pick a random number
+                                failure = random.random()
+                                
+                                if pdr>=failure:
+                                    # packet is received correctly
+                                    
+                                    # this mote is delivered the packet
+                                    isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
+                                        type       = transmission['type'],
+                                        smac       = transmission['smac'],
+                                        dmac       = transmission['dmac'],
+                                        payload    = transmission['payload']
+                                    )
+                                    
+                                    # this mote stops listening
+                                    del self.receivers[i]
+                                    
+                                else:
+                                    # packet is NOT received correctly
+                                    self.receivers[i]['mote'].radio_rxDone()
+                                    del self.receivers[i]
+                            
+                        else:
+                            # this packet is NOT destined for this mote
+                            
+                            # move to the next receiver
+                            i += 1
+                    
+                    else:
+                        # this receiver is NOT listening on the right channel
+                        
+                        # move to the next receiver
+                        i += 1
+                
+                # indicate to source packet was sent
+                transmission['smac'].radio_txDone(isACKed, isNACKed)
             
             # remaining receivers that does not receive a desired packet
             for r in self.receivers:
 
                 if not self.settings.noInterference:
                     
-                   #================ with interference ===========
+                    #================ with interference ===========
                     
                     interferers = [t['smac'] for t in self.transmissions if t['dmac']!=r['mote'] and t['channel']==r['channel']]
                     
@@ -361,13 +286,6 @@ class Propagation(object):
             # clear all outstanding transmissions
             self.transmissions              = []
             self.receivers                  = []
-            
-            
-            
-            
-            
-            
-            self.transmissionsBroadcast     = []
         
         self._schedule_propagate()
     
