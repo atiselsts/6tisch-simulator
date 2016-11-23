@@ -1207,7 +1207,7 @@ class Mote(object):
                 self._log(
                     self.INFO,
                     "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
-                    (cell[0],cell[1],cell[2],neighbor.id if len(neighbor) == 1 else self.BROADCAST_ADDRESS),
+                    (cell[0],cell[1],cell[2],neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
                 )
             self._tsch_schedule_activeCell()
     
@@ -1220,7 +1220,7 @@ class Mote(object):
             self._log(
                 self.INFO,
                 "[tsch] remove timeslots={0} with {1}",
-                (tsList,neighbor.id if len(neighbor) == 1 else self.BROADCAST_ADDRESS),
+                (tsList,neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
             )
             for ts in tsList:
                 assert ts in self.schedule.keys()
