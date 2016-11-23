@@ -1156,11 +1156,11 @@ class Mote(object):
                     
                     cell['numTx'] += 1
                     
-                    self.propagation.startBroadcastTx(
+                    self.propagation.startTx(
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = self.BROADCAST_ADDRESS,
+                        dmac      = self._myNeigbors(),
                         payload   = self.pktToSend['payload'],
                     )
                 
