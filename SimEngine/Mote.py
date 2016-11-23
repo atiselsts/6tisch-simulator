@@ -1175,9 +1175,9 @@ class Mote(object):
                      # log charge usage
                     #self._logChargeConsumed(self.CHARGE_RxData_uC)
                 
-               # indicate that we're waiting for the TXRXSHARED operation to finish
+               # indicate that we're waiting for the RX operation to finish
                 
-                self.waitingFor   = self.DIR_TXRX_SHARED
+                self.waitingFor   = self.DIR_RX
                     
                     
                 
@@ -1368,7 +1368,7 @@ class Mote(object):
         with self.dataLock:
             
             assert ts in self.schedule
-            assert self.schedule[ts]['dir']==self.DIR_RX
+            assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
             assert self.waitingFor==self.DIR_RX
             
             if smac:
