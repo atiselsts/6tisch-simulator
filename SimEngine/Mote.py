@@ -1410,7 +1410,6 @@ class Mote(object):
                         return isACKed, isNACKed
                         
                         # todo account for stats.
-                        break;
                     
                     # update the number of hops
                     newPayload     = copy.deepcopy(payload)
@@ -1545,7 +1544,7 @@ class Mote(object):
                 self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # add minimal cell
-        self._tsch_addBroadcastCells(self.BROADCAST_ADDRESS,[{0,0,self.DIR_TXRX_SHARED}])
+        self._tsch_addBroadcastCells(self.BROADCAST_ADDRESS,[(0,0,self.DIR_TXRX_SHARED)])
 
         
         # RPL
