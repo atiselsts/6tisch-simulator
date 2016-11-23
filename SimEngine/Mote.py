@@ -246,7 +246,7 @@ class Mote(object):
     def _rpl_action_enqueueDIO(self):
         ''' enqueue DIO packet into stack '''
         
-        # only start sending data if I have some TX cells
+        # only start sending data if I have Shared cells
         if self.getSharedCells():
             
             # create new packet
@@ -1021,7 +1021,7 @@ class Mote(object):
     
     def _tsch_enqueue(self,packet):
         
-        if not self.preferredParent:
+        if not (self.preferredParent or self.dagRoot):
             # I don't have a route
             
             # increment mote state
@@ -1148,7 +1148,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt.type == self.RPL_TYPE_DIO:
+                        if pkt['type'] == self.RPL_TYPE_DIO:
                             self.pktToSend = pkt
                 
                 # send packet
@@ -1163,24 +1163,22 @@ class Mote(object):
                         dmac      = self._myNeigbors(),
                         payload   = self.pktToSend['payload'],
                     )
+                    # indicate that we're waiting for the TX operation to finish
+                    self.waitingFor   = self.DIR_TX
                 
                     self._logChargeConsumed(self.CHARGE_TxData_uC)
                 
                 else:
                     # start listening
-                     self.propagation.startRx(
+                    self.propagation.startRx(
                          mote          = self,
-                        channel       = cell['ch'],
+                         channel       = cell['ch'],
                      )
-                     # log charge usage
-                    #self._logChargeConsumed(self.CHARGE_RxData_uC)
-                
-               # indicate that we're waiting for the RX operation to finish
-                
-                self.waitingFor   = self.DIR_RX
-                    
-                    
-                
+                    # indicate that we're waiting for the RX operation to finish
+                    self.waitingFor = self.DIR_RX
+
+                    # log charge usage
+                    self._logChargeConsumed(self.CHARGE_RxData_uC)
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -1241,7 +1239,7 @@ class Mote(object):
         with self.dataLock:
             
             assert ts in self.schedule
-            assert self.schedule[ts]['dir']==self.DIR_TX
+            assert self.schedule[ts]['dir']==self.DIR_TX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
             assert self.waitingFor==self.DIR_TX
             
             if isACKed:
