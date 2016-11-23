@@ -1289,6 +1289,10 @@ class Mote(object):
                         
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
+
+            elif self.pktToSend['type'] == self.RPL_TYPE_DIO:
+                # broadcast packet is not acked, remove from queue and update stats
+                self.txQueue.remove(self.pktToSend)
             
             else:
                 # neither ACK nor NACK received
