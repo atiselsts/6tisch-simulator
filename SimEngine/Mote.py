@@ -1214,36 +1214,6 @@ class Mote(object):
             self._tsch_schedule_activeCell()
     
     
-    def _tsch_addBroadcastCells(self,address,cellList):
-        ''' adds cell(s) to the schedule '''
-        
-        with self.dataLock:
-            for cell in cellList:
-                assert cell[0] not in self.schedule.keys()
-                self.schedule[cell[0]] = {
-                    'ch':                        cell[1],
-                    'dir':                       cell[2],
-                    'neighbor':                  None,
-                    'numTx':                     0,
-                    'numTxAck':                  0,
-                    'numRx':                     0,
-                    'history':                   [],
-                    'rxDetectedCollision':       False,
-                    'debug_canbeInterfered':     [],                      # [debug] shows schedule collision that can be interfered with minRssi or larger level 
-                    'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level 
-                    'debug_lockInterference':    [],                      # [debug] shows locking on the interference packet
-                    'debug_cellCreatedAsn':      self.engine.getAsn(),    # [debug]
-                }
-                # log
-                self._log(
-                    self.INFO,
-                    "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
-                    (cell[0],cell[1],cell[2],address),
-                )
-            self._tsch_schedule_activeCell()
-    
-    
-    
     def _tsch_removeCells(self,neighbor,tsList):
         ''' removes cell(s) from the schedule '''
         
@@ -1544,8 +1514,7 @@ class Mote(object):
                 self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # add minimal cell
-        self._tsch_addBroadcastCells(self.BROADCAST_ADDRESS,[(0,0,self.DIR_TXRX_SHARED)])
-
+        self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
         
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
