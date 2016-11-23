@@ -1469,6 +1469,9 @@ class Mote(object):
     
     def clock_getOffsetToDagRoot(self):
         ''' calculate time offset compared to the DAGroot '''
+
+        if self.dagRoot:
+            return 0.0
         
         asn                  = self.engine.getAsn()
         offset               = 0.0
