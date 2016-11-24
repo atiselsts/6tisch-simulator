@@ -1100,7 +1100,7 @@ class Mote(object):
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = cell['neighbor'],
+                        dmac      = [cell['neighbor']],
                         payload   = self.pktToSend['payload'],
                     )
                     
