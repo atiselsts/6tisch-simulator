@@ -294,80 +294,44 @@ class Mote(object):
                 priority    = 3,
             )
     
-    def _rpl_action_receiveDIO(self,type,smac,payload):             
-                   
-     
-        if self.dagRoot:
-            return
-                    
-        if self.rank!=None and self.dagRank!=None:
-            nei = self._myNeigbors()[smac]
-            rank = payload
-            
-            if nei not in self.rplRxDIO:
-                    self.rplRxDIO[nei]       = 0
-            self.rplRxDIO[nei]              += 1
-        
-                        #check if my rank is higher than the rank to this neighbor
-            mynewCandidateRank = rank + self._rpl_calcRankIncrease(nei)            
-            if ( mynewCandidateRank < self.rank ):
-                #swap rank
-                self.rank =  mynewCandidateRank
-                self.dagRank = self.rank/self.RPL_MIN_HOP_RANK_INCREASE
-            
+    def _rpl_action_receiveDIO(self,type,smac,payload):
+
+        with self.dataLock:
+
+            if self.dagRoot:
+                return
+
+            # update my mote stats
+            self._stats_incrementMoteStats('rplRxDIO')
+
+            sender = smac
+
+            rank = payload[0]
+
+            # don't update poor link
+            if self._rpl_calcRankIncrease(sender)>self.RPL_MAX_RANK_INCREASE:
+                return
+
+            # update rank/DAGrank with sender
+            self.neighborDagRank[sender]    = rank / self.RPL_MIN_HOP_RANK_INCREASE
+            self.neighborRank[sender]       = rank
+
+            # update number of DIOs received from sender
+            if sender not in self.rplRxDIO:
+                    self.rplRxDIO[sender]   = 0
+            self.rplRxDIO[sender]          += 1
+
+            # housekeeping
+            self._rpl_housekeeping()
+
             # update time correction
-            if nei.preferredParent == self:
-               asn                     = self.engine.getAsn() 
-               nei.timeCorrectedSlot   = asn
-                      
-  
-    
-#     def _rpl_action_sendDIO(self):
-#          
-#         with self.dataLock:
-#              
-#             if self.rank!=None and self.dagRank!=None:
-#                  
-#                 # update mote stats
-#                 self._stats_incrementMoteStats('rplTxDIO')
-#                  
-#                 # "send" DIO to all neighbors
-#                 for neighbor in self._myNeigbors():
-#                      
-#                     # don't update DAGroot
-#                     if neighbor.dagRoot:
-#                         continue
-#                      
-#                     # don't update poor link
-#                     if neighbor._rpl_calcRankIncrease(self)>self.RPL_MAX_RANK_INCREASE:
-#                         continue
-#                      
-#                     # in neighbor, update my rank/DAGrank
-#                     neighbor.neighborDagRank[self]    = self.dagRank
-#                     neighbor.neighborRank[self]       = self.rank
-#                      
-#                     # in neighbor, update number of DIOs received
-#                     if self not in neighbor.rplRxDIO:
-#                         neighbor.rplRxDIO[self]       = 0
-#                     neighbor.rplRxDIO[self]          += 1
-#                      
-#                     # update my mote stats
-#                     self._stats_incrementMoteStats('rplRxDIO') # TODO: TX DIO?
-#                      
-#                     # skip useless housekeeping
-#                     if not neighbor.rank or self.rank<neighbor.rank:
-#                         # in neighbor, do RPL housekeeping
-#                         neighbor._rpl_housekeeping()                        
-#                      
-#                     # update time correction
-#                     if neighbor.preferredParent == self:
-#                         asn                        = self.engine.getAsn() 
-#                         neighbor.timeCorrectedSlot = asn
-#              
-#             # schedule to send the next DIO
-#             self._rpl_schedule_sendDIO()
-#      
-#     
+            if self.preferredParent == sender:
+                asn                         = self.engine.getAsn()
+                self.timeCorrectedSlot      = asn
+
+            #schedule to send the next DIO
+            self._rpl_schedule_sendDIO()
+
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
@@ -375,6 +339,8 @@ class Mote(object):
             self._rpl_action_enqueueDIO()
             
             self._rpl_schedule_sendDIO()
+
+            self._stats_incrementMoteStats('rplTxDIO')
         
     
     def _rpl_housekeeping(self):
