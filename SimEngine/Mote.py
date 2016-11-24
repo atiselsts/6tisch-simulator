@@ -254,7 +254,7 @@ class Mote(object):
                 'asn':            self.engine.getAsn(),
                 'type':           self.RPL_TYPE_DIO,
                 'payload':        [self.rank], # the payload is the rpl rank
-                'retriesLeft':    self.TSCH_MAXTXRETRIES
+                'retriesLeft':    1 # do not retransmit broadcast
             }
             
             # update mote stats
