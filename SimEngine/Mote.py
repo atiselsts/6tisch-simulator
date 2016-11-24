@@ -1088,7 +1088,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt.type == self.APP_TYPE_DATA:
+                        if pkt['type'] == self.APP_TYPE_DATA:
                             self.pktToSend = pkt
                     
                 # seind packet
