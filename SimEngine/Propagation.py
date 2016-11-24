@@ -116,8 +116,8 @@ class Propagation(object):
                     
                     if self.receivers[i]['channel']==transmission['channel']:
                         # this receiver is listening on the right channel
-                        
-                        if self.receivers[i]['mote']==transmission['dmac']:
+
+                        if self.receivers[i]['mote'] in transmission['dmac']:
                             # this packet is destined for this mote
                                                                                       
                             if not self.settings.noInterference:
@@ -129,7 +129,7 @@ class Propagation(object):
                                 
                                 interferenceFlag = 0
                                 for itfr in interferers:
-                                    if transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                    if self.receivers[i]['mote'].getRSSI(itfr)>self.receivers[i]['mote'].minRssi:
                                         interferenceFlag = 1
                                 
                                 transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
@@ -139,7 +139,7 @@ class Propagation(object):
                                 
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
-                                    if arrivalTime[itfr] < arrivalTime[lockOn] and transmission['dmac'].getRSSI(itfr)>transmission['dmac'].minRssi:
+                                    if arrivalTime[itfr] < arrivalTime[lockOn] and self.receivers[i]['mote'].getRSSI(itfr)>self.receivers[i]['mote'].minRssi:
                                         # lock on interference
                                         lockOn = itfr
                                 
@@ -149,9 +149,9 @@ class Propagation(object):
                                     transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # debug only
                                     
                                     # calculate pdr, including interference
-                                    sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
-                                    pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
-                                    
+                                    sinr  = self._computeSINR(transmission['smac'],self.receivers[i]['mote'],interferers)
+                                    pdr   = self._computePdrFromSINR(sinr, self.receivers[i]['mote'])
+
                                     # pick a random number
                                     failure = random.random()                                    
                                     if pdr>=failure:
@@ -182,15 +182,15 @@ class Propagation(object):
                                     pseudo_interferers = interferers + [transmission['smac']]
                                     
                                     # calculate SINR where locked interference and other signals are considered S and I+N respectively
-                                    pseudo_sinr  = self._computeSINR(lockOn,transmission['dmac'],pseudo_interferers)
-                                    pseudo_pdr   = self._computePdrFromSINR(pseudo_sinr, transmission['dmac'])
-                                    
+                                    pseudo_sinr  = self._computeSINR(lockOn,self.receivers[i]['mote'],pseudo_interferers)
+                                    pseudo_pdr   = self._computePdrFromSINR(pseudo_sinr, self.receivers[i]['mote'])
+
                                     # pick a random number
                                     failure = random.random()
                                     if pseudo_pdr>=failure:
                                         # success to receive the interference and realize collision
-                                        transmission['dmac'].schedule[ts]['rxDetectedCollision'] = True
-                                    
+                                        self.receivers[i]['mote'].schedule[ts]['rxDetectedCollision'] = True
+
                                     # desired packet is not received
                                     self.receivers[i]['mote'].radio_rxDone()
                                     del self.receivers[i]
@@ -205,9 +205,9 @@ class Propagation(object):
                                 transmission['smac'].schedule[ts]['debug_lockInterference'] += [0] # for debug only
                                 
                                 # calculate pdr with no interference
-                                sinr  = self._computeSINR(transmission['smac'],transmission['dmac'],interferers)
-                                pdr   = self._computePdrFromSINR(sinr, transmission['dmac'])
-                                
+                                sinr  = self._computeSINR(transmission['smac'],self.receivers[i]['mote'],interferers)
+                                pdr   = self._computePdrFromSINR(sinr, self.receivers[i]['mote'])
+
                                 # pick a random number
                                 failure = random.random()
                                 
