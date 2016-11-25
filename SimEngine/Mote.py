@@ -1317,6 +1317,17 @@ class Mote(object):
                 
                 # update schedule stats
                 self.schedule[ts]['numRx'] += 1
+                if (type == self.RPL_TYPE_DIO):
+                    # got a DIO
+                    self._rpl_action_receiveDIO(type, smac, payload)
+
+                    (isACKed, isNACKed) = (False, False)
+
+                    self.waitingFor = None
+
+                    return isACKed, isNACKed
+
+                    # todo account for stats.
                 
                 if self.dagRoot:
                     # receiving packet (at DAG root)
@@ -1336,18 +1347,6 @@ class Mote(object):
                     # relaying packet
                     # count incoming traffic for each node
                     self._otf_incrementIncomingTraffic(smac)
-                    
-                    if (type == self.RPL_TYPE_DIO):
-                        # GOT A DIO!
-                        self._rpl_action_receiveDIO(type,smac,payload)
-                        
-                        (isACKed, isNACKed) = (False, False)
-                
-                        self.waitingFor = None
-            
-                        return isACKed, isNACKed
-                        
-                        # todo account for stats.
                     
                     # update the number of hops
                     newPayload     = copy.deepcopy(payload)
