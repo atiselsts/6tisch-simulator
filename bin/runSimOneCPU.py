@@ -126,7 +126,7 @@ def parseCliOptions():
     parser.add_argument( '--dioPeriod',
         dest       = 'dioPeriod',
         type       = float,
-        default    = 1.0,
+        default    = 10.0,
         help       = '[rpl] DIO period (s).',
     )
     # otf
