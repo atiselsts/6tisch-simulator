@@ -329,19 +329,15 @@ class Mote(object):
                 asn                         = self.engine.getAsn()
                 self.timeCorrectedSlot      = asn
 
-            #schedule to send the next DIO
-            self._rpl_schedule_sendDIO()
-
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
-      
-            self._rpl_action_enqueueDIO()
-            
-            self._rpl_schedule_sendDIO()
 
-            self._stats_incrementMoteStats('rplTxDIO')
-        
+            if self.preferredParent or self.dagRoot:
+                self._rpl_action_enqueueDIO()
+                self._stats_incrementMoteStats('rplTxDIO')
+            
+            self._rpl_schedule_sendDIO() # schedule next DIO
     
     def _rpl_housekeeping(self):
         with self.dataLock:
