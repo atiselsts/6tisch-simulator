@@ -279,16 +279,16 @@ class Mote(object):
         with self.dataLock:
 
             asn    = self.engine.getAsn()
-            ts     = asn%self.settings.slotframeLength
             
             if not firstDIO:
-                cycle = int(math.ceil(self.settings.dioPeriod/(self.settings.slotframeLength*self.settings.slotDuration)))
+                futureAsn = int(math.ceil(
+                    random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / (self.settings.slotDuration)))
             else:
-                cycle = 1            
-            
+                futureAsn = 1
+
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
-                asn         = asn-ts+cycle*self.settings.slotframeLength,
+                asn         = asn + futureAsn,
                 cb          = self._rpl_action_sendDIO,
                 uniqueTag   = (self.id,'_rpl_action_sendDIO'),
                 priority    = 3,
