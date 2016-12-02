@@ -1588,7 +1588,7 @@ class Mote(object):
                 if ts==ts_p and cell['ch']==ch_p:
                     returnVal = {
                         'dir':            cell['dir'],
-                        'neighbor':       cell['neighbor'].id,
+                        'neighbor':       [node.id for node in cell['neighbor']] if type(cell['neighbor']) is list else cell['neighbor'].id,
                         'numTx':          cell['numTx'],
                         'numTxAck':       cell['numTxAck'],
                         'numRx':          cell['numRx'],
