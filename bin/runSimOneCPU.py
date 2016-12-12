@@ -183,6 +183,12 @@ def parseCliOptions():
         default    = 101,
         help       = '[tsch] Number of timeslots in a slotframe.',
     )
+    parser.add_argument('--beaconPeriod',
+        dest       = 'beaconPeriod',
+        type       = float,
+        default    = 30.0,
+        help       = '[tsch] Enhanced Beacon period.',
+    )
     # phy
     parser.add_argument( '--numChans',
         dest       = 'numChans',
