@@ -54,6 +54,7 @@ class Mote(object):
     #=== app
     APP_TYPE_DATA                      = 'DATA'
     RPL_TYPE_DIO                       = 'DIO'
+    TSCH_TYPE_EB                       = 'EB'
 
     #=== rpl
     RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
@@ -241,8 +242,61 @@ class Mote(object):
             else:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedAppFailedEnqueue')
-            
-    
+
+    def _tsch_action_enqueueEB(self):
+        ''' enqueue EB packet into stack '''
+
+        # only start sending EBs if I have Shared cells
+        if self.getSharedCells():
+
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': self.TSCH_TYPE_EB,
+                'payload': [self.dagRank],  # the payload is the rpl rank
+                'retriesLeft': 1  # do not retransmit broadcast
+            }
+
+            # update mote stats
+            self._stats_incrementMoteStats('appGenerated')
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+
+            if not isEnqueued:
+                # update mote stats
+                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+
+    def _tsch_schedule_sendEB(self, firstEB=False):
+
+        with self.dataLock:
+
+            asn = self.engine.getAsn()
+
+            if not firstEB:
+                futureAsn = int(math.ceil(
+                    random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
+                    self.settings.slotDuration)))
+            else:
+                futureAsn = 1
+
+            # schedule at start of next cycle
+            self.engine.scheduleAtAsn(
+                asn=asn + futureAsn,
+                cb=self._tsch_action_sendEB,
+                uniqueTag=(self.id, '_tsch_action_sendEB'),
+                priority=3,
+            )
+
+    def _tsch_action_sendEB(self):
+
+        with self.dataLock:
+            if self.preferredParent or self.dagRoot:
+                self._tsch_action_enqueueEB()
+                self._stats_incrementMoteStats('tschTxEB')
+
+            self._tsch_schedule_sendEB()  # schedule next DIO
+
     def _rpl_action_enqueueDIO(self):
         ''' enqueue DIO packet into stack '''
         
@@ -1107,7 +1161,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['type'] == self.RPL_TYPE_DIO:
+                        if pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
                             self.pktToSend = pkt
                 
                 # send packet
@@ -1249,7 +1303,7 @@ class Mote(object):
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
 
-            elif self.pktToSend['type'] == self.RPL_TYPE_DIO:
+            elif self.pktToSend['type'] == self.RPL_TYPE_DIO or self.pktToSend['type'] == self.TSCH_TYPE_EB:
                 # broadcast packet is not acked, remove from queue and update stats
                 self.txQueue.remove(self.pktToSend)
             
@@ -1321,6 +1375,14 @@ class Mote(object):
                     return isACKed, isNACKed
 
                     # todo account for stats.
+                elif (type == self.TSCH_TYPE_EB):
+                    # got an EB, increment stats
+                    self._stats_incrementMoteStats('tschRxEB')
+                    (isACKed, isNACKed) = (False, False)
+
+                    self.waitingFor = None
+
+                    return isACKed, isNACKed
                 
                 if self.dagRoot:
                     # receiving packet (at DAG root)
@@ -1478,6 +1540,9 @@ class Mote(object):
         
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
+
+        # sending of EB
+        self._tsch_schedule_sendEB(firstEB=True)
         
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
@@ -1568,6 +1633,8 @@ class Mote(object):
                 'topRxRelocatedCells':     0,   # number of time rx-triggered 6top relocates a single cell
                 # tsch
                 'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
+                'tschTxEB':                0,   # number of TX'ed EBs
+                'tschRxEB':                0,   # number of RX'ed EBs
             }
     
     def _stats_incrementMoteStats(self,name):
