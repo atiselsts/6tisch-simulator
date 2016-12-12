@@ -54,6 +54,7 @@ class Mote(object):
     #=== app
     APP_TYPE_DATA                      = 'DATA'
     RPL_TYPE_DIO                       = 'DIO'
+    RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
 
     #=== rpl
@@ -297,6 +298,8 @@ class Mote(object):
 
             self._tsch_schedule_sendEB()  # schedule next DIO
 
+    #===== rpl
+
     def _rpl_action_enqueueDIO(self):
         ''' enqueue DIO packet into stack '''
         
@@ -320,10 +323,31 @@ class Mote(object):
             if not isEnqueued:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedAppFailedEnqueue')
-            
-    
-    
-    #===== rpl
+
+    def _rpl_action_enqueueDAO(self):
+        ''' enqueue DAO packet into stack '''
+
+        # only start sending data if I have Shared cells
+        if self.getSharedCells() or self.getTxCells():
+
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': self.RPL_TYPE_DAO,
+                'payload': [{self.id : [self.preferredParent.id]}],  # the payload is the rpl rank
+                'retriesLeft': self.TSCH_MAXTXRETRIES  # do not retransmit broadcast
+            }
+
+            # update mote stats
+            self._stats_incrementMoteStats('appGenerated')
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+
+            if not isEnqueued:
+                # update mote stats
+                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+
     
     def _rpl_schedule_sendDIO(self,firstDIO=False):
         
@@ -344,7 +368,28 @@ class Mote(object):
                 uniqueTag   = (self.id,'_rpl_action_sendDIO'),
                 priority    = 3,
             )
-    
+
+    def _rpl_schedule_sendDAO(self, firstDAO=False):
+
+        with self.dataLock:
+
+            asn = self.engine.getAsn()
+
+            if not firstDAO:
+                futureAsn = int(math.ceil(
+                    random.uniform(0.8 * self.settings.daoPeriod, 1.2 * self.settings.daoPeriod) / (
+                    self.settings.slotDuration)))
+            else:
+                futureAsn = 1
+
+            # schedule at start of next cycle
+            self.engine.scheduleAtAsn(
+                asn=asn + futureAsn,
+                cb=self._rpl_action_sendDAO,
+                uniqueTag=(self.id, '_rpl_action_sendDAO'),
+                priority=3,
+            )
+
     def _rpl_action_receiveDIO(self,type,smac,payload):
 
         with self.dataLock:
@@ -380,6 +425,13 @@ class Mote(object):
                 asn                         = self.engine.getAsn()
                 self.timeCorrectedSlot      = asn
 
+    def _rpl_action_receiveDAO(self, type, smac, payload):
+        with self.dataLock:
+
+            assert self.dagRoot
+
+            self._stats_incrementMoteStats('rplRxDAO')
+
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
@@ -389,7 +441,16 @@ class Mote(object):
                 self._stats_incrementMoteStats('rplTxDIO')
             
             self._rpl_schedule_sendDIO() # schedule next DIO
-    
+
+    def _rpl_action_sendDAO(self):
+
+        with self.dataLock:
+            if self.preferredParent and not self.dagRoot:
+                self._rpl_action_enqueueDAO()
+                self._stats_incrementMoteStats('rplTxDAO')
+
+            self._rpl_schedule_sendDAO()  # schedule next DIO
+
     def _rpl_housekeeping(self):
         with self.dataLock:
             
@@ -1161,7 +1222,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
+                        if pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.RPL_TYPE_DAO or pkt['type'] == self.TSCH_TYPE_EB:
                             self.pktToSend = pkt
                 
                 # send packet
@@ -1386,26 +1447,33 @@ class Mote(object):
                 
                 if self.dagRoot:
                     # receiving packet (at DAG root)
-                    
-                    # update mote stats
-                    self._stats_incrementMoteStats('appReachesDagroot')
-                    
-                    # calculate end-to-end latency
-                    self._stats_logLatencyStat(asn-payload[1])
-                    
-                    # log the number of hops
-                    self._stats_logHopsStat(payload[2])
-                    
-                    (isACKed, isNACKed) = (True, False)
+                    if type == self.RPL_TYPE_DAO:
+                        self._rpl_action_receiveDAO(type, smac, payload)
+                    else: # application packet
+                        assert type == self.APP_TYPE_DATA
+                        # update mote stats
+                        self._stats_incrementMoteStats('appReachesDagroot')
+
+                        # calculate end-to-end latency
+                        self._stats_logLatencyStat(asn-payload[1])
+
+                        # log the number of hops
+                        self._stats_logHopsStat(payload[2])
+
+                        (isACKed, isNACKed) = (True, False)
                     
                 else:
                     # relaying packet
                     # count incoming traffic for each node
                     self._otf_incrementIncomingTraffic(smac)
-                    
-                    # update the number of hops
-                    newPayload     = copy.deepcopy(payload)
-                    newPayload[2] += 1
+
+                    if type == self.APP_TYPE_DATA:
+                        # update the number of hops
+                        newPayload     = copy.deepcopy(payload)
+                        newPayload[2] += 1
+                    elif type == self.RPL_TYPE_DAO:
+                        # copy the payload and forward
+                        newPayload     = copy.deepcopy(payload)
                     
                     # create packet
                     relayPacket = {
@@ -1414,7 +1482,6 @@ class Mote(object):
                         'payload':     newPayload,
                         'retriesLeft': self.TSCH_MAXTXRETRIES
                     }
-                    
                     
                     # enqueue packet in TSCH queue
                     isEnqueued = self._tsch_enqueue(relayPacket)
@@ -1546,6 +1613,8 @@ class Mote(object):
         
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
+        self._rpl_schedule_sendDAO(firstDAO=True)
+
         # OTF
         self._otf_resetInboundTrafficCounters()
         self._otf_schedule_housekeeping()
@@ -1619,6 +1688,8 @@ class Mote(object):
                 # rpl
                 'rplTxDIO':                0,   # number of TX'ed DIOs
                 'rplRxDIO':                0,   # number of RX'ed DIOs
+                'rplTxDAO':                0,  # number of TX'ed DAOs
+                'rplRxDAO':                0,  # number of RX'ed DAOs
                 'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
                 'rplChurnRank':            0,   # number of time the mote changes rank
                 'rplChurnParentSet':       0,   # number of time the mote changes parent set
