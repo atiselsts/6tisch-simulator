@@ -263,10 +263,7 @@ class Mote(object):
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
             
-            if isEnqueued:
-                # increment traffic
-                self._otf_incrementIncomingTraffic(self)
-            else:
+            if not isEnqueued:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedAppFailedEnqueue')
             
