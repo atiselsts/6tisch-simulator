@@ -163,6 +163,7 @@ class Mote(object):
         self.dagRank              = 0
         self.packetLatencies      = [] # in slots
         self.packetHops           = []
+        self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
     
     #===== application
     
@@ -432,6 +433,7 @@ class Mote(object):
 
             self._stats_incrementMoteStats('rplRxDAO')
 
+            self.parents.update(payload[0])
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
@@ -1449,6 +1451,7 @@ class Mote(object):
                     # receiving packet (at DAG root)
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
+                        (isACKed, isNACKed) = (True, False)
                     else: # application packet
                         assert type == self.APP_TYPE_DATA
                         # update mote stats
