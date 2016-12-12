@@ -129,6 +129,12 @@ def parseCliOptions():
         default    = 10.0,
         help       = '[rpl] DIO period (s).',
     )
+    parser.add_argument( '--daoPeriod',
+        dest       = 'daoPeriod',
+        type       = float,
+        default    = 60.0,
+        help       = '[rpl] DAO period (s).',
+    )
     # otf
     parser.add_argument( '--otfThreshold',
         dest       = 'otfThreshold',
