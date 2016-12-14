@@ -568,9 +568,53 @@ class Mote(object):
                 return
             
             # per draft-ietf-6tisch-minimal, rank increase is (3*ETX-2)*RPL_MIN_HOP_RANK_INCREASE
-            return int(((3*etx) - 2)*self.RPL_MIN_HOP_RANK_INCREASE) 
-        
-    #===== otf
+            return int(((3*etx) - 2)*self.RPL_MIN_HOP_RANK_INCREASE)
+
+    def _rpl_getSourceRoute(self, destAddr):
+        '''
+        Retrieve the source route to a given mote.
+
+        :param destAddr: [in] The EUI64 address of the final destination.
+
+        :returns: The source route, a list of EUI64 address, ordered from
+            destination to source.
+        '''
+
+        sourceRoute = []
+        with self.dataLock:
+                parents = self.parents
+                self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
+
+        return sourceRoute
+
+    def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
+
+        if not destAddr:
+            # no more parents
+            return
+
+        if not parents.get(tuple(destAddr)):
+            # this node does not have a list of parents
+            return
+
+        # first time add destination address
+        if destAddr not in sourceRoute:
+            sourceRoute += [destAddr]
+
+        # pick a parent
+        parent = parents.get(tuple(destAddr))[0]
+
+        # avoid loops
+        if parent not in sourceRoute:
+            sourceRoute += [parent]
+
+            # add non empty parents recursively
+            nextparent = self._rpl_getSourceRoute_internal(parent, sourceRoute, parents)
+
+            if nextparent:
+                sourceRoute += [nextparent]
+
+#===== otf
     
     def _otf_schedule_housekeeping(self):
         
