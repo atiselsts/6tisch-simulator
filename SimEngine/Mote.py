@@ -220,7 +220,18 @@ class Mote(object):
         
         # schedule next _app_action_sendSinglePacket
         self._app_schedule_sendSinglePacket()
-        
+
+    def _app_action_receivePacket(self, srcIp, payload, timestamp):
+        assert self.dagRoot
+
+        # update mote stats
+        self._stats_incrementMoteStats('appReachesDagroot')
+
+        # calculate end-to-end latency
+        self._stats_logLatencyStat(timestamp - payload[1])
+
+        # log the number of hops
+        self._stats_logHopsStat(payload[2])
         
           
     def _app_action_enqueueData(self):
@@ -1515,14 +1526,8 @@ class Mote(object):
                         (isACKed, isNACKed) = (True, False)
                     else: # application packet
                         assert type == self.APP_TYPE_DATA
-                        # update mote stats
-                        self._stats_incrementMoteStats('appReachesDagroot')
 
-                        # calculate end-to-end latency
-                        self._stats_logLatencyStat(asn-payload[1])
-
-                        # log the number of hops
-                        self._stats_logHopsStat(payload[2])
+                        self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
 
                         (isACKed, isNACKed) = (True, False)
                     
