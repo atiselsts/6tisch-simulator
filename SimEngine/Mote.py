@@ -335,8 +335,8 @@ class Mote(object):
             newPacket = {
                 'asn': self.engine.getAsn(),
                 'type': self.RPL_TYPE_DAO,
-                'payload': [{self.id : [self.preferredParent.id]}],  # the payload is the rpl rank
-                'retriesLeft': self.TSCH_MAXTXRETRIES  # do not retransmit broadcast
+                'payload': [self.id, self.preferredParent.id],
+                'retriesLeft': self.TSCH_MAXTXRETRIES
             }
 
             # update mote stats
