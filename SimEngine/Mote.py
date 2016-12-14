@@ -229,7 +229,9 @@ class Mote(object):
                 'asn':            self.engine.getAsn(),
                 'type':           self.APP_TYPE_DATA,
                 'payload':        [self.id,self.engine.getAsn(),1], # the payload is used for latency and number of hops calculation
-                'retriesLeft':    self.TSCH_MAXTXRETRIES
+                'retriesLeft':    self.TSCH_MAXTXRETRIES,
+                'srcIp':          self,
+                'dstIp':          self.dagRootAddress
             }
             
             # update mote stats
@@ -256,7 +258,9 @@ class Mote(object):
                 'asn': self.engine.getAsn(),
                 'type': self.TSCH_TYPE_EB,
                 'payload': [self.dagRank],  # the payload is the rpl rank
-                'retriesLeft': 1  # do not retransmit broadcast
+                'retriesLeft': 1,  # do not retransmit broadcast
+                'srcIp': self,
+                'dstIp': self.BROADCAST_ADDRESS,
             }
 
             # update mote stats
@@ -312,7 +316,9 @@ class Mote(object):
                 'asn':            self.engine.getAsn(),
                 'type':           self.RPL_TYPE_DIO,
                 'payload':        [self.rank], # the payload is the rpl rank
-                'retriesLeft':    1 # do not retransmit broadcast
+                'retriesLeft':    1, # do not retransmit broadcast
+                'srcIp':          self,
+                'dstIp':          self.BROADCAST_ADDRESS,
             }
             
             # update mote stats
@@ -336,7 +342,9 @@ class Mote(object):
                 'asn': self.engine.getAsn(),
                 'type': self.RPL_TYPE_DAO,
                 'payload': [self.id, self.preferredParent.id],
-                'retriesLeft': self.TSCH_MAXTXRETRIES
+                'retriesLeft': self.TSCH_MAXTXRETRIES,
+                'srcIp': self,
+                'dstIp': self.dagRootAddress,
             }
 
             # update mote stats
@@ -1255,6 +1263,8 @@ class Mote(object):
                         type      = self.pktToSend['type'],
                         smac      = self,
                         dmac      = [cell['neighbor']],
+                        srcIp     = self.pktToSend['srcIp'],
+                        dstIp     = self.pktToSend['dstIp'],
                         payload   = self.pktToSend['payload'],
                     )
                     
@@ -1280,7 +1290,9 @@ class Mote(object):
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = self._myNeigbors(),
+                        dmac      = self._myNeigbors() if pkt['dstIp'] == self.BROADCAST_ADDRESS else [self.preferredParent],
+                        srcIp     = self.pktToSend['srcIp'],
+                        dstIp     = self.pktToSend['dstIp'],
                         payload   = self.pktToSend['payload'],
                     )
                     # indicate that we're waiting for the TX operation to finish
@@ -1451,7 +1463,7 @@ class Mote(object):
                         canbeInterfered = 1
             self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]        
     
-    def radio_rxDone(self,type=None,smac=None,dmac=None,payload=None):
+    def radio_rxDone(self,type=None,smac=None,dmac=None,srcIp=None,dstIp=None,payload=None):
         '''end of RX radio activity'''
         
         asn   = self.engine.getAsn()
@@ -1462,8 +1474,8 @@ class Mote(object):
             assert ts in self.schedule
             assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
             assert self.waitingFor==self.DIR_RX
-            
-            if smac:
+
+            if smac and self in dmac:
                 # I received a packet
                 
                 # log charge usage
@@ -1527,7 +1539,9 @@ class Mote(object):
                         'asn':         asn,
                         'type':        type,
                         'payload':     newPayload,
-                        'retriesLeft': self.TSCH_MAXTXRETRIES
+                        'retriesLeft': self.TSCH_MAXTXRETRIES,
+                        'srcIp':       srcIp,
+                        'dstIp':       dstIp,
                     }
                     
                     # enqueue packet in TSCH queue

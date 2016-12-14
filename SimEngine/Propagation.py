@@ -81,7 +81,7 @@ class Propagation(object):
                 'channel':             channel,
             }]
     
-    def startTx(self,channel,type,smac,dmac,payload):
+    def startTx(self,channel,type,smac,dmac,srcIp,dstIp,payload):
         ''' add a mote as using a channel for tx'''
         with self.dataLock:
             self.transmissions  += [{
@@ -89,6 +89,8 @@ class Propagation(object):
                 'type':                type,
                 'smac':                smac,
                 'dmac':                dmac,
+                'srcIp':               srcIp,
+                'dstIp':               dstIp,
                 'payload':             payload,
             }]
     
@@ -161,6 +163,8 @@ class Propagation(object):
                                             type       = transmission['type'],
                                             smac       = transmission['smac'],
                                             dmac       = transmission['dmac'],
+                                            srcIp      = transmission['srcIp'],
+                                            dstIp      = transmission['dstIp'],
                                             payload    = transmission['payload']
                                         )                                        
                                         # this mote stops listening
@@ -219,6 +223,8 @@ class Propagation(object):
                                         type       = transmission['type'],
                                         smac       = transmission['smac'],
                                         dmac       = transmission['dmac'],
+                                        srcIp      = transmission['srcIp'],
+                                        dstIp      = transmission['dstIp'],
                                         payload    = transmission['payload']
                                     )
                                     
