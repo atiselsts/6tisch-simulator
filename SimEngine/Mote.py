@@ -433,7 +433,7 @@ class Mote(object):
 
             self._stats_incrementMoteStats('rplRxDAO')
 
-            self.parents.update(payload[0])
+            self.parents.update({tuple([payload[0]]) : [[payload[1]]]})
     def _rpl_action_sendDIO(self):
         
         with self.dataLock:
