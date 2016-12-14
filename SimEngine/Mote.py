@@ -112,6 +112,7 @@ class Mote(object):
         self.neighborRank              = {}                    # indexed by neighbor
         self.neighborDagRank           = {}                    # indexed by neighbor
         self.trafficPortionPerParent   = {}                    # indexed by parent, portion of outgoing traffic
+        self.dagRootAddress            = None
         # otf
         self.asnOTFevent               = None
         self.otfHousekeepingPeriod     = self.settings.otfHousekeepingPeriod
@@ -164,6 +165,10 @@ class Mote(object):
         self.packetLatencies      = [] # in slots
         self.packetHops           = []
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
+
+        # imprint DAG root's ID at each mote
+        for mote in self.engine.motes:
+            mote.dagRootAddress = self
     
     #===== application
     
@@ -1250,7 +1255,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['type'] == self.APP_TYPE_DATA or pkt['type'] == self.RPL_TYPE_DAO:
+                        if pkt['dstIp'] == self.dagRootAddress:
                             self.pktToSend = pkt
                     
                 # seind packet
@@ -1278,7 +1283,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.RPL_TYPE_DAO or pkt['type'] == self.TSCH_TYPE_EB:
+                        if pkt['dstIp'] == self.BROADCAST_ADDRESS or not self.getTxCells():
                             self.pktToSend = pkt
                 
                 # send packet
