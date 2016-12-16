@@ -638,6 +638,31 @@ class Mote(object):
             if nextparent:
                 sourceRoute += [nextparent]
 
+    def _rpl_addNextHop(self, packet):
+        assert self != packet['dstIp']
+
+        if not (self.preferredParent or self.dagRoot):
+            return False
+
+        nextHop = None
+
+        if packet['dstIp'] == self.BROADCAST_ADDRESS:
+            nextHop = self._myNeigbors()
+        elif packet['dstIp'] == self.dagRootAddress:  # upward packet
+            nextHop = [self.preferredParent]
+        elif packet['dstIp'] in self._myNeigbors(): # packet to a neighbor
+            nextHop = [packet['dstIp']]
+        else:                                       # downward packet
+            assert packet['sourceRoute']
+
+            nextHopId = packet['sourceRoute'].pop()
+
+            for nei in self._myNeigbors():
+                if nei.id == nextHopId:
+                    nextHop = [nei]
+
+        packet['nextHop'] = nextHop
+        return True if nextHop else False
 #===== otf
     
     def _otf_schedule_housekeeping(self):
@@ -1165,7 +1190,7 @@ class Mote(object):
     
     def _tsch_enqueue(self,packet):
         
-        if not (self.preferredParent or self.dagRoot):
+        if not self._rpl_addNextHop(packet):
             # I don't have a route
             
             # increment mote state
@@ -1266,7 +1291,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['dstIp'] == self.dagRootAddress:
+                        if pkt['nextHop'] == [cell['neighbor']]:
                             self.pktToSend = pkt
                     
                 # seind packet
@@ -1294,7 +1319,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['dstIp'] == self.BROADCAST_ADDRESS or not self.getTxCells():
+                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells():
                             self.pktToSend = pkt
                 
                 # send packet
@@ -1306,7 +1331,7 @@ class Mote(object):
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         smac      = self,
-                        dmac      = self._myNeigbors() if pkt['dstIp'] == self.BROADCAST_ADDRESS else [self.preferredParent],
+                        dmac      = self.pktToSend['nextHop'],
                         srcIp     = self.pktToSend['srcIp'],
                         dstIp     = self.pktToSend['dstIp'],
                         payload   = self.pktToSend['payload'],
