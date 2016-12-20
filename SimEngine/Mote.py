@@ -1350,7 +1350,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop']):
+                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]):
                             self.pktToSend = pkt
                 
                 # send packet
