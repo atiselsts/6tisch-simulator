@@ -679,8 +679,6 @@ class Mote(object):
             nextHop = self._myNeigbors()
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
-        elif packet['dstIp'] in self._myNeigbors(): # packet to a neighbor
-            nextHop = [packet['dstIp']]
         else:                                       # downward packet
             assert packet['sourceRoute']
 
