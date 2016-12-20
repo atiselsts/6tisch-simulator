@@ -687,7 +687,7 @@ class Mote(object):
             nextHopId = packet['sourceRoute'].pop()
 
             for nei in self._myNeigbors():
-                if nei.id == nextHopId:
+                if [nei.id] == nextHopId:
                     nextHop = [nei]
 
         packet['nextHop'] = nextHop
