@@ -53,6 +53,7 @@ class Mote(object):
     
     #=== app
     APP_TYPE_DATA                      = 'DATA'
+    APP_TYPE_ACK                       = 'ACK'  # end to end ACK
     RPL_TYPE_DIO                       = 'DIO'
     RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
@@ -221,6 +222,9 @@ class Mote(object):
         # schedule next _app_action_sendSinglePacket
         self._app_schedule_sendSinglePacket()
 
+    def _app_action_receiveAck(self, srcIp, payload, timestamp):
+        assert not self.dagRoot
+
     def _app_action_receivePacket(self, srcIp, payload, timestamp):
         assert self.dagRoot
 
@@ -233,6 +237,27 @@ class Mote(object):
         # log the number of hops
         self._stats_logHopsStat(payload[2])
         
+        destination = srcIp
+
+        sourceRoute = self._rpl_getSourceRoute([destination.id])
+        if sourceRoute: # if DAO was received from this node
+            sourceRoute.pop() # pop myself out of the source route
+
+            # send an ACK
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': self.APP_TYPE_ACK,
+                'payload': [],
+                'retriesLeft': self.TSCH_MAXTXRETRIES,
+                'srcIp': self, # DAG root
+                'dstIp': destination,
+                'sourceRoute' : sourceRoute
+
+            }
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
           
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
@@ -1554,6 +1579,8 @@ class Mote(object):
 
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
 
+                    elif type == self.APP_TYPE_ACK:
+                        self._app_action_receiveAck(srcIp=srcIp, payload=payload,timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     
                 else:
@@ -1566,6 +1593,9 @@ class Mote(object):
                         newPayload     = copy.deepcopy(payload)
                         newPayload[2] += 1
                     elif type == self.RPL_TYPE_DAO:
+                        # copy the payload and forward
+                        newPayload     = copy.deepcopy(payload)
+                    elif type == self.APP_TYPE_ACK:
                         # copy the payload and forward
                         newPayload     = copy.deepcopy(payload)
                     
