@@ -236,28 +236,31 @@ class Mote(object):
 
         # log the number of hops
         self._stats_logHopsStat(payload[2])
-        
-        destination = srcIp
 
-        sourceRoute = self._rpl_getSourceRoute([destination.id])
-        if sourceRoute: # if DAO was received from this node
-            sourceRoute.pop() # pop myself out of the source route
+        if self.settings.downwardAcks:  # Downward End-to-end ACKs
+            destination = srcIp
 
-            # send an ACK
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': self.APP_TYPE_ACK,
-                'payload': [],
-                'retriesLeft': self.TSCH_MAXTXRETRIES,
-                'srcIp': self, # DAG root
-                'dstIp': destination,
-                'sourceRoute' : sourceRoute
+            sourceRoute = self._rpl_getSourceRoute([destination.id])
 
-            }
 
-            # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
+            if sourceRoute: # if DAO was received from this node
+                sourceRoute.pop() # pop myself out of the source route
+
+                # send an ACK
+                # create new packet
+                newPacket = {
+                    'asn': self.engine.getAsn(),
+                    'type': self.APP_TYPE_ACK,
+                    'payload': [],
+                    'retriesLeft': self.TSCH_MAXTXRETRIES,
+                    'srcIp': self, # DAG root
+                    'dstIp': destination,
+                    'sourceRoute' : sourceRoute
+
+                }
+
+                # enqueue packet in TSCH queue
+                isEnqueued = self._tsch_enqueue(newPacket)
           
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
