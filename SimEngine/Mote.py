@@ -1763,14 +1763,20 @@ class Mote(object):
     
     #===== getters
     
-    def getTxCells(self):
+    def getTxCells(self, neighbor = None):
         with self.dataLock:
-            return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
-    
-    def getRxCells(self):
+            if neighbor is None:
+                return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_TX]
+            else:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
+                        c['dir'] == self.DIR_TX and c['neighbor'] == neighbor]
+    def getRxCells(self, neighbor = None):
         with self.dataLock:
-            return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
-    
+            if neighbor is None:
+                return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['dir']==self.DIR_RX]
+            else:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
+                        c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
 
     def getSharedCells(self):
         with self.dataLock:
