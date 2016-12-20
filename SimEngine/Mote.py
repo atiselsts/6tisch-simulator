@@ -272,7 +272,8 @@ class Mote(object):
                 'payload':        [self.id,self.engine.getAsn(),1], # the payload is used for latency and number of hops calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES,
                 'srcIp':          self,
-                'dstIp':          self.dagRootAddress
+                'dstIp':          self.dagRootAddress,
+                'sourceRoute':    [],
             }
             
             # update mote stats
@@ -302,6 +303,7 @@ class Mote(object):
                 'retriesLeft': 1,  # do not retransmit broadcast
                 'srcIp': self,
                 'dstIp': self.BROADCAST_ADDRESS,
+                'sourceRoute': []
             }
 
             # update mote stats
@@ -360,6 +362,7 @@ class Mote(object):
                 'retriesLeft':    1, # do not retransmit broadcast
                 'srcIp':          self,
                 'dstIp':          self.BROADCAST_ADDRESS,
+                'sourceRoute':    []
             }
             
             # update mote stats
@@ -386,6 +389,7 @@ class Mote(object):
                 'retriesLeft': self.TSCH_MAXTXRETRIES,
                 'srcIp': self,
                 'dstIp': self.dagRootAddress,
+                'sourceRoute': []
             }
 
             # update mote stats
@@ -1331,6 +1335,7 @@ class Mote(object):
                         dmac      = [cell['neighbor']],
                         srcIp     = self.pktToSend['srcIp'],
                         dstIp     = self.pktToSend['dstIp'],
+                        srcRoute  = self.pktToSend['sourceRoute'],
                         payload   = self.pktToSend['payload'],
                     )
                     
@@ -1359,6 +1364,7 @@ class Mote(object):
                         dmac      = self.pktToSend['nextHop'],
                         srcIp     = self.pktToSend['srcIp'],
                         dstIp     = self.pktToSend['dstIp'],
+                        srcRoute  = self.pktToSend['sourceRoute'],
                         payload   = self.pktToSend['payload'],
                     )
                     # indicate that we're waiting for the TX operation to finish
@@ -1488,7 +1494,7 @@ class Mote(object):
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
 
-            elif self.pktToSend['type'] == self.RPL_TYPE_DIO or self.pktToSend['type'] == self.TSCH_TYPE_EB:
+            elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
                 self.txQueue.remove(self.pktToSend)
             
@@ -1529,7 +1535,7 @@ class Mote(object):
                         canbeInterfered = 1
             self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]        
     
-    def radio_rxDone(self,type=None,smac=None,dmac=None,srcIp=None,dstIp=None,payload=None):
+    def radio_rxDone(self,type=None,smac=None,dmac=None,srcIp=None,dstIp=None,srcRoute=None,payload=None):
         '''end of RX radio activity'''
         
         asn   = self.engine.getAsn()
@@ -1541,7 +1547,7 @@ class Mote(object):
             assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
             assert self.waitingFor==self.DIR_RX
 
-            if smac and self in dmac:
+            if smac and self in dmac: # layer 2 addressing
                 # I received a packet
                 
                 # log charge usage
@@ -1549,36 +1555,35 @@ class Mote(object):
                 
                 # update schedule stats
                 self.schedule[ts]['numRx'] += 1
-                if (type == self.RPL_TYPE_DIO):
-                    # got a DIO
-                    self._rpl_action_receiveDIO(type, smac, payload)
 
-                    (isACKed, isNACKed) = (False, False)
+                if (dstIp == self.BROADCAST_ADDRESS):
+                    if (type == self.RPL_TYPE_DIO):
+                        print "Mote {0}: Received a DIO".format(self.id)
+                        # got a DIO
+                        self._rpl_action_receiveDIO(type, smac, payload)
 
-                    self.waitingFor = None
+                        (isACKed, isNACKed) = (False, False)
 
-                    return isACKed, isNACKed
+                        self.waitingFor = None
 
-                    # todo account for stats.
-                elif (type == self.TSCH_TYPE_EB):
-                    # got an EB, increment stats
-                    self._stats_incrementMoteStats('tschRxEB')
-                    (isACKed, isNACKed) = (False, False)
+                        return isACKed, isNACKed
+                    elif (type == self.TSCH_TYPE_EB):
+                        # got an EB, increment stats
+                        self._stats_incrementMoteStats('tschRxEB')
 
-                    self.waitingFor = None
+                        (isACKed, isNACKed) = (False, False)
 
-                    return isACKed, isNACKed
-                
-                if self.dagRoot:
-                    # receiving packet (at DAG root)
+                        self.waitingFor = None
+
+                        return isACKed, isNACKed
+                elif (dstIp == self):
+                    # receiving packet
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    else: # application packet
-                        assert type == self.APP_TYPE_DATA
-
+                    elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
-
+                        (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_ACK:
                         self._app_action_receiveAck(srcIp=srcIp, payload=payload,timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
@@ -1607,6 +1612,7 @@ class Mote(object):
                         'retriesLeft': self.TSCH_MAXTXRETRIES,
                         'srcIp':       srcIp,
                         'dstIp':       dstIp,
+                        'sourceRoute': srcRoute,
                     }
                     
                     # enqueue packet in TSCH queue
