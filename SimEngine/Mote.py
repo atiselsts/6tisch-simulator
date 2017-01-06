@@ -1583,7 +1583,6 @@ class Mote(object):
 
                 if (dstIp == self.BROADCAST_ADDRESS):
                     if (type == self.RPL_TYPE_DIO):
-                        print "Mote {0}: Received a DIO".format(self.id)
                         # got a DIO
                         self._rpl_action_receiveDIO(type, smac, payload)
 
