@@ -74,7 +74,9 @@ class Mote(object):
     #=== 6top
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
-    TSCH_MAXTXRETRIES                  = 5    
+    TSCH_MAXTXRETRIES                  = 5
+    TSCH_MIN_BACKOFF_EXPONENT          = 2
+    TSCH_MAX_BACKOFF_EXPONENT          = 4
     #=== radio
     RADIO_MAXDRIFT                     = 30 # in ppm
     #=== battery
@@ -135,6 +137,7 @@ class Mote(object):
         self.schedule                  = {}                    # indexed by ts, contains cell
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
+        self._tsch_resetBackoff()
         # radio
         self.txPower                   = 0                     # dBm
         self.antennaGain               = 0                     # dBi
@@ -1217,6 +1220,10 @@ class Mote(object):
         self._sixtop_cell_deletion_sender(neighbor,tsList)
     
     #===== tsch
+
+    def _tsch_resetBackoff(self):
+        self.backoff = 0
+        self.backoffExponent = self.TSCH_MIN_BACKOFF_EXPONENT - 1
     
     def _tsch_enqueue(self,packet):
         
@@ -1348,7 +1355,9 @@ class Mote(object):
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
-                if self.txQueue:
+                if self.backoff > 0:
+                    self.backoff -= 1
+                if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]):
                             self.pktToSend = pkt
@@ -1465,6 +1474,9 @@ class Mote(object):
                 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
+                # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
+                if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
+                   self._tsch_resetBackoff()
                 
             elif isNACKed:
                 # NACK received
@@ -1495,12 +1507,24 @@ class Mote(object):
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
 
+                # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
+                if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (
+                        self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
+                    self._tsch_resetBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
                 self.txQueue.remove(self.pktToSend)
+                self._tsch_resetBackoff()
             
             else:
                 # neither ACK nor NACK received
+
+                # increment backoffExponent and get new backoff value
+                if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
+                    if self.backoffExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
+                        self.backoffExponent += 1
+
+                    self.backoff = random.randint(0, 2 ** self.backoffExponent - 1)
                 
                 # update history
                 self.schedule[ts]['history'] += [0]
