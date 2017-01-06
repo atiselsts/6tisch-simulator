@@ -1355,13 +1355,14 @@ class Mote(object):
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
-                if self.backoff > 0:
-                    self.backoff -= 1
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]):
                             self.pktToSend = pkt
-                
+
+                # Decrement backoff
+                if self.backoff > 0:
+                    self.backoff -= 1
                 # send packet
                 if self.pktToSend:
                     
