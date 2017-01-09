@@ -126,7 +126,7 @@ def parseCliOptions():
     parser.add_argument( '--dioPeriod',
         dest       = 'dioPeriod',
         type       = float,
-        default    = 1.0,
+        default    = 10.0,
         help       = '[rpl] DIO period (s).',
     )
     # otf
@@ -182,6 +182,12 @@ def parseCliOptions():
         type       = int,
         default    = 101,
         help       = '[tsch] Number of timeslots in a slotframe.',
+    )
+    parser.add_argument('--beaconPeriod',
+        dest       = 'beaconPeriod',
+        type       = float,
+        default    = 30.0,
+        help       = '[tsch] Enhanced Beacon period (s).',
     )
     # phy
     parser.add_argument( '--numChans',
