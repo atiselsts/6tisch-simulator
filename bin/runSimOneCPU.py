@@ -122,12 +122,25 @@ def parseCliOptions():
         default    = 5,
         help       = '[app] Number of packets in a burst, per node.',
     )
+    parser.add_argument('--downwardAcks',
+        dest       = 'downwardAcks',
+        nargs      = '+',
+        type       = int,
+        default    = 0,
+        help       = '[app] 1 to enable downward end-to-end ACKs.',
+    )
     # rpl
     parser.add_argument( '--dioPeriod',
         dest       = 'dioPeriod',
         type       = float,
         default    = 10.0,
         help       = '[rpl] DIO period (s).',
+    )
+    parser.add_argument( '--daoPeriod',
+        dest       = 'daoPeriod',
+        type       = float,
+        default    = 60.0,
+        help       = '[rpl] DAO period (s).',
     )
     # otf
     parser.add_argument( '--otfThreshold',
