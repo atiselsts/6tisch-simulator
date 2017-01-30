@@ -54,6 +54,7 @@ class Mote(object):
     #=== app
     APP_TYPE_DATA                      = 'DATA'
     APP_TYPE_ACK                       = 'ACK'  # end to end ACK
+    APP_TYPE_JOIN                      = 'JOIN' # join traffic
     RPL_TYPE_DIO                       = 'DIO'
     RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
@@ -102,6 +103,9 @@ class Mote(object):
         self.settings                  = SimSettings.SimSettings()
         self.propagation               = Propagation.Propagation()
         
+        # join process
+        self.isJoined                  = False
+        self.joinRetransmissionPayload = 0
         # app
         self.pkPeriod                  = self.settings.pkPeriod        
         # role
@@ -174,6 +178,82 @@ class Mote(object):
         for mote in self.engine.motes:
             mote.dagRootAddress = self
     
+    # ===== join process
+    def join_scheduleJoinProcess(self):
+        delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
+
+        # schedule
+        self.engine.scheduleIn(
+            delay=delay,
+            cb=self.join_initiateJoinProcess,
+            uniqueTag=(self.id, '_join_action_initiateJoinProcess'),
+            priority=2,
+        )
+
+    def join_setJoined(self, joined):
+        self.isJoined = joined;
+
+    def join_initiateJoinProcess(self):
+        if not self.dagRoot:
+            if not self.isJoined:
+                self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+
+    def join_sendJoinPacket(self, token, destination):
+        # send join packet with payload equal to the number of exchanges
+        # create new packet
+        sourceRoute = []
+        if self.dagRoot:
+            sourceRoute = self._rpl_getSourceRoute([destination.id])
+
+        if sourceRoute or not self.dagRoot:
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': self.APP_TYPE_JOIN,
+                'payload': token,
+                'retriesLeft': self.TSCH_MAXTXRETRIES,
+                'srcIp': self,  # DAG root
+                'dstIp': destination,
+                'sourceRoute': sourceRoute
+            }
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+
+            if isEnqueued:
+                # increment traffic
+                self._otf_incrementIncomingTraffic(self)
+            else:
+                # update mote stats
+                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+
+            # save last token sent
+            self.joinRetransmissionPayload = token
+
+            # schedule retransmission
+            if not self.dagRoot:
+                self.engine.scheduleIn(
+                    delay=self.settings.slotDuration + self.settings.joinAttemptTimeout,
+                    cb=self.join_retransmitJoinPacket,
+                    uniqueTag=(self.id, '_join_action_retransmission'),
+                    priority=2,
+                )
+
+    def join_retransmitJoinPacket(self):
+        if not self.dagRoot and not self.isJoined:
+            self.join_sendJoinPacket(self.joinRetransmissionPayload, self.dagRootAddress)
+
+    def join_receiveJoinPacket(self, srcIp, payload, timestamp):
+        self.engine.removeEvent((self.id, '_join_action_retransmission')) # remove the pending retransmission event
+
+        if payload != 0:
+            newPayload = payload - 1
+
+            self.join_sendJoinPacket(token=newPayload, destination=srcIp)
+
+        else:
+            self.join_setJoined(joined=True)
+
     #===== application
     
     def _app_schedule_sendSinglePacket(self,firstPacket=False):
