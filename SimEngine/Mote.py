@@ -1694,6 +1694,9 @@ class Mote(object):
                     elif type == self.APP_TYPE_ACK:
                         self._app_action_receiveAck(srcIp=srcIp, payload=payload,timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
+                    elif type == self.APP_TYPE_JOIN:
+                        self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        (isACKed, isNACKed) = (True, False)
                     
                 else:
                     # relaying packet
@@ -1704,10 +1707,7 @@ class Mote(object):
                         # update the number of hops
                         newPayload     = copy.deepcopy(payload)
                         newPayload[2] += 1
-                    elif type == self.RPL_TYPE_DAO:
-                        # copy the payload and forward
-                        newPayload     = copy.deepcopy(payload)
-                    elif type == self.APP_TYPE_ACK:
+                    else:
                         # copy the payload and forward
                         newPayload     = copy.deepcopy(payload)
                     
