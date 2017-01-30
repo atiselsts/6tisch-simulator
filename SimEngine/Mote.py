@@ -247,7 +247,6 @@ class Mote(object):
 
 
             if sourceRoute: # if DAO was received from this node
-                sourceRoute.pop() # pop myself out of the source route
 
                 # send an ACK
                 # create new packet
@@ -643,6 +642,9 @@ class Mote(object):
         with self.dataLock:
                 parents = self.parents
                 self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
+
+        if sourceRoute:
+            sourceRoute.pop()
 
         return sourceRoute
 
