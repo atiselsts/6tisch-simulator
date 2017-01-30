@@ -1839,10 +1839,13 @@ class Mote(object):
         
         # app
         if not self.dagRoot:
-            if self.settings.numPacketsBurst!=None and self.settings.burstTimestamp!=None:
-                self._app_schedule_sendPacketBurst()
+            if self.settings.withJoin:
+                self.join_scheduleJoinProcess()
             else:
-                self._app_schedule_sendSinglePacket(firstPacket=True)
+                if self.settings.numPacketsBurst!=None and self.settings.burstTimestamp!=None:
+                    self._app_schedule_sendPacketBurst()
+                else:
+                    self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
