@@ -94,6 +94,27 @@ def parseCliOptions():
         default    = 2.000,
         help       = '[topology] Side of the deployment area (km).',
     )
+    # join process
+    parser.add_argument('--withJoin',
+        dest       = 'withJoin',
+        nargs      = '+',
+        type       = int,
+        default    = 0,
+        help       =' [join process] 1 to enable join process.',
+    )
+    parser.add_argument( '--joinNumExchanges',
+        dest       = 'joinNumExchanges',
+        nargs      = '+',
+        type       = int,
+        default    = 1,
+        help       = '[join process] Number of exchanges needed to complete join process.',
+    )
+    parser.add_argument( '--joinAttemptTimeout',
+        dest       = 'joinAttemptTimeout',
+        type       = float,
+        default    = 30.0,
+        help       = '[join process] Timeout to attempt join process (s).',
+    )
     # app
     parser.add_argument( '--pkPeriod',
         dest       = 'pkPeriod',
