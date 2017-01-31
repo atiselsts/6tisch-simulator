@@ -141,6 +141,7 @@ class Mote(object):
         self.schedule                  = {}                    # indexed by ts, contains cell
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
+        self.firstEB                   = True                  # flag to indicate first received enhanced beacon
         self._tsch_resetBackoff()
         # radio
         self.txPower                   = 0                     # dBm
@@ -439,10 +440,11 @@ class Mote(object):
 
         with self.dataLock:
             if self.preferredParent or self.dagRoot:
-                self._tsch_action_enqueueEB()
-                self._stats_incrementMoteStats('tschTxEB')
+                if self.settings.withJoin and self.isJoined:
+                    self._tsch_action_enqueueEB()
+                    self._stats_incrementMoteStats('tschTxEB')
 
-            self._tsch_schedule_sendEB()  # schedule next DIO
+            self._tsch_schedule_sendEB()  # schedule next EB
 
     #===== rpl
 
@@ -1537,6 +1539,12 @@ class Mote(object):
                 assert self.schedule[ts]['neighbor']==neighbor
                 self.schedule.pop(ts)
             self._tsch_schedule_activeCell()
+
+    def _tsch_action_receiveEB(self, type, smac, payload):
+         if self.firstEB:
+             if self.settings.withJoin:
+                self.join_scheduleJoinProcess() # upon the reception of a first EB trigger the join process
+             self.firstEB = False
     
     #===== radio
     
@@ -1690,6 +1698,8 @@ class Mote(object):
                     elif (type == self.TSCH_TYPE_EB):
                         # got an EB, increment stats
                         self._stats_incrementMoteStats('tschRxEB')
+
+                        self._tsch_action_receiveEB(type, smac, payload)
 
                         (isACKed, isNACKed) = (False, False)
 
@@ -1850,16 +1860,6 @@ class Mote(object):
     def boot(self):
         # start the stack layer by layer
         
-        # app
-        if not self.dagRoot:
-            if self.settings.withJoin:
-                self.join_scheduleJoinProcess()
-            else:
-                if self.settings.numPacketsBurst!=None and self.settings.burstTimestamp!=None:
-                    self._app_schedule_sendPacketBurst()
-                else:
-                    self._app_schedule_sendSinglePacket(firstPacket=True)
-        
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
 
@@ -1876,6 +1876,14 @@ class Mote(object):
         # 6top
         if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
+
+        # app
+        if not self.dagRoot:
+            if not self.settings.withJoin:
+                if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
+                    self._app_schedule_sendPacketBurst()
+                else:
+                    self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # tsch
         self._tsch_schedule_activeCell()
