@@ -173,6 +173,7 @@ class Mote(object):
         self.packetLatencies      = [] # in slots
         self.packetHops           = []
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
+        self.isJoined             = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
@@ -190,8 +191,20 @@ class Mote(object):
             priority=2,
         )
 
-    def join_setJoined(self, joined):
-        self.isJoined = joined;
+    def join_setJoined(self):
+        assert self.settings.withJoin
+        if not self.isJoined:
+            self.isJoined = True;
+            # log
+            self._log(
+                self.INFO,
+                "[join] Mote joined",
+            )
+
+        # check if all motes have joined, if so end the simulation
+        if all(mote.isJoined == True for mote in self.engine.motes):
+            # end the simulation
+            self.engine.terminateSimulation()
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
@@ -252,7 +265,7 @@ class Mote(object):
             self.join_sendJoinPacket(token=newPayload, destination=srcIp)
 
         else:
-            self.join_setJoined(joined=True)
+            self.join_setJoined()
 
     #===== application
     
