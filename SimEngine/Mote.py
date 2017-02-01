@@ -446,6 +446,14 @@ class Mote(object):
 
             self._tsch_schedule_sendEB()  # schedule next EB
 
+    def _tsch_action_receiveEB(self, type, smac, payload):
+        # got an EB, increment stats
+        self._stats_incrementMoteStats('tschRxEB')
+        if self.firstEB:
+            if self.settings.withJoin:
+                self.join_scheduleJoinProcess()  # upon the reception of a first EB trigger the join process
+            self.firstEB = False
+
     #===== rpl
 
     def _rpl_action_enqueueDIO(self):
@@ -1539,12 +1547,6 @@ class Mote(object):
                 assert self.schedule[ts]['neighbor']==neighbor
                 self.schedule.pop(ts)
             self._tsch_schedule_activeCell()
-
-    def _tsch_action_receiveEB(self, type, smac, payload):
-         if self.firstEB:
-             if self.settings.withJoin:
-                self.join_scheduleJoinProcess() # upon the reception of a first EB trigger the join process
-             self.firstEB = False
     
     #===== radio
     
@@ -1696,9 +1698,6 @@ class Mote(object):
 
                         return isACKed, isNACKed
                     elif (type == self.TSCH_TYPE_EB):
-                        # got an EB, increment stats
-                        self._stats_incrementMoteStats('tschRxEB')
-
                         self._tsch_action_receiveEB(type, smac, payload)
 
                         (isACKed, isNACKed) = (False, False)
