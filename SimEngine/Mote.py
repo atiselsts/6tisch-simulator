@@ -407,9 +407,6 @@ class Mote(object):
                 'sourceRoute': []
             }
 
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
-
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
 
@@ -475,9 +472,6 @@ class Mote(object):
                 'sourceRoute':    []
             }
             
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
-            
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
             
@@ -501,9 +495,6 @@ class Mote(object):
                 'dstIp': self.dagRootAddress,
                 'sourceRoute': []
             }
-
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
