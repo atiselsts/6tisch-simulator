@@ -106,6 +106,7 @@ class Mote(object):
         # join process
         self.isJoined                  = False
         self.joinRetransmissionPayload = 0
+        self.joinAsn                   = 0                     # ASN at the time node successfully joined
         # app
         self.pkPeriod                  = self.settings.pkPeriod        
         # role
@@ -195,7 +196,8 @@ class Mote(object):
     def join_setJoined(self):
         assert self.settings.withJoin
         if not self.isJoined:
-            self.isJoined = True;
+            self.isJoined = True
+            self.joinAsn  = self.engine.getAsn()
             # log
             self._log(
                 self.INFO,

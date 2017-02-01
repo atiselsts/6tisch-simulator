@@ -251,7 +251,14 @@ class SimStats(object):
                 self.runNum,
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.settings.numCyclesPerRun) for mote in self.engine.motes])
             )
-        ]        
+        ]
+        if self.settings.withJoin:
+            output += [
+                '#join runNum={0} {1}'.format(
+                    self.runNum,
+                    ' '.join(['{0}@{1}'.format(mote.id, mote.joinAsn) for mote in self.engine.motes])
+                )
+            ]
         output  = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:
