@@ -180,10 +180,10 @@ def plot_duration_cdf(dataBins):
                         if m:
                             numMotes = int(m.group(1))
                     if line.startswith('#join'):
-                        duration = float(max(parse_join_asns_per_run(line)) * 10.0 / 1000 / 60)
+                        duration = [i * 10.0 / 1000 / 60 for i in parse_join_asns_per_run(line) if i != 0]
                         if (joinNumExchanges, numMotes) not in dictDurations:
                             dictDurations[(joinNumExchanges, numMotes)] = []
-                        dictDurations[(joinNumExchanges, numMotes)] += [duration]
+                        dictDurations[(joinNumExchanges, numMotes)] += duration
 
     joinNumExchanges = []
     numMotes = []
