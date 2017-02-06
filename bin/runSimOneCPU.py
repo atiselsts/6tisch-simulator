@@ -106,7 +106,7 @@ def parseCliOptions():
         dest       = 'joinNumExchanges',
         nargs      = '+',
         type       = int,
-        default    = 1,
+        default    = 2,
         help       = '[join process] Number of exchanges needed to complete join process.',
     )
     parser.add_argument( '--joinAttemptTimeout',
