@@ -168,6 +168,46 @@ def plot_duration_vs_numMotes(dataBins):
     matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes.eps'))
     matplotlib.pyplot.close('all')
 
+def plot_duration_cdf(dataBins):
+    dictDurations = {}
+    for ((withJoin, joinNumExchanges), filepaths) in dataBins.items():
+        for filepath in filepaths:
+            with open(filepath, 'r') as f:
+                for line in f:
+                    if line.startswith('## '):
+                        # numMotes
+                        m = re.search('numMotes\s+=\s+([0-9]+)', line)
+                        if m:
+                            numMotes = int(m.group(1))
+                    if line.startswith('#join'):
+                        duration = float(max(parse_join_asns_per_run(line)) * 10.0 / 1000 / 60)
+                        if (joinNumExchanges, numMotes) not in dictDurations:
+                            dictDurations[(joinNumExchanges, numMotes)] = []
+                        dictDurations[(joinNumExchanges, numMotes)] += [duration]
+
+    joinNumExchanges = []
+    numMotes = []
+    for (joinNumExchange, numMote) in dictDurations.keys():
+        joinNumExchanges += [joinNumExchange]
+        numMotes += [numMote]
+    joinNumExchanges = sorted(list(set(joinNumExchanges)))
+    numMotes = sorted(list(set(numMotes)))
+
+    fig = matplotlib.pyplot.figure()
+    matplotlib.pyplot.xlabel('Duration of the join process (min)')
+    matplotlib.pyplot.ylabel('CDF')
+
+    for joinNumExchange in joinNumExchanges:
+        for numMote in numMotes:
+            sortedAsns = numpy.sort(dictDurations[(joinNumExchange, numMote)])
+            yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
+            matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
+        matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges.png'.format(joinNumExchange)))
+        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges.eps'.format(joinNumExchange)))
+        matplotlib.pyplot.close('all')
+
+
 def calcMeanConfInt(vals):
     assert type(vals) == list
     for val in vals:
@@ -198,6 +238,8 @@ def main():
     # plot join duration vs num motes
     plot_duration_vs_numMotes(dataBins)
 
+    # plot cdfs for each joinNumExchange run
+    plot_duration_cdf(dataBins)
 
 
 
