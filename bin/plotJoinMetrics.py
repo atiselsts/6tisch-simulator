@@ -161,12 +161,12 @@ def plot_duration_vs_numMotes(dataBins):
             yerr=yerr,
             label='Number of exchanges = {0}'.format(joinNumExchange)
         )
-        matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 1)
-        matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 1)
-        matplotlib.pyplot.legend(prop={'size': 10})
-        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes.png'))
-        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes.eps'))
-        matplotlib.pyplot.close('all')
+        matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
+        matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
+        matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+    matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes.eps'))
+    matplotlib.pyplot.close('all')
 
 def calcMeanConfInt(vals):
     assert type(vals) == list
