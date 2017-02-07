@@ -102,9 +102,7 @@ def binDataFiles():
                 m = re.search('joinNumExchanges\s+=\s+([\.0-9]+)', line)
                 if m:
                     joinNumExchanges = int(m.group(1))
-                else:
-                    joinNumExchanges = 'NA'
-            if withJoin: # add to the dictionary only if withJoin is 1
+            if withJoin and joinNumExchanges:
                 if (withJoin, joinNumExchanges) not in dataBins:
                     dataBins[(withJoin, joinNumExchanges)] = []
                 dataBins[(withJoin, joinNumExchanges)] += [infilepath]
