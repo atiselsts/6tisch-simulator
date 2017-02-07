@@ -420,12 +420,9 @@ class Mote(object):
 
             asn = self.engine.getAsn()
 
-            if not firstEB:
-                futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
-                    self.settings.slotDuration)))
-            else:
-                futureAsn = 1
+            futureAsn = int(math.ceil(
+                random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
+                self.settings.slotDuration)))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
