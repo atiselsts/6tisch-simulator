@@ -226,6 +226,7 @@ def parseCliOptions():
     )
     parser.add_argument('--beaconPeriod',
         dest       = 'beaconPeriod',
+        nargs      = '+',
         type       = float,
         default    = 2.0,
         help       = '[tsch] Enhanced Beacon period (s).',
