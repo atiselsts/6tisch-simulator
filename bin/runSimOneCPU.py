@@ -119,7 +119,7 @@ def parseCliOptions():
     parser.add_argument( '--joinAttemptTimeout',
         dest       = 'joinAttemptTimeout',
         type       = float,
-        default    = 30.0,
+        default    = 60.0,
         help       = '[join process] Timeout to attempt join process (s).',
     )
     # app
