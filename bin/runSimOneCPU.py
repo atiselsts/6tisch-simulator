@@ -94,6 +94,13 @@ def parseCliOptions():
         default    = 2.000,
         help       = '[topology] Side of the deployment area (km).',
     )
+    parser.add_argument('--fullyMeshed',
+        dest       = 'fullyMeshed',
+        nargs      = '+',
+        type       = int,
+        default    = 0,
+        help       =' [topology] 1 to enable fully meshed network.',
+    )
     # join process
     parser.add_argument('--withJoin',
         dest       = 'withJoin',

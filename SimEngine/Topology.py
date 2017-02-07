@@ -45,14 +45,20 @@ class Topology(object):
         
         # local variables
         self.settings        = SimSettings.SimSettings()
+
+        # if fullyMeshed is enabled, create a topology where each node has N-1 stable neighbors
+        if self.settings.fullyMeshed:
+            self.stable_neighbors = len(self.motes) - 1
+        else:
+            self.stable_neighbors = self.STABLE_NEIGHBORS
         
     #======================== public ==========================================
     
     def createTopology(self):
         '''
-        Create a topology in which all nodes have at least STABLE_NEIGHBORS link 
+        Create a topology in which all nodes have at least stable_neighbors link
         with enough RSSI.
-        If the mote does not have STABLE_NEIGHBORS links with enough RSSI, 
+        If the mote does not have stable_neighbors links with enough RSSI,
         reset the location of the mote.
         '''
         
@@ -96,10 +102,10 @@ class Topology(object):
                     if rssi>self.STABLE_RSSI:
                         numStableNeighbors += 1
 
-                # make sure it is connected to at least STABLE_NEIGHBORS motes 
+                # make sure it is connected to at least stable_neighbors motes
                 # or connected to all the currently deployed motes when the number of deployed motes 
-                # are smaller than STABLE_NEIGHBORS
-                if numStableNeighbors >= self.STABLE_NEIGHBORS or numStableNeighbors == len(connectedMotes):
+                # are smaller than stable_neighbors
+                if numStableNeighbors >= self.stable_neighbors or numStableNeighbors == len(connectedMotes):
                     connected = True
             
             connectedMotes += [mote]
