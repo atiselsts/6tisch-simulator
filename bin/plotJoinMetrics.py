@@ -249,6 +249,7 @@ def plot_duration_cdf(dataBins):
                     yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
                     matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
             matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.ylim(ymin=0, ymax=1)
             matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges_beaconPeriod_{1}.eps'.format(joinNumExchange, beaconPeriod)))
             matplotlib.pyplot.close('all')
 
