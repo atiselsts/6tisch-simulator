@@ -220,6 +220,7 @@ def parseCliOptions():
     )
     parser.add_argument( '--slotframeLength',
         dest       = 'slotframeLength',
+        nargs      = '+',
         type       = int,
         default    = 101,
         help       = '[tsch] Number of timeslots in a slotframe.',
