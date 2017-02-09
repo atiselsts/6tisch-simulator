@@ -154,6 +154,15 @@ def plot_duration(dataBins):
     beaconPeriods = sorted(list(set(beaconPeriods)))
     numMotes = sorted(list(set(numMotes)))
 
+    for je in joinNumExchanges:
+        for bp in beaconPeriods:
+            for nm in numMotes:
+                if (je, bp, nm) not in dictDurations:
+                    dictDurations[(je, bp, nm)] = {
+                        'mean': numpy.nan,
+                        'confint': 0,
+                    }
+
     # ===== plot
 
     # duration vs number of motes
@@ -235,9 +244,10 @@ def plot_duration_cdf(dataBins):
     for beaconPeriod in beaconPeriods:
         for joinNumExchange in joinNumExchanges:
             for numMote in numMotes:
-                sortedAsns = numpy.sort(dictDurations[(joinNumExchange, beaconPeriod, numMote)])
-                yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
-                matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
+                if (joinNumExchange, beaconPeriod, numMote) in dictDurations:
+                    sortedAsns = numpy.sort(dictDurations[(joinNumExchange, beaconPeriod, numMote)])
+                    yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
+                    matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
             matplotlib.pyplot.legend(loc='best', prop={'size': 10})
             matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges_beaconPeriod_{1}.eps'.format(joinNumExchange, beaconPeriod)))
             matplotlib.pyplot.close('all')
