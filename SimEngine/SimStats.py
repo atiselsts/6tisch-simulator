@@ -95,18 +95,19 @@ class SimStats(object):
         # print
         if self.settings.cpuID==None:
             print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
-        
-        # write statistics to output file
-        self._fileWriteStats(
-            dict(
-                {
-                    'runNum':              self.runNum,
-                    'cycle':               cycle,
-                }.items() +
-                self._collectSumMoteStats().items()  +
-                self._collectScheduleStats().items()
+
+        if cycle <= self.settings.numCyclesPerRun - 1:      # in case of join, we go on indefinitely so to avoid creating huge log files we stop writing after the numCyclesPerRun has passed
+            # write statistics to output file
+            self._fileWriteStats(
+                dict(
+                    {
+                        'runNum':              self.runNum,
+                        'cycle':               cycle,
+                    }.items() +
+                    self._collectSumMoteStats().items()  +
+                    self._collectScheduleStats().items()
+                )
             )
-        )
         
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
