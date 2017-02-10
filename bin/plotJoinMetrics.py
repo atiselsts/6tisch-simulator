@@ -75,7 +75,7 @@ ECOLORS_PERIOD     = {
 #============================ body ============================================
 def binDataFiles():
     '''
-    bin the data files according to the withJoin and joinNumExchanges.
+    bin the data files according to the withJoin, joinNumExchanges, beaconPeriod and slotframeLength.
 
     Returns a dictionary of format:
     {
