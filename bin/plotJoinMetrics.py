@@ -79,7 +79,7 @@ def binDataFiles():
 
     Returns a dictionary of format:
     {
-        (withJoin,joinNumExchanges, beaconPeriod): [
+        (withJoin,joinNumExchanges, beaconPeriod, slotframeLength): [
             filepath,
             filepath,
             filepath,
@@ -94,6 +94,7 @@ def binDataFiles():
         withJoin = None
         joinNumExchanges = None
         beaconPeriod = None
+        slotframeLength = None
 
         with open(infilepath, 'r') as f:
             for line in f:
@@ -107,21 +108,25 @@ def binDataFiles():
                 m = re.search('joinNumExchanges\s+=\s+([\.0-9]+)', line)
                 if m:
                     joinNumExchanges = int(m.group(1))
-                # ebPeriod
+                # beaconPeriod
                 m = re.search('beaconPeriod\s+=\s+([\.0-9]+)', line)
                 if m:
                     beaconPeriod = float(m.group(1))
-            if withJoin and joinNumExchanges and beaconPeriod:
-                if (withJoin, joinNumExchanges, beaconPeriod) not in dataBins:
-                    dataBins[(withJoin, joinNumExchanges, beaconPeriod)] = []
-                dataBins[(withJoin, joinNumExchanges, beaconPeriod)] += [infilepath]
+                # slotframeLength
+                m = re.search('slotframeLength\s+=\s+([\.0-9]+)', line)
+                if m:
+                    slotframeLength = int(m.group(1))
+            if withJoin and joinNumExchanges and beaconPeriod and slotframeLength:
+                if (withJoin, joinNumExchanges, beaconPeriod, slotframeLength) not in dataBins:
+                    dataBins[(withJoin, joinNumExchanges, beaconPeriod, slotframeLength)] = []
+                dataBins[(withJoin, joinNumExchanges, beaconPeriod, slotframeLength)] += [infilepath]
 
     return dataBins
 
 def plot_duration(dataBins):
     # duration of the join process is the ASN of the last node to have joined
     dictDurations = {}
-    for ((withJoin, joinNumExchanges, beaconPeriod), filepaths) in dataBins.items():
+    for ((withJoin, joinNumExchanges, beaconPeriod, slotframeLength), filepaths) in dataBins.items():
         for filepath in filepaths:
             with open(filepath, 'r') as f:
                 for line in f:
@@ -132,13 +137,13 @@ def plot_duration(dataBins):
                             numMotes = int(m.group(1))
                     if line.startswith('#join'):
                         duration = float(max(parse_join_asns_per_run(line)) * 10.0 / 1000 / 60 )
-                        if (joinNumExchanges, beaconPeriod, numMotes) not in dictDurations:
-                            dictDurations[(joinNumExchanges,beaconPeriod, numMotes)] = []
-                        dictDurations[(joinNumExchanges, beaconPeriod, numMotes)] += [duration]
+                        if (joinNumExchanges, beaconPeriod, slotframeLength, numMotes) not in dictDurations:
+                            dictDurations[(joinNumExchanges,beaconPeriod, slotframeLength, numMotes)] = []
+                        dictDurations[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] += [duration]
 
-    for ((joinNumExchanges,beaconPeriod, numMotes),perRunData) in dictDurations.items():
+    for ((joinNumExchanges,beaconPeriod, slotframeLength, numMotes),perRunData) in dictDurations.items():
         (m,confint) = calcMeanConfInt(perRunData)
-        dictDurations[(joinNumExchanges, beaconPeriod, numMotes)] = {
+        dictDurations[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] = {
             'mean':      m,
             'confint':   confint,
         }
@@ -146,22 +151,26 @@ def plot_duration(dataBins):
     joinNumExchanges = []
     numMotes = []
     beaconPeriods = []
-    for (joinNumExchange, beaconPeriod, numMote) in dictDurations.keys():
+    slotframeLengths = []
+    for (joinNumExchange, beaconPeriod, slotframeLength, numMote) in dictDurations.keys():
         joinNumExchanges += [joinNumExchange]
         numMotes += [numMote]
         beaconPeriods += [beaconPeriod]
+        slotframeLengths += [slotframeLength]
     joinNumExchanges = sorted(list(set(joinNumExchanges)))
     beaconPeriods = sorted(list(set(beaconPeriods)))
+    slotframeLengths = sorted(list(set(slotframeLengths)))
     numMotes = sorted(list(set(numMotes)))
 
     for je in joinNumExchanges:
         for bp in beaconPeriods:
-            for nm in numMotes:
-                if (je, bp, nm) not in dictDurations:
-                    dictDurations[(je, bp, nm)] = {
-                        'mean': numpy.nan,
-                        'confint': 0,
-                    }
+            for sl in slotframeLengths:
+                for nm in numMotes:
+                    if (je, bp, sl, nm) not in dictDurations:
+                        dictDurations[(je, bp, sl, nm)] = {
+                            'mean': numpy.nan,
+                            'confint': 0,
+                        }
 
     # ===== plot
 
@@ -170,48 +179,50 @@ def plot_duration(dataBins):
     matplotlib.pyplot.xlabel('Number of motes')
     matplotlib.pyplot.ylabel('Duration of the join process (min)')
 
-    for beaconPeriod in beaconPeriods:
-        for joinNumExchange in joinNumExchanges:
-            x = numMotes
-            y = [dictDurations[joinNumExchange, beaconPeriod, k]['mean'] for k in x]
-            yerr = [dictDurations[joinNumExchange, beaconPeriod, k]['confint'] for k in x]
-            matplotlib.pyplot.errorbar(
-                x=x,
-                y=y,
-                yerr=yerr,
-                label='Number of exchanges = {0}'.format(joinNumExchange)
-            )
-            matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
-            matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
-            matplotlib.pyplot.legend(loc='best', prop={'size': 10})
-        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes_beaconPeriod_{0}.eps'.format(beaconPeriod)))
-        matplotlib.pyplot.close('all')
+    for slotframeLength in slotframeLengths:
+        for beaconPeriod in beaconPeriods:
+            for joinNumExchange in joinNumExchanges:
+                x = numMotes
+                y = [dictDurations[joinNumExchange, beaconPeriod, slotframeLength, k]['mean'] for k in x]
+                yerr = [dictDurations[joinNumExchange, beaconPeriod, slotframeLength, k]['confint'] for k in x]
+                matplotlib.pyplot.errorbar(
+                    x=x,
+                    y=y,
+                    yerr=yerr,
+                    label='Number of exchanges = {0}'.format(joinNumExchange)
+                )
+                matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
+                matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
+                matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes_beaconPeriod_{0}_slotframeLength_{1}.eps'.format(beaconPeriod, slotframeLength)))
+            matplotlib.pyplot.close('all')
 
     # duration vs beaconPeriod
     fig = matplotlib.pyplot.figure()
     matplotlib.pyplot.xlabel('Beacon Period (s)')
     matplotlib.pyplot.ylabel('Duration of the join process (min)')
 
-    for joinNumExchange in joinNumExchanges:
-        for nm in numMotes:
-            x = beaconPeriods
-            y = [dictDurations[joinNumExchange, k, nm]['mean'] for k in x]
-            yerr = [dictDurations[joinNumExchange, k, nm]['confint'] for k in x]
-            matplotlib.pyplot.errorbar(
-                x=x,
-                y=y,
-                yerr=yerr,
-                label='Number of motes = {0}'.format(nm)
-            )
-            matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
-            matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
-            matplotlib.pyplot.legend(loc='best', prop={'size': 10})
-        matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_beaconPeriod_numExchanges_{0}.eps'.format(joinNumExchange)))
-        matplotlib.pyplot.close('all')
+    for slotframeLength in slotframeLengths:
+        for joinNumExchange in joinNumExchanges:
+            for nm in numMotes:
+                x = beaconPeriods
+                y = [dictDurations[joinNumExchange, k, slotframeLength, nm]['mean'] for k in x]
+                yerr = [dictDurations[joinNumExchange, k, slotframeLength, nm]['confint'] for k in x]
+                matplotlib.pyplot.errorbar(
+                    x=x,
+                    y=y,
+                    yerr=yerr,
+                    label='Number of motes = {0}'.format(nm)
+                )
+                matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
+                matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
+                matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_beaconPeriod_numExchanges_{0}_slotframeLength_{1}.eps'.format(joinNumExchange,slotframeLength)))
+            matplotlib.pyplot.close('all')
 
 def plot_duration_cdf(dataBins):
     dictDurations = {}
-    for ((withJoin, joinNumExchanges, beaconPeriod), filepaths) in dataBins.items():
+    for ((withJoin, joinNumExchanges, beaconPeriod, slotframeLength), filepaths) in dataBins.items():
         for filepath in filepaths:
             with open(filepath, 'r') as f:
                 for line in f:
@@ -222,36 +233,40 @@ def plot_duration_cdf(dataBins):
                             numMotes = int(m.group(1))
                     if line.startswith('#join'):
                         duration = [i * 10.0 / 1000 / 60 for i in parse_join_asns_per_run(line) if i != 0]
-                        if (joinNumExchanges, beaconPeriod, numMotes) not in dictDurations:
-                            dictDurations[(joinNumExchanges, beaconPeriod, numMotes)] = []
-                        dictDurations[(joinNumExchanges, beaconPeriod, numMotes)] += duration
+                        if (joinNumExchanges, beaconPeriod, slotframeLength, numMotes) not in dictDurations:
+                            dictDurations[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] = []
+                        dictDurations[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] += duration
 
     joinNumExchanges = []
     numMotes = []
     beaconPeriods = []
-    for (joinNumExchange, beaconPeriod, numMote) in dictDurations.keys():
+    slotframeLengths = []
+    for (joinNumExchange, beaconPeriod, slotframeLength, numMote) in dictDurations.keys():
         joinNumExchanges += [joinNumExchange]
         numMotes += [numMote]
         beaconPeriods += [beaconPeriod]
+        slotframeLengths += [slotframeLength]
     joinNumExchanges = sorted(list(set(joinNumExchanges)))
     beaconPeriods = sorted(list(set(beaconPeriods)))
+    slotframeLengths = sorted(list(set(slotframeLengths)))
     numMotes = sorted(list(set(numMotes)))
 
     fig = matplotlib.pyplot.figure()
     matplotlib.pyplot.xlabel('Duration of the join process (min)')
     matplotlib.pyplot.ylabel('CDF')
 
-    for beaconPeriod in beaconPeriods:
-        for joinNumExchange in joinNumExchanges:
-            for numMote in numMotes:
-                if (joinNumExchange, beaconPeriod, numMote) in dictDurations:
-                    sortedAsns = numpy.sort(dictDurations[(joinNumExchange, beaconPeriod, numMote)])
-                    yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
-                    matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
-            matplotlib.pyplot.legend(loc='best', prop={'size': 10})
-            matplotlib.pyplot.ylim(ymin=0, ymax=1)
-            matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges_beaconPeriod_{1}.eps'.format(joinNumExchange, beaconPeriod)))
-            matplotlib.pyplot.close('all')
+    for slotframeLength in slotframeLengths:
+        for beaconPeriod in beaconPeriods:
+            for joinNumExchange in joinNumExchanges:
+                for numMote in numMotes:
+                    if (joinNumExchange, beaconPeriod, slotframeLength, numMote) in dictDurations:
+                        sortedAsns = numpy.sort(dictDurations[(joinNumExchange, beaconPeriod, slotframeLength, numMote)])
+                        yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
+                        matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
+                matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+                matplotlib.pyplot.ylim(ymin=0, ymax=1)
+                matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges_beaconPeriod_{1}_slotframeLength_{2}.eps'.format(joinNumExchange, beaconPeriod, slotframeLength)))
+                matplotlib.pyplot.close('all')
 
 
 def calcMeanConfInt(vals):
