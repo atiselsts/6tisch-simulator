@@ -176,8 +176,6 @@ def plot_duration(dataBins):
 
     # duration vs number of motes
     fig = matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel('Number of motes')
-    matplotlib.pyplot.ylabel('Duration of the join process (min)')
 
     for slotframeLength in slotframeLengths:
         for beaconPeriod in beaconPeriods:
@@ -194,13 +192,13 @@ def plot_duration(dataBins):
                 matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
                 matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
                 matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.xlabel('Number of motes')
+            matplotlib.pyplot.ylabel('Duration of the join process (min)')
             matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_numMotes_beaconPeriod_{0}_slotframeLength_{1}.eps'.format(beaconPeriod, slotframeLength)))
             matplotlib.pyplot.close('all')
 
     # duration vs beaconPeriod
     fig = matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel('Beacon Period (s)')
-    matplotlib.pyplot.ylabel('Duration of the join process (min)')
 
     for slotframeLength in slotframeLengths:
         for joinNumExchange in joinNumExchanges:
@@ -217,6 +215,8 @@ def plot_duration(dataBins):
                 matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
                 matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
                 matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.xlabel('Beacon Period (s)')
+            matplotlib.pyplot.ylabel('Duration of the join process (min)')
             matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_beaconPeriod_numExchanges_{0}_slotframeLength_{1}.eps'.format(joinNumExchange,slotframeLength)))
             matplotlib.pyplot.close('all')
 
@@ -252,8 +252,6 @@ def plot_duration_cdf(dataBins):
     numMotes = sorted(list(set(numMotes)))
 
     fig = matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel('Duration of the join process (min)')
-    matplotlib.pyplot.ylabel('CDF')
 
     for slotframeLength in slotframeLengths:
         for beaconPeriod in beaconPeriods:
@@ -263,6 +261,8 @@ def plot_duration_cdf(dataBins):
                         sortedAsns = numpy.sort(dictDurations[(joinNumExchange, beaconPeriod, slotframeLength, numMote)])
                         yvals = numpy.arange(len(sortedAsns))/float(len(sortedAsns) - 1)
                         matplotlib.pyplot.plot(sortedAsns, yvals, label='Number of motes = {0}'.format(numMote))
+                matplotlib.pyplot.xlabel('Duration of the join process (min)')
+                matplotlib.pyplot.ylabel('CDF')
                 matplotlib.pyplot.legend(loc='best', prop={'size': 10})
                 matplotlib.pyplot.ylim(ymin=0, ymax=1)
                 matplotlib.pyplot.savefig(os.path.join(DATADIR, 'cdf_{0}_exchanges_beaconPeriod_{1}_slotframeLength_{2}.eps'.format(joinNumExchange, beaconPeriod, slotframeLength)))
