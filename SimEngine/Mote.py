@@ -273,6 +273,8 @@ class Mote(object):
         else:
             self.join_setJoined()
 
+    def join_joinedNeighbors(self):
+        return [nei for nei in self._myNeigbors() if nei.isJoined == True]
     #===== application
     
     def _app_schedule_sendSinglePacket(self,firstPacket=False):
@@ -423,9 +425,12 @@ class Mote(object):
 
             asn = self.engine.getAsn()
 
-            futureAsn = int(math.ceil(
-                random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
-                self.settings.slotDuration)))
+            if self.settings.randomBroadcast:
+                futureAsn = int(self.settings.slotframeLength)
+            else:
+                futureAsn = int(math.ceil(
+                    random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
+                    self.settings.slotDuration)))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -438,10 +443,17 @@ class Mote(object):
     def _tsch_action_sendEB(self):
 
         with self.dataLock:
+
+            if self.settings.randomBroadcast:
+                beaconProb = float(self.settings.beaconProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.beaconProbability)
+                sendBeacon = True if random.random() < beaconProb else False
+            else:
+                sendBeacon = True
             if self.preferredParent or self.dagRoot:
-                if self.settings.withJoin and self.isJoined:
-                    self._tsch_action_enqueueEB()
-                    self._stats_incrementMoteStats('tschTxEB')
+                if self.isJoined or not self.settings.withJoin:
+                    if sendBeacon:
+                        self._tsch_action_enqueueEB()
+                        self._stats_incrementMoteStats('tschTxEB')
 
             self._tsch_schedule_sendEB()  # schedule next EB
 
@@ -514,12 +526,12 @@ class Mote(object):
         with self.dataLock:
 
             asn    = self.engine.getAsn()
-            
-            if not firstDIO:
+
+            if self.settings.randomBroadcast:
+                futureAsn = int(self.settings.slotframeLength)
+            else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / (self.settings.slotDuration)))
-            else:
-                futureAsn = 1
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -600,9 +612,17 @@ class Mote(object):
         
         with self.dataLock:
 
+            if self.settings.randomBroadcast:
+                dioProb = float(self.settings.dioProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.dioProbability)
+                sendDio = True if random.random() < dioProb else False
+            else:
+                sendDio = True
+
             if self.preferredParent or self.dagRoot:
-                self._rpl_action_enqueueDIO()
-                self._stats_incrementMoteStats('rplTxDIO')
+                if self.isJoined or not self.settings.withJoin:
+                    if sendDio:
+                        self._rpl_action_enqueueDIO()
+                        self._stats_incrementMoteStats('rplTxDIO')
             
             self._rpl_schedule_sendDIO() # schedule next DIO
 
