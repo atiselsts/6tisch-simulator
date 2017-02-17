@@ -104,7 +104,7 @@ class Mote(object):
         self.propagation               = Propagation.Propagation()
         
         # join process
-        self.isJoined                  = False
+        self.isJoined                  = False if self.settings.withJoin else True
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         # app
