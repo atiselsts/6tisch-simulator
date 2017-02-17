@@ -260,6 +260,12 @@ class SimStats(object):
                     ' '.join(['{0}@{1}'.format(mote.id, mote.joinAsn) for mote in self.engine.motes])
                 )
             ]
+            output += [
+                '#firstBeacon runNum={0} {1}'.format(
+                    self.runNum,
+                    ' '.join(['{0}@{1}'.format(mote.id, mote.firstBeaconAsn) for mote in self.engine.motes])
+                )
+            ]
         output  = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:

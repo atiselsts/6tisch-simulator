@@ -107,6 +107,7 @@ class Mote(object):
         self.isJoined                  = False if self.settings.withJoin else True
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
+        self.firstBeaconAsn            = 0
         # app
         self.pkPeriod                  = self.settings.pkPeriod        
         # role
@@ -447,6 +448,7 @@ class Mote(object):
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB:
             if self.settings.withJoin:
+                self.firstBeaconAsn = self.engine.getAsn()
                 self.join_scheduleJoinProcess()  # upon the reception of a first EB trigger the join process
             self.firstEB = False
 
