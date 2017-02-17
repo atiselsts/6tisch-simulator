@@ -75,11 +75,11 @@ ECOLORS_PERIOD     = {
 #============================ body ============================================
 def binDataFiles():
     '''
-    bin the data files according to the withJoin, joinNumExchanges, beaconPeriod and slotframeLength.
+    bin the data files according to the withJoin, joinNumExchanges, beaconProbability and slotframeLength.
 
     Returns a dictionary of format:
     {
-        (withJoin,joinNumExchanges, beaconPeriod, slotframeLength): [
+        (withJoin,joinNumExchanges, beaconProbability, slotframeLength): [
             filepath,
             filepath,
             filepath,
@@ -93,7 +93,7 @@ def binDataFiles():
 
         withJoin = None
         joinNumExchanges = None
-        beaconPeriod = None
+        beaconProbability = None
         slotframeLength = None
 
         with open(infilepath, 'r') as f:
@@ -108,18 +108,18 @@ def binDataFiles():
                 m = re.search('joinNumExchanges\s+=\s+([\.0-9]+)', line)
                 if m:
                     joinNumExchanges = int(m.group(1))
-                # beaconPeriod
-                m = re.search('beaconPeriod\s+=\s+([\.0-9]+)', line)
+                # beaconProbability
+                m = re.search('beaconProbability\s+=\s+([\.0-9]+)', line)
                 if m:
-                    beaconPeriod = float(m.group(1))
+                    beaconProbability = float(m.group(1))
                 # slotframeLength
                 m = re.search('slotframeLength\s+=\s+([\.0-9]+)', line)
                 if m:
                     slotframeLength = int(m.group(1))
-            if withJoin and joinNumExchanges and beaconPeriod and slotframeLength:
-                if (withJoin, joinNumExchanges, beaconPeriod, slotframeLength) not in dataBins:
-                    dataBins[(withJoin, joinNumExchanges, beaconPeriod, slotframeLength)] = []
-                dataBins[(withJoin, joinNumExchanges, beaconPeriod, slotframeLength)] += [infilepath]
+            if withJoin and joinNumExchanges and beaconProbability and slotframeLength:
+                if (withJoin, joinNumExchanges, beaconProbability, slotframeLength) not in dataBins:
+                    dataBins[(withJoin, joinNumExchanges, beaconProbability, slotframeLength)] = []
+                dataBins[(withJoin, joinNumExchanges, beaconProbability, slotframeLength)] += [infilepath]
 
     return dataBins
 
