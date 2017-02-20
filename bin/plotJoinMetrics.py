@@ -162,6 +162,7 @@ def plot_duration(dataBins):
     slotframeLengths = sorted(list(set(slotframeLengths)))
     numMotes = sorted(list(set(numMotes)))
 
+    # exclude missing data points with NaN
     for je in joinNumExchanges:
         for bp in beaconPeriods:
             for sl in slotframeLengths:
@@ -189,8 +190,6 @@ def plot_duration(dataBins):
                     yerr=yerr,
                     label='Number of exchanges = {0}'.format(joinNumExchange)
                 )
-                matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
-                matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
                 matplotlib.pyplot.legend(loc='best', prop={'size': 10})
             matplotlib.pyplot.xlabel('Number of motes')
             matplotlib.pyplot.ylabel('Duration of the join process (min)')
@@ -212,8 +211,6 @@ def plot_duration(dataBins):
                     yerr=yerr,
                     label='Number of motes = {0}'.format(nm)
                 )
-                matplotlib.pyplot.ylim(ymin=0, ymax=max(y) + 2)
-                matplotlib.pyplot.xlim(xmin=0, xmax=max(x) + 2)
                 matplotlib.pyplot.legend(loc='best', prop={'size': 10})
             matplotlib.pyplot.xlabel('Beacon Period (s)')
             matplotlib.pyplot.ylabel('Duration of the join process (min)')
