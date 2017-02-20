@@ -193,7 +193,7 @@ class Propagation(object):
 
                                     # pick a random number
                                     failure = random.random()
-                                    if pseudo_pdr>=failure:
+                                    if pseudo_pdr>=failure and self.receivers[i]['mote'].radio_isSync():
                                         # success to receive the interference and realize collision
                                         self.receivers[i]['mote'].schedule[ts]['rxDetectedCollision'] = True
 
@@ -285,7 +285,7 @@ class Propagation(object):
                         
                         # pick a random number
                         failure = random.random()
-                        if pseudo_pdr>=failure:
+                        if pseudo_pdr>=failure and r['mote'].radio_isSync():
                             # success to receive the interference and realize collision
                             r['mote'].schedule[ts]['rxDetectedCollision'] = True
                     

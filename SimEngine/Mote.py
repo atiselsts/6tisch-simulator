@@ -143,6 +143,7 @@ class Mote(object):
         self.schedule                  = {}                    # indexed by ts, contains cell
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
+        self.isSync                    = False
         self.firstEB                   = True                  # flag to indicate first received enhanced beacon
         self._tsch_resetBackoff()
         # radio
@@ -177,6 +178,7 @@ class Mote(object):
         self.packetHops           = []
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
         self.isJoined             = True
+        self.isSync               = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
@@ -444,12 +446,16 @@ class Mote(object):
             self._tsch_schedule_sendEB()  # schedule next EB
 
     def _tsch_action_receiveEB(self, type, smac, payload):
+
+        if self.dagRoot:
+            return
+
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB:
-            if self.settings.withJoin:
-                self.firstBeaconAsn = self.engine.getAsn()
-                self.join_scheduleJoinProcess()  # upon the reception of a first EB trigger the join process
+            self.isSync = True
+            self.firstBeaconAsn = self.engine.getAsn()
+            self._init_stack()
             self.firstEB = False
 
     #===== rpl
@@ -549,6 +555,9 @@ class Mote(object):
         with self.dataLock:
 
             if self.dagRoot:
+                return
+
+            if not self.isSync:
                 return
 
             # update my mote stats
@@ -1536,8 +1545,36 @@ class Mote(object):
                 assert self.schedule[ts]['neighbor']==neighbor
                 self.schedule.pop(ts)
             self._tsch_schedule_activeCell()
+    def _tsch_action_synchronize(self):
+
+        if not self.isSync:
+            channel = random.randint(0,self.settings.numChans-1)
+            # start listening
+            self.propagation.startRx(
+                mote=self,
+                channel=channel,
+            )
+            # indicate that we're waiting for the RX operation to finish
+            self.waitingFor = self.DIR_RX
+
+            self._tsch_schedule_synchronize()
+
+    def _tsch_schedule_synchronize(self):
+        asn = self.engine.getAsn()
+
+        self.engine.scheduleAtAsn(
+            asn=asn + 1,
+            cb=self._tsch_action_synchronize,
+            uniqueTag=(self.id, '_tsch_action_synchronize'),
+            priority=3,
+        )
+
     
     #===== radio
+
+    def radio_isSync(self):
+        with self.dataLock:
+            return self.isSync
     
     def radio_txDone(self,isACKed,isNACKed):
         '''end of tx slot'''
@@ -1662,19 +1699,20 @@ class Mote(object):
         ts    = asn%self.settings.slotframeLength
         
         with self.dataLock:
-            
-            assert ts in self.schedule
-            assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
-            assert self.waitingFor==self.DIR_RX
+            if self.isSync:
+                assert ts in self.schedule
+                assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
+                assert self.waitingFor==self.DIR_RX
 
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
                 
                 # log charge usage
                 self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
-                
-                # update schedule stats
-                self.schedule[ts]['numRx'] += 1
+
+                if self.isSync:
+                    # update schedule stats
+                    self.schedule[ts]['numRx'] += 1
 
                 if (dstIp == self.BROADCAST_ADDRESS):
                     if (type == self.RPL_TYPE_DIO):
@@ -1846,6 +1884,13 @@ class Mote(object):
     #==== battery
     
     def boot(self):
+        if self.dagRoot:
+            self._init_stack() # initialize the stack and start sending beacons and DIOs
+        else:
+            self._tsch_schedule_synchronize() # permanent rx until node hears an enhanced beacon to sync
+
+
+    def _init_stack(self):
         # start the stack layer by layer
         
         # add minimal cell
@@ -1864,6 +1909,9 @@ class Mote(object):
         # 6top
         if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
+
+        if self.settings.withJoin and not self.dagRoot:
+            self.join_scheduleJoinProcess()  # trigger the join process
 
         # app
         if not self.dagRoot:
