@@ -175,7 +175,7 @@ def parseCliOptions():
         dest       = 'otfThreshold',
         nargs      = '+',
         type       = int,
-        default    = [1,4,8],
+        default    = 1,
         help       = '[otf] OTF threshold (cells).',
     )
     parser.add_argument( '--otfHousekeepingPeriod',
@@ -244,14 +244,14 @@ def parseCliOptions():
         nargs      = '+',
         type       = float,
         default    = 0.33,
-        help       = '[tsch] Enable random broadcasting algorithm.',
+        help       = '[tsch] Beacon probability with random broadcasting algorithm.',
     )
     parser.add_argument('--dioProbability',
         dest       = 'dioProbability',
         nargs      = '+',
         type       = float,
         default    = 0.33,
-        help       = '[tsch] Enable random broadcasting algorithm.',
+        help       = '[tsch] DIO probability with random broadcasting algorithm.',
     )
     # phy
     parser.add_argument( '--numChans',
