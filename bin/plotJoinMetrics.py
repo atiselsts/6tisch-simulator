@@ -123,6 +123,88 @@ def binDataFiles():
 
     return dataBins
 
+def plot_firstBeacon(dataBins):
+    dictFirstBeacons = {}
+    for ((withJoin, joinNumExchanges, beaconPeriod, slotframeLength), filepaths) in dataBins.items():
+        for filepath in filepaths:
+            with open(filepath, 'r') as f:
+                for line in f:
+                    if line.startswith('## '):
+                        # numMotes
+                        m = re.search('numMotes\s+=\s+([0-9]+)', line)
+                        if m:
+                            numMotes = int(m.group(1))
+                    if line.startswith('## '):
+                        # numChans
+                        m = re.search('numChans\s+=\s+([0-9]+)', line)
+                        if m:
+                            numChannels = int(m.group(1))
+                    if line.startswith('#firstBeacon'):
+                        firstBeaconMeanPerRun = float(numpy.mean(parse_firstBeacon_asns_per_run(line))) * 10.0 / 1000 / 60
+                        if (joinNumExchanges, beaconPeriod, slotframeLength, numMotes) not in dictFirstBeacons:
+                            dictFirstBeacons[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] = []
+                        dictFirstBeacons[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] += [firstBeaconMeanPerRun]
+
+    for ((joinNumExchanges, beaconPeriod, slotframeLength, numMotes), perRunData) in dictFirstBeacons.items():
+        (m, confint) = calcMeanConfInt(perRunData)
+        dictFirstBeacons[(joinNumExchanges, beaconPeriod, slotframeLength, numMotes)] = {
+            'mean': m,
+            'confint': confint,
+        }
+
+    joinNumExchanges = []
+    numMotes = []
+    beaconPeriods = []
+    slotframeLengths = []
+    for (joinNumExchange, beaconPeriod, slotframeLength, numMote) in dictFirstBeacons.keys():
+        joinNumExchanges += [joinNumExchange]
+        numMotes += [numMote]
+        beaconPeriods += [beaconPeriod]
+        slotframeLengths += [slotframeLength]
+    joinNumExchanges = sorted(list(set(joinNumExchanges)))
+    beaconPeriods = sorted(list(set(beaconPeriods)))
+    slotframeLengths = sorted(list(set(slotframeLengths)))
+    numMotes = sorted(list(set(numMotes)))
+
+    # exclude missing data points with NaN
+    for je in joinNumExchanges:
+        for bp in beaconPeriods:
+            for sl in slotframeLengths:
+                for nm in numMotes:
+                    if (je, bp, sl, nm) not in dictFirstBeacons:
+                        dictFirstBeacons[(je, bp, sl, nm)] = {
+                            'mean': numpy.nan,
+                            'confint': 0,
+                        }
+
+    # firstBeaconTime vs beaconPeriod
+    fig = matplotlib.pyplot.figure()
+
+    for slotframeLength in slotframeLengths:
+        for joinNumExchange in joinNumExchanges:
+            for nm in numMotes:
+                x = beaconPeriods
+                y = [dictFirstBeacons[joinNumExchange, k, slotframeLength, nm]['mean'] for k in x]
+                yerr = [dictFirstBeacons[joinNumExchange, k, slotframeLength, nm]['confint'] for k in x]
+                matplotlib.pyplot.errorbar(
+                    x=x,
+                    y=y,
+                    yerr=yerr,
+                    linestyle='g^',
+                    label='Simulation with {0} motes'.format(nm)
+                )
+            x = numpy.arange(start=0.01, stop=0.6, step=0.01)
+            y = float(slotframeLength) * float(numChannels) / x * 10.0 / 1000 / 60
+            matplotlib.pyplot.plot(x, y, label='Beacon theoretical time')
+            matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.xlabel('Beacon Probability')
+            matplotlib.pyplot.ylabel('Time until first beacon (min)')
+            matplotlib.pyplot.savefig(os.path.join(DATADIR,
+                                                   'firstBeaconTime_vs_beaconPeriod_numExchanges_{0}_slotframeLength_{1}.eps'.format(
+                                                       joinNumExchange, slotframeLength)))
+            matplotlib.pyplot.close('all')
+
+
 def plot_duration(dataBins):
     # duration of the join process is the ASN of the last node to have joined
     dictDurations = {}
@@ -211,7 +293,7 @@ def plot_duration(dataBins):
                     yerr=yerr,
                     label='Number of motes = {0}'.format(nm)
                 )
-                matplotlib.pyplot.legend(loc='best', prop={'size': 10})
+            matplotlib.pyplot.legend(loc='best', prop={'size': 10})
             matplotlib.pyplot.xlabel('Beacon Period (s)')
             matplotlib.pyplot.ylabel('Duration of the join process (min)')
             matplotlib.pyplot.savefig(os.path.join(DATADIR, 'duration_vs_beaconPeriod_numExchanges_{0}_slotframeLength_{1}.eps'.format(joinNumExchange,slotframeLength)))
@@ -289,6 +371,22 @@ def parse_join_asns_per_run(line):
             joinAsns += [int(word.split('@')[1])]
 
     return joinAsns
+
+def parse_firstBeacon_asns_per_run(line):
+    '''
+     Returns a list of firstBeacon ASNs
+     '''
+    assert line.startswith('#firstBeacon')
+    firstBeaconAsns = []
+    for word in line.split():
+        if '@' in word:
+            value = int(word.split('@')[1])
+            if value:
+                firstBeaconAsns += [value]
+
+    return firstBeaconAsns
+
+
 # ============================ main ============================================
 def main():
     dataBins = binDataFiles()
@@ -298,6 +396,9 @@ def main():
 
     # plot cdfs for each joinNumExchange run
     plot_duration_cdf(dataBins)
+
+    # plot the arrival time of first beacon vs beacon period/probability
+    plot_firstBeacon(dataBins)
 
 
 
