@@ -57,6 +57,7 @@ class SimStats(object):
         # stats
         self.stats                          = {}
         self.columnNames                    = []
+        self.numCycles                      = 0
         
         # start file
         if self.runNum==0:
@@ -118,6 +119,7 @@ class SimStats(object):
     
     def _actionEnd(self):
         '''Called once at end of the simulation.'''
+        self.numCycles = int(self.engine.getAsn()/self.settings.slotframeLength)
         self._fileWriteTopology()
     
     #=== collecting statistics
@@ -249,7 +251,7 @@ class SimStats(object):
         output += [
             '#aveChargePerCycle runNum={0} {1}'.format(
                 self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.settings.numCyclesPerRun) for mote in self.engine.motes])
+                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.numCycles) for mote in self.engine.motes])
             )
         ]
         if self.settings.withJoin:
