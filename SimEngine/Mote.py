@@ -1472,9 +1472,6 @@ class Mote(object):
                     
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
-                    
-                    # log charge usage
-                    self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
@@ -1504,8 +1501,6 @@ class Mote(object):
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
                 
-                    self._logChargeConsumed(self.CHARGE_TxData_uC)
-                
                 else:
                     # start listening
                     self.propagation.startRx(
@@ -1514,9 +1509,6 @@ class Mote(object):
                      )
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor = self.DIR_RX
-
-                    # log charge usage
-                    self._logChargeConsumed(self.CHARGE_RxData_uC)
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -1610,6 +1602,7 @@ class Mote(object):
             
             if isACKed:
                 # ACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
                 
                 # update schedule stats
                 self.schedule[ts]['numTxAck'] += 1
@@ -1632,6 +1625,7 @@ class Mote(object):
                 
             elif isNACKed:
                 # NACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
                 
                 # update schedule stats as if it were successfully transmitted
                 self.schedule[ts]['numTxAck'] += 1
@@ -1665,11 +1659,13 @@ class Mote(object):
                     self._tsch_resetBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
+                self._logChargeConsumed(self.CHARGE_TxData_uC)
                 self.txQueue.remove(self.pktToSend)
                 self._tsch_resetBackoff()
             
             else:
                 # neither ACK nor NACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
 
                 # increment backoffExponent and get new backoff value
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
@@ -1726,9 +1722,11 @@ class Mote(object):
 
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
-                
-                # log charge usage
-                self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
+
+                if [self] == dmac: # unicast packet
+                    self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
+                else: # broadcast
+                    self._logChargeConsumed(self.CHARGE_RxData_uC)
 
                 if self.isSync:
                     # update schedule stats
@@ -1808,7 +1806,10 @@ class Mote(object):
                 # this was an idle listen
                 
                 # log charge usage
-                self._logChargeConsumed(self.CHARGE_Idle_uC)
+                if self.isSync:
+                    self._logChargeConsumed(self.CHARGE_Idle_uC)
+                else:
+                    self._logChargeConsumed(self.CHARGE_IdleNotSync_uC)
                 
                 (isACKed, isNACKed) = (False, False)
             
