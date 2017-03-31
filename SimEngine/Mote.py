@@ -84,11 +84,12 @@ class Mote(object):
     # see A Realistic Energy Consumption Model for TSCH Networks.
     # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
     # Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
-    CHARGE_Idle_uC                     = 24.60
-    CHARGE_TxDataRxAck_uC              = 64.82
-    CHARGE_TxData_uC                   = 49.37
-    CHARGE_RxDataTxAck_uC              = 76.90
-    CHARGE_RxData_uC                   = 64.65
+    CHARGE_Idle_uC                     = 6.4
+    CHARGE_TxDataRxAck_uC              = 54.5
+    CHARGE_TxData_uC                   = 49.5
+    CHARGE_RxDataTxAck_uC              = 32.6
+    CHARGE_RxData_uC                   = 22.6
+    CHARGE_IdleNotSync_uC              = 45.0
     
     BROADCAST_ADDRESS                  = 0xffff
     
