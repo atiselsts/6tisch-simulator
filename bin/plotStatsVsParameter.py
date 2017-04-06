@@ -747,8 +747,10 @@ def plot_statsOfLastCycle(elemName,statsName):
                     elemName           = elemName,
                     statsName          = statsName,
                 )
-                
-                statsEachSet[elem]    = statsEachElem
+
+                if elem not in statsEachSet.keys():
+                    statsEachSet[elem] = []
+                statsEachSet[elem] += statsEachElem
                                 
         stats[dataSetDir] = statsEachSet
             
