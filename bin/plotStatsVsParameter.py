@@ -970,9 +970,10 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
     matplotlib.pyplot.figure()
     matplotlib.pyplot.xlabel(xlabel, fontsize='large')
     matplotlib.pyplot.ylabel(ylabel, fontsize='large')
+    matplotlib.pyplot.grid()
     if log:
         matplotlib.pyplot.yscale('log')
-
+    index = 0
     for dataSetDir in dirs:
         # calculate mean and confidence interval
         meanPerParameter    = {}
@@ -990,17 +991,6 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
         x         = sorted(meanPerParameter.keys())
         y         = [meanPerParameter[k] for k in x]
         yerr      = [confintPerParameter[k] for k in x]
-        
-        if dataSetDir == 'tx-housekeeping':
-            index = 0
-        elif dataSetDir == 'rx-housekeeping':
-            index = 1
-        elif dataSetDir == 'tx-rx-housekeeping':
-            index = 2
-        elif dataSetDir == 'no housekeeping':
-            index = 3
-        elif dataSetDir == 'no interference':
-            index = 4
 
         matplotlib.pyplot.errorbar(
             x        = x,
@@ -1011,6 +1001,8 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
             ecolor   = ECOLORS[index],
             label    = dataSetDir
         )
+
+        index = (index + 1) % len(COLORS)
         
         datafile=open(outfilename+'.dat', "a")
         print >> datafile,dataSetDir
