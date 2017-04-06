@@ -139,6 +139,11 @@ class Propagation(object):
                                 
                                 if interferenceFlag:
                                     transmission['smac'].stats_incrementRadioStats('probableCollisions')    
+                                if transmission['smac'].schedule[ts]['dir'] == transmission['smac'].DIR_TXRX_SHARED:
+                                    if interferenceFlag:
+                                        transmission['smac'].stats_sharedCellCollisionSignal()
+                                    else:
+                                        transmission['smac'].stats_sharedCellSuccessSignal()
                                 
                                 lockOn = transmission['smac']
                                 for itfr in interferers:

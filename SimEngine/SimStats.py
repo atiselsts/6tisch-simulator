@@ -138,6 +138,8 @@ class SimStats(object):
         return returnVal
     
     def _collectScheduleStats(self):
+
+        returnVal = {}
         
         # compute the number of schedule collisions
         
@@ -183,9 +185,22 @@ class SimStats(object):
                         # check whether interference from tx1 to rx2 is effective
                         if tx1.getRSSI(rx2) > rx2.minRssi:
                             effectiveCollidedTxs += 1
+
+        # collect shared cell stats for each individual shared cell (by default there is only one)
+        for mote in self.engine.motes:
+            sharedCellStats        = mote.getSharedCellStats()
+            if not returnVal:
+                returnVal    = sharedCellStats
+            else:
+                for k in returnVal.keys():
+                    if k in sharedCellStats.keys():
+                        returnVal[k] += sharedCellStats[k]
+                    else:
+                        returnVal[k] += 0
+
+        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs})
                             
-                            
-        return {'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs}
+        return returnVal
     
     #=== writing to file
     

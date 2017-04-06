@@ -1528,6 +1528,8 @@ class Mote(object):
                     'numTxAck':                  0,
                     'numRx':                     0,
                     'history':                   [],
+                    'sharedCellSuccess':         0,                       # indicator of success for shared cells
+                    'sharedCellCollision':       0,                       # indicator of a collision for shared cells
                     'rxDetectedCollision':       False,
                     'debug_canbeInterfered':     [],                      # [debug] shows schedule collision that can be interfered with minRssi or larger level 
                     'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level 
@@ -2058,6 +2060,41 @@ class Mote(object):
                     break
         return returnVal
     
+    def stats_sharedCellCollisionSignal(self):
+        asn = self.engine.getAsn()
+        ts = asn % self.settings.slotframeLength
+
+        assert self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED
+
+        with self.dataLock:
+            self.schedule[ts]['sharedCellCollision'] = 1
+
+    def stats_sharedCellSuccessSignal(self):
+        asn = self.engine.getAsn()
+        ts = asn % self.settings.slotframeLength
+
+        assert self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED
+
+        with self.dataLock:
+            self.schedule[ts]['sharedCellSuccess'] = 1
+
+
+    def getSharedCellStats(self):
+        returnVal = {}
+        # gather statistics
+        with self.dataLock:
+            for (ts, cell) in self.schedule.items():
+                if cell['dir'] == self.DIR_TXRX_SHARED:
+
+                    returnVal['sharedCellCollision_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellCollision']
+                    returnVal['sharedCellSuccess_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellSuccess']
+
+                    # reset the statistics
+                    cell['sharedCellCollision'] = 0
+                    cell['sharedCellSuccess']   = 0
+
+        return returnVal
+
     # queue stats
     
     def _stats_logQueueDelay(self,delay):
