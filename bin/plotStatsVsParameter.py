@@ -922,11 +922,6 @@ def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
                 m = re.search(elemName+'\s+=\s+([\.0-9]+)',line)
                 if m:
                     elem               = float(m.group(1))
-                
-                # numCyclesPerRun
-                m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
-                if m:
-                    numCyclesPerRun    = int(m.group(1))
     
     # find colnumcycle
     with open(infilepath,'r') as f:
@@ -939,24 +934,43 @@ def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
                 colnumrunNum            = elems.index('runNum')                
                 break
         
+    # find max cycle (in case of withJoin, it is different from numCyclesPerRun)
+        dictCyclesPerRun = {}
+        with open(infilepath, 'r') as f:
+            for line in f:
+                if line.startswith('#') or not line.strip():
+                    continue
+                m = re.search('\s+'.join(['([\.0-9]+)'] * numcols), line.strip())
+                cycle = int(m.group(colnumcycle + 1))
+                runNum = int(m.group(colnumrunNum + 1))
+
+                if runNum not in dictCyclesPerRun:
+                    dictCyclesPerRun[runNum] = []
+                dictCyclesPerRun[runNum] += [cycle]
+
+        for key in dictCyclesPerRun.keys():
+            dictCyclesPerRun[key] = max(dictCyclesPerRun[key])
+
     # parse data
     stats = []
     previousCycle  = None
+    previousRunNum = None
     with open(infilepath,'r') as f:
         for line in f:
             if line.startswith('#') or not line.strip():
                 continue
             m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-            stat                = int(m.group(colnumstatsName+1))
+            stat                = float(m.group(colnumstatsName+1))
             cycle               = int(m.group(colnumcycle+1))
             runNum              = int(m.group(colnumrunNum+1))
-            if cycle == numCyclesPerRun-1:
+            if cycle == dictCyclesPerRun[runNum]:
                 stats += [stat]
 
-            if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
+            if cycle==0 and previousCycle and previousCycle!=dictCyclesPerRun[previousRunNum]:
                 print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
                 
             previousCycle = cycle
+            previousRunNum = runNum
     
     return elem, stats
 
