@@ -852,11 +852,6 @@ def calcProbabilityOfCollision(dir, infilename, elemName):
                 if m:
                     elem = float(m.group(1))
 
-                # withJoin
-                m = re.search('withJoin\s+=\s+([\.0-9]+)', line)
-                if m:
-                    withJoin = int(m.group(1))
-
     # find colnumcycle
     with open(infilepath, 'r') as f:
         for line in f:
@@ -869,19 +864,18 @@ def calcProbabilityOfCollision(dir, infilename, elemName):
                 break
 
     # find max cycle in case of withJoin
-    if withJoin:
-        dictCyclesPerRun = {}
-        with open(infilepath, 'r') as f:
-            for line in f:
-                if line.startswith('#') or not line.strip():
-                    continue
-                m = re.search('\s+'.join(['([\.0-9]+)'] * numcols), line.strip())
-                cycle = int(m.group(colnumcycle + 1))
-                runNum = int(m.group(colnumrunNum + 1))
+    dictCyclesPerRun = {}
+    with open(infilepath, 'r') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            m = re.search('\s+'.join(['([\.0-9]+)'] * numcols), line.strip())
+            cycle = int(m.group(colnumcycle + 1))
+            runNum = int(m.group(colnumrunNum + 1))
 
-                if runNum not in dictCyclesPerRun:
-                    dictCyclesPerRun[runNum] = []
-                dictCyclesPerRun[runNum] += [cycle]
+            if runNum not in dictCyclesPerRun:
+                dictCyclesPerRun[runNum] = []
+            dictCyclesPerRun[runNum] += [cycle]
 
     for key in dictCyclesPerRun.keys():
         dictCyclesPerRun[key] = max(dictCyclesPerRun[key])
