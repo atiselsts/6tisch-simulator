@@ -109,7 +109,7 @@ def binDataFiles():
                 if m:
                     joinNumExchanges = int(m.group(1))
                 # beaconProbability
-                m = re.search('beaconProbability\s+=\s+([\.0-9]+)', line)
+                m = re.search('beaconPeriod\s+=\s+([\.0-9]+)', line)
                 if m:
                     beaconProbability = float(m.group(1))
                 # slotframeLength

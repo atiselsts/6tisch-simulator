@@ -170,7 +170,7 @@ def plot_reliability(elemName):
         ymax           = 0.1,
         xlabel         = xlabel,
         ylabel         = 'end-to-end packet loss ratio',
-        log            = True,
+        log            = False,
     )
 
 def calcReliability(dir,infilename,elemName):
@@ -410,7 +410,7 @@ def plot_chargeConsumedPerMote(elemName):
         outfilename=outfilename,
         xlabel=xlabel,
         ylabel='charge consumed (mC)',
-        log=True,
+        log=False,
     )
 
 
@@ -542,7 +542,7 @@ def plot_joinDuration(elemName):
         outfilename=outfilename,
         xlabel=xlabel,
         ylabel='Join Process Duration (min)',
-        log=True,
+        log=False,
     )
 
 
@@ -1045,6 +1045,9 @@ def main():
     # stats vs elemName
     plot_statsOfLastCycle(elemName, statsName)
 
+    # plot join duration vs elemName
+    plot_joinDuration(elemName)
+
     # reliability vs elemName
     plot_reliability(elemName)
     
@@ -1053,6 +1056,12 @@ def main():
     
     # battery life vs elemName
     plot_batteryLife(elemName)
+
+    # probability of collision vs elemName
+    plot_probabilityOfCollision(elemName)
+
+    # charge consumed per mote vs elemName
+    plot_chargeConsumedPerMote(elemName)
         
 if __name__=="__main__":
     main()
