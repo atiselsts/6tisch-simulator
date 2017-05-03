@@ -57,6 +57,7 @@ class SimStats(object):
         # stats
         self.stats                          = {}
         self.columnNames                    = []
+        self.numCycles                      = 0
         
         # start file
         if self.runNum==0:
@@ -95,7 +96,7 @@ class SimStats(object):
         # print
         if self.settings.cpuID==None:
             print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
-        
+
         # write statistics to output file
         self._fileWriteStats(
             dict(
@@ -118,6 +119,7 @@ class SimStats(object):
     
     def _actionEnd(self):
         '''Called once at end of the simulation.'''
+        self.numCycles = int(self.engine.getAsn()/self.settings.slotframeLength)
         self._fileWriteTopology()
     
     #=== collecting statistics
@@ -136,6 +138,8 @@ class SimStats(object):
         return returnVal
     
     def _collectScheduleStats(self):
+
+        returnVal = {}
         
         # compute the number of schedule collisions
         
@@ -181,9 +185,22 @@ class SimStats(object):
                         # check whether interference from tx1 to rx2 is effective
                         if tx1.getRSSI(rx2) > rx2.minRssi:
                             effectiveCollidedTxs += 1
+
+        # collect shared cell stats for each individual shared cell (by default there is only one)
+        for mote in self.engine.motes:
+            sharedCellStats        = mote.getSharedCellStats()
+            if not returnVal:
+                returnVal    = sharedCellStats
+            else:
+                for k in returnVal.keys():
+                    if k in sharedCellStats.keys():
+                        returnVal[k] += sharedCellStats[k]
+                    else:
+                        returnVal[k] += 0
+
+        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs})
                             
-                            
-        return {'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs}
+        return returnVal
     
     #=== writing to file
     
@@ -249,9 +266,22 @@ class SimStats(object):
         output += [
             '#aveChargePerCycle runNum={0} {1}'.format(
                 self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.settings.numCyclesPerRun) for mote in self.engine.motes])
+                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.numCycles) for mote in self.engine.motes])
             )
-        ]        
+        ]
+        if self.settings.withJoin:
+            output += [
+                '#join runNum={0} {1}'.format(
+                    self.runNum,
+                    ' '.join(['{0}@{1}'.format(mote.id, mote.joinAsn) for mote in self.engine.motes])
+                )
+            ]
+            output += [
+                '#firstBeacon runNum={0} {1}'.format(
+                    self.runNum,
+                    ' '.join(['{0}@{1}'.format(mote.id, mote.firstBeaconAsn) for mote in self.engine.motes])
+                )
+            ]
         output  = '\n'.join(output)
         
         with open(self.settings.getOutputFile(),'a') as f:

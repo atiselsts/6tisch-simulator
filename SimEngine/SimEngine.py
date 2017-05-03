@@ -96,12 +96,13 @@ class SimEngine(threading.Thread):
         # log
         log.info("thread {0} starting".format(self.name))
         
-        # schedule the endOfSimulation event
-        self.scheduleAtAsn(
-            asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
-            cb          = self._actionEndSim,
-            uniqueTag   = (None,'_actionEndSim'),
-        )
+        # schedule the endOfSimulation event if we are not simulating the join process
+        if not self.settings.withJoin:
+            self.scheduleAtAsn(
+                asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
+                cb          = self._actionEndSim,
+                uniqueTag   = (None,'_actionEndSim'),
+            )
         
         # call the start callbacks
         for cb in self.startCb:
@@ -186,6 +187,11 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.endCb      += [cb]
     
+    # === misc
+
+    def terminateSimulation(self):
+        self._actionEndSim()
+
     #=== play/pause
     
     def play(self):

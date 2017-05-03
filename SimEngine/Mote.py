@@ -54,6 +54,7 @@ class Mote(object):
     #=== app
     APP_TYPE_DATA                      = 'DATA'
     APP_TYPE_ACK                       = 'ACK'  # end to end ACK
+    APP_TYPE_JOIN                      = 'JOIN' # join traffic
     RPL_TYPE_DIO                       = 'DIO'
     RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
@@ -83,11 +84,12 @@ class Mote(object):
     # see A Realistic Energy Consumption Model for TSCH Networks.
     # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
     # Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
-    CHARGE_Idle_uC                     = 24.60
-    CHARGE_TxDataRxAck_uC              = 64.82
-    CHARGE_TxData_uC                   = 49.37
-    CHARGE_RxDataTxAck_uC              = 76.90
-    CHARGE_RxData_uC                   = 64.65
+    CHARGE_Idle_uC                     = 6.4
+    CHARGE_TxDataRxAck_uC              = 54.5
+    CHARGE_TxData_uC                   = 49.5
+    CHARGE_RxDataTxAck_uC              = 32.6
+    CHARGE_RxData_uC                   = 22.6
+    CHARGE_IdleNotSync_uC              = 45.0
     
     BROADCAST_ADDRESS                  = 0xffff
     
@@ -102,6 +104,11 @@ class Mote(object):
         self.settings                  = SimSettings.SimSettings()
         self.propagation               = Propagation.Propagation()
         
+        # join process
+        self.isJoined                  = False if self.settings.withJoin else True
+        self.joinRetransmissionPayload = 0
+        self.joinAsn                   = 0                     # ASN at the time node successfully joined
+        self.firstBeaconAsn            = 0
         # app
         self.pkPeriod                  = self.settings.pkPeriod        
         # role
@@ -137,6 +144,8 @@ class Mote(object):
         self.schedule                  = {}                    # indexed by ts, contains cell
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
+        self.isSync                    = False
+        self.firstEB                   = True                  # flag to indicate first received enhanced beacon
         self._tsch_resetBackoff()
         # radio
         self.txPower                   = 0                     # dBm
@@ -169,11 +178,104 @@ class Mote(object):
         self.packetLatencies      = [] # in slots
         self.packetHops           = []
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
+        self.isJoined             = True
+        self.isSync               = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
             mote.dagRootAddress = self
     
+    # ===== join process
+    def join_scheduleJoinProcess(self):
+        delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
+
+        # schedule
+        self.engine.scheduleIn(
+            delay=delay,
+            cb=self.join_initiateJoinProcess,
+            uniqueTag=(self.id, '_join_action_initiateJoinProcess'),
+            priority=2,
+        )
+
+    def join_setJoined(self):
+        assert self.settings.withJoin
+        if not self.isJoined:
+            self.isJoined = True
+            self.joinAsn  = self.engine.getAsn()
+            # log
+            self._log(
+                self.INFO,
+                "[join] Mote joined",
+            )
+
+        # check if all motes have joined, if so end the simulation
+        if all(mote.isJoined == True for mote in self.engine.motes):
+            # end the simulation
+            self.engine.terminateSimulation()
+
+    def join_initiateJoinProcess(self):
+        if not self.dagRoot:
+            if not self.isJoined:
+                self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+
+    def join_sendJoinPacket(self, token, destination):
+        # send join packet with payload equal to the number of exchanges
+        # create new packet
+        sourceRoute = []
+        if self.dagRoot:
+            sourceRoute = self._rpl_getSourceRoute([destination.id])
+
+        if sourceRoute or not self.dagRoot:
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': self.APP_TYPE_JOIN,
+                'payload': token,
+                'retriesLeft': self.TSCH_MAXTXRETRIES,
+                'srcIp': self,  # DAG root
+                'dstIp': destination,
+                'sourceRoute': sourceRoute
+            }
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+
+            if isEnqueued:
+                # increment traffic
+                self._otf_incrementIncomingTraffic(self)
+            else:
+                # update mote stats
+                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+
+            # save last token sent
+            self.joinRetransmissionPayload = token
+
+            # schedule retransmission
+            if not self.dagRoot:
+                self.engine.scheduleIn(
+                    delay=self.settings.slotDuration + self.settings.joinAttemptTimeout,
+                    cb=self.join_retransmitJoinPacket,
+                    uniqueTag=(self.id, '_join_action_retransmission'),
+                    priority=2,
+                )
+
+    def join_retransmitJoinPacket(self):
+        if not self.dagRoot and not self.isJoined:
+            self.join_sendJoinPacket(self.joinRetransmissionPayload, self.dagRootAddress)
+
+    def join_receiveJoinPacket(self, srcIp, payload, timestamp):
+        self.engine.removeEvent((self.id, '_join_action_retransmission')) # remove the pending retransmission event
+
+        if payload != 0:
+            newPayload = payload - 1
+
+            self.join_sendJoinPacket(token=newPayload, destination=srcIp)
+
+        else:
+            self.join_setJoined()
+
+    def join_joinedNeighbors(self):
+        return [nei for nei in self._myNeigbors() if nei.isJoined == True]
     #===== application
     
     def _app_schedule_sendSinglePacket(self,firstPacket=False):
@@ -247,7 +349,6 @@ class Mote(object):
 
 
             if sourceRoute: # if DAO was received from this node
-                sourceRoute.pop() # pop myself out of the source route
 
                 # send an ACK
                 # create new packet
@@ -312,9 +413,6 @@ class Mote(object):
                 'sourceRoute': []
             }
 
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
-
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
 
@@ -328,12 +426,12 @@ class Mote(object):
 
             asn = self.engine.getAsn()
 
-            if not firstEB:
+            if self.settings.randomBroadcast:
+                futureAsn = int(self.settings.slotframeLength)
+            else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.beaconPeriod, 1.2 * self.settings.beaconPeriod) / (
                     self.settings.slotDuration)))
-            else:
-                futureAsn = 1
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -346,11 +444,32 @@ class Mote(object):
     def _tsch_action_sendEB(self):
 
         with self.dataLock:
-            if self.preferredParent or self.dagRoot:
-                self._tsch_action_enqueueEB()
-                self._stats_incrementMoteStats('tschTxEB')
 
-            self._tsch_schedule_sendEB()  # schedule next DIO
+            if self.settings.randomBroadcast:
+                beaconProb = float(self.settings.beaconProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.beaconProbability)
+                sendBeacon = True if random.random() < beaconProb else False
+            else:
+                sendBeacon = True
+            if self.preferredParent or self.dagRoot:
+                if self.isJoined or not self.settings.withJoin:
+                    if sendBeacon:
+                        self._tsch_action_enqueueEB()
+                        self._stats_incrementMoteStats('tschTxEB')
+
+            self._tsch_schedule_sendEB()  # schedule next EB
+
+    def _tsch_action_receiveEB(self, type, smac, payload):
+
+        if self.dagRoot:
+            return
+
+        # got an EB, increment stats
+        self._stats_incrementMoteStats('tschRxEB')
+        if self.firstEB:
+            self.isSync = True
+            self.firstBeaconAsn = self.engine.getAsn()
+            self._init_stack()
+            self.firstEB = False
 
     #===== rpl
 
@@ -370,9 +489,6 @@ class Mote(object):
                 'dstIp':          self.BROADCAST_ADDRESS,
                 'sourceRoute':    []
             }
-            
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
             
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
@@ -398,9 +514,6 @@ class Mote(object):
                 'sourceRoute': []
             }
 
-            # update mote stats
-            self._stats_incrementMoteStats('appGenerated')
-
             # enqueue packet in TSCH queue
             isEnqueued = self._tsch_enqueue(newPacket)
 
@@ -414,12 +527,12 @@ class Mote(object):
         with self.dataLock:
 
             asn    = self.engine.getAsn()
-            
-            if not firstDIO:
+
+            if self.settings.randomBroadcast:
+                futureAsn = int(self.settings.slotframeLength)
+            else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / (self.settings.slotDuration)))
-            else:
-                futureAsn = 1
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -455,6 +568,9 @@ class Mote(object):
         with self.dataLock:
 
             if self.dagRoot:
+                return
+
+            if not self.isSync:
                 return
 
             # update my mote stats
@@ -497,9 +613,17 @@ class Mote(object):
         
         with self.dataLock:
 
+            if self.settings.randomBroadcast:
+                dioProb = float(self.settings.dioProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.dioProbability)
+                sendDio = True if random.random() < dioProb else False
+            else:
+                sendDio = True
+
             if self.preferredParent or self.dagRoot:
-                self._rpl_action_enqueueDIO()
-                self._stats_incrementMoteStats('rplTxDIO')
+                if self.isJoined or not self.settings.withJoin:
+                    if sendDio:
+                        self._rpl_action_enqueueDIO()
+                        self._stats_incrementMoteStats('rplTxDIO')
             
             self._rpl_schedule_sendDIO() # schedule next DIO
 
@@ -645,6 +769,9 @@ class Mote(object):
                 parents = self.parents
                 self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
 
+        if sourceRoute:
+            sourceRoute.pop()
+
         return sourceRoute
 
     def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
@@ -686,14 +813,11 @@ class Mote(object):
             nextHop = self._myNeigbors()
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
-        else:                                       # downward packet
-            assert packet['sourceRoute']
-
-            nextHopId = packet['sourceRoute'].pop()
-
-            for nei in self._myNeigbors():
-                if [nei.id] == nextHopId:
-                    nextHop = [nei]
+        elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
+                nextHopId = packet['sourceRoute'].pop()
+                for nei in self._myNeigbors():
+                    if [nei.id] == nextHopId:
+                        nextHop = [nei]
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
@@ -1329,7 +1453,7 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['nextHop'] == [cell['neighbor']]:
+                        if pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN: # do not send join traffic in dedicated slots
                             self.pktToSend = pkt
                     
                 # seind packet
@@ -1350,15 +1474,12 @@ class Mote(object):
                     
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
-                    
-                    # log charge usage
-                    self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]):
+                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN:
                             self.pktToSend = pkt
 
                 # Decrement backoff
@@ -1382,8 +1503,6 @@ class Mote(object):
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
                 
-                    self._logChargeConsumed(self.CHARGE_TxData_uC)
-                
                 else:
                     # start listening
                     self.propagation.startRx(
@@ -1392,9 +1511,6 @@ class Mote(object):
                      )
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor = self.DIR_RX
-
-                    # log charge usage
-                    self._logChargeConsumed(self.CHARGE_RxData_uC)
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -1413,6 +1529,8 @@ class Mote(object):
                     'numTxAck':                  0,
                     'numRx':                     0,
                     'history':                   [],
+                    'sharedCellSuccess':         0,                       # indicator of success for shared cells
+                    'sharedCellCollision':       0,                       # indicator of a collision for shared cells
                     'rxDetectedCollision':       False,
                     'debug_canbeInterfered':     [],                      # [debug] shows schedule collision that can be interfered with minRssi or larger level 
                     'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level 
@@ -1443,8 +1561,36 @@ class Mote(object):
                 assert self.schedule[ts]['neighbor']==neighbor
                 self.schedule.pop(ts)
             self._tsch_schedule_activeCell()
+    def _tsch_action_synchronize(self):
+
+        if not self.isSync:
+            channel = random.randint(0,self.settings.numChans-1)
+            # start listening
+            self.propagation.startRx(
+                mote=self,
+                channel=channel,
+            )
+            # indicate that we're waiting for the RX operation to finish
+            self.waitingFor = self.DIR_RX
+
+            self._tsch_schedule_synchronize()
+
+    def _tsch_schedule_synchronize(self):
+        asn = self.engine.getAsn()
+
+        self.engine.scheduleAtAsn(
+            asn=asn + 1,
+            cb=self._tsch_action_synchronize,
+            uniqueTag=(self.id, '_tsch_action_synchronize'),
+            priority=3,
+        )
+
     
     #===== radio
+
+    def radio_isSync(self):
+        with self.dataLock:
+            return self.isSync
     
     def radio_txDone(self,isACKed,isNACKed):
         '''end of tx slot'''
@@ -1460,6 +1606,7 @@ class Mote(object):
             
             if isACKed:
                 # ACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
                 
                 # update schedule stats
                 self.schedule[ts]['numTxAck'] += 1
@@ -1482,6 +1629,7 @@ class Mote(object):
                 
             elif isNACKed:
                 # NACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
                 
                 # update schedule stats as if it were successfully transmitted
                 self.schedule[ts]['numTxAck'] += 1
@@ -1515,11 +1663,13 @@ class Mote(object):
                     self._tsch_resetBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
+                self._logChargeConsumed(self.CHARGE_TxData_uC)
                 self.txQueue.remove(self.pktToSend)
                 self._tsch_resetBackoff()
             
             else:
                 # neither ACK nor NACK received
+                self._logChargeConsumed(self.CHARGE_TxDataRxAck_uC)
 
                 # increment backoffExponent and get new backoff value
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
@@ -1569,19 +1719,22 @@ class Mote(object):
         ts    = asn%self.settings.slotframeLength
         
         with self.dataLock:
-            
-            assert ts in self.schedule
-            assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
-            assert self.waitingFor==self.DIR_RX
+            if self.isSync:
+                assert ts in self.schedule
+                assert self.schedule[ts]['dir']==self.DIR_RX or self.schedule[ts]['dir']==self.DIR_TXRX_SHARED
+                assert self.waitingFor==self.DIR_RX
 
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
-                
-                # log charge usage
-                self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
-                
-                # update schedule stats
-                self.schedule[ts]['numRx'] += 1
+
+                if [self] == dmac: # unicast packet
+                    self._logChargeConsumed(self.CHARGE_RxDataTxAck_uC)
+                else: # broadcast
+                    self._logChargeConsumed(self.CHARGE_RxData_uC)
+
+                if self.isSync:
+                    # update schedule stats
+                    self.schedule[ts]['numRx'] += 1
 
                 if (dstIp == self.BROADCAST_ADDRESS):
                     if (type == self.RPL_TYPE_DIO):
@@ -1594,8 +1747,7 @@ class Mote(object):
 
                         return isACKed, isNACKed
                     elif (type == self.TSCH_TYPE_EB):
-                        # got an EB, increment stats
-                        self._stats_incrementMoteStats('tschRxEB')
+                        self._tsch_action_receiveEB(type, smac, payload)
 
                         (isACKed, isNACKed) = (False, False)
 
@@ -1613,6 +1765,9 @@ class Mote(object):
                     elif type == self.APP_TYPE_ACK:
                         self._app_action_receiveAck(srcIp=srcIp, payload=payload,timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
+                    elif type == self.APP_TYPE_JOIN:
+                        self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        (isACKed, isNACKed) = (True, False)
                     
                 else:
                     # relaying packet
@@ -1623,10 +1778,7 @@ class Mote(object):
                         # update the number of hops
                         newPayload     = copy.deepcopy(payload)
                         newPayload[2] += 1
-                    elif type == self.RPL_TYPE_DAO:
-                        # copy the payload and forward
-                        newPayload     = copy.deepcopy(payload)
-                    elif type == self.APP_TYPE_ACK:
+                    else:
                         # copy the payload and forward
                         newPayload     = copy.deepcopy(payload)
                     
@@ -1658,7 +1810,10 @@ class Mote(object):
                 # this was an idle listen
                 
                 # log charge usage
-                self._logChargeConsumed(self.CHARGE_Idle_uC)
+                if self.isSync:
+                    self._logChargeConsumed(self.CHARGE_Idle_uC)
+                else:
+                    self._logChargeConsumed(self.CHARGE_IdleNotSync_uC)
                 
                 (isACKed, isNACKed) = (False, False)
             
@@ -1754,14 +1909,14 @@ class Mote(object):
     #==== battery
     
     def boot(self):
+        if self.dagRoot:
+            self._init_stack() # initialize the stack and start sending beacons and DIOs
+        else:
+            self._tsch_schedule_synchronize() # permanent rx until node hears an enhanced beacon to sync
+
+
+    def _init_stack(self):
         # start the stack layer by layer
-        
-        # app
-        if not self.dagRoot:
-            if self.settings.numPacketsBurst!=None and self.settings.burstTimestamp!=None:
-                self._app_schedule_sendPacketBurst()
-            else:
-                self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
@@ -1779,6 +1934,17 @@ class Mote(object):
         # 6top
         if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
+
+        if self.settings.withJoin and not self.dagRoot:
+            self.join_scheduleJoinProcess()  # trigger the join process
+
+        # app
+        if not self.dagRoot:
+            if not self.settings.withJoin:
+                if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
+                    self._app_schedule_sendPacketBurst()
+                else:
+                    self._app_schedule_sendSinglePacket(firstPacket=True)
         
         # tsch
         self._tsch_schedule_activeCell()
@@ -1895,6 +2061,41 @@ class Mote(object):
                     break
         return returnVal
     
+    def stats_sharedCellCollisionSignal(self):
+        asn = self.engine.getAsn()
+        ts = asn % self.settings.slotframeLength
+
+        assert self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED
+
+        with self.dataLock:
+            self.schedule[ts]['sharedCellCollision'] = 1
+
+    def stats_sharedCellSuccessSignal(self):
+        asn = self.engine.getAsn()
+        ts = asn % self.settings.slotframeLength
+
+        assert self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED
+
+        with self.dataLock:
+            self.schedule[ts]['sharedCellSuccess'] = 1
+
+
+    def getSharedCellStats(self):
+        returnVal = {}
+        # gather statistics
+        with self.dataLock:
+            for (ts, cell) in self.schedule.items():
+                if cell['dir'] == self.DIR_TXRX_SHARED:
+
+                    returnVal['sharedCellCollision_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellCollision']
+                    returnVal['sharedCellSuccess_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellSuccess']
+
+                    # reset the statistics
+                    cell['sharedCellCollision'] = 0
+                    cell['sharedCellSuccess']   = 0
+
+        return returnVal
+
     # queue stats
     
     def _stats_logQueueDelay(self,delay):

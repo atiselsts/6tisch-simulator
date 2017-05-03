@@ -34,7 +34,7 @@ def printProgress(num_cpus):
             if line.count('ended')==0:
                 allDone = False
         output = '\n'.join(output)
-        os.system('cls')
+        os.system('cls' if os.name == 'nt' else 'clear')
         print output
         if allDone:
             break

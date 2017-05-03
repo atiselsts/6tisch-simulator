@@ -94,6 +94,34 @@ def parseCliOptions():
         default    = 2.000,
         help       = '[topology] Side of the deployment area (km).',
     )
+    parser.add_argument('--fullyMeshed',
+        dest       = 'fullyMeshed',
+        nargs      = '+',
+        type       = int,
+        default    = 0,
+        help       =' [topology] 1 to enable fully meshed network.',
+    )
+    # join process
+    parser.add_argument('--withJoin',
+        dest       = 'withJoin',
+        nargs      = '+',
+        type       = int,
+        default    = 0,
+        help       =' [join process] 1 to enable join process.',
+    )
+    parser.add_argument( '--joinNumExchanges',
+        dest       = 'joinNumExchanges',
+        nargs      = '+',
+        type       = int,
+        default    = 2,
+        help       = '[join process] Number of exchanges needed to complete join process.',
+    )
+    parser.add_argument( '--joinAttemptTimeout',
+        dest       = 'joinAttemptTimeout',
+        type       = float,
+        default    = 60.0,
+        help       = '[join process] Timeout to attempt join process (s).',
+    )
     # app
     parser.add_argument( '--pkPeriod',
         dest       = 'pkPeriod',
@@ -147,7 +175,7 @@ def parseCliOptions():
         dest       = 'otfThreshold',
         nargs      = '+',
         type       = int,
-        default    = [1,4,8],
+        default    = 1,
         help       = '[otf] OTF threshold (cells).',
     )
     parser.add_argument( '--otfHousekeepingPeriod',
@@ -192,15 +220,38 @@ def parseCliOptions():
     )
     parser.add_argument( '--slotframeLength',
         dest       = 'slotframeLength',
+        nargs      = '+',
         type       = int,
         default    = 101,
         help       = '[tsch] Number of timeslots in a slotframe.',
     )
     parser.add_argument('--beaconPeriod',
         dest       = 'beaconPeriod',
+        nargs      = '+',
         type       = float,
-        default    = 30.0,
+        default    = 2.0,
         help       = '[tsch] Enhanced Beacon period (s).',
+    )
+    # random broadcasting algorithm
+    parser.add_argument('--randomBroadcast',
+        dest       = 'randomBroadcast',
+        type       = int,
+        default    = 0,
+        help       = '[tsch] Enable Bayesian broadcasting algorithm.',
+    )
+    parser.add_argument('--beaconProbability',
+        dest       = 'beaconProbability',
+        nargs      = '+',
+        type       = float,
+        default    = 0.33,
+        help       = '[tsch] Beacon probability with random broadcasting algorithm.',
+    )
+    parser.add_argument('--dioProbability',
+        dest       = 'dioProbability',
+        nargs      = '+',
+        type       = float,
+        default    = 0.33,
+        help       = '[tsch] DIO probability with random broadcasting algorithm.',
     )
     # phy
     parser.add_argument( '--numChans',
