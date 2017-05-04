@@ -232,26 +232,26 @@ def parseCliOptions():
         default    = 2.0,
         help       = '[tsch] Enhanced Beacon period (s).',
     )
-    # random broadcasting algorithm
-    parser.add_argument('--randomBroadcast',
-        dest       = 'randomBroadcast',
+    # Bayesian broadcast algorithm
+    parser.add_argument('--bayesianBroadcast',
+        dest       = 'bayesianBroadcast',
         type       = int,
         default    = 0,
-        help       = '[tsch] Enable Bayesian broadcasting algorithm.',
+        help       = '[tsch] Enable Bayesian broadcast algorithm.',
     )
     parser.add_argument('--beaconProbability',
         dest       = 'beaconProbability',
         nargs      = '+',
         type       = float,
         default    = 0.33,
-        help       = '[tsch] Beacon probability with random broadcasting algorithm.',
+        help       = '[tsch] Beacon probability with Bayesian broadcast algorithm.',
     )
     parser.add_argument('--dioProbability',
         dest       = 'dioProbability',
         nargs      = '+',
         type       = float,
         default    = 0.33,
-        help       = '[tsch] DIO probability with random broadcasting algorithm.',
+        help       = '[tsch] DIO probability with Bayesian broadcast algorithm.',
     )
     # phy
     parser.add_argument( '--numChans',
