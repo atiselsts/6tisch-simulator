@@ -465,11 +465,11 @@ class Mote(object):
 
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
-        if self.firstEB:
-            self.isSync = True
+        if self.firstEB and not self.isSync:
             self.firstBeaconAsn = self.engine.getAsn()
-            self._init_stack()
             self.firstEB = False
+            self.isSync = True
+            self._init_stack()
 
     #===== rpl
 
@@ -1909,11 +1909,14 @@ class Mote(object):
     #==== battery
     
     def boot(self):
-        if self.dagRoot:
-            self._init_stack() # initialize the stack and start sending beacons and DIOs
+        if self.settings.withJoin:
+            if self.dagRoot:
+                self._init_stack()  # initialize the stack and start sending beacons and DIOs
+            else:
+                self._tsch_schedule_synchronize()  # permanent rx until node hears an enhanced beacon to sync
         else:
-            self._tsch_schedule_synchronize() # permanent rx until node hears an enhanced beacon to sync
-
+            self.isSync = True  # without join we skip the always-on listening for EBs
+            self._init_stack()
 
     def _init_stack(self):
         # start the stack layer by layer
