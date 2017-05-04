@@ -37,6 +37,7 @@ class Topology(object):
     
     STABLE_RSSI              = -93.6        # dBm, corresponds to PDR = 0.5 (see rssiPdrTable below)
     STABLE_NEIGHBORS         = 3
+    FULLY_MESHED_SQUARE_SIDE = 0.005        # (hack) small value to speed up the construction of fully-meshed topology
     
     def __init__(self, motes):
         
@@ -49,8 +50,10 @@ class Topology(object):
         # if fullyMeshed is enabled, create a topology where each node has N-1 stable neighbors
         if self.settings.fullyMeshed:
             self.stable_neighbors = len(self.motes) - 1
+            self.squareSide = self.FULLY_MESHED_SQUARE_SIDE
         else:
             self.stable_neighbors = self.STABLE_NEIGHBORS
+            self.squareSide = self.settings.squareSide
         
     #======================== public ==========================================
     
@@ -72,8 +75,8 @@ class Topology(object):
         
         # put DAG root at center of area
         dagRoot.setLocation(
-            x = self.settings.squareSide/2,
-            y = self.settings.squareSide/2
+            x = self.squareSide/2,
+            y = self.squareSide/2
         )
         
         # reposition each mote until it is connected
@@ -86,8 +89,8 @@ class Topology(object):
             while not connected:
                 # pick a random location
                 mote.setLocation(
-                    x = self.settings.squareSide*random.random(),
-                    y = self.settings.squareSide*random.random()
+                    x = self.squareSide*random.random(),
+                    y = self.squareSide*random.random()
                 )
                 
                 numStableNeighbors = 0
