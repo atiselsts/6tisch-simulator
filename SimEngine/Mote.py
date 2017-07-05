@@ -58,6 +58,7 @@ class Mote(object):
     RPL_TYPE_DIO                       = 'DIO'
     RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
+    SIXTOP_CMD		               = 'SIXTOP_CMD'   
 
     #=== rpl
     RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
@@ -70,6 +71,49 @@ class Mote(object):
     DEFAULT_DIO_INTERVAL_DOUBLINGS     = 20 # maximum number of doublings of DIO_INTERVAL_MIN (DIO_INTERVAL_MAX = 2^(DEFAULT_DIO_INTERVAL_MIN+DEFAULT_DIO_INTERVAL_DOUBLINGS) ms)
     DEFAULT_DIO_REDUNDANCY_CONSTANT    = 10 # number of hearings to suppress next transmission in the current interval
     
+
+ #=== 6top states
+    SIX_STATE_IDLE                              = 0x00
+    # sending
+    SIX_STATE_SENDING_REQUEST                   = 0x01
+    # waiting for SendDone confirmation
+    SIX_STATE_WAIT_ADDREQUEST_SENDDONE          = 0x02  
+    SIX_STATE_WAIT_DELETEREQUEST_SENDDONE       = 0x03
+    SIX_STATE_WAIT_RELOCATEREQUEST_SENDDONE     = 0x04
+    SIX_STATE_WAIT_COUNTREQUEST_SENDDONE        = 0x05
+    SIX_STATE_WAIT_LISTREQUEST_SENDDONE         = 0x06
+    SIX_STATE_WAIT_CLEARREQUEST_SENDDONE        = 0x07
+    # waiting for response from the neighbor
+    SIX_STATE_WAIT_ADDRESPONSE                  = 0x08 
+    SIX_STATE_WAIT_DELETERESPONSE               = 0x09
+    SIX_STATE_WAIT_RELOCATERESPONSE             = 0x0a
+    SIX_STATE_WAIT_COUNTRESPONSE                = 0x0b
+    SIX_STATE_WAIT_LISTRESPONSE                 = 0x0c
+    SIX_STATE_WAIT_CLEARRESPONSE                = 0x0d
+    #response senddone
+    SIX_STATE_REQUEST_RECEIVED                  = 0x0e
+    SIX_STATE_WAIT_RESPONSE_SENDDONE            = 0x0f
+
+    #=== 6top commands
+    IANA_6TOP_CMD_ADD			        = 0x01 # add one or more cells     
+    IANA_6TOP_CMD_DELETE   			= 0x02 # delete one or more cells  
+    IANA_6TOP_CMD_RELOCATE      		= 0x03 # relocate one or more cells  
+    IANA_6TOP_CMD_COUNT         		= 0x04 # count scheduled cells 
+    IANA_6TOP_CMD_LIST          		= 0x05 # list the scheduled cells  
+    IANA_6TOP_CMD_CLEAR         		= 0x06 # clear all cells
+
+    #=== 6P return code
+    IANA_6TOP_RC_SUCCESS       			= 0x00 # operation succeeded
+    IANA_6TOP_RC_ERROR         			= 0x01 # generic error
+    IANA_6TOP_RC_EOL           			= 0x02 # end of list
+    IANA_6TOP_RC_RESET         			= 0x03 # critical error, reset
+    IANA_6TOP_RC_VER_ERR       			= 0x04 # unsupported 6P version   
+    IANA_6TOP_RC_SFID_ERR       		= 0x05 # unsupported SFID         
+    IANA_6TOP_RC_GEN_ERR        		= 0x06 # wrong schedule generation       
+    IANA_6TOP_RC_BUSY          			= 0x07 # busy
+    IANA_6TOP_RC_NORES          		= 0x08 # not enough resources      
+    IANA_6TOP_RC_CELLLIST_ERR   		= 0x09 # cellList error 
+
     #=== otf
     OTF_TRAFFIC_SMOOTHING              = 0.5
     #=== 6top
@@ -138,6 +182,17 @@ class Mote(object):
         # churn due to unstable medium
         self.sixtopPdrThreshold           = self.settings.sixtopPdrThreshold
         self.sixtopHousekeepingPeriod  = self.settings.sixtopHousekeepingPeriod
+
+	# 6top protocol
+	self.sixtopStates	       = {}	#a dictionary that stores the different 6p states for each neighbor
+	#in each entry the key is the neighbor.id
+	#the values are: 
+	#		 'state', used for tracking the transaction state for each neighbor
+	#		 'responseCode', used in the receiver node to act differently when a responseACK is received
+	#		 'blockedCells', candidates cell pending for an operation
+	self.timeout6P=0			#timeouts for when a add response is not expected anymore
+
+
         # tsch
         self.txQueue                   = []
         self.pktToSend                 = None
@@ -1955,7 +2010,7 @@ class Mote(object):
     def _logChargeConsumed(self,charge):
         with self.dataLock:
             self.chargeConsumed  += charge
-    
+
     #======================== private =========================================
     
     #===== getters
