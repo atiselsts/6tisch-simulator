@@ -1447,6 +1447,8 @@ class Mote(object):
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
 
     def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
+        ''' receive a 6P response messages '''
+
         with self.dataLock:
             # TODO: now this is still an assert, later this should be handled appropriately
             assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE
@@ -1487,6 +1489,18 @@ class Mote(object):
                 pass
             else: # should not happen
                 assert False
+
+    def _sixtop_receive_RESPONSE_ACK(self, neighbor, packet):
+        with self.dataLock:
+            # TODO: now this is still an assert, later this should be handled appropriately
+            assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_REQUEST_RECEIVED
+
+            # TODO: handle blocked cells and schedule
+
+            # set state to sending request for this neighbor
+            if smac.id not in self.sixtopStates:
+               self.sixtopStates[smac.id] = {}
+            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_IDLE
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
@@ -1840,6 +1854,9 @@ class Mote(object):
                 # time correction
                 if self.schedule[ts]['neighbor'] == self.preferredParent:
                     self.timeCorrectedSlot = asn
+
+                if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
+                    self._sixtop_receive_RESPONSE_ACK(self.schedule[ts]['neighbor'], self.pktToSend)
 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
