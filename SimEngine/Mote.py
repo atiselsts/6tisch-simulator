@@ -95,9 +95,9 @@ class Mote(object):
     SIX_STATE_WAIT_RESPONSE_SENDDONE            = 0x0f
 
     #=== 6top message types
-    IANA_6TOP_TYPE_REQUEST              = 0x00
-    IANA_6TOP_TYPE_RESPONSE             = 0x01
-    IANA_6TOP_TYPE_CONFIRMATION         = 0x02
+    IANA_6TOP_TYPE_REQUEST              = '6TOP_REQUEST'
+    IANA_6TOP_TYPE_RESPONSE             = '6TOP_RESPONSE'
+    IANA_6TOP_TYPE_CONFIRMATION         = '6TOP_CONFIRMATION'
 
     #=== 6top commands
     IANA_6TOP_CMD_ADD			        = 0x01 # add one or more cells
@@ -291,6 +291,7 @@ class Mote(object):
             newPacket = {
                 'asn': self.engine.getAsn(),
                 'type': self.APP_TYPE_JOIN,
+                'code': None,
                 'payload': token,
                 'retriesLeft': self.TSCH_MAXTXRETRIES,
                 'srcIp': self,  # DAG root
@@ -416,6 +417,7 @@ class Mote(object):
                 newPacket = {
                     'asn': self.engine.getAsn(),
                     'type': self.APP_TYPE_ACK,
+                    'code': None,
                     'payload': [],
                     'retriesLeft': self.TSCH_MAXTXRETRIES,
                     'srcIp': self, # DAG root
@@ -467,6 +469,7 @@ class Mote(object):
             newPacket = {
                 'asn': self.engine.getAsn(),
                 'type': self.TSCH_TYPE_EB,
+                'code': None,
                 'payload': [self.dagRank],  # the payload is the rpl rank
                 'retriesLeft': 1,  # do not retransmit broadcast
                 'srcIp': self,
@@ -544,6 +547,7 @@ class Mote(object):
             newPacket = {
                 'asn':            self.engine.getAsn(),
                 'type':           self.RPL_TYPE_DIO,
+                'code':           None,
                 'payload':        [self.rank], # the payload is the rpl rank
                 'retriesLeft':    1, # do not retransmit broadcast
                 'srcIp':          self,
@@ -568,6 +572,7 @@ class Mote(object):
             newPacket = {
                 'asn': self.engine.getAsn(),
                 'type': self.RPL_TYPE_DAO,
+                'code': None,
                 'payload': [self.id, self.preferredParent.id],
                 'retriesLeft': self.TSCH_MAXTXRETRIES,
                 'srcIp': self,
@@ -1365,7 +1370,7 @@ class Mote(object):
                 if len(newCellList) == numCells:
                     break
                 if ts in availableTimeslots:
-                    newCellList += [(ts, ch, dir)]
+                    newCellList += [(ts, ch, newDir)]
 
             returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
             if len(newCellList) != numCells:
@@ -1373,7 +1378,7 @@ class Mote(object):
 
             # TODO: block cells
 
-            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode)
+            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir)
 
     def _sixtop_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
         ''' get a response from the neighbor. '''
@@ -1413,7 +1418,7 @@ class Mote(object):
 
             return cells
 
-    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode):
+    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir):
         ''' enqueue a new 6P ADD request '''
 
         self._log(
@@ -1427,7 +1432,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_RESPONSE,
             'code':           returnCode,
-            'payload':        [cellList],
+            'payload':        [cellList, dir],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1440,6 +1445,48 @@ class Mote(object):
         if not isEnqueued:
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+
+    def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
+        with self.dataLock:
+            # TODO: now this is still an assert, later this should be handled appropriately
+            assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE
+            assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES
+
+            # if the request was successfull and there were enough resources
+            if code == self.IANA_6TOP_RC_SUCCESS:
+                receivedCellList = payload[0]
+                receivedDir = payload[1]
+                dir = self.DIR_TX
+                if receivedDir == self.DIR_TX:
+                    dir = self.DIR_RX
+
+                for (ts, ch, cellDir) in receivedCellList:
+                    # log
+                    self._log(
+                        self.INFO,
+                        '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
+                        (ts,ch,self.id,neighbor.id),
+                    )
+                    cellList         += [(ts,ch,dir)]
+                self._tsch_addCells(neighbor, cellList)
+
+                # update counters
+                if dir==self.DIR_TX:
+                    if neighbor not in self.numCellsToNeighbors:
+                        self.numCellsToNeighbors[neighbor]     = 0
+                    self.numCellsToNeighbors[neighbor]        += len(cells)
+                else:
+                    if neighbor not in self.numCellsFromNeighbors:
+                        self.numCellsFromNeighbors[neighbor]   = 0
+                    self.numCellsFromNeighbors[neighbor]      += len(cells)
+
+                # go back to IDLE
+                self.sixtopStates[smac.id]['state'] = self.SIX_STATE_IDLE
+
+            elif code == self.IANA_6TOP_RC_NORES:
+                pass
+            else: # should not happen
+                assert False
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
@@ -1635,6 +1682,7 @@ class Mote(object):
                     self.propagation.startTx(
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
+                        code      = self.pktToSend['code'],
                         smac      = self,
                         dmac      = [cell['neighbor']],
                         srcIp     = self.pktToSend['srcIp'],
@@ -1664,6 +1712,7 @@ class Mote(object):
                     self.propagation.startTx(
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
+                        code      = self.pktToSend['code'],
                         smac      = self,
                         dmac      = self.pktToSend['nextHop'],
                         srcIp     = self.pktToSend['srcIp'],
@@ -1883,7 +1932,7 @@ class Mote(object):
                         canbeInterfered = 1
             self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]
 
-    def radio_rxDone(self,type=None,smac=None,dmac=None,srcIp=None,dstIp=None,srcRoute=None,payload=None):
+    def radio_rxDone(self,type=None,code=None,smac=None,dmac=None,srcIp=None,dstIp=None,srcRoute=None,payload=None):
         '''end of RX radio activity'''
 
         asn   = self.engine.getAsn()
@@ -1930,8 +1979,12 @@ class Mote(object):
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    if self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
+                    elif self.settings.sixtopMessaging == 1 and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
                         self._sixtop_receive_ADD(type, smac, payload)
+                        (isACKed, isNACKed) = (True, False)
+                    elif self.settings.sixtopMessaging == 1 and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD request
+                        self._sixtop_receive_RESPONSE(type, code, smac, payload)
+                        (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
                         (isACKed, isNACKed) = (True, False)
@@ -1959,6 +2012,7 @@ class Mote(object):
                     relayPacket = {
                         'asn':         asn,
                         'type':        type,
+                        'code':        code,
                         'payload':     newPayload,
                         'retriesLeft': self.TSCH_MAXTXRETRIES,
                         'srcIp':       srcIp,
