@@ -1486,6 +1486,7 @@ class Mote(object):
                 self.sixtopStates[smac.id]['state'] = self.SIX_STATE_IDLE
 
             elif code == self.IANA_6TOP_RC_NORES:
+                print 'come here'
                 pass
             else: # should not happen
                 assert False
@@ -1687,6 +1688,7 @@ class Mote(object):
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN: # do not send join traffic in dedicated slots
                             self.pktToSend = pkt
+                            # TODO: last packet or first packet?
 
                 # send packet
                 if self.pktToSend:
@@ -1714,6 +1716,7 @@ class Mote(object):
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN:
                             self.pktToSend = pkt
+                            # TODO: last packet or first packet?
 
                 # Decrement backoff
                 if self.backoff > 0:
@@ -1996,10 +1999,10 @@ class Mote(object):
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging == 1 and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
+                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
                         self._sixtop_receive_ADD(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging == 1 and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD request
+                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD request
                         self._sixtop_receive_RESPONSE(type, code, smac, payload)
                         (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet

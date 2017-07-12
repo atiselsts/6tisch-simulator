@@ -230,6 +230,7 @@ class Propagation(object):
                                     # this mote is delivered the packet
                                     isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
                                         type       = transmission['type'],
+                                        code       = transmission['code'],
                                         smac       = transmission['smac'],
                                         dmac       = transmission['dmac'],
                                         srcIp      = transmission['srcIp'],
