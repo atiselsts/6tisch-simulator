@@ -1258,35 +1258,47 @@ class Mote(object):
         ''' tries to reserve numCells cells to a neighbor. '''
 
         with self.dataLock:
-            cells       = neighbor._sixtop_cell_reservation_response(self,numCells,dir)
-            cellList    = []
-            for (ts,ch) in cells.iteritems():
-                # log
-                self._log(
-                    self.INFO,
-                    '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
-                    (ts,ch,self.id,neighbor.id),
-                )
-                cellList += [(ts,ch,dir)]
-            self._tsch_addCells(neighbor,cellList)
 
-            # update counters
-            if dir==self.DIR_TX:
-                if neighbor not in self.numCellsToNeighbors:
-                    self.numCellsToNeighbors[neighbor]     = 0
-                self.numCellsToNeighbors[neighbor]        += len(cells)
+            if self.settings.sixtopMessaging:
+                # randomly picking cells (SF0)
+                availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys()))
+                random.shuffle(availableTimeslots)
+                cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+                cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
+
+                if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id][state] == self.SIX_STATE_IDLE):
+                    self._sixtop_enqueue_ADD(neighbor, cellList, numCells)
+
             else:
-                if neighbor not in self.numCellsFromNeighbors:
-                    self.numCellsFromNeighbors[neighbor]   = 0
-                self.numCellsFromNeighbors[neighbor]      += len(cells)
+                cells       = neighbor._sixtop_cell_reservation_response(self,numCells,dir)
+                cellList    = []
+                for (ts,ch) in cells.iteritems():
+                    # log
+                    self._log(
+                        self.INFO,
+                        '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
+                        (ts,ch,self.id,neighbor.id),
+                    )
+                    cellList += [(ts,ch,dir)]
+                self._tsch_addCells(neighbor,cellList)
 
-            if len(cells)!=numCells:
-                # log
-                self._log(
-                    self.ERROR,
-                    '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}',
-                    (len(cells),numCells,self.id,neighbor.id),
-                )
+                # update counters
+                if dir==self.DIR_TX:
+                    if neighbor not in self.numCellsToNeighbors:
+                        self.numCellsToNeighbors[neighbor]     = 0
+                    self.numCellsToNeighbors[neighbor]        += len(cells)
+                else:
+                    if neighbor not in self.numCellsFromNeighbors:
+                        self.numCellsFromNeighbors[neighbor]   = 0
+                    self.numCellsFromNeighbors[neighbor]      += len(cells)
+
+                if len(cells)!=numCells:
+                    # log
+                    self._log(
+                        self.ERROR,
+                        '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}',
+                        (len(cells),numCells,self.id,neighbor.id),
+                    )
 
     def _sixtop_enqueue_ADD(self, neighbor, cellList, numCells):
         ''' enqueue a new 6P ADD request '''
@@ -1315,10 +1327,10 @@ class Mote(object):
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
 
-       # set state to sending request for this neighbor
-       if neighbor.id not in self.sixtopStates:
+        # set state to sending request for this neighbor
+        if neighbor.id not in self.sixtopStates:
            self.sixtopStates[neighbor.id] = {}
-       self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
+        self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
 
     def _sixtop_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
         ''' get a response from the neighbor. '''
