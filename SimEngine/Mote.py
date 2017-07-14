@@ -1337,7 +1337,7 @@ class Mote(object):
                         (len(cells),numCells,self.id,neighbor.id),
                     )
 
-    def _sixtop_enqueue_ADD(self, neighbor, cellList, numCells):
+    def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells,seq):
         ''' enqueue a new 6P ADD request '''
 
         self._log(
@@ -1351,7 +1351,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_REQUEST,
             'code':           self.IANA_6TOP_CMD_ADD,
-            'payload':        [cellList, numCells, self.DIR_TX],
+            'payload':        [cellList, numCells, self.DIR_TX,seq],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1364,11 +1364,10 @@ class Mote(object):
         if not isEnqueued:
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
-
-        # set state to sending request for this neighbor
-        if neighbor.id not in self.sixtopStates:
-           self.sixtopStates[neighbor.id] = {}
-        self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
+	else:
+            # set state to sending request for this neighbor
+            self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
+	    self.sixtopStates[neighbor.id]['blockedCells'] = cellList
 
     def _sixtop_receive_ADD(self, type, smac, payload):
         with self.dataLock:
