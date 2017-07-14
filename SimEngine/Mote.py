@@ -383,9 +383,8 @@ class Mote(object):
     def _app_action_sendSinglePacket(self):
         ''' actual send data function. Evaluates queue length too '''
 
-        # enqueue data, only when I have TX cells to not disturb the joining process
-	if self.getTxCells()>0:
-        	self._app_action_enqueueData()
+	# enqueue data
+        self._app_action_enqueueData()
 
         # schedule next _app_action_sendSinglePacket
         self._app_schedule_sendSinglePacket()
@@ -433,13 +432,14 @@ class Mote(object):
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
 
-        # only start sending data if I have some TX cells
+        # only start sending data if I have some TX cells, to not disturb the joining process
         if self.getTxCells():
 
             # create new packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
                 'type':           self.APP_TYPE_DATA,
+		'code': 	  None,
                 'payload':        [self.id,self.engine.getAsn(),1], # the payload is used for latency and number of hops calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES,
                 'srcIp':          self,
@@ -878,6 +878,8 @@ class Mote(object):
 
         if packet['dstIp'] == self.BROADCAST_ADDRESS:
             nextHop = self._myNeigbors()
+	elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
+	    nextHop = [packet['dstIp']]
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
         elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
@@ -1175,7 +1177,7 @@ class Mote(object):
                 self._log(
                     self.INFO,
                     "[6top] relocating cell ts {0} to {1} (pdr={2:.3f} significantly worse than others {3})",
-                    (worst_ts,neighbor,worst_pdr,cell_pdr),
+                    (worst_ts,neighbor.id,worst_pdr,cell_pdr),
                 )
 
                 # measure how many cells I have now to that parent
@@ -1217,7 +1219,7 @@ class Mote(object):
                     self._log(
                         self.INFO,
                         "[6top] relocating cell ts {0} to {1} (bundle pdr {2} << theoretical pdr {3})",
-                        (ts,neighbor,bundlePdr,theoPDR),
+                        (ts,neighbor.id,bundlePdr,theoPDR),
                     )
 
                     # measure how many cells I have now to that parent
