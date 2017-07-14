@@ -1798,6 +1798,7 @@ class Mote(object):
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN: # do not send join traffic in dedicated slots
                             self.pktToSend = pkt
+			    break
                             # TODO: last packet or first packet?
 
                 # send packet
@@ -1826,6 +1827,7 @@ class Mote(object):
                     for pkt in self.txQueue:
                         if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN:
                             self.pktToSend = pkt
+			    break
                             # TODO: last packet or first packet?
 
                 # Decrement backoff
