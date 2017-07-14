@@ -1574,17 +1574,43 @@ class Mote(object):
 	    # go back to IDLE, i.e. remove the neighbor form the states
 	    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
 	    self.sixtopStates[neighbor.id]['blockedCells']=[]
-    def _sixtop_receive_RESPONSE_ACK(self, neighbor, packet):
+
+    def _sixtop_receive_RESPONSE_ACK(self, packet):
         with self.dataLock:
+
             # TODO: now this is still an assert, later this should be handled appropriately
-            assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_REQUEST_RECEIVED
+            assert self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_RESPONSE_SENDDONE
 
-            # TODO: handle blocked cells and schedule
+	    confirmedCellList = packet['payload'][0]
+            receivedDir = packet['payload'][1]
+	    neighbor=packet['dstIp']
+	    code=packet['code']
 
-            # set state to sending request for this neighbor
-            if smac.id not in self.sixtopStates:
-               self.sixtopStates[smac.id] = {}
-            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_IDLE
+	    if code == self.IANA_6TOP_RC_SUCCESS:
+	    
+		    for (ts, ch, cellDir) in confirmedCellList:
+		            # log
+		            self._log(
+		                self.INFO,
+		                '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+		                (ts,ch,self.id,neighbor.id,cellDir),
+		            )
+		            #cellList         += [(ts,ch,dir)]
+		    self._tsch_addCells(neighbor, confirmedCellList)
+
+		    # update counters
+		    if receivedDir==self.DIR_TX:
+		            if neighbor not in self.numCellsToNeighbors:
+		                self.numCellsToNeighbors[neighbor]     = 0
+		            self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
+		    else:
+		            if neighbor not in self.numCellsFromNeighbors:
+		                self.numCellsFromNeighbors[neighbor]   = 0
+		            self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+
+	    # go back to IDLE, i.e. remove the neighbor form the states
+	    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+	    self.sixtopStates[neighbor.id]['blockedCells']=[]
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
@@ -1615,7 +1641,6 @@ class Mote(object):
         '''
         Finds cells to neighbor, and remove it.
         '''
-
         # get cells to the neighbors
         scheduleList = []
 
@@ -1751,6 +1776,8 @@ class Mote(object):
             assert not self.waitingFor
 
             cell = self.schedule[ts]
+
+	    #TODO: should we disable DATA packets in SHARED cells?
 
             if  cell['dir']==self.DIR_RX:
 
