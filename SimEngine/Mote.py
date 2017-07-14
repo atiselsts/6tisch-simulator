@@ -1369,28 +1369,52 @@ class Mote(object):
             self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
 	    self.sixtopStates[neighbor.id]['blockedCells'] = cellList
 
-    def _sixtop_receive_ADD(self, type, smac, payload):
+    def _sixtop_receive_ADD_REQUEST(self, type, smac, payload):
         with self.dataLock:
-            # TODO: now this is still an assert, later this should be handled appropriately
-            assert smac.id not in self.sixtopStates or (smac.id in self.sixtopStates and self.sixtopStates[smac.id]['state'] == self.SIX_STATE_IDLE)
-
-            # set state to sending request for this neighbor
-            if smac.id not in self.sixtopStates:
-               self.sixtopStates[smac.id] = {}
-            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_RECEIVED
 
             neighbor = smac
             cellList = payload[0]
             numCells = payload[1]
             dirNeighbor = payload[2]
-            newDir = self.DIR_RX
-            if dirNeighbor == self.DIR_RX:
+	    seq=payload[3]
+
+            if smac.id in self.sixtopStates and self.sixtopStates[smac.id]['state'] != self.SIX_STATE_IDLE:
+	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+		return
+
+            # set state to receiving request for this neighbor
+            if smac.id not in self.sixtopStates:
+                self.sixtopStates[smac.id] = {}
+	        self.sixtopStates[neighbor.id]['blockedCells']=[]
+	        self.sixtopStates[neighbor.id]['seqNum']=0
+            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_RECEIVED
+
+            # set direction of cells
+            if dirNeighbor == self.DIR_TX:
+                newDir = self.DIR_RX
+            else:
                 newDir = self.DIR_TX
 
             # cells that will be in the response
             newCellList = []
+
+	    #get blocked cells from other 6top operations
+	    blockedCells = []
+	    for n in self.sixtopStates.keys():
+		if n!=neighbor.id:
+		    if len(self.sixtopStates[n]['blockedCells'])>0:
+			blockedCells+=self.sixtopStates[n]['blockedCells']
+
+	    #convert blocked cells into ts
+	    tsBlocked=[]
+	    if len(blockedCells)>0:
+	        for c in blockedCells:
+		    print c
+		    tsBlocked.append(c[0])
+
             # available timeslots on this mote
-            availableTimeslots = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys()))
+            availableTimeslots = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
             random.shuffle(cellList)
             for (ts, ch, dir) in cellList:
                 if len(newCellList) == numCells:
@@ -1398,13 +1422,17 @@ class Mote(object):
                 if ts in availableTimeslots:
                     newCellList += [(ts, ch, newDir)]
 
-            returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
+            
             if len(newCellList) != numCells:
                 returnCode = self.IANA_6TOP_RC_NORES # not enough resources
+	    else:
+		returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
 
-            # TODO: block cells
+	    #set blockCells for this 6top operation
+	    self.sixtopStates[neighbor.id]['blockedCells'] = newCellList
 
-            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir)
+	    #enqueue response
+            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq)
 
     def _sixtop_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
         ''' get a response from the neighbor. '''
