@@ -58,7 +58,10 @@ class Mote(object):
     RPL_TYPE_DIO                       = 'DIO'
     RPL_TYPE_DAO                       = 'DAO'
     TSCH_TYPE_EB                       = 'EB'
-    SIXTOP_CMD		               = 'SIXTOP_CMD'
+    #=== 6top message types
+    IANA_6TOP_TYPE_REQUEST              = '6TOP_REQUEST'
+    IANA_6TOP_TYPE_RESPONSE             = '6TOP_RESPONSE'
+    IANA_6TOP_TYPE_CONFIRMATION         = '6TOP_CONFIRMATION'
 
     #=== rpl
     RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
@@ -93,11 +96,6 @@ class Mote(object):
     #response senddone
     SIX_STATE_REQUEST_RECEIVED                  = 0x0e
     SIX_STATE_WAIT_RESPONSE_SENDDONE            = 0x0f
-
-    #=== 6top message types
-    IANA_6TOP_TYPE_REQUEST              = '6TOP_REQUEST'
-    IANA_6TOP_TYPE_RESPONSE             = '6TOP_RESPONSE'
-    IANA_6TOP_TYPE_CONFIRMATION         = '6TOP_CONFIRMATION'
 
     #=== 6top commands
     IANA_6TOP_CMD_ADD			        = 0x01 # add one or more cells
@@ -197,7 +195,6 @@ class Mote(object):
     	#		 'responseCode', used in the receiver node to act differently when a responseACK is received
     	#		 'blockedCells', candidates cell pending for an operation
     	self.timeout6P=0			                          # timeouts for when a add response is not expected anymore
-
 
         # tsch
         self.txQueue                   = []
