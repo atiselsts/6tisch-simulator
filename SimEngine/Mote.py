@@ -1273,14 +1273,38 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.sixtopMessaging:
-                # randomly picking cells (SF0)
-                availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys()))
-                random.shuffle(availableTimeslots)
-                cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
-                cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
+		if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
 
-                if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
-                    self._sixtop_enqueue_ADD(neighbor, cellList, numCells)
+			# if neighbor not yet in states dict, add it
+			if neighbor.id not in self.sixtopStates:      
+			    self.sixtopStates[neighbor.id] = {}
+			    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+			    self.sixtopStates[neighbor.id]['blockedCells'] = []
+			    self.sixtopStates[neighbor.id]['seqNum']=0
+
+			#get blocked cells from other 6top operations
+		    	blockedCells = []
+			for n in self.sixtopStates.keys():
+			    if n!=neighbor.id:
+			        if len(self.sixtopStates[n]['blockedCells'])>0:
+				    blockedCells+=self.sixtopStates[n]['blockedCells']
+
+			#convert blocked cells into ts
+	    		tsBlocked=[]
+	    	        if len(blockedCells)>0:
+	        	    for c in blockedCells:
+		                print c
+		    	        tsBlocked.append(c[0])
+
+		        # randomly picking cells (SF0)
+		        availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
+		        random.shuffle(availableTimeslots)
+		        cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+		        cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
+
+		        self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['seqNum'])
+		else:
+			#TODO: implement timeout
 
             else:
                 cells       = neighbor._sixtop_cell_reservation_response(self,numCells,dir)
