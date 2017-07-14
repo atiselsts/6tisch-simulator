@@ -380,8 +380,9 @@ class Mote(object):
     def _app_action_sendSinglePacket(self):
         ''' actual send data function. Evaluates queue length too '''
 
-        # enqueue data
-        self._app_action_enqueueData()
+        # enqueue data, only when I have TX cells to not disturb the joining process
+	if self.getTxCells()>0:
+        	self._app_action_enqueueData()
 
         # schedule next _app_action_sendSinglePacket
         self._app_schedule_sendSinglePacket()
