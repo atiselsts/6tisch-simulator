@@ -1796,7 +1796,8 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        if pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN: # do not send join traffic in dedicated slots
+			# do not send join traffic in dedicated slots, 6top messages can be sent either in dedicated or shared cells
+			if (pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_RESPONSE) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_REQUEST):
                             self.pktToSend = pkt
 			    break
                             # TODO: last packet or first packet?
@@ -1805,6 +1806,14 @@ class Mote(object):
                 if self.pktToSend:
 
                     cell['numTx'] += 1
+
+		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
+
+			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+		
+		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
+
+			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_RESPONSE_SENDDONE
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
@@ -1825,7 +1834,8 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN:
+			# 6top messages can be sent either in dedicated or shared cells
+			if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN or pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                             self.pktToSend = pkt
 			    break
                             # TODO: last packet or first packet?
@@ -1837,6 +1847,15 @@ class Mote(object):
                 if self.pktToSend:
 
                     cell['numTx'] += 1
+
+		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
+
+			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+			
+		
+		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
+
+			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_RESPONSE_SENDDONE
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
