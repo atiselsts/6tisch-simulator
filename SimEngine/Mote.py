@@ -2145,11 +2145,11 @@ class Mote(object):
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
-                        self._sixtop_receive_ADD(type, smac, payload)
+		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
+			self._sixtop_receive_ADD_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD request
-                        self._sixtop_receive_RESPONSE(type, code, smac, payload)
+		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD response
+                        self._sixtop_receive_ADD_RESPONSE(type, code, smac, payload)
                         (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
@@ -2576,8 +2576,8 @@ class Mote(object):
         else:
             raise NotImplementedError()
 
-        output  = []
-        output += ['[ASN={0:>6} id={1:>4}] '.format(self.engine.getAsn(),self.id)]
-        output += [template.format(*params)]
-        output  = ''.join(output)
-        logfunc(output)
+	output  = []
+	output += ['[ASN={0:>6} id={1:>4}] '.format(self.engine.getAsn(),self.id)]
+	output += [template.format(*params)]
+	output  = ''.join(output)
+	logfunc(output)
