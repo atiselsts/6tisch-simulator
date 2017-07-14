@@ -6,6 +6,9 @@
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
+\author Mališa Vučinić <malisa.vucinic@inria.fr>
+\author Esteban Municio <esteban.municio@uantwerpen.be>
+\author Glenn Daneels <glenn.daneels@uantwerpen.be>
 '''
 
 #============================ logging =========================================
