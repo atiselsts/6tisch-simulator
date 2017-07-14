@@ -1472,21 +1472,21 @@ class Mote(object):
 
             return cells
 
-    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir):
-        ''' enqueue a new 6P ADD request '''
+    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir,seq):
+        ''' enqueue a new 6P ADD response '''
 
         self._log(
             self.INFO,
             '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, from {3} to {4}',
             (cellList, len(cellList), returnCode, self.id, neighbor.id),
         )
-
+	seq+=1
         # create new packet
         newPacket = {
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_RESPONSE,
             'code':           returnCode,
-            'payload':        [cellList, dir],
+            'payload':        [cellList,len(cellList), dir,seq],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1500,51 +1500,80 @@ class Mote(object):
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
 
-    def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
+    def _sixtop_receive_ADD_RESPONSE(self, type, code, smac, payload):
         ''' receive a 6P response messages '''
 
         with self.dataLock:
+
             # TODO: now this is still an assert, later this should be handled appropriately
             assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE
-            assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES
+            assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
+
+	    neighbor=smac
+            receivedCellList = payload[0]
+	    numCells = payload[1]
+            receivedDir = payload[2]
+	    seq=payload[3]
+	
+	    #seqNum mismatch, transaction failed, ignore packet
+            if seq!=self.sixtopStates[neighbor.id]['seqNum']:
+		# go back to IDLE, i.e. remove the neighbor form the states
+	    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+	    	self.sixtopStates[neighbor.id]['blockedCells']=[]
+		return
 
             # if the request was successfull and there were enough resources
             if code == self.IANA_6TOP_RC_SUCCESS:
-                receivedCellList = payload[0]
-                receivedDir = payload[1]
-                dir = self.DIR_TX
+
+		cellList=[]
+
+                # set direction of cells
                 if receivedDir == self.DIR_TX:
-                    dir = self.DIR_RX
+                    newDir = self.DIR_RX
+                else:
+                    newDir = self.DIR_TX
 
                 for (ts, ch, cellDir) in receivedCellList:
                     # log
                     self._log(
                         self.INFO,
-                        '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
-                        (ts,ch,self.id,neighbor.id),
+                        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+                        (ts,ch,self.id,neighbor.id,newDir),
                     )
-                    cellList         += [(ts,ch,dir)]
+                    cellList         += [(ts,ch,newDir)]
                 self._tsch_addCells(neighbor, cellList)
 
                 # update counters
-                if dir==self.DIR_TX:
+                if newDir==self.DIR_TX:
                     if neighbor not in self.numCellsToNeighbors:
                         self.numCellsToNeighbors[neighbor]     = 0
-                    self.numCellsToNeighbors[neighbor]        += len(cells)
+                    self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
                 else:
                     if neighbor not in self.numCellsFromNeighbors:
                         self.numCellsFromNeighbors[neighbor]   = 0
-                    self.numCellsFromNeighbors[neighbor]      += len(cells)
-
-                # go back to IDLE
-                self.sixtopStates[smac.id]['state'] = self.SIX_STATE_IDLE
+                    self.numCellsFromNeighbors[neighbor]      += len(receivedCellList)
 
             elif code == self.IANA_6TOP_RC_NORES:
-                print 'come here'
-                pass
+		# log
+                self._log(
+                        self.INFO,
+                        '[6top] The resources requested are not available in {0}',
+                        (neighbor.id),
+                )
+		pass
+		#TODO: increase stats of RC_NORES
+
+	    #only when devices are not powerfull enough. Not used in the simulator
+            elif code == self.IANA_6TOP_RC_BUSY:
+		pass
+		#TODO: increase stats of RC_BUSY
+
             else: # should not happen
                 assert False
 
+	    # go back to IDLE, i.e. remove the neighbor form the states
+	    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+	    self.sixtopStates[neighbor.id]['blockedCells']=[]
     def _sixtop_receive_RESPONSE_ACK(self, neighbor, packet):
         with self.dataLock:
             # TODO: now this is still an assert, later this should be handled appropriately
