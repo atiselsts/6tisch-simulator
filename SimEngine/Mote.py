@@ -1989,8 +1989,13 @@ class Mote(object):
                 if self.schedule[ts]['neighbor'] == self.preferredParent:
                     self.timeCorrectedSlot = asn
 
-                if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
-                    self._sixtop_receive_RESPONSE_ACK(self.schedule[ts]['neighbor'], self.pktToSend)
+		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
+		    assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+		    self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
+		    self.sixtopStates[self.pktToSend['dstIp'].id]['seqNum']+=1
+
+		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
+                    self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
@@ -2027,6 +2032,11 @@ class Mote(object):
 
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
+
+			#reset state for this neighbor
+			if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+		        	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
+	    			self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells']=[]
 
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (
@@ -2067,6 +2077,11 @@ class Mote(object):
 
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
+
+			#reset state for this neighbor
+			if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+		        	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
+	    			self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells']=[]
 
             # end of radio activity, not waiting for anything
             self.waitingFor = None
