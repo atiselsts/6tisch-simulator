@@ -1390,7 +1390,7 @@ class Mote(object):
                 self.sixtopStates[smac.id] = {}
 	        self.sixtopStates[neighbor.id]['blockedCells']=[]
 	        self.sixtopStates[neighbor.id]['seqNum']=0
-            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_RECEIVED
+            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
 
             # set direction of cells
             if dirNeighbor == self.DIR_TX:
@@ -1501,117 +1501,214 @@ class Mote(object):
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
 
-    def _sixtop_receive_ADD_RESPONSE(self, type, code, smac, payload):
+    def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
         ''' receive a 6P response messages '''
 
         with self.dataLock:
+          
+            if self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE:
+		     # TODO: now this is still an assert, later this should be handled appropriately
+		    assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET	#RC_BUSY not implemented yet
 
-            # TODO: now this is still an assert, later this should be handled appropriately
-            assert self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE
-            assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
-
-	    neighbor=smac
-            receivedCellList = payload[0]
-	    numCells = payload[1]
-            receivedDir = payload[2]
-	    seq=payload[3]
+		    neighbor=smac
+		    receivedCellList = payload[0]
+		    numCells = payload[1]
+		    receivedDir = payload[2]
+		    seq=payload[3]
 	
-	    #seqNum mismatch, transaction failed, ignore packet
-            if seq!=self.sixtopStates[neighbor.id]['seqNum']:
-		# go back to IDLE, i.e. remove the neighbor form the states
-	    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-	    	self.sixtopStates[neighbor.id]['blockedCells']=[]
-		return
+		    #seqNum mismatch, transaction failed, ignore packet
+		    if seq!=self.sixtopStates[neighbor.id]['seqNum']:
+			# go back to IDLE, i.e. remove the neighbor form the states
+		    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    	self.sixtopStates[neighbor.id]['blockedCells']=[]
+			return
 
-            # if the request was successfull and there were enough resources
-            if code == self.IANA_6TOP_RC_SUCCESS:
+		    # if the request was successfull and there were enough resources
+		    if code == self.IANA_6TOP_RC_SUCCESS:
 
-		cellList=[]
+			cellList=[]
 
-                # set direction of cells
-                if receivedDir == self.DIR_TX:
-                    newDir = self.DIR_RX
-                else:
-                    newDir = self.DIR_TX
+		        # set direction of cells
+		        if receivedDir == self.DIR_TX:
+		            newDir = self.DIR_RX
+		        else:
+		            newDir = self.DIR_TX
 
-                for (ts, ch, cellDir) in receivedCellList:
-                    # log
-                    self._log(
-                        self.INFO,
-                        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-                        (ts,ch,self.id,neighbor.id,newDir),
-                    )
-                    cellList         += [(ts,ch,newDir)]
-                self._tsch_addCells(neighbor, cellList)
-
-                # update counters
-                if newDir==self.DIR_TX:
-                    if neighbor not in self.numCellsToNeighbors:
-                        self.numCellsToNeighbors[neighbor]     = 0
-                    self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
-                else:
-                    if neighbor not in self.numCellsFromNeighbors:
-                        self.numCellsFromNeighbors[neighbor]   = 0
-                    self.numCellsFromNeighbors[neighbor]      += len(receivedCellList)
-
-            elif code == self.IANA_6TOP_RC_NORES:
-		# log
-                self._log(
-                        self.INFO,
-                        '[6top] The resources requested are not available in {0}',
-                        (neighbor.id),
-                )
-		pass
-		#TODO: increase stats of RC_NORES
-
-	    #only when devices are not powerfull enough. Not used in the simulator
-            elif code == self.IANA_6TOP_RC_BUSY:
-		pass
-		#TODO: increase stats of RC_BUSY
-
-            else: # should not happen
-                assert False
-
-	    # go back to IDLE, i.e. remove the neighbor form the states
-	    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-	    self.sixtopStates[neighbor.id]['blockedCells']=[]
-
-    def _sixtop_receive_RESPONSE_ACK(self, packet):
-        with self.dataLock:
-
-            # TODO: now this is still an assert, later this should be handled appropriately
-            assert self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_RESPONSE_SENDDONE
-
-	    confirmedCellList = packet['payload'][0]
-            receivedDir = packet['payload'][1]
-	    neighbor=packet['dstIp']
-	    code=packet['code']
-
-	    if code == self.IANA_6TOP_RC_SUCCESS:
-	    
-		    for (ts, ch, cellDir) in confirmedCellList:
+		        for (ts, ch, cellDir) in receivedCellList:
 		            # log
 		            self._log(
 		                self.INFO,
 		                '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-		                (ts,ch,self.id,neighbor.id,cellDir),
+		                (ts,ch,self.id,neighbor.id,newDir),
 		            )
-		            #cellList         += [(ts,ch,dir)]
-		    self._tsch_addCells(neighbor, confirmedCellList)
+		            cellList         += [(ts,ch,newDir)]
+		        self._tsch_addCells(neighbor, cellList)
 
-		    # update counters
-		    if receivedDir==self.DIR_TX:
+		        # update counters
+		        if newDir==self.DIR_TX:
 		            if neighbor not in self.numCellsToNeighbors:
 		                self.numCellsToNeighbors[neighbor]     = 0
-		            self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
-		    else:
+		            self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
+		        else:
 		            if neighbor not in self.numCellsFromNeighbors:
 		                self.numCellsFromNeighbors[neighbor]   = 0
-		            self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+		            self.numCellsFromNeighbors[neighbor]      += len(receivedCellList)
 
-	    # go back to IDLE, i.e. remove the neighbor form the states
-	    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-	    self.sixtopStates[neighbor.id]['blockedCells']=[]
+		    elif code == self.IANA_6TOP_RC_NORES:
+			# log
+		        self._log(
+		                self.INFO,
+		                '[6top] The resources requested are not available in {0}',
+		                (neighbor.id),
+		        )
+			pass
+			#TODO: increase stats of RC_NORES
+
+		    #only when devices are not powerfull enough. Not used in the simulator
+		    elif code == self.IANA_6TOP_RC_BUSY:
+			pass
+			#TODO: increase stats of RC_BUSY
+
+		    else: # should not happen
+		        assert False
+
+		    # go back to IDLE, i.e. remove the neighbor form the states
+		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+
+	    elif self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_DELETERESPONSE:
+		    # TODO: now this is still an assert, later this should be handled appropriately
+		    assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
+
+		    neighbor=smac
+		    receivedCellList = payload[0]
+		    numCells = payload[1]
+		    receivedDir = payload[2]
+		    seq=payload[3]
+	
+		    #seqNum mismatch, transaction failed, ignore packet
+		    if seq!=self.sixtopStates[neighbor.id]['seqNum']:
+			# go back to IDLE, i.e. remove the neighbor form the states
+		    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    	self.sixtopStates[neighbor.id]['blockedCells']=[]
+			return
+
+		    # if the request was successfull and there were enough resources
+		    if code == self.IANA_6TOP_RC_SUCCESS:
+
+			cellList=[]
+
+		        # set direction of cells
+		        if receivedDir == self.DIR_TX:
+		            newDir = self.DIR_RX
+		        else:
+		            newDir = self.DIR_TX
+
+		        for (ts, ch, cellDir) in receivedCellList:
+		            # log
+		            self._log(
+		                self.INFO,
+		                '[6top] Delete {4} cell ts={0},ch={1} from {2} to {3}',
+		                (ts,ch,self.id,neighbor.id,newDir),
+		            )
+		            cellList         += [(ts,ch,newDir)]
+
+		        self._tsch_removeCells(neighbor,cellList)
+
+		        self.numCellsFromNeighbors[neighbor]     -= len(cellList)
+		        assert self.numCellsFromNeighbors[neighbor]>=0
+
+		    elif code == self.IANA_6TOP_RC_NORES:
+			# log
+		        self._log(
+		                self.INFO,
+		                '[6top] The resources requested for delete are not available in {0}',
+		                (neighbor.id),
+		        )
+			pass
+			#TODO: increase stats of RC_NORES
+
+		    #only when devices are not powerfull enough. Not used in the simulator
+		    elif code == self.IANA_6TOP_RC_BUSY:
+			pass
+			#TODO: increase stats of RC_BUSY
+		    elif code == self.IANA_6TOP_RC_RESET:
+			#TODO: increase stats of RC_RESET
+			pass
+		    else: # should not happen
+		        assert False
+
+		    # go back to IDLE, i.e. remove the neighbor form the states
+		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+	    else:
+		#only ADD and DELETE implemented so far
+		assert False
+
+    def _sixtop_receive_RESPONSE_ACK(self, packet):
+        with self.dataLock:
+
+            if self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
+           
+		    confirmedCellList = packet['payload'][0]
+		    receivedDir = packet['payload'][1]
+		    neighbor=packet['dstIp']
+		    code=packet['code']
+
+		    if code == self.IANA_6TOP_RC_SUCCESS:
+		    
+			    for (ts, ch, cellDir) in confirmedCellList:
+				    # log
+				    self._log(
+				        self.INFO,
+				        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+				        (ts,ch,self.id,neighbor.id,cellDir),
+				    )
+			    self._tsch_addCells(neighbor, confirmedCellList)
+
+			    # update counters
+			    if receivedDir==self.DIR_TX:
+				    if neighbor not in self.numCellsToNeighbors:
+				        self.numCellsToNeighbors[neighbor]     = 0
+				    self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
+			    else:
+				    if neighbor not in self.numCellsFromNeighbors:
+				        self.numCellsFromNeighbors[neighbor]   = 0
+				    self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+
+		    # go back to IDLE, i.e. remove the neighbor form the states
+		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+
+	    elif self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+
+		    confirmedCellList = packet['payload'][0]
+		    receivedDir = packet['payload'][1]
+		    neighbor=packet['dstIp']
+		    code=packet['code']
+
+		    if code == self.IANA_6TOP_RC_SUCCESS:
+		    
+			    for (ts, ch, cellDir) in confirmedCellList:
+				    # log
+				    self._log(
+				        self.INFO,
+				        '[6top] delete {4} cell ts={0},ch={1} from {2} to {3}',
+				        (ts,ch,self.id,neighbor.id,cellDir),
+				    )
+			    self._tsch_removeCells(neighbor, confirmedCellList)
+
+		    self.numCellsFromNeighbors[neighbor]     -= len(confirmedCellList)
+		    assert self.numCellsFromNeighbors[neighbor]>=0
+
+
+		    # go back to IDLE, i.e. remove the neighbor form the states
+		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+		
+	    else:
+		#only add and delete are implemented so far
+		assert False
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
