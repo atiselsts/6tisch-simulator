@@ -6,7 +6,7 @@
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
-\author Mališa Vučinić <malisa.vucinic@inria.fr>
+\author Malisa Vucinic <malisa.vucinic@inria.fr>
 \author Esteban Municio <esteban.municio@uantwerpen.be>
 \author Glenn Daneels <glenn.daneels@uantwerpen.be>
 '''
@@ -96,13 +96,15 @@ class Mote(object):
     SIX_STATE_WAIT_COUNTRESPONSE                = 0x0b
     SIX_STATE_WAIT_LISTRESPONSE                 = 0x0c
     SIX_STATE_WAIT_CLEARRESPONSE                = 0x0d
-    #response senddone
-    SIX_STATE_REQUEST_RECEIVED                  = 0x0e
-    SIX_STATE_WAIT_RESPONSE_SENDDONE            = 0x0f
+    #response
+    SIX_STATE_REQUEST_ADD_RECEIVED               = 0x0e
+    SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE         = 0x0f
+    SIX_STATE_REQUEST_DELETE_RECEIVED            = 0x10
+    SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE      = 0x11
 
     #=== 6top commands
     IANA_6TOP_CMD_ADD			        = 0x01 # add one or more cells
-    IANA_6TOP_CMD_DELETE   			    = 0x02 # delete one or more cells
+    IANA_6TOP_CMD_DELETE   			= 0x02 # delete one or more cells
     IANA_6TOP_CMD_RELOCATE      		= 0x03 # relocate one or more cells
     IANA_6TOP_CMD_COUNT         		= 0x04 # count scheduled cells
     IANA_6TOP_CMD_LIST          		= 0x05 # list the scheduled cells
@@ -1293,7 +1295,6 @@ class Mote(object):
 	    		tsBlocked=[]
 	    	        if len(blockedCells)>0:
 	        	    for c in blockedCells:
-		                print c
 		    	        tsBlocked.append(c[0])
 
 		        # randomly picking cells (SF0)
@@ -1305,6 +1306,7 @@ class Mote(object):
 		        self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['seqNum'])
 		else:
 			#TODO: implement timeout
+			pass
 
             else:
                 cells       = neighbor._sixtop_cell_reservation_response(self,numCells,dir)
@@ -1410,7 +1412,6 @@ class Mote(object):
 	    tsBlocked=[]
 	    if len(blockedCells)>0:
 	        for c in blockedCells:
-		    print c
 		    tsBlocked.append(c[0])
 
             # available timeslots on this mote
