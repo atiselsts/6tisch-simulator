@@ -1712,19 +1712,36 @@ class Mote(object):
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
-            # log
-            self._log(
-                self.INFO,
-                "[6top] remove timeslots={0} with {1}",
-                (tsList,neighbor.id),
-            )
-            self._tsch_removeCells(
-                neighbor     = neighbor,
-                tsList       = tsList,
-            )
-            neighbor._sixtop_cell_deletion_receiver(self,tsList)
-            self.numCellsToNeighbors[neighbor]       -= len(tsList)
-            assert self.numCellsToNeighbors[neighbor]>=0
+
+            if self.settings.sixtopMessaging:
+		if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
+
+			# if neighbor not yet in states dict, add it
+			if neighbor.id not in self.sixtopStates:      
+			    self.sixtopStates[neighbor.id] = {}
+			    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+			    self.sixtopStates[neighbor.id]['blockedCells'] = []
+			    self.sixtopStates[neighbor.id]['seqNum']=0
+
+			self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),self.sixtopStates[neighbor.id]['seqNum'])
+		else:
+			#TODO: implement timeout for delete
+			pass
+	    else:
+
+		    # log
+		    self._log(
+		        self.INFO,
+		        "[6top] remove timeslots={0} with {1}",
+		        (tsList,neighbor.id),
+		    )
+		    self._tsch_removeCells(
+		        neighbor     = neighbor,
+		        tsList       = tsList,
+		    )
+		    neighbor._sixtop_cell_deletion_receiver(self,tsList)
+		    self.numCellsToNeighbors[neighbor]       -= len(tsList)
+		    assert self.numCellsToNeighbors[neighbor]>=0
 
     def _sixtop_cell_deletion_receiver(self,neighbor,tsList):
         with self.dataLock:
@@ -1781,7 +1798,80 @@ class Mote(object):
             tsList += [tscell[0]]
 
         # remove cells
-        self._sixtop_cell_deletion_sender(neighbor,tsList)
+	self._sixtop_cell_deletion_sender(neighbor,tsList)
+
+    def _sixtop_enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells,seq):
+        ''' enqueue a new 6P DELETE request '''
+
+        self._log(
+            self.INFO,
+            '[6top] enqueueing a new 6P DEL message cellList={0}, numCells={1} from {2} to {3}',
+            (cellList, numCells, self.id, neighbor.id),
+        )
+
+        # create new packet
+        newPacket = {
+            'asn':            self.engine.getAsn(),
+            'type':           self.IANA_6TOP_TYPE_REQUEST,
+            'code':           self.IANA_6TOP_CMD_DELETE,
+            'payload':        [cellList, numCells, self.DIR_TX,seq],
+            'retriesLeft':    self.TSCH_MAXTXRETRIES,
+            'srcIp':          self,
+            'dstIp':          neighbor, # currently upstream
+            'sourceRoute':    [],
+        }
+
+        # enqueue packet in TSCH queue
+        isEnqueued = self._tsch_enqueue(newPacket)
+
+        if not isEnqueued:
+            # update mote stats
+            self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+	else:
+            # set state to sending request for this neighbor
+            self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
+
+    def _sixtop_receive_DELETE_REQUEST(self, type, smac, payload):
+        ''' receive a 6P delete request message '''
+        with self.dataLock:
+
+            neighbor = smac
+            cellList = payload[0]
+            numCells = payload[1]
+            dirNeighbor = payload[2]
+	    seq=payload[3]
+
+	    self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
+
+            if smac.id in self.sixtopStates and self.sixtopStates[smac.id]['state'] != self.SIX_STATE_IDLE:
+	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+		return
+
+            # set state to receiving request for this neighbor
+            if smac.id not in self.sixtopStates:
+                self.sixtopStates[smac.id] = {}
+	        self.sixtopStates[neighbor.id]['blockedCells']=[]
+	        self.sixtopStates[neighbor.id]['seqNum']=0
+		#if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
+	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+		return
+
+            # set direction of cells
+            if dirNeighbor == self.DIR_TX:
+                newDir = self.DIR_RX
+            else:
+                newDir = self.DIR_TX
+
+	    returnCode = self.IANA_6TOP_RC_SUCCESS # all is fine
+
+	    for cell in cellList:
+		if cell not in self.schedule.keys():
+		    returnCode = self.IANA_6TOP_RC_NORES # resources are not present
+
+	    #enqueue response
+            self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq)
 
     #===== tsch
 
