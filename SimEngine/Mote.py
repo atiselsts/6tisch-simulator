@@ -2126,22 +2126,23 @@ class Mote(object):
                 )
             self._tsch_schedule_activeCell()
 
-
-    def _tsch_removeCells(self,neighbor,tsList):
+    def _tsch_removeCells(self,neighbor,cellList):
         ''' removes cell(s) from the schedule '''
-
         with self.dataLock:
-            # log
-            self._log(
-                self.INFO,
-                "[tsch] remove timeslots={0} with {1}",
-                (tsList,neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
-            )
-            for ts in tsList:
-                assert ts in self.schedule.keys()
-                assert self.schedule[ts]['neighbor']==neighbor
-                self.schedule.pop(ts)
+
+	    for cell in tsList:		
+		# log
+		self._log(
+		        self.INFO,
+		        "[tsch] remove cell=({0}{1}) with {2}",
+		        (cell[0],cell[1],neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
+		)
+       
+                assert cell[0] in self.schedule.keys()
+                assert self.schedule[cell[0]]['neighbor']==neighbor
+                self.schedule.pop(cell[0])
             self._tsch_schedule_activeCell()
+
     def _tsch_action_synchronize(self):
 
         if not self.isSync:
