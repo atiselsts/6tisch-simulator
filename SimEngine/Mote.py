@@ -1996,12 +1996,25 @@ class Mote(object):
                     cell['numTx'] += 1
 
 		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
-
-			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+			if pkt['code']==self.IANA_6TOP_CMD_ADD:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+			elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+			else:
+			    assert False
+			
 		
 		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
-
-			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_RESPONSE_SENDDONE
+			if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
+			    pass
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+			    pass
+			else:
+			    assert False
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
@@ -2037,13 +2050,25 @@ class Mote(object):
                     cell['numTx'] += 1
 
 		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
-
-			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+			if pkt['code']==self.IANA_6TOP_CMD_ADD:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+			elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+			else:
+			    assert False
 			
 		
 		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
-
-			self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_RESPONSE_SENDDONE
+			if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
+			    pass
+			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+			    pass
+			else:
+			    assert False
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
