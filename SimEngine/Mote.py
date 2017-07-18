@@ -2203,10 +2203,19 @@ class Mote(object):
                 if self.schedule[ts]['neighbor'] == self.preferredParent:
                     self.timeCorrectedSlot = asn
 
+		# received an ACK for the request, change state and increase the sequence number
 		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
-		    assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-		    self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
+		    if self.pktToSend['code']==self.IANA_6TOP_CMD_ADD:
+		    	assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+		    	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
+		    elif self.pktToSend['code']==self.IANA_6TOP_CMD_DELETE:
+			assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+		    	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_DELETERESPONSE
+		    else:
+			assert False
+
 		    self.sixtopStates[self.pktToSend['dstIp'].id]['seqNum']+=1
+
 
 		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
@@ -2362,8 +2371,11 @@ class Mote(object):
 		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
 			self._sixtop_receive_ADD_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P ADD response
-                        self._sixtop_receive_ADD_RESPONSE(type, code, smac, payload)
+		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
+			self._sixtop_receive_DELETE_REQUEST(type, smac, payload)
+                        (isACKed, isNACKed) = (True, False)
+		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P response
+                        self._sixtop_receive_RESPONSE(type, code, smac, payload)
                         (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
@@ -2374,6 +2386,8 @@ class Mote(object):
                     elif type == self.APP_TYPE_JOIN:
                         self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
+		    else:
+			assert False
 
                 else:
                     # relaying packet
