@@ -53,7 +53,7 @@ def parseCliOptions():
     parser.add_argument('--gui',
         dest       = 'gui',
         action     = 'store_true',
-        default    = False,
+        default    = True,
         help       = '[sim] Display the GUI.',
     )
     parser.add_argument( '--cpuID',
@@ -65,7 +65,7 @@ def parseCliOptions():
     parser.add_argument( '--numRuns',
         dest       = 'numRuns',
         type       = int,
-        default    = 2,
+        default    = 1,
         help       = '[sim] Number of simulation runs.',
     )
     parser.add_argument( '--numCyclesPerRun',
@@ -85,7 +85,7 @@ def parseCliOptions():
         dest       = 'numMotes',
         nargs      = '+',
         type       = int,
-        default    = [50],
+        default    = [20],
         help       = '[topology] Number of simulated motes.',
     )
     parser.add_argument( '--squareSide',
