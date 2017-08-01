@@ -103,24 +103,27 @@ class Mote(object):
     SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE      = 0x11
 
     #=== 6top commands
-    IANA_6TOP_CMD_ADD			        = 0x01 # add one or more cells
-    IANA_6TOP_CMD_DELETE   			= 0x02 # delete one or more cells
-    IANA_6TOP_CMD_RELOCATE      		= 0x03 # relocate one or more cells
-    IANA_6TOP_CMD_COUNT         		= 0x04 # count scheduled cells
-    IANA_6TOP_CMD_LIST          		= 0x05 # list the scheduled cells
-    IANA_6TOP_CMD_CLEAR         		= 0x06 # clear all cells
+    IANA_6TOP_CMD_ADD                                = 0x01 # add one or more cells
+    IANA_6TOP_CMD_DELETE                           = 0x02 # delete one or more cells
+    IANA_6TOP_CMD_RELOCATE                      = 0x03 # relocate one or more cells
+    IANA_6TOP_CMD_COUNT                         = 0x04 # count scheduled cells
+    IANA_6TOP_CMD_LIST                          = 0x05 # list the scheduled cells
+    IANA_6TOP_CMD_CLEAR                         = 0x06 # clear all cells
 
     #=== 6P return code
-    IANA_6TOP_RC_SUCCESS       			= 0x00 # operation succeeded
-    IANA_6TOP_RC_ERROR         			= 0x01 # generic error
-    IANA_6TOP_RC_EOL           			= 0x02 # end of list
-    IANA_6TOP_RC_RESET         			= 0x03 # critical error, reset
-    IANA_6TOP_RC_VER_ERR       			= 0x04 # unsupported 6P version
-    IANA_6TOP_RC_SFID_ERR       		= 0x05 # unsupported SFID
-    IANA_6TOP_RC_GEN_ERR        		= 0x06 # wrong schedule generation
-    IANA_6TOP_RC_BUSY          			= 0x07 # busy
-    IANA_6TOP_RC_NORES          		= 0x08 # not enough resources
-    IANA_6TOP_RC_CELLLIST_ERR   		= 0x09 # cellList error
+    IANA_6TOP_RC_SUCCESS                               = 0x00 # operation succeeded
+    IANA_6TOP_RC_ERROR                                 = 0x01 # generic error
+    IANA_6TOP_RC_EOL                                   = 0x02 # end of list
+    IANA_6TOP_RC_RESET                                 = 0x03 # critical error, reset
+    IANA_6TOP_RC_VER_ERR                               = 0x04 # unsupported 6P version
+    IANA_6TOP_RC_SFID_ERR                       = 0x05 # unsupported SFID
+    IANA_6TOP_RC_GEN_ERR                        = 0x06 # wrong schedule generation
+    IANA_6TOP_RC_BUSY                                  = 0x07 # busy
+    IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
+    IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
+
+    #=== 6P default timeout value
+    SIXTOP_TIMEOUT                     = 10 # 3 seconds
 
     #=== otf
     OTF_TRAFFIC_SMOOTHING              = 0.5
@@ -146,7 +149,7 @@ class Mote(object):
     BROADCAST_ADDRESS                  = 0xffff
 
     def __init__(self,id):
-
+        random.seed(5)
         # store params
         self.id                        = id
         # local variables
@@ -191,15 +194,15 @@ class Mote(object):
         self.sixtopPdrThreshold           = self.settings.sixtopPdrThreshold
         self.sixtopHousekeepingPeriod  = self.settings.sixtopHousekeepingPeriod
 
-    	# 6top protocol
-    	self.sixtopStates	       = {}
-        # a dictionary that stores the different 6p states for each neighbor
-    	# in each entry the key is the neighbor.id
-    	# the values are:
-    	#		 'state', used for tracking the transaction state for each neighbor
-    	#		 'responseCode', used in the receiver node to act differently when a responseACK is received
-    	#		 'blockedCells', candidates cell pending for an operation
-    	self.timeout6P=0			                          # timeouts for when a add response is not expected anymore
+        # 6top protocol
+        self.sixtopStates               = {}
+    # a dictionary that stores the different 6p states for each neighbor
+        # in each entry the key is the neighbor.id
+        # the values are:
+        #                 'state', used for tracking the transaction state for each neighbor
+        #                 'responseCode', used in the receiver node to act differently when a responseACK is received
+        #                 'blockedCells', candidates cell pending for an operation
+        self.timeout6P=0                                                  # timeouts for when a add response is not expected anymore
 
         # tsch
         self.txQueue                   = []
@@ -385,7 +388,7 @@ class Mote(object):
     def _app_action_sendSinglePacket(self):
         ''' actual send data function. Evaluates queue length too '''
 
-	# enqueue data
+        # enqueue data
         self._app_action_enqueueData()
 
         # schedule next _app_action_sendSinglePacket
@@ -441,7 +444,7 @@ class Mote(object):
             newPacket = {
                 'asn':            self.engine.getAsn(),
                 'type':           self.APP_TYPE_DATA,
-		'code': 	  None,
+                'code':           None,
                 'payload':        [self.id,self.engine.getAsn(),1], # the payload is used for latency and number of hops calculation
                 'retriesLeft':    self.TSCH_MAXTXRETRIES,
                 'srcIp':          self,
@@ -880,8 +883,8 @@ class Mote(object):
 
         if packet['dstIp'] == self.BROADCAST_ADDRESS:
             nextHop = self._myNeigbors()
-	elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
-	    nextHop = [packet['dstIp']]
+        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
+            nextHop = [packet['dstIp']]
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
         elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
@@ -1059,6 +1062,24 @@ class Mote(object):
             self.inTraffic[neighbor] += 1
 
     #===== 6top
+
+    def _sixtop_timer_fired(self):
+        found = False
+        for n in self.sixtopStates.keys():
+            if 'timer' in self.sixtopStates[n] and self.sixtopStates[n]['timer']['asn'] == self.engine.getAsn(): # if it is this ASN, we have the correct state and we have to abort it
+                self.sixtopStates[n]['state'] = self.SIX_STATE_IDLE # put back to IDLE
+                self.sixtopStates[n]['blockedCells']=[] # transaction gets aborted, so also delete the blocked cells
+                del self.sixtopStates[n]['timer']
+                found = True
+                # log
+                self._log(
+                    self.INFO,
+                    "[6top] fired timer on mote {0} for neighbor {1}.",
+                    (self.id, n),
+                )
+
+        if not found: # if we did not find it, assert
+            assert False
 
     def _sixtop_schedule_housekeeping(self):
 
@@ -1275,38 +1296,38 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.sixtopMessaging:
-		if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
+                if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
 
-			# if neighbor not yet in states dict, add it
-			if neighbor.id not in self.sixtopStates:      
-			    self.sixtopStates[neighbor.id] = {}
-			    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-			    self.sixtopStates[neighbor.id]['blockedCells'] = []
-			    self.sixtopStates[neighbor.id]['seqNum']=0
+                    # if neighbor not yet in states dict, add it
+                    if neighbor.id not in self.sixtopStates:
+                        self.sixtopStates[neighbor.id] = {}
+                        self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                        self.sixtopStates[neighbor.id]['blockedCells'] = []
+                        self.sixtopStates[neighbor.id]['seqNum']=0
 
-			#get blocked cells from other 6top operations
-		    	blockedCells = []
-			for n in self.sixtopStates.keys():
-			    if n!=neighbor.id:
-			        if len(self.sixtopStates[n]['blockedCells'])>0:
-				    blockedCells+=self.sixtopStates[n]['blockedCells']
+                    #get blocked cells from other 6top operations
+                    blockedCells = []
+                    for n in self.sixtopStates.keys():
+                        if n!=neighbor.id:
+                            if len(self.sixtopStates[n]['blockedCells'])>0:
+                                blockedCells+=self.sixtopStates[n]['blockedCells']
 
-			#convert blocked cells into ts
-	    		tsBlocked=[]
-	    	        if len(blockedCells)>0:
-	        	    for c in blockedCells:
-		    	        tsBlocked.append(c[0])
+                    #convert blocked cells into ts
+                    tsBlocked=[]
+                    if len(blockedCells)>0:
+                        for c in blockedCells:
+                                tsBlocked.append(c[0])
 
-		        # randomly picking cells (SF0)
-		        availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
-		        random.shuffle(availableTimeslots)
-		        cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
-		        cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
+                    # randomly picking cells (SF0)
+                    availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
+                    random.shuffle(availableTimeslots)
+                    cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+                    cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
-		        self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['seqNum'])
-		else:
-			#TODO: implement timeout
-			pass
+                    self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['seqNum'])
+                else:
+                    #TODO: implement timeout
+                    pass
 
             else:
                 cells       = neighbor._sixtop_cell_reservation_response(self,numCells,dir)
@@ -1366,10 +1387,10 @@ class Mote(object):
         if not isEnqueued:
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
-	else:
+        else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
-	    self.sixtopStates[neighbor.id]['blockedCells'] = cellList
+            self.sixtopStates[neighbor.id]['blockedCells'] = cellList
 
     def _sixtop_receive_ADD_REQUEST(self, type, smac, payload):
         with self.dataLock:
@@ -1378,18 +1399,32 @@ class Mote(object):
             cellList = payload[0]
             numCells = payload[1]
             dirNeighbor = payload[2]
-	    seq=payload[3]
+            seq=payload[3]
 
             if smac.id in self.sixtopStates and self.sixtopStates[smac.id]['state'] != self.SIX_STATE_IDLE:
-	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
-		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
-		return
+                for pkt in self.txQueue:
+                    if pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
+                        self.txQueue.remove(pkt)
+                        self._log(
+                            self.INFO,
+                            "[6top] removed a 6TOP_TYPE_RESPONSE packet in the queue of mote {0} to neighbor {1}, because a new TYPE_REQUEST (add) was received.",
+                            (self.id, smac.id),
+                        )
+                returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+                if smac.id not in self.sixtopStates:
+                    self.sixtopStates[smac.id] = {}
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    self.sixtopStates[neighbor.id]['seqNum']=0
+                self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                return
 
+            # go to the correct state
             # set state to receiving request for this neighbor
             if smac.id not in self.sixtopStates:
                 self.sixtopStates[smac.id] = {}
-	        self.sixtopStates[neighbor.id]['blockedCells']=[]
-	        self.sixtopStates[neighbor.id]['seqNum']=0
+                self.sixtopStates[neighbor.id]['blockedCells']=[]
+                self.sixtopStates[neighbor.id]['seqNum']=0
             self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
 
             # set direction of cells
@@ -1401,18 +1436,18 @@ class Mote(object):
             # cells that will be in the response
             newCellList = []
 
-	    #get blocked cells from other 6top operations
-	    blockedCells = []
-	    for n in self.sixtopStates.keys():
-		if n!=neighbor.id:
-		    if len(self.sixtopStates[n]['blockedCells'])>0:
-			blockedCells+=self.sixtopStates[n]['blockedCells']
+            #get blocked cells from other 6top operations
+            blockedCells = []
+            for n in self.sixtopStates.keys():
+                if n!=neighbor.id:
+                    if len(self.sixtopStates[n]['blockedCells'])>0:
+                        blockedCells+=self.sixtopStates[n]['blockedCells']
 
-	    #convert blocked cells into ts
-	    tsBlocked=[]
-	    if len(blockedCells)>0:
-	        for c in blockedCells:
-		    tsBlocked.append(c[0])
+            #convert blocked cells into ts
+            tsBlocked=[]
+            if len(blockedCells)>0:
+                for c in blockedCells:
+                    tsBlocked.append(c[0])
 
             # available timeslots on this mote
             availableTimeslots = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
@@ -1423,16 +1458,16 @@ class Mote(object):
                 if ts in availableTimeslots:
                     newCellList += [(ts, ch, newDir)]
 
-            
+
             if len(newCellList) != numCells:
                 returnCode = self.IANA_6TOP_RC_NORES # not enough resources
-	    else:
-		returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
+            else:
+                returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
 
-	    #set blockCells for this 6top operation
-	    self.sixtopStates[neighbor.id]['blockedCells'] = newCellList
+            #set blockCells for this 6top operation
+            self.sixtopStates[neighbor.id]['blockedCells'] = newCellList
 
-	    #enqueue response
+            #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq)
 
     def _sixtop_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
@@ -1481,7 +1516,7 @@ class Mote(object):
             '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, from {3} to {4}',
             (cellList, len(cellList), returnCode, self.id, neighbor.id),
         )
-	seq+=1
+        seq+=1
         # create new packet
         newPacket = {
             'asn':            self.engine.getAsn(),
@@ -1505,243 +1540,274 @@ class Mote(object):
         ''' receive a 6P response messages '''
 
         with self.dataLock:
-          
             if self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_ADDRESPONSE:
-		     # TODO: now this is still an assert, later this should be handled appropriately
-		    assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET	#RC_BUSY not implemented yet
+                 # TODO: now this is still an assert, later this should be handled appropriately
+                assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET        #RC_BUSY not implemented yet
 
-		    neighbor=smac
-		    receivedCellList = payload[0]
-		    numCells = payload[1]
-		    receivedDir = payload[2]
-		    seq=payload[3]
-	
-		    #seqNum mismatch, transaction failed, ignore packet
-		    if seq!=self.sixtopStates[neighbor.id]['seqNum']:
-			# go back to IDLE, i.e. remove the neighbor form the states
-		    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    	self.sixtopStates[neighbor.id]['blockedCells']=[]
-			return
+                neighbor = smac
+                receivedCellList = payload[0]
+                numCells = payload[1]
+                receivedDir = payload[2]
+                seq = payload[3]
 
-		    # if the request was successfull and there were enough resources
-		    if code == self.IANA_6TOP_RC_SUCCESS:
+                #seqNum mismatch, transaction failed, ignore packet
+                if seq!=self.sixtopStates[neighbor.id]['seqNum']:
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
 
-			cellList=[]
+                # delete the timer.
+                uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
+                self.engine.removeEvent(self.id, uniqueTag)
 
-		        # set direction of cells
-		        if receivedDir == self.DIR_TX:
-		            newDir = self.DIR_RX
-		        else:
-		            newDir = self.DIR_TX
+                # if the request was successfull and there were enough resources
+                if code == self.IANA_6TOP_RC_SUCCESS:
 
-		        for (ts, ch, cellDir) in receivedCellList:
-		            # log
-		            self._log(
-		                self.INFO,
-		                '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-		                (ts,ch,self.id,neighbor.id,newDir),
-		            )
-		            cellList         += [(ts,ch,newDir)]
-		        self._tsch_addCells(neighbor, cellList)
+                    cellList=[]
 
-		        # update counters
-		        if newDir==self.DIR_TX:
-		            if neighbor not in self.numCellsToNeighbors:
-		                self.numCellsToNeighbors[neighbor]     = 0
-		            self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
-		        else:
-		            if neighbor not in self.numCellsFromNeighbors:
-		                self.numCellsFromNeighbors[neighbor]   = 0
-		            self.numCellsFromNeighbors[neighbor]      += len(receivedCellList)
+                    # set direction of cells
+                    if receivedDir == self.DIR_TX:
+                        newDir = self.DIR_RX
+                    else:
+                        newDir = self.DIR_TX
 
-		    elif code == self.IANA_6TOP_RC_NORES:
-			# log
-		        self._log(
-		                self.INFO,
-		                '[6top] The resources requested are not available in {0}',
-		                (neighbor.id),
-		        )
-			pass
-			#TODO: increase stats of RC_NORES
+                    for (ts, ch, cellDir) in receivedCellList:
+                        # log
+                        self._log(
+                            self.INFO,
+                            '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+                            (ts,ch,self.id,neighbor.id,newDir),
+                        )
+                        cellList         += [(ts,ch,newDir)]
+                    self._tsch_addCells(neighbor, cellList)
 
-		    #only when devices are not powerfull enough. Not used in the simulator
-		    elif code == self.IANA_6TOP_RC_BUSY:
-			pass
-			#TODO: increase stats of RC_BUSY
+                    # update counters
+                    if newDir==self.DIR_TX:
+                        if neighbor not in self.numCellsToNeighbors:
+                            self.numCellsToNeighbors[neighbor]     = 0
+                        self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
+                    else:
+                        if neighbor not in self.numCellsFromNeighbors:
+                            self.numCellsFromNeighbors[neighbor]   = 0
+                        self.numCellsFromNeighbors[neighbor]      += len(receivedCellList)
 
-		    else: # should not happen
-		        assert False
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return True
+                elif code == self.IANA_6TOP_RC_NORES:
+                    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The resources requested are not available in {0}',
+                            (neighbor.id),
+                    )
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
 
-		    # go back to IDLE, i.e. remove the neighbor form the states
-		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    #TODO: increase stats of RC_NORES
 
-	    elif self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_DELETERESPONSE:
-		    # TODO: now this is still an assert, later this should be handled appropriately
-		    assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
+                #only when devices are not powerfull enough. Not used in the simulator
+                elif code == self.IANA_6TOP_RC_BUSY:
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
+                    #TODO: increase stats of RC_BUSY
 
-		    neighbor=smac
-		    receivedCellList = payload[0]
-		    numCells = payload[1]
-		    receivedDir = payload[2]
-		    seq=payload[3]
-	
-		    #seqNum mismatch, transaction failed, ignore packet
-		    if seq!=self.sixtopStates[neighbor.id]['seqNum']:
-			# go back to IDLE, i.e. remove the neighbor form the states
-		    	self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    	self.sixtopStates[neighbor.id]['blockedCells']=[]
-			return
+                elif code == self.IANA_6TOP_RC_RESET: # should not happen
+                    pass
+                else:
+                    assert False
 
-		    # if the request was successfull and there were enough resources
-		    if code == self.IANA_6TOP_RC_SUCCESS:
+            elif self.sixtopStates[smac.id]['state'] == self.SIX_STATE_WAIT_DELETERESPONSE:
+                # TODO: now this is still an assert, later this should be handled appropriately
+                assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
 
-			cellList=[]
+                neighbor=smac
+                receivedCellList = payload[0]
+                numCells = payload[1]
+                receivedDir = payload[2]
+                seq=payload[3]
 
-		        # set direction of cells
-		        if receivedDir == self.DIR_TX:
-		            newDir = self.DIR_RX
-		        else:
-		            newDir = self.DIR_TX
+                #seqNum mismatch, transaction failed, ignore packet
+                if seq!=self.sixtopStates[neighbor.id]['seqNum']:
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
 
-		        for (ts, ch, cellDir) in receivedCellList:
-		            # log
-		            self._log(
-		                self.INFO,
-		                '[6top] Delete {4} cell ts={0},ch={1} from {2} to {3}',
-		                (ts,ch,self.id,neighbor.id,newDir),
-		            )
-		            cellList         += [(ts,ch,newDir)]
+                # delete the timer.
+                uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
+                self.engine.removeEvent(self.id, uniqueTag)
 
-		        self._tsch_removeCells(neighbor,cellList)
+                # if the request was successfull and there were enough resources
+                if code == self.IANA_6TOP_RC_SUCCESS:
 
-		        self.numCellsFromNeighbors[neighbor]     -= len(cellList)
-		        assert self.numCellsFromNeighbors[neighbor]>=0
+                    cellList=[]
 
-		    elif code == self.IANA_6TOP_RC_NORES:
-			# log
-		        self._log(
-		                self.INFO,
-		                '[6top] The resources requested for delete are not available in {0}',
-		                (neighbor.id),
-		        )
-			pass
-			#TODO: increase stats of RC_NORES
+                    # set direction of cells
+                    if receivedDir == self.DIR_TX:
+                        newDir = self.DIR_RX
+                    else:
+                        newDir = self.DIR_TX
 
-		    #only when devices are not powerfull enough. Not used in the simulator
-		    elif code == self.IANA_6TOP_RC_BUSY:
-			pass
-			#TODO: increase stats of RC_BUSY
-		    elif code == self.IANA_6TOP_RC_RESET:
-			#TODO: increase stats of RC_RESET
-			pass
-		    else: # should not happen
-		        assert False
+                    for (ts, ch, cellDir) in receivedCellList:
+                        # log
+                        self._log(
+                            self.INFO,
+                            '[6top] Delete {4} cell ts={0},ch={1} from {2} to {3}',
+                            (ts,ch,self.id,neighbor.id,newDir),
+                        )
+                        cellList         += [(ts,ch,newDir)]
 
-		    # go back to IDLE, i.e. remove the neighbor form the states
-		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    self.sixtopStates[neighbor.id]['blockedCells']=[]
-	    else:
-		#only ADD and DELETE implemented so far
-		assert False
+                    self._tsch_removeCells(neighbor,cellList)
+
+                    self.numCellsFromNeighbors[neighbor]     -= len(cellList)
+                    assert self.numCellsFromNeighbors[neighbor]>=0
+
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return True
+                elif code == self.IANA_6TOP_RC_NORES:
+                    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The resources requested for delete are not available in {0}',
+                            (neighbor.id),
+                    )
+
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
+                    #TODO: increase stats of RC_NORES
+
+                #only when devices are not powerfull enough. Not used in the simulator
+                elif code == self.IANA_6TOP_RC_BUSY:
+
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
+                    #TODO: increase stats of RC_BUSY
+                elif code == self.IANA_6TOP_RC_RESET:
+                    #TODO: increase stats of RC_RESET
+
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                    return False
+                else: # should not happen
+                    assert False
+            else:
+                #only ADD and DELETE implemented so far
+                # do not do an assert because it can be you come here if a timer expires
+                # assert False
+                pass
 
     def _sixtop_receive_RESPONSE_ACK(self, packet):
         with self.dataLock:
 
             if self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
-           
-		    confirmedCellList = packet['payload'][0]
-		    receivedDir = packet['payload'][1]
-		    neighbor=packet['dstIp']
-		    code=packet['code']
 
-		    if code == self.IANA_6TOP_RC_SUCCESS:
-		    
-			    for (ts, ch, cellDir) in confirmedCellList:
-				    # log
-				    self._log(
-				        self.INFO,
-				        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-				        (ts,ch,self.id,neighbor.id,cellDir),
-				    )
-			    self._tsch_addCells(neighbor, confirmedCellList)
+                    confirmedCellList = packet['payload'][0]
+                    receivedDir = packet['payload'][1]
+                    neighbor=packet['dstIp']
+                    code=packet['code']
 
-			    # update counters
-			    if receivedDir==self.DIR_TX:
-				    if neighbor not in self.numCellsToNeighbors:
-				        self.numCellsToNeighbors[neighbor]     = 0
-				    self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
-			    else:
-				    if neighbor not in self.numCellsFromNeighbors:
-				        self.numCellsFromNeighbors[neighbor]   = 0
-				    self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+                    if code == self.IANA_6TOP_RC_SUCCESS:
 
-		    # go back to IDLE, i.e. remove the neighbor form the states
-		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    self.sixtopStates[neighbor.id]['blockedCells']=[]
+                            for (ts, ch, cellDir) in confirmedCellList:
+                                    # log
+                                    self._log(
+                                        self.INFO,
+                                        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+                                        (ts,ch,self.id,neighbor.id,cellDir),
+                                    )
+                            self._tsch_addCells(neighbor, confirmedCellList)
 
-	    elif self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+                            # update counters
+                            if receivedDir==self.DIR_TX:
+                                    if neighbor not in self.numCellsToNeighbors:
+                                        self.numCellsToNeighbors[neighbor]     = 0
+                                    self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
+                            else:
+                                    if neighbor not in self.numCellsFromNeighbors:
+                                        self.numCellsFromNeighbors[neighbor]   = 0
+                                    self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
 
-		    confirmedCellList = packet['payload'][0]
-		    receivedDir = packet['payload'][1]
-		    neighbor=packet['dstIp']
-		    code=packet['code']
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    # but if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
 
-		    if code == self.IANA_6TOP_RC_SUCCESS:
-		    
-			    for (ts, ch, cellDir) in confirmedCellList:
-				    # log
-				    self._log(
-				        self.INFO,
-				        '[6top] delete {4} cell ts={0},ch={1} from {2} to {3}',
-				        (ts,ch,self.id,neighbor.id,cellDir),
-				    )
-			    self._tsch_removeCells(neighbor, confirmedCellList)
+            elif self.sixtopStates[packet['dstIp'].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
 
-		    self.numCellsFromNeighbors[neighbor]     -= len(confirmedCellList)
-		    assert self.numCellsFromNeighbors[neighbor]>=0
+                    confirmedCellList = packet['payload'][0]
+                    receivedDir = packet['payload'][1]
+                    neighbor=packet['dstIp']
+                    code=packet['code']
+
+                    if code == self.IANA_6TOP_RC_SUCCESS:
+
+                            for (ts, ch, cellDir) in confirmedCellList:
+                                    # log
+                                    self._log(
+                                        self.INFO,
+                                        '[6top] delete {4} cell ts={0},ch={1} from {2} to {3}',
+                                        (ts,ch,self.id,neighbor.id,cellDir),
+                                    )
+                            self._tsch_removeCells(neighbor, confirmedCellList)
+
+                    self.numCellsFromNeighbors[neighbor]     -= len(confirmedCellList)
+                    assert self.numCellsFromNeighbors[neighbor]>=0
 
 
-		    # go back to IDLE, i.e. remove the neighbor form the states
-		    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-		    self.sixtopStates[neighbor.id]['blockedCells']=[]
-		
-	    else:
-		#only add and delete are implemented so far
-		assert False
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['blockedCells']=[]
+
+            else:
+                #only add and delete are implemented so far
+                assert False
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
 
             if self.settings.sixtopMessaging:
-		if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
+                if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and self.sixtopStates[neighbor.id]['state'] == self.SIX_STATE_IDLE):
 
-			# if neighbor not yet in states dict, add it
-			if neighbor.id not in self.sixtopStates:      
-			    self.sixtopStates[neighbor.id] = {}
-			    self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
-			    self.sixtopStates[neighbor.id]['blockedCells'] = []
-			    self.sixtopStates[neighbor.id]['seqNum']=0
+                        # if neighbor not yet in states dict, add it
+                        if neighbor.id not in self.sixtopStates:
+                            self.sixtopStates[neighbor.id] = {}
+                            self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_IDLE
+                            self.sixtopStates[neighbor.id]['blockedCells'] = []
+                            self.sixtopStates[neighbor.id]['seqNum']=0
 
-			self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),self.sixtopStates[neighbor.id]['seqNum'])
-		else:
-			#TODO: implement timeout for delete
-			pass
-	    else:
+                        self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),self.sixtopStates[neighbor.id]['seqNum'])
+                else:
+                        #TODO: implement timeout for delete
+                        pass
+            else:
 
-		    # log
-		    self._log(
-		        self.INFO,
-		        "[6top] remove timeslots={0} with {1}",
-		        (tsList,neighbor.id),
-		    )
-		    self._tsch_removeCells(
-		        neighbor     = neighbor,
-		        tsList       = tsList,
-		    )
-		    neighbor._sixtop_cell_deletion_receiver(self,tsList)
-		    self.numCellsToNeighbors[neighbor]       -= len(tsList)
-		    assert self.numCellsToNeighbors[neighbor]>=0
+                    # log
+                    self._log(
+                        self.INFO,
+                        "[6top] remove timeslots={0} with {1}",
+                        (tsList,neighbor.id),
+                    )
+                    self._tsch_removeCells(
+                        neighbor     = neighbor,
+                        tsList       = tsList,
+                    )
+                    neighbor._sixtop_cell_deletion_receiver(self,tsList)
+                    self.numCellsToNeighbors[neighbor]       -= len(tsList)
+                    assert self.numCellsToNeighbors[neighbor]>=0
 
     def _sixtop_cell_deletion_receiver(self,neighbor,tsList):
         with self.dataLock:
@@ -1798,7 +1864,7 @@ class Mote(object):
             tsList += [tscell[0]]
 
         # remove cells
-	self._sixtop_cell_deletion_sender(neighbor,tsList)
+        self._sixtop_cell_deletion_sender(neighbor,tsList)
 
     def _sixtop_enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells,seq):
         ''' enqueue a new 6P DELETE request '''
@@ -1827,7 +1893,7 @@ class Mote(object):
         if not isEnqueued:
             # update mote stats
             self._stats_incrementMoteStats('droppedAppFailedEnqueue')
-	else:
+        else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['state'] = self.SIX_STATE_SENDING_REQUEST
 
@@ -1839,24 +1905,37 @@ class Mote(object):
             cellList = payload[0]
             numCells = payload[1]
             dirNeighbor = payload[2]
-	    seq=payload[3]
+            seq=payload[3]
 
-	    self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
+            self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
 
             if smac.id in self.sixtopStates and self.sixtopStates[smac.id]['state'] != self.SIX_STATE_IDLE:
-	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
-		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
-		return
+                for pkt in self.txQueue:
+                    if pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
+                        self.txQueue.remove(pkt)
+                        self._log(
+                            self.INFO,
+                            "[6top] removed a 6TOP_TYPE_RESPONSE packet in the queue of mote {0} to neighbor {1}, because a new TYPE_REQUEST (delete) was received.",
+                            (self.id, smac.id),
+                        )
+                returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+                if smac.id not in self.sixtopStates:
+                    self.sixtopStates[smac.id] = {}
+                    self.sixtopStates[smac.id]['blockedCells']=[]
+                    self.sixtopStates[smac.id]['seqNum']=0
+                self.sixtopStates[smac.id]['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                return
 
             # set state to receiving request for this neighbor
             if smac.id not in self.sixtopStates:
                 self.sixtopStates[smac.id] = {}
-	        self.sixtopStates[neighbor.id]['blockedCells']=[]
-	        self.sixtopStates[neighbor.id]['seqNum']=0
-		#if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
-	        returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
-		self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
-		return
+                self.sixtopStates[neighbor.id]['blockedCells']=[]
+                self.sixtopStates[neighbor.id]['seqNum']=0
+                #if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
+                returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                return
 
             # set direction of cells
             if dirNeighbor == self.DIR_TX:
@@ -1864,13 +1943,13 @@ class Mote(object):
             else:
                 newDir = self.DIR_TX
 
-	    returnCode = self.IANA_6TOP_RC_SUCCESS # all is fine
+            returnCode = self.IANA_6TOP_RC_SUCCESS # all is fine
 
-	    for cell in cellList:
-		if cell not in self.schedule.keys():
-		    returnCode = self.IANA_6TOP_RC_NORES # resources are not present
+            for cell in cellList:
+                if cell not in self.schedule.keys():
+                    returnCode = self.IANA_6TOP_RC_NORES # resources are not present
 
-	    #enqueue response
+            #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq)
 
     #===== tsch
@@ -1965,7 +2044,7 @@ class Mote(object):
 
             cell = self.schedule[ts]
 
-	    #TODO: should we disable DATA packets in SHARED cells?
+            #TODO: should we disable DATA packets in SHARED cells?
 
             if  cell['dir']==self.DIR_RX:
 
@@ -1984,10 +2063,10 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-			# do not send join traffic in dedicated slots, 6top messages can be sent either in dedicated or shared cells
-			if (pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_RESPONSE) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_REQUEST):
+                        # do not send join traffic in dedicated slots, 6top messages can be sent either in dedicated or shared cells
+                        if (pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_RESPONSE) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_REQUEST):
                             self.pktToSend = pkt
-			    break
+                            break
                             # TODO: last packet or first packet?
 
                 # send packet
@@ -1995,26 +2074,25 @@ class Mote(object):
 
                     cell['numTx'] += 1
 
-		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
-			if pkt['code']==self.IANA_6TOP_CMD_ADD:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-			elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-			else:
-			    assert False
-			
-		
-		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
-			if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
-			    pass
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
-			    pass
-			else:
-			    assert False
+                    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
+                        if pkt['code']==self.IANA_6TOP_CMD_ADD:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+                        elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+                        else:
+                            assert False
+
+                    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
+                        if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
+                            pass
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+                            pass
+                        else:
+                            assert False
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
@@ -2035,10 +2113,10 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-			# 6top messages can be sent either in dedicated or shared cells
-			if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN or pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
+                        # 6top messages can be sent either in dedicated or shared cells
+                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN or pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                             self.pktToSend = pkt
-			    break
+                            break
                             # TODO: last packet or first packet?
 
                 # Decrement backoff
@@ -2049,26 +2127,26 @@ class Mote(object):
 
                     cell['numTx'] += 1
 
-		    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
-			if pkt['code']==self.IANA_6TOP_CMD_ADD:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-			elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-			else:
-			    assert False
-			
-		
-		    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
-			if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-			    self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
-			    pass
-			elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
-			    pass
-			else:
-			    assert False
+                    if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
+                        if pkt['code']==self.IANA_6TOP_CMD_ADD:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+                        elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+                        else:
+                            assert False
+
+                    if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
+                        if self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+                            self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
+                            pass
+                        elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
+                            pass
+                        else:
+                            print 'On mote %d, for mote %d, state: %d' % (self.id, self.pktToSend['nextHop'][0].id, self.sixtopStates[self.pktToSend['nextHop'][0].id]['state'])
+                            assert False
 
                     self.propagation.startTx(
                         channel   = cell['ch'],
@@ -2130,30 +2208,30 @@ class Mote(object):
         ''' removes cell(s) from the schedule '''
         with self.dataLock:
 
-	    for cell in cellList:
-		if type(cell)==list:
-			# log
-			self._log(
-				self.INFO,
-				"[tsch] remove cell=({0}{1}) with {2}",
-				(cell[0],cell[1],neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
-			)
-	       
-		        assert cell[0] in self.schedule.keys()
-		        assert self.schedule[cell[0]]['neighbor']==neighbor
-		        self.schedule.pop(cell[0])
-		else:
-			assert type(cell)==int
-			# log
-			self._log(
-				self.INFO,
-				"[tsch] remove cell=({0}) with {1}",
-				(cell,neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
-			)
-	       
-		        assert cell in self.schedule.keys()
-		        assert self.schedule[cell]['neighbor']==neighbor
-		        self.schedule.pop(cell)
+            for cell in cellList:
+                if type(cell)==list:
+                        # log
+                        self._log(
+                                self.INFO,
+                                "[tsch] remove cell=({0}{1}) with {2}",
+                                (cell[0],cell[1],neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
+                        )
+
+                        assert cell[0] in self.schedule.keys()
+                        assert self.schedule[cell[0]]['neighbor']==neighbor
+                        self.schedule.pop(cell[0])
+                else:
+                        assert type(cell)==int
+                        # log
+                        self._log(
+                                self.INFO,
+                                "[tsch] remove cell=({0}) with {1}",
+                                (cell,neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
+                        )
+
+                        assert cell in self.schedule.keys()
+                        assert self.schedule[cell]['neighbor']==neighbor
+                        self.schedule.pop(cell)
 
             self._tsch_schedule_activeCell()
 
@@ -2217,21 +2295,47 @@ class Mote(object):
                 if self.schedule[ts]['neighbor'] == self.preferredParent:
                     self.timeCorrectedSlot = asn
 
-		# received an ACK for the request, change state and increase the sequence number
-		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
-		    if self.pktToSend['code']==self.IANA_6TOP_CMD_ADD:
-		    	assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-		    	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
-		    elif self.pktToSend['code']==self.IANA_6TOP_CMD_DELETE:
-			assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-		    	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_DELETERESPONSE
-		    else:
-			assert False
+                # received an ACK for the request, change state and increase the sequence number
+                if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
+                    if self.pktToSend['code']==self.IANA_6TOP_CMD_ADD:
+                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
 
-		    self.sixtopStates[self.pktToSend['dstIp'].id]['seqNum']+=1
+                        # calculate the asn at which it should fire
+                        fireASN = int(self.engine.getAsn()+(float(self.SIXTOP_TIMEOUT)/float(self.settings.slotDuration)))
+                        uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
+                        self.engine.scheduleAtAsn(
+                            asn         = fireASN,
+                            cb          = self._sixtop_timer_fired,
+                            uniqueTag   = (self.id, uniqueTag),
+                            priority    = 5,
+                        )
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer'] = {}
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer']['tag'] = (self.id, uniqueTag)
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer']['asn'] = fireASN
+                    elif self.pktToSend['code']==self.IANA_6TOP_CMD_DELETE:
+                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['state']==self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_WAIT_DELETERESPONSE
+
+                        # calculate the asn at which it should fire
+                        fireASN = int(self.engine.getAsn()+(float(self.SIXTOP_TIMEOUT)/float(self.settings.slotDuration)))
+                        uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
+                        self.engine.scheduleAtAsn(
+                            asn         = fireASN,
+                            cb          = self._sixtop_timer_fired,
+                            uniqueTag   = (self.id, uniqueTag),
+                            priority    = 5,
+                        )
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer'] = {}
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer']['tag'] = (self.id, uniqueTag)
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['timer']['asn'] = fireASN
+                    else:
+                        assert False
+
+                    self.sixtopStates[self.pktToSend['dstIp'].id]['seqNum']+=1
 
 
-		if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
+                if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
 
                 # remove packet from queue
@@ -2270,14 +2374,15 @@ class Mote(object):
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
 
-			#reset state for this neighbor
-			if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
-		        	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
-	    			self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells']=[]
+                        # reset state for this neighbor
+                        # go back to IDLE, i.e. remove the neighbor form the states
+                        # but, in the case of a response msg, if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
+                        if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+                            self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
+                            self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells'] = []
 
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
-                if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (
-                        self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
+                if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
                     self._tsch_resetBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
@@ -2311,14 +2416,14 @@ class Mote(object):
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
-
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
 
-			#reset state for this neighbor
-			if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
-		        	self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
-	    			self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells']=[]
+                        # reset state for this neighbor
+                        # go back to IDLE, i.e. remove the neighbor form the states
+                        if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST or self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+                            self.sixtopStates[self.pktToSend['dstIp'].id]['state'] = self.SIX_STATE_IDLE
+                            self.sixtopStates[self.pktToSend['dstIp'].id]['blockedCells'] = []
 
             # end of radio activity, not waiting for anything
             self.waitingFor = None
@@ -2382,15 +2487,18 @@ class Mote(object):
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
-			self._sixtop_receive_ADD_REQUEST(type, smac, payload)
+                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
+                        self._sixtop_receive_ADD_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
-			self._sixtop_receive_DELETE_REQUEST(type, smac, payload)
+                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
+                        self._sixtop_receive_DELETE_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-		    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P response
-                        self._sixtop_receive_RESPONSE(type, code, smac, payload)
-                        (isACKed, isNACKed) = (True, False)
+                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P response
+                        if self._sixtop_receive_RESPONSE(type, code, smac, payload):
+                            (isACKed, isNACKed) = (True, False)
+                        else:
+                            (isACKed, isNACKed) = (False, False)
+                        # (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
                         (isACKed, isNACKed) = (True, False)
@@ -2400,8 +2508,8 @@ class Mote(object):
                     elif type == self.APP_TYPE_JOIN:
                         self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
-		    else:
-			assert False
+                    else:
+                        assert False
 
                 else:
                     # relaying packet
@@ -2820,8 +2928,8 @@ class Mote(object):
         else:
             raise NotImplementedError()
 
-	output  = []
-	output += ['[ASN={0:>6} id={1:>4}] '.format(self.engine.getAsn(),self.id)]
-	output += [template.format(*params)]
-	output  = ''.join(output)
-	logfunc(output)
+        output  = []
+        output += ['[ASN={0:>6} id={1:>4}] '.format(self.engine.getAsn(),self.id)]
+        output += [template.format(*params)]
+        output  = ''.join(output)
+        logfunc(output)
