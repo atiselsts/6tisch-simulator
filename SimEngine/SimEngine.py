@@ -179,11 +179,23 @@ class SimEngine(threading.Thread):
             # add to schedule
             self.events.insert(i,(asn,priority,cb,uniqueTag))
 
+    def removeEventCNT(self,uniqueTag,exceptCurrentASN=True):
+        with self.dataLock:
+            i = 0
+            cnt = 0
+            while i<len(self.events):
+                if self.events[i][3]==uniqueTag and not (exceptCurrentASN and self.events[i][0]==self.asn):
+                    self.events.pop(i)
+                    cnt += 1
+                else:
+                    i += 1
+            return cnt
+
     def removeEvent(self,uniqueTag,exceptCurrentASN=True):
         with self.dataLock:
             i = 0
             while i<len(self.events):
-                if self.events[i][3]==uniqueTag and not (exceptCurrentASN and self.events[i][0]==self.asn):
+                if self.events[i][3][0]==uniqueTag[0] and self.events[i][3][1]==uniqueTag[1] and not (exceptCurrentASN and self.events[i][0]==self.asn):
                     self.events.pop(i)
                 else:
                     i += 1
