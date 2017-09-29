@@ -149,7 +149,6 @@ class Mote(object):
     BROADCAST_ADDRESS                  = 0xffff
 
     def __init__(self,id):
-        random.seed(9)
         # store params
         self.id                        = id
         # local variables
