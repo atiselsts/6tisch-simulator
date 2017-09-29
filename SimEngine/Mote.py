@@ -2538,18 +2538,17 @@ class Mote(object):
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
+                    elif type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_ADD: # received an 6P ADD request
                         self._sixtop_receive_ADD_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
+                    elif type == self.IANA_6TOP_TYPE_REQUEST and code == self.IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
                         self._sixtop_receive_DELETE_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif self.settings.sixtopMessaging and type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P response
+                    elif type == self.IANA_6TOP_TYPE_RESPONSE: # received an 6P response
                         if self._sixtop_receive_RESPONSE(type, code, smac, payload):
                             (isACKed, isNACKed) = (True, False)
                         else:
                             (isACKed, isNACKed) = (False, False)
-                        # (isACKed, isNACKed) = (True, False)
                     elif type == self.APP_TYPE_DATA: # application packet
                         self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
                         (isACKed, isNACKed) = (True, False)
