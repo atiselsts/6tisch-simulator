@@ -97,28 +97,28 @@ class Mote(object):
     SIX_STATE_WAIT_LISTRESPONSE                 = 0x0c
     SIX_STATE_WAIT_CLEARRESPONSE                = 0x0d
     #response
-    SIX_STATE_REQUEST_ADD_RECEIVED               = 0x0e
-    SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE         = 0x0f
-    SIX_STATE_REQUEST_DELETE_RECEIVED            = 0x10
-    SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE      = 0x11
+    SIX_STATE_REQUEST_ADD_RECEIVED              = 0x0e
+    SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE        = 0x0f
+    SIX_STATE_REQUEST_DELETE_RECEIVED           = 0x10
+    SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE     = 0x11
 
     #=== 6top commands
-    IANA_6TOP_CMD_ADD                                = 0x01 # add one or more cells
-    IANA_6TOP_CMD_DELETE                           = 0x02 # delete one or more cells
+    IANA_6TOP_CMD_ADD                           = 0x01 # add one or more cells
+    IANA_6TOP_CMD_DELETE                        = 0x02 # delete one or more cells
     IANA_6TOP_CMD_RELOCATE                      = 0x03 # relocate one or more cells
     IANA_6TOP_CMD_COUNT                         = 0x04 # count scheduled cells
     IANA_6TOP_CMD_LIST                          = 0x05 # list the scheduled cells
     IANA_6TOP_CMD_CLEAR                         = 0x06 # clear all cells
 
     #=== 6P return code
-    IANA_6TOP_RC_SUCCESS                               = 0x00 # operation succeeded
-    IANA_6TOP_RC_ERROR                                 = 0x01 # generic error
-    IANA_6TOP_RC_EOL                                   = 0x02 # end of list
-    IANA_6TOP_RC_RESET                                 = 0x03 # critical error, reset
-    IANA_6TOP_RC_VER_ERR                               = 0x04 # unsupported 6P version
+    IANA_6TOP_RC_SUCCESS                        = 0x00 # operation succeeded
+    IANA_6TOP_RC_ERROR                          = 0x01 # generic error
+    IANA_6TOP_RC_EOL                            = 0x02 # end of list
+    IANA_6TOP_RC_RESET                          = 0x03 # critical error, reset
+    IANA_6TOP_RC_VER_ERR                        = 0x04 # unsupported 6P version
     IANA_6TOP_RC_SFID_ERR                       = 0x05 # unsupported SFID
     IANA_6TOP_RC_GEN_ERR                        = 0x06 # wrong schedule generation
-    IANA_6TOP_RC_BUSY                                  = 0x07 # busy
+    IANA_6TOP_RC_BUSY                           = 0x07 # busy
     IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
 
