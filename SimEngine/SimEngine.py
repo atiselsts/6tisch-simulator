@@ -116,7 +116,7 @@ class SimEngine(threading.Thread):
                 # abort simulation when no more events
                 if not self.events:
                     log.info("end of simulation at ASN={0}".format(self.asn))
-                    break)
+                    break
 
                 # make sure we are in the future
                 (a, b, cb, c) = self.events[0]
