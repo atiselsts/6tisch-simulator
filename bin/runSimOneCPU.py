@@ -65,7 +65,7 @@ def parseCliOptions():
     parser.add_argument( '--numRuns',
         dest       = 'numRuns',
         type       = int,
-        default    = 1,
+        default    = 2,
         help       = '[sim] Number of simulation runs.',
     )
     parser.add_argument( '--numCyclesPerRun',
@@ -85,7 +85,7 @@ def parseCliOptions():
         dest       = 'numMotes',
         nargs      = '+',
         type       = int,
-        default    = [20],
+        default    = [50],
         help       = '[topology] Number of simulated motes.',
     )
     parser.add_argument( '--squareSide',
