@@ -53,7 +53,7 @@ def parseCliOptions():
     parser.add_argument('--gui',
         dest       = 'gui',
         action     = 'store_true',
-        default    = True,
+        default    = False,
         help       = '[sim] Display the GUI.',
     )
     parser.add_argument( '--cpuID',
