@@ -2717,10 +2717,6 @@ class Mote(object):
 
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
-        self._tsch_addCells(self._myNeigbors(),[(1,0,self.DIR_TXRX_SHARED)])
-        self._tsch_addCells(self._myNeigbors(),[(2,0,self.DIR_TXRX_SHARED)])
-        self._tsch_addCells(self._myNeigbors(),[(3,0,self.DIR_TXRX_SHARED)])
-        self._tsch_addCells(self._myNeigbors(),[(4,0,self.DIR_TXRX_SHARED)])
         # sending of EB
         self._tsch_schedule_sendEB(firstEB=True)
 
