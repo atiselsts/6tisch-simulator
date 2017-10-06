@@ -1805,7 +1805,6 @@ class Mote(object):
 
     def _sixtop_cell_deletion_sender(self,neighbor,tsList):
         with self.dataLock:
-
             if self.settings.sixtopMessaging:
                 if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and self.sixtopStates[neighbor.id]['tx']['state'] == self.SIX_STATE_IDLE):
 
@@ -1826,26 +1825,26 @@ class Mote(object):
                         (neighbor.id, self.id),
                     )
             else:
+                # log
+                self._log(
+                    self.INFO,
+                    "[6top] remove timeslots={0} with {1}",
+                    (tsList,neighbor.id),
+                )
+                self._tsch_removeCells(
+                    neighbor     = neighbor,
+                    cellList     = tsList,
+                )
 
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[6top] remove timeslots={0} with {1}",
-                        (tsList,neighbor.id),
-                    )
-                    self._tsch_removeCells(
-                        neighbor     = neighbor,
-                        tsList       = tsList,
-                    )
-                    neighbor._sixtop_cell_deletion_receiver(self,tsList)
-                    self.numCellsToNeighbors[neighbor]       -= len(tsList)
-                    assert self.numCellsToNeighbors[neighbor]>=0
+                neighbor._sixtop_cell_deletion_receiver(self,tsList)
+                self.numCellsToNeighbors[neighbor]       -= len(tsList)
+                assert self.numCellsToNeighbors[neighbor]>=0
 
     def _sixtop_cell_deletion_receiver(self,neighbor,tsList):
         with self.dataLock:
             self._tsch_removeCells(
                 neighbor     = neighbor,
-                tsList       = tsList,
+                cellList     = tsList,
             )
             self.numCellsFromNeighbors[neighbor]     -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
