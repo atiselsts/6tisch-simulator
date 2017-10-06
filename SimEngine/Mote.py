@@ -1833,7 +1833,7 @@ class Mote(object):
                 )
                 self._tsch_removeCells(
                     neighbor     = neighbor,
-                    cellList     = tsList,
+                    tsList       = tsList,
                 )
 
                 neighbor._sixtop_cell_deletion_receiver(self,tsList)
@@ -1844,7 +1844,7 @@ class Mote(object):
         with self.dataLock:
             self._tsch_removeCells(
                 neighbor     = neighbor,
-                cellList     = tsList,
+                tsList       = tsList,
             )
             self.numCellsFromNeighbors[neighbor]     -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
@@ -2238,12 +2238,12 @@ class Mote(object):
                 )
             self._tsch_schedule_activeCell()
 
-    def _tsch_removeCells(self,neighbor,cellList):
+    def _tsch_removeCells(self,neighbor,tsList):
         ''' removes cell(s) from the schedule '''
         with self.dataLock:
 
-            for cell in cellList:
-                if type(cell)==list:
+            for cell in tsList:
+                if type(cell) == list:
                         # log
                         self._log(
                                 self.INFO,
