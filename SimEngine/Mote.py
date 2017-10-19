@@ -882,15 +882,15 @@ class Mote(object):
 
         if packet['dstIp'] == self.BROADCAST_ADDRESS:
             nextHop = self._myNeigbors()
-        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
-            nextHop = [packet['dstIp']]
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
         elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
-                nextHopId = packet['sourceRoute'].pop()
-                for nei in self._myNeigbors():
-                    if [nei.id] == nextHopId:
-                        nextHop = [nei]
+            nextHopId = packet['sourceRoute'].pop()
+            for nei in self._myNeigbors():
+                if [nei.id] == nextHopId:
+                    nextHop = [nei]
+        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
+            nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
