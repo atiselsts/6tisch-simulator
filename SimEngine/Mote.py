@@ -1441,6 +1441,9 @@ class Mote(object):
             dirNeighbor = payload[2]
             seq=payload[3]
 
+	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor
+	    self._stats_incrementMoteStats('rxAddReq')
+
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and self.sixtopStates[smac.id]['rx']['state'] != self.SIX_STATE_IDLE:
                 for pkt in self.txQueue:
                     if pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
@@ -1810,6 +1813,8 @@ class Mote(object):
 
     def _sixtop_receive_RESPONSE_ACK(self, packet):
         with self.dataLock:
+	    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])	
+	    self.tsSixTopReqRecv[neighbor]=0
 
             if self.sixtopStates[packet['dstIp'].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
 
@@ -1817,9 +1822,6 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
-
-		    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])	
-		    self.tsSixTopReqRecv[neighbor]=0
 
                     if code == self.IANA_6TOP_RC_SUCCESS:
 
@@ -2012,6 +2014,9 @@ class Mote(object):
             dirNeighbor = payload[2]
             seq=payload[3]
 
+	    self._stats_incrementMoteStats('rxDelReq')
+	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
+
             self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and self.sixtopStates[smac.id]['rx']['state'] != self.SIX_STATE_IDLE:
@@ -2057,10 +2062,6 @@ class Mote(object):
             for cell in cellList:
                 if cell not in self.schedule.keys():
                     returnCode = self.IANA_6TOP_RC_NORES # resources are not present
-
-	    self._stats_incrementMoteStats('rxDelReq')
-
-	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
 
             #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq)
