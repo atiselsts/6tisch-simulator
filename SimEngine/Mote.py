@@ -2815,6 +2815,8 @@ class Mote(object):
 	if self.dagRoot:
 	    self._rpl_schedule_sendDIO(firstDIO=True)
 	    self._tsch_schedule_sendEB(firstEB=True)
+	    if not self.settings.withBootstrap:
+		self.engine.asnInitExperiment=self.engine.asn+1
 
         # OTF
         self._otf_resetInboundTrafficCounters()

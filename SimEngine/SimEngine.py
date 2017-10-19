@@ -71,6 +71,8 @@ class SimEngine(threading.Thread):
         self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
+	#not valid value. Will be set by the last mote that becomes ready (finishes bootstrap)
+	self.asnInitExperiment=999999999
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -80,8 +82,7 @@ class SimEngine(threading.Thread):
         threading.Thread.__init__(self)
         self.name                           = 'SimEngine'
 
-	#not valid value. Will be set by the last mote that becomes ready (finishes bootstrap)
-	self.asnInitExperiment=999999999
+
 
     def destroy(self):
         # destroy the propagation singleton
