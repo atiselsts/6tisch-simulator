@@ -204,7 +204,6 @@ class Mote(object):
         #                 'state', used for tracking the transaction state for each neighbor
         #                 'responseCode', used in the receiver node to act differently when a responseACK is received
         #                 'blockedCells', candidates cell pending for an operation
-        self.timeout6P=0                                                  # timeouts for when a add response is not expected anymore
 
         # tsch
         self.txQueue                   = []
