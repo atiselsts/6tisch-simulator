@@ -775,6 +775,10 @@ class Mote(object):
                         (self.rank,newrank),
                     )
 
+		if self.preferredParent==None:
+		    self._rpl_schedule_sendDIO(firstDIO=True)
+		    self._rpl_schedule_sendDAO(firstDAO=True)
+
                 # store new preferred parent and rank
                 (self.preferredParent,self.rank) = (newPreferredParent,newrank)
 
