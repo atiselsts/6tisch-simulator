@@ -195,8 +195,13 @@ class SimEngine(threading.Thread):
 
     # === misc
 
-    def terminateSimulation(self):
-        self._actionEndSim()
+    #delay in cycles
+    def terminateSimulation(self,delay):
+	self.scheduleAtAsn(
+		asn         = self.asn+(self.settings.slotframeLength*delay),
+		cb          = self._actionEndSim,
+		uniqueTag   = (None,'_actionEndSim'),
+	)
 
     #=== play/pause
 
