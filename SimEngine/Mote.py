@@ -2469,6 +2469,9 @@ class Mote(object):
 
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
 
+			if self.pktToSend['type'] == self.APP_TYPE_DATA:
+			    self._stats_incrementMoteStats('dataDroppedMacRetries')
+
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
 
@@ -2517,6 +2520,9 @@ class Mote(object):
                 if self.txQueue[i]['retriesLeft'] == 0:
 
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
+
+			if self.pktToSend['type'] == self.APP_TYPE_DATA:
+			    self._stats_incrementMoteStats('dataDroppedMacRetries')
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
@@ -2835,6 +2841,11 @@ class Mote(object):
 
         # gather statistics
         with self.dataLock:
+	    dataPktQueues=0
+	    for p in self.txQueue:
+		if p['type']==self.APP_TYPE_DATA:
+		    dataPktQueues+=1
+
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
@@ -2898,6 +2909,7 @@ class Mote(object):
 		'rxDelResp':		   0,	# number of 6P Del responses received
                 # tsch
                 'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
+		'dataDroppedMacRetries':   0,	# packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
                 'tschTxEB':                0,   # number of TX'ed EBs
                 'tschRxEB':                0,   # number of RX'ed EBs
             }
