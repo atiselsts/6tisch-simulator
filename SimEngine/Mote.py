@@ -2176,11 +2176,15 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-                        # 6top messages can be sent either in dedicated or shared cells
-                        if pkt['nextHop'] == self._myNeigbors() or not self.getTxCells(pkt['nextHop'][0]) or pkt['type']==self.APP_TYPE_JOIN or pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
-                            self.pktToSend = pkt
-                            break
-                            # TODO: last packet or first packet?
+                        # 6top messages can be sent either in dedicated or shared cells, but if there are already TX cells, use those. The same for DAOs
+                        if pkt['type']!=self.APP_TYPE_DATA:
+ 			    if ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST) ):
+				continue
+			    elif ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.RPL_TYPE_DAO) ):
+				continue
+			    else:
+			        self.pktToSend = pkt	
+	                        break
 
                 # Decrement backoff
                 if self.backoff > 0:
