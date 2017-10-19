@@ -266,6 +266,7 @@ class Mote(object):
         assert self.settings.withJoin
         if not self.isJoined:
             self.isJoined = True
+	    self._tsch_schedule_sendEB(firstEB=True)
             self.joinAsn  = self.engine.getAsn()
             # log
             self._log(
@@ -2722,12 +2723,11 @@ class Mote(object):
 
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
-        # sending of EB
-        self._tsch_schedule_sendEB(firstEB=True)
 
         # RPL
 	if self.dagRoot:
-            self._rpl_schedule_sendDIO(firstDIO=True)
+	    self._rpl_schedule_sendDIO(firstDIO=True)
+	    self._tsch_schedule_sendEB(firstEB=True)
 
         # OTF
         self._otf_resetInboundTrafficCounters()
@@ -2746,6 +2746,7 @@ class Mote(object):
                     self._app_schedule_sendPacketBurst()
                 else:
                     self._app_schedule_sendSinglePacket(firstPacket=True)
+		self._tsch_schedule_sendEB(firstEB=True)
 
         # tsch
         self._tsch_schedule_activeCell()
