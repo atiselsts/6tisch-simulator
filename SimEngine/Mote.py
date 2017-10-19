@@ -163,6 +163,9 @@ class Mote(object):
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
+	#bootstrap   ->   nodes have a parent and at least 1 dedicated cell		       
+	self.isBootstrapped	       = False if self.settings.withBootstrap else True
+	self.firstIsBootstrapped       = 0		      # ASN at the time node becomes ready (have at least 1 dedicated cell)
         # app
         self.pkPeriod                  = self.settings.pkPeriod
         # role
@@ -245,6 +248,7 @@ class Mote(object):
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
         self.isJoined             = True
         self.isSync               = True
+	self.isBootstrapped	  = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
@@ -273,11 +277,12 @@ class Mote(object):
                 self.INFO,
                 "[join] Mote joined",
             )
-
-        # check if all motes have joined, if so end the simulation
-        if all(mote.isJoined == True for mote in self.engine.motes):
-            # end the simulation
-            self.engine.terminateSimulation(self.settings.numCyclesPerRun)
+	#if there is not bootstrap phase, check if end of simulation has to be scheduled
+	if not self.settings.withBootstrap:
+            # check if all motes have joined, if so end the simulation
+            if all(mote.isJoined == True for mote in self.engine.motes):
+                # end the simulation
+                self.engine.terminateSimulation(self.settings.numCyclesPerRun)
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
@@ -442,6 +447,14 @@ class Mote(object):
 
         # only start sending data if I have some TX cells, to not disturb the joining process
         if self.getTxCells():
+
+	    if self.isBootstrapped==False:	
+		self.isBootstrapped=True
+		self.firstIsBootstrapped=self.engine.asn
+		# check if all motes are ready, if so, schedule end the simulation
+        	if all(mote.isBootstrapped == True for mote in self.engine.motes):
+            		# end the simulation
+            		self.engine.terminateSimulation(self.settings.numCyclesPerRun)
 
             # create new packet
             newPacket = {
