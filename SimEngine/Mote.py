@@ -2719,8 +2719,8 @@ class Mote(object):
         self._tsch_schedule_sendEB(firstEB=True)
 
         # RPL
-        self._rpl_schedule_sendDIO(firstDIO=True)
-        self._rpl_schedule_sendDAO(firstDAO=True)
+	if self.dagRoot:
+            self._rpl_schedule_sendDIO(firstDIO=True)
 
         # OTF
         self._otf_resetInboundTrafficCounters()
