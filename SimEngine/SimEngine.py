@@ -80,6 +80,9 @@ class SimEngine(threading.Thread):
         threading.Thread.__init__(self)
         self.name                           = 'SimEngine'
 
+	#not valid value. Will be set by the last mote that becomes ready (finishes bootstrap)
+	self.asnInitExperiment=999999999
+
     def destroy(self):
         # destroy the propagation singleton
         self.propagation.destroy()

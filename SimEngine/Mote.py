@@ -234,7 +234,8 @@ class Mote(object):
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
-
+	self.pktGen=0		#packets generated during the experiment (without warming up)
+	self.pktReceived=0	#packets received during the experiment (without warming up)
     #======================== stack ===========================================
 
     #===== role
@@ -408,6 +409,9 @@ class Mote(object):
     def _app_action_receivePacket(self, srcIp, payload, timestamp):
         assert self.dagRoot
 
+	if payload[1] >= self.engine.asnInitExperiment:
+	    self.pktReceived+=1
+
         # update mote stats
         self._stats_incrementMoteStats('appReachesDagroot')
 
@@ -455,6 +459,10 @@ class Mote(object):
         	if all(mote.isBootstrapped == True for mote in self.engine.motes):
             		# end the simulation
             		self.engine.terminateSimulation(self.settings.numCyclesPerRun)
+			self.engine.asnInitExperiment=self.engine.asn
+
+	    if self.engine.asn >= self.engine.asnInitExperiment:
+	        self.pktGen+=1
 
             # create new packet
             newPacket = {
@@ -2810,6 +2818,9 @@ class Mote(object):
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
+	    returnVal['pktReceived']        = self.pktReceived
+	    returnVal['pktGen']     	    = self.pktGen
+	    returnVal['dataQueueFill']      = dataPktQueues
 
         # reset the statistics
         self._stats_resetMoteStats()
