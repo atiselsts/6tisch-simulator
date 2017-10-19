@@ -277,7 +277,7 @@ class Mote(object):
         # check if all motes have joined, if so end the simulation
         if all(mote.isJoined == True for mote in self.engine.motes):
             # end the simulation
-            self.engine.terminateSimulation()
+            self.engine.terminateSimulation(self.settings.numCyclesPerRun)
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
