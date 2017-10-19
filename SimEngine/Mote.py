@@ -1521,10 +1521,6 @@ class Mote(object):
             #set blockCells for this 6top operation
             self.sixtopStates[neighbor.id]['rx']['blockedCells'] = newCellList
 
-	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor
-	
-	    self._stats_incrementMoteStats('rxAddReq')
-
             #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq)
 
@@ -1819,8 +1815,6 @@ class Mote(object):
 
     def _sixtop_receive_RESPONSE_ACK(self, packet):
         with self.dataLock:
-	    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])	
-	    self.tsSixTopReqRecv[neighbor]=0
 
             if self.sixtopStates[packet['dstIp'].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
 
@@ -1828,6 +1822,9 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
+
+		    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])
+		    self.tsSixTopReqRecv[neighbor]=0
 
                     if code == self.IANA_6TOP_RC_SUCCESS:
 
@@ -1861,6 +1858,9 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
+
+		    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])
+		    self.tsSixTopReqRecv[neighbor]=0
 
                     if code == self.IANA_6TOP_RC_SUCCESS:
 
