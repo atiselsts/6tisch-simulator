@@ -1055,14 +1055,19 @@ class Mote(object):
                         (parent.id,nowCells,reqCells,numCellsToRemove),
                     )
 
-                    # update mote stats
-                    self._stats_incrementMoteStats('otfRemove')
+		    if reqCells==0:	#I want always there is at least 1 cell available
+		        numCellsToRemove=numCellsToRemove-self.settings.otfThreshold-1
 
                     # have 6top remove cells
-                    self._sixtop_removeCells(parent,numCellsToRemove)
+		    if numCellsToRemove > 0:
+			self._sixtop_removeCells(parent,numCellsToRemove)
+			# update mote stats
+			self._stats_incrementMoteStats('otfRemove')
 
-                    # remember OTF triggered
-                    otfTriggered = True
+                        # remember OTF triggered
+                        otfTriggered = True
+		    else:
+			otfTriggered = False
 
                 else:
                     # nothing to do
