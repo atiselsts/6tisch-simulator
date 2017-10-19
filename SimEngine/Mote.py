@@ -1414,7 +1414,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_REQUEST,
             'code':           self.IANA_6TOP_CMD_ADD,
-            'payload':        [cellList, numCells, self.DIR_TX,seq],
+            'payload':        [cellList, numCells, self.DIR_TX,seq,self.engine.getAsn()],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1503,8 +1503,8 @@ class Mote(object):
                 if ts in availableTimeslots:
                     newCellList += [(ts, ch, newDir)]
 
-
-            if len(newCellList) != numCells:
+	    #  if len(newCellList) < numCells it is considered still a success as long as len(newCellList) is bigger than 0
+	    if len(newCellList) <= 0:
                 returnCode = self.IANA_6TOP_RC_NORES # not enough resources
             else:
                 returnCode = self.IANA_6TOP_RC_SUCCESS # enough resources
@@ -1601,12 +1601,18 @@ class Mote(object):
                 receivedDir = payload[2]
                 seq = payload[3]
 
-                #seqNum mismatch, transaction failed, ignore packet
+                #seqNum mismatch, transaction failed, ignore packet, still send ACK
                 if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
+                            (neighbor.id, self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
 
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
@@ -1654,32 +1660,42 @@ class Mote(object):
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
                     return True
                 elif code == self.IANA_6TOP_RC_NORES:
-                    # log
+		    # log
                     self._log(
                             self.INFO,
-                            '[6top] The resources requested are not available in {0} on mote {1}',
+                            '[6top] The node {0} do not have available resources to allocate for node {0}',
                             (neighbor.id, self.id),
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
-
+                    return True
                     #TODO: increase stats of RC_NORES
-
                 #only when devices are not powerfull enough. Not used in the simulator
                 elif code == self.IANA_6TOP_RC_BUSY:
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {0} is busy and do not have available resources for perform another 6top add operation with mote {1}',
+                            (neighbor.id, self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
                     #TODO: increase stats of RC_BUSY
-
                 elif code == self.IANA_6TOP_RC_RESET: # should not happen
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {0} has detected an state inconsistency in a 6top add operation with mote {1}',
+                            (neighbor.id, self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
+		    #TODO: increase stats of RC_BUSY
                 else:
                     assert False
 
@@ -1697,10 +1713,16 @@ class Mote(object):
 
                 #seqNum mismatch, transaction failed, ignore packet
                 if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
+                            (neighbor.id, self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
 
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
@@ -1745,29 +1767,39 @@ class Mote(object):
                     # log
                     self._log(
                             self.INFO,
-                            '[6top] The resources requested for delete are not available in {0}',
-                            (neighbor.id),
+                            '[6top] The resources requested for delete were not available for {1} in {0}',
+                            (neighbor.id,self.id),
                     )
-
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
                     #TODO: increase stats of RC_NORES
-
                 #only when devices are not powerfull enough. Not used in the simulator
                 elif code == self.IANA_6TOP_RC_BUSY:
+                    # log
+                    self._log(
+                            self.INFO,
+                             '[6top] The node {0} is busy and has not available resources for perform another 6top deletion operation with mote {1}',
+                            (neighbor.id,self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+                    return True
                     #TODO: increase stats of RC_BUSY
                 elif code == self.IANA_6TOP_RC_RESET:
-                    #TODO: increase stats of RC_RESET
+                    # log
+                    self._log(
+                            self.INFO,
+                             '[6top] The node {0} has detected an state inconsistency in a 6top deletion operation with mote {1}',
+                            (neighbor.id,self.id),
+                    )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return False
+		    #TODO: increase stats of RC_RESET
+                    return True
                 else: # should not happen
                     assert False
             else:
@@ -1953,7 +1985,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_REQUEST,
             'code':           self.IANA_6TOP_CMD_DELETE,
-            'payload':        [cellList, numCells, self.DIR_TX,seq],
+            'payload':        [cellList, numCells, self.DIR_TX,seq,self.engine.getAsn()],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
