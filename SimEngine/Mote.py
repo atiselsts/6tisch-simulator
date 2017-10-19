@@ -280,8 +280,11 @@ class Mote(object):
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
-            if not self.isJoined:
-                self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+	    if self.preferredParent:
+                if not self.isJoined:
+                    self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+	    else:#node doesn't have a parent yet, re-scheduling
+		self.join_scheduleJoinProcess()
 
     def join_sendJoinPacket(self, token, destination):
         # send join packet with payload equal to the number of exchanges
