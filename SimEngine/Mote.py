@@ -236,6 +236,8 @@ class Mote(object):
         self._stats_resetRadioStats()
 	self.pktGen=0		#packets generated during the experiment (without warming up)
 	self.pktReceived=0	#packets received during the experiment (without warming up)
+	self.tsSixTopReqRecv	       = {}	#for every neighbor, it tracks the 6top transaction latency
+	self.avgsixtopLatency          = []	# it tracks the average 6P transaction latency in a given frame
     #======================== stack ===========================================
 
     #===== role
@@ -1510,6 +1512,10 @@ class Mote(object):
             #set blockCells for this 6top operation
             self.sixtopStates[neighbor.id]['rx']['blockedCells'] = newCellList
 
+	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor
+	
+	    self._stats_incrementMoteStats('rxAddReq')
+
             #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq)
 
@@ -1586,6 +1592,8 @@ class Mote(object):
             if self.sixtopStates[smac.id]['tx']['state'] == self.SIX_STATE_WAIT_ADDRESPONSE:
                  # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET        #RC_BUSY not implemented yet
+
+		self._stats_incrementMoteStats('rxAddResp')
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -1678,6 +1686,8 @@ class Mote(object):
             elif self.sixtopStates[smac.id]['tx']['state'] == self.SIX_STATE_WAIT_DELETERESPONSE:
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
+
+		self._stats_incrementMoteStats('rxDelResp')
 
                 neighbor=smac
                 receivedCellList = payload[0]
@@ -1775,6 +1785,9 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
+
+		    self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])	
+		    self.tsSixTopReqRecv[neighbor]=0
 
                     if code == self.IANA_6TOP_RC_SUCCESS:
 
@@ -2013,6 +2026,10 @@ class Mote(object):
                 if cell not in self.schedule.keys():
                     returnCode = self.IANA_6TOP_RC_NORES # resources are not present
 
+	    self._stats_incrementMoteStats('rxDelReq')
+
+	    self.tsSixTopReqRecv[neighbor]=payload[4]	#has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
+
             #enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq)
 
@@ -2139,16 +2156,20 @@ class Mote(object):
 
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
+			    self._stats_incrementMoteStats('txAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+			    self._stats_incrementMoteStats('txDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+			    self._stats_incrementMoteStats('txAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+			    self._stats_incrementMoteStats('txDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -2196,16 +2217,20 @@ class Mote(object):
 
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
+			    self._stats_incrementMoteStats('txAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
+			    self._stats_incrementMoteStats('txDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
+			    self._stats_incrementMoteStats('txAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
+			    self._stats_incrementMoteStats('txDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -2824,6 +2849,7 @@ class Mote(object):
 	    returnVal['pktReceived']        = self.pktReceived
 	    returnVal['pktGen']     	    = self.pktGen
 	    returnVal['dataQueueFill']      = dataPktQueues
+	    returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
 
         # reset the statistics
         self._stats_resetMoteStats()
@@ -2831,6 +2857,7 @@ class Mote(object):
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
+	self._stats_resetSixTopLatencyStats()
 
         return returnVal
 
@@ -2861,6 +2888,14 @@ class Mote(object):
                 'topTxRelocatedCells':     0,   # number of time tx-triggered 6top relocates a single cell
                 'topTxRelocatedBundles':   0,   # number of time tx-triggered 6top relocates a bundle
                 'topRxRelocatedCells':     0,   # number of time rx-triggered 6top relocates a single cell
+		'txAddReq':		   0,	# number of 6P Add request transmitted
+		'txAddResp':		   0,	# number of 6P Add responses transmitted
+		'txDelReq':		   0,	# number of 6P del request transmitted
+		'txDelResp':		   0,	# number of 6P del responses transmitted
+		'rxAddReq':		   0,	# number of 6P Add request received
+		'rxAddResp':		   0,	# number of 6P Add responses received
+		'rxDelReq':		   0,	# number of 6P Del request received
+		'rxDelResp':		   0,	# number of 6P Del responses received
                 # tsch
                 'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
                 'tschTxEB':                0,   # number of TX'ed EBs
@@ -2947,14 +2982,28 @@ class Mote(object):
         with self.dataLock:
             self.packetLatencies += [latency]
 
+    def _stats_logSixTopLatencyStat(self,latency):
+        with self.dataLock:
+            self.avgsixtopLatency += [latency]
+
     def _stats_getAveLatency(self):
         with self.dataLock:
             d = self.packetLatencies
             return float(sum(d))/float(len(d)) if len(d)>0 else 0
 
+    def _stats_getAveSixTopLatency(self):
+        with self.dataLock:
+
+            d = self.avgsixtopLatency
+            return float(sum(d))/float(len(d)) if len(d)>0 else 0
+
     def _stats_resetLatencyStats(self):
         with self.dataLock:
             self.packetLatencies = []
+
+    def _stats_resetSixTopLatencyStats(self):
+        with self.dataLock:
+            self.avgsixtopLatency = []
 
     # hops stats
 
