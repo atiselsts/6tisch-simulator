@@ -940,6 +940,12 @@ class Mote(object):
 
         with self.dataLock:
 
+	    if not self.dagRoot:
+		#if node does not have parent, or has not joined or is not sync, do not perform OTF
+	        if self.preferredParent==None or self.isJoined==False or self.isSync==False:
+		    self._otf_schedule_housekeeping()
+		    return
+
             # calculate the "moving average" incoming traffic, in pkts since last cycle, per neighbor
 
             # collect all neighbors I have RX cells to
