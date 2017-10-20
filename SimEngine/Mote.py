@@ -803,10 +803,6 @@ class Mote(object):
                         (self.rank,newrank),
                     )
 
-		if self.preferredParent==None:
-		    self._rpl_schedule_sendDIO(firstDIO=True)
-		    self._rpl_schedule_sendDAO(firstDAO=True)
-
                 # store new preferred parent and rank
                 (self.preferredParent,self.rank) = (newPreferredParent,newrank)
 
@@ -2819,11 +2815,14 @@ class Mote(object):
         self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
 
         # RPL
+	self._rpl_schedule_sendDIO(firstDIO=True)
+
 	if self.dagRoot:
-	    self._rpl_schedule_sendDIO(firstDIO=True)
 	    self._tsch_schedule_sendEB(firstEB=True)
 	    if not self.settings.withBootstrap:
 		self.engine.asnInitExperiment=self.engine.asn+1
+	else:
+	    self._rpl_schedule_sendDAO(firstDAO=True)
 
         # OTF
         self._otf_resetInboundTrafficCounters()
