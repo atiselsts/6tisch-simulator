@@ -910,6 +910,9 @@ class Mote(object):
 
         if packet['dstIp'] == self.BROADCAST_ADDRESS:
             nextHop = self._myNeigbors()
+	# 6Top packet. don't send to the parent necessarily. Send it directly to your neighbor (1 hop)
+	elif packet['type'] == self.IANA_6TOP_TYPE_REQUEST or packet['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+            nextHop = [packet['dstIp']]
         elif packet['dstIp'] == self.dagRootAddress:  # upward packet
             nextHop = [self.preferredParent]
         elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
@@ -917,7 +920,7 @@ class Mote(object):
             for nei in self._myNeigbors():
                 if [nei.id] == nextHopId:
                     nextHop = [nei]
-        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages
+        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages. This has to be the last one, since some neighbours can have very low PDR
             nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
