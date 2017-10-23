@@ -1055,18 +1055,19 @@ class Mote(object):
                     # calculate how many to remove
                     numCellsToRemove = nowCells-reqCells
 
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
-                        (parent.id,nowCells,reqCells,numCellsToRemove),
-                    )
-
 		    if reqCells==0:	#I want always there is at least 1 cell available
 		        numCellsToRemove=numCellsToRemove-self.settings.otfThreshold-1
 
                     # have 6top remove cells
 		    if numCellsToRemove > 0:
+
+			# log
+			self._log(
+                            self.INFO,
+                            "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
+                            (parent.id,nowCells,reqCells,numCellsToRemove),
+			)
+
 			self._sixtop_removeCells(parent,numCellsToRemove)
 			# update mote stats
 			self._stats_incrementMoteStats('otfRemove')
