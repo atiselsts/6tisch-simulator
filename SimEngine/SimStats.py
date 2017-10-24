@@ -296,6 +296,24 @@ class SimStats(object):
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['dataQueueFill']) for mote in self.engine.motes]),totVal
             )
         ]
+	totVal=0
+	for mote in self.engine.motes:
+		totVal=totVal+mote.getMoteStats()['pktDropQueue']
+	output += [
+            '#PktDropsQueue runNum={0} {1} {2}'.format(
+                self.runNum,
+                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktDropQueue']) for mote in self.engine.motes]),totVal
+            )
+        ]
+	totVal=0
+	for mote in self.engine.motes:
+		totVal=totVal+mote.getMoteStats()['pktDropMac']
+	output += [
+            '#PktDropsMac runNum={0} {1} {2}'.format(
+                self.runNum,
+                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktDropMac']) for mote in self.engine.motes]),totVal
+            )
+        ]
         if self.settings.withJoin:
             output += [
                 '#join runNum={0} {1}'.format(

@@ -71,8 +71,10 @@ class SimEngine(threading.Thread):
         self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
-	#not valid value. Will be set by the last mote that becomes ready (finishes bootstrap)
+
+	#not valid values. Will be set by the last mote that becomes ready (finishes bootstrap)
 	self.asnInitExperiment=999999999
+	self.asnEndExperiment=999999999
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -197,6 +199,7 @@ class SimEngine(threading.Thread):
 
     #delay in asn
     def terminateSimulation(self,delay):
+	self.asnEndExperiment=self.asn+delay
 	self.scheduleAtAsn(
 		asn         = self.asn+delay,
 		cb          = self._actionEndSim,

@@ -233,10 +233,13 @@ class Mote(object):
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
-	self.pktGen=0		#packets generated during the experiment (without warming up)
-	self.pktReceived=0	#packets received during the experiment (without warming up)
-	self.tsSixTopReqRecv	       = {}	#for every neighbor, it tracks the 6top transaction latency
-	self.avgsixtopLatency          = []	# it tracks the average 6P transaction latency in a given frame
+
+	self.pktGen=0					#DATA packets generated during the experiment (without warming up)
+	self.pktReceived=0				#DATA packets received during the experiment (without warming up)
+	self.pktDropMac=0				#DATA packets drop during the experiment (without warming up) due to MAC retransmissions
+	self.pktDropQueue=0				#DATA packets received during the experiment (without warming up) to Queue full
+	self.tsSixTopReqRecv	       = {}		#for every neighbor, it tracks the 6top transaction latency
+	self.avgsixtopLatency          = []		# it tracks the average 6P transaction latency in a given frame
     #======================== stack ===========================================
 
     #===== role
@@ -424,7 +427,7 @@ class Mote(object):
     def _app_action_receivePacket(self, srcIp, payload, timestamp):
         assert self.dagRoot
 
-	if payload[1] >= self.engine.asnInitExperiment:
+	if payload[1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
 	    self.pktReceived+=1
 
         # update mote stats
@@ -487,7 +490,7 @@ class Mote(object):
 		    #setting init experiment
 		    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
 
-	    if self.engine.asn >= self.engine.asnInitExperiment:
+	    if self.engine.asn > self.engine.asnInitExperiment:
 	        self.pktGen+=1
 
             # create new packet
@@ -512,6 +515,8 @@ class Mote(object):
                 # increment traffic
                 self._otf_incrementIncomingTraffic(self)
             else:
+		if self.engine.asn > self.engine.asnInitExperiment:
+		    self.pktDropQueue+=1
                 # update mote stats
                 self._stats_incrementMoteStats('droppedAppFailedEnqueue')
 
@@ -1592,7 +1597,7 @@ class Mote(object):
             return cells
 
     def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir,seq):
-        ''' enqueue a new 6P ADD response '''
+        ''' enqueue a new 6P ADD or DELETE response '''
 
         self._log(
             self.INFO,
@@ -2537,7 +2542,10 @@ class Mote(object):
 
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
 
+			#only count drops of DATA packets that are part of the experiment
 			if self.pktToSend['type'] == self.APP_TYPE_DATA:
+			    if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
+				self.pktDropMac+=1
 			    self._stats_incrementMoteStats('dataDroppedMacRetries')
 
                         # update mote stats
@@ -2589,7 +2597,10 @@ class Mote(object):
 
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
 
+			#only count drops of DATA packets that are part of the experiment
 			if self.pktToSend['type'] == self.APP_TYPE_DATA:
+			    if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
+				self.pktDropMac+=1
 			    self._stats_incrementMoteStats('dataDroppedMacRetries')
 
                         # update mote stats
@@ -2932,6 +2943,8 @@ class Mote(object):
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
 	    returnVal['pktReceived']        = self.pktReceived
 	    returnVal['pktGen']     	    = self.pktGen
+	    returnVal['pktDropQueue']       = self.pktDropQueue
+	    returnVal['pktDropMac']         = self.pktDropMac
 	    returnVal['dataQueueFill']      = dataPktQueues
 	    returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
 
