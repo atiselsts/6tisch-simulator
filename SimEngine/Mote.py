@@ -285,8 +285,20 @@ class Mote(object):
 	if not self.settings.withBootstrap:
             # check if all motes have joined, if so end the simulation
             if all(mote.isJoined == True for mote in self.engine.motes):
-                # end the simulation
-                self.engine.terminateSimulation(self.settings.numCyclesPerRun)
+		    if self.settings.numCyclesPerRun!=0:
+			#experiment time in ASNs
+			simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
+			#offset until the end of the current cycle
+			offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
+			#experiment time + offset
+			delay=simTime+offset
+		    else:
+			#simulation will finish in the next asn
+			delay=1
+                    # end the simulation
+                    self.engine.terminateSimulation(delay)
+		    #setting init experiment
+		    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
@@ -460,9 +472,20 @@ class Mote(object):
 		self.firstIsBootstrapped=self.engine.asn
 		# check if all motes are ready, if so, schedule end the simulation
         	if all(mote.isBootstrapped == True for mote in self.engine.motes):
-            		# end the simulation
-            		self.engine.terminateSimulation(self.settings.numCyclesPerRun)
-			self.engine.asnInitExperiment=self.engine.asn
+		    if self.settings.numCyclesPerRun!=0:
+			#experiment time in ASNs
+			simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
+			#offset until the end of the current cycle
+			offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
+			#experiment time + offset
+			delay=simTime+offset
+		    else:
+			#simulation will finish in the next asn
+			delay=1
+                    # end the simulation
+                    self.engine.terminateSimulation(delay)
+		    #setting init experiment
+		    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
 
 	    if self.engine.asn >= self.engine.asnInitExperiment:
 	        self.pktGen+=1

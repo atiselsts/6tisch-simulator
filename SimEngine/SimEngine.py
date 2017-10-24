@@ -195,10 +195,10 @@ class SimEngine(threading.Thread):
 
     # === misc
 
-    #delay in cycles
+    #delay in asn
     def terminateSimulation(self,delay):
 	self.scheduleAtAsn(
-		asn         = self.asn+(self.settings.slotframeLength*delay),
+		asn         = self.asn+delay,
 		cb          = self._actionEndSim,
 		uniqueTag   = (None,'_actionEndSim'),
 	)
