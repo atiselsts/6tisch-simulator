@@ -339,7 +339,7 @@ class Mote(object):
                 self._otf_incrementIncomingTraffic(self)
             else:
                 # update mote stats
-                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+                self._stats_incrementMoteStats('droppedFailedEnqueue')
 
             # save last token sent
             self.joinRetransmissionPayload = token
@@ -518,7 +518,7 @@ class Mote(object):
 		if self.engine.asn > self.engine.asnInitExperiment:
 		    self.pktDropQueue+=1
                 # update mote stats
-                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+                self._stats_incrementMoteStats('droppedDataFailedEnqueue')
 
     def _tsch_action_enqueueEB(self):
         ''' enqueue EB packet into stack '''
@@ -543,7 +543,7 @@ class Mote(object):
 
             if not isEnqueued:
                 # update mote stats
-                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+                self._stats_incrementMoteStats('droppedFailedEnqueue')
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
@@ -621,7 +621,7 @@ class Mote(object):
 
             if not isEnqueued:
                 # update mote stats
-                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+                self._stats_incrementMoteStats('droppedFailedEnqueue')
 
     def _rpl_action_enqueueDAO(self):
         ''' enqueue DAO packet into stack '''
@@ -646,7 +646,7 @@ class Mote(object):
 
             if not isEnqueued:
                 # update mote stats
-                self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+                self._stats_incrementMoteStats('droppedFailedEnqueue')
 
 
     def _rpl_schedule_sendDIO(self,firstDIO=False):
@@ -1466,7 +1466,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+            self._stats_incrementMoteStats('droppedFailedEnqueue')
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_SENDING_REQUEST
@@ -1622,7 +1622,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+            self._stats_incrementMoteStats('droppedFailedEnqueue')
 
     def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
         ''' receive a 6P response messages '''
@@ -2039,7 +2039,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedAppFailedEnqueue')
+            self._stats_incrementMoteStats('droppedFailedEnqueue')
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_SENDING_REQUEST
@@ -2928,7 +2928,8 @@ class Mote(object):
 	    dataPktQueues=0
 	    for p in self.txQueue:
 		if p['type']==self.APP_TYPE_DATA:
-		    dataPktQueues+=1
+		    if p['payload'][1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
+		        dataPktQueues+=1
 
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
@@ -2965,14 +2966,15 @@ class Mote(object):
                 'appGenerated':            0,   # number of packets app layer generated
                 'appRelayed':              0,   # number of packets relayed
                 'appReachesDagroot':       0,   # number of packets received at the DAGroot
-                'droppedAppFailedEnqueue': 0,   # dropped packets because app failed enqueue them
+                'droppedFailedEnqueue':    0,   # dropped packets because failed enqueue them
+		'droppedDataFailedEnqueue': 0,  # dropped DATA packets because app failed enqueue them
                 # queue
                 'droppedQueueFull':        0,   # dropped packets because queue is full
                 # rpl
                 'rplTxDIO':                0,   # number of TX'ed DIOs
                 'rplRxDIO':                0,   # number of RX'ed DIOs
-                'rplTxDAO':                0,  # number of TX'ed DAOs
-                'rplRxDAO':                0,  # number of RX'ed DAOs
+                'rplTxDAO':                0,   # number of TX'ed DAOs
+                'rplRxDAO':                0,   # number of RX'ed DAOs
                 'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
                 'rplChurnRank':            0,   # number of time the mote changes rank
                 'rplChurnParentSet':       0,   # number of time the mote changes parent set
