@@ -1651,7 +1651,7 @@ class Mote(object):
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return True
+                    return False
 
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
@@ -1761,7 +1761,7 @@ class Mote(object):
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
-                    return True
+                    return False
 
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
