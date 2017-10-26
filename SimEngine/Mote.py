@@ -1640,12 +1640,25 @@ class Mote(object):
                 receivedDir = payload[2]
                 seq = payload[3]
 
-                #seqNum mismatch, transaction failed, ignore packet, still send ACK
+                #seqNum mismatch, transaction failed, ignore packet
                 if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
 		    # log
                     self._log(
                             self.INFO,
                             '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
+                            (neighbor.id, self.id),
+                    )
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
+                    return False
+
+                #transaction is considered as failed since the timeout has already scheduled for this ASN. Too late for removing the event, ignore packet
+                if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {1} has received a ADD response from mote {0} too late',
                             (neighbor.id, self.id),
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
@@ -1756,6 +1769,19 @@ class Mote(object):
                     self._log(
                             self.INFO,
                             '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
+                            (neighbor.id, self.id),
+                    )
+                    # go back to IDLE, i.e. remove the neighbor form the states
+                    self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
+                    self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
+                    return False
+
+                #transaction is considered as failed since the timeout has already scheduled for this ASN. Too late for removing the event, ignore packet
+                if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
+		    # log
+                    self._log(
+                            self.INFO,
+                            '[6top] The node {1} has received a Delete response from mote {0} too late',
                             (neighbor.id, self.id),
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
