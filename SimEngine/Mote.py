@@ -2157,7 +2157,32 @@ class Mote(object):
             return False
 
         elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
-            # my TX queue is full
+	    #my TX queue is full.
+
+	    #However, I will allow to add an additional packet in some specific ocasions
+	    #This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
+
+	    #if Bootstrap is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
+	    if self.settings.withBootstrap:
+	        if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO or packet['type'] == self.IANA_6TOP_TYPE_REQUEST or packet['type'] == self.IANA_6TOP_TYPE_RESPONSE:
+	            for p in self.txQueue:
+	                if packet['type'] == p['type']:
+			    #There is already a DAO, JOIN or 6P in que queue, don't add more
+			    self._stats_incrementMoteStats('droppedQueueFull')
+			    return False
+		    self.txQueue    += [packet]
+		    return True
+
+	    #if Joining is enabled, all nodes will wait until all nodes have joined. So it is allowed to enqueue 1 aditional DAO or JOIN
+	    if self.settings.withJoin:
+		if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO:
+	            for p in self.txQueue:
+	                if packet['type'] == p['type']:
+			    #There is already a DAO or JOIN in que queue, don't add more
+			    self._stats_incrementMoteStats('droppedQueueFull')
+			    return False
+		    self.txQueue    += [packet]
+		    return True
 
             # update mote stats
             self._stats_incrementMoteStats('droppedQueueFull')
