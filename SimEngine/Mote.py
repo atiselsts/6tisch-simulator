@@ -284,10 +284,10 @@ class Mote(object):
                 self.INFO,
                 "[join] Mote joined",
             )
-	#if there is not bootstrap phase, check if end of simulation has to be scheduled
-	if not self.settings.withBootstrap:
-            # check if all motes have joined, if so end the simulation
-            if all(mote.isJoined == True for mote in self.engine.motes):
+	    #if there is not bootstrap phase, check if end of simulation has to be scheduled
+	    if not self.settings.withBootstrap:
+                # check if all motes have joined, if so end the simulation
+                if all(mote.isJoined == True for mote in self.engine.motes):
 		    if self.settings.numCyclesPerRun!=0:
 			#experiment time in ASNs
 			simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
@@ -2914,8 +2914,6 @@ class Mote(object):
 
 	if self.dagRoot:
 	    self._tsch_schedule_sendEB(firstEB=True)
-	    if not self.settings.withBootstrap:
-		self.engine.asnInitExperiment=self.engine.asn+1
 	else:
 	    self._rpl_schedule_sendDAO(firstDAO=True)
 
