@@ -47,7 +47,7 @@ from SimGui        import SimGui
 #============================ helpers =========================================
 
 def parseCliOptions():
-
+    
     parser = argparse.ArgumentParser()
     # sim
     parser.add_argument('--gui',
@@ -287,9 +287,9 @@ def parseCliOptions():
         default    = 0,
         help       = '[phy] Disable interference model.',
     )
-
+    
     options        = parser.parse_args()
-
+    
     return options.__dict__
 
 def printOrLog(simParam,output):
@@ -300,10 +300,10 @@ def printOrLog(simParam,output):
         print output
 
 def runSims(options):
-
+    
     # record simulation start time
     simStartTime   = time.time()
-
+    
     # compute all the simulation parameter combinations
     combinationKeys     = sorted([k for (k,v) in options.items() if type(v)==list])
     simParams           = []
@@ -315,16 +315,16 @@ def runSims(options):
             if k not in simParam:
                 simParam[k] = v
         simParams      += [simParam]
-
+    
     # run a simulation for each set of simParams
     for (simParamNum,simParam) in enumerate(simParams):
-
+        
         # record run start time
         runStartTime = time.time()
-
+        
         # run the simulation runs
         for runNum in xrange(simParam['numRuns']):
-
+            
             # print
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(
                simParamNum+1,
@@ -333,25 +333,25 @@ def runSims(options):
                simParam['numRuns']
             )
             printOrLog(simParam,output)
-
+            
             # create singletons
             settings         = SimSettings.SimSettings(**simParam)
             settings.setStartTime(runStartTime)
             settings.setCombinationKeys(combinationKeys)
             simengine        = SimEngine.SimEngine(runNum)
             simstats         = SimStats.SimStats(runNum)
-
+            
             # start simulation run
             simengine.start()
-
+            
             # wait for simulation run to end
             simengine.join()
-
+            
             # destroy singletons
             simstats.destroy()
             simengine.destroy()
             settings.destroy()
-
+        
         # print
         output  = 'simulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
         printOrLog(simParam,output)
@@ -361,21 +361,21 @@ def runSims(options):
 def main():
     # initialize logging
     logging.config.fileConfig('logging.conf')
-
+    
     # parse CLI options
     options        = parseCliOptions()
-
+    
     if options['gui']:
         # create the GUI
         gui        = SimGui.SimGui()
-
+        
         # run simulations (in separate thread)
         simThread  = threading.Thread(target=runSims,args=(options,))
         simThread.start()
-
+        
         # start GUI's mainloop (in main thread)
         gui.mainloop()
-    else:
+    else:        
         # run the simulations
         runSims(options)
 
