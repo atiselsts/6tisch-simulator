@@ -200,11 +200,11 @@ class SimEngine(threading.Thread):
 
     #delay in asn
     def terminateSimulation(self,delay):
-	self.asnEndExperiment=self.asn+delay
-	self.scheduleAtAsn(
-		asn         = self.asn+delay,
-		cb          = self._actionEndSim,
-		uniqueTag   = (None,'_actionEndSim'),
+        self.asnEndExperiment=self.asn+delay
+        self.scheduleAtAsn(
+                asn         = self.asn+delay,
+                cb          = self._actionEndSim,
+                uniqueTag   = (None,'_actionEndSim'),
 	)
 
     #=== play/pause
