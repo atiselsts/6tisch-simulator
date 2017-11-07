@@ -8,6 +8,8 @@ Brought to you by:
 * Nicola Accettura (nicola.accettura@eecs.berkeley.edu)
 * Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
 * Mališa Vučinić (malisa.vucinic@inria.fr)
+* Esteban Municio (esteban.municio@uantwerpen.be)
+* Glenn Daneels (glenn.daneels@uantwerpen.be)
 
 Scope
 -----

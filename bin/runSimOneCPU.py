@@ -122,6 +122,14 @@ def parseCliOptions():
         default    = 60.0,
         help       = '[join process] Timeout to attempt join process (s).',
     )
+    # bootstrap process
+    parser.add_argument('--withBootstrap',
+        dest       = 'withBootstrap',
+        nargs      = '+',
+        type       = int,
+        default    = 1,
+        help       =' [bootstrap process] 1 to enable Bootstrap process.',
+    )
     # app
     parser.add_argument( '--pkPeriod',
         dest       = 'pkPeriod',
@@ -185,6 +193,12 @@ def parseCliOptions():
         help       = '[otf] OTF housekeeping period (s).',
     )
     # sixtop
+    parser.add_argument( '--sixtopMessaging',
+        dest       = 'sixtopMessaging',
+        type       = int,
+        default    = 1,
+        help       = '[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
+    )
     parser.add_argument( '--sixtopHousekeepingPeriod',
         dest       = 'sixtopHousekeepingPeriod',
         type       = float,

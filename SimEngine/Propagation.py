@@ -81,12 +81,13 @@ class Propagation(object):
                 'channel':             channel,
             }]
     
-    def startTx(self,channel,type,smac,dmac,srcIp,dstIp,srcRoute, payload):
+    def startTx(self,channel,type,code,smac,dmac,srcIp,dstIp,srcRoute, payload):
         ''' add a mote as using a channel for tx'''
         with self.dataLock:
             self.transmissions  += [{
                 'channel':             channel,
                 'type':                type,
+                'code':                code,
                 'smac':                smac,
                 'dmac':                dmac,
                 'srcIp':               srcIp,
@@ -167,6 +168,7 @@ class Propagation(object):
                                         # this mote is delivered the packet
                                         isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
                                             type       = transmission['type'],
+                                            code       = transmission['code'],
                                             smac       = transmission['smac'],
                                             dmac       = transmission['dmac'],
                                             srcIp      = transmission['srcIp'],
@@ -228,6 +230,7 @@ class Propagation(object):
                                     # this mote is delivered the packet
                                     isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
                                         type       = transmission['type'],
+                                        code       = transmission['code'],
                                         smac       = transmission['smac'],
                                         dmac       = transmission['dmac'],
                                         srcIp      = transmission['srcIp'],
