@@ -163,9 +163,6 @@ class Mote(object):
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
-        #bootstrap   ->   nodes have a parent and at least 1 dedicated cell                       
-        self.isBootstrapped               = False if self.settings.withBootstrap else True
-        self.firstIsBootstrapped       = 0                      # ASN at the time node becomes ready (have at least 1 dedicated cell)
         # app
         self.pkPeriod                  = self.settings.pkPeriod        
         # role
@@ -233,12 +230,8 @@ class Mote(object):
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
-    
-        self.pktGen=0                                      #DATA packets generated during the experiment (without warming up)
-        self.pktReceived=0                                 #DATA packets received during the experiment (without warming up)
-        self.pktDropMac=0                                  #DATA packets drop during the experiment (without warming up) due to MAC retransmissions
-        self.pktDropQueue=0                                #DATA packets received during the experiment (without warming up) to Queue full
-        self.tsSixTopReqRecv           = {}                #for every neighbor, it tracks the 6top transaction latency
+
+        self.tsSixTopReqRecv           = {}                # for every neighbor, it tracks the 6top transaction latency
         self.avgsixtopLatency          = []                # it tracks the average 6P transaction latency in a given frame
     #======================== stack ===========================================
     
@@ -253,7 +246,6 @@ class Mote(object):
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
         self.isJoined             = True
         self.isSync               = True
-        self.isBootstrapped          = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
@@ -277,7 +269,7 @@ class Mote(object):
             self.isJoined = True
             self._tsch_schedule_sendEB(firstEB=True)
             self.joinAsn  = self.engine.getAsn()
-            #start scheduling packets once you have joined
+            # start scheduling packets once you have joined
             self._app_schedule_sendSinglePacket(firstPacket=True)
             # log
             self._log(
@@ -285,31 +277,27 @@ class Mote(object):
                 "[join] Mote joined",
             )
 
-            #if there is not bootstrap phase, check if end of simulation has to be scheduled
-            if not self.settings.withBootstrap:
-                # check if all motes have joined, if so end the simulation
-                if all(mote.isJoined == True for mote in self.engine.motes):
-                    if self.settings.numCyclesPerRun!=0:
-                        #experiment time in ASNs
-                        simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
-                        #offset until the end of the current cycle
-                        offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-                        #experiment time + offset
-                        delay=simTime+offset
-                    else:
-                        #simulation will finish in the next asn
-                        delay=1
-                    # end the simulation
-                    self.engine.terminateSimulation(delay)
-                    #setting init experiment
-                    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
+            # check if all motes have joined, if so end the simulation after numCyclesPerRun
+            if all(mote.isJoined == True for mote in self.engine.motes):
+                if self.settings.numCyclesPerRun != 0:
+                    # experiment time in ASNs
+                    simTime = self.settings.numCyclesPerRun * self.settings.slotframeLength
+                    # offset until the end of the current cycle
+                    offset = self.settings.slotframeLength - (self.engine.asn % self.settings.slotframeLength)
+                    # experiment time + offset
+                    delay = simTime + offset
+                else:
+                    # simulation will finish in the next asn
+                    delay = 1
+                # end the simulation
+                self.engine.terminateSimulation(delay)
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
             if self.preferredParent:
                 if not self.isJoined:
                     self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
-            else:#node doesn't have a parent yet, re-scheduling
+            else: # node doesn't have a parent yet, re-scheduling
                 self.join_scheduleJoinProcess()
 
     def join_sendJoinPacket(self, token, destination):
@@ -428,9 +416,6 @@ class Mote(object):
     def _app_action_receivePacket(self, srcIp, payload, timestamp):
         assert self.dagRoot
 
-        if payload[1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-            self.pktReceived+=1
-
         # update mote stats
         self._stats_incrementMoteStats('appReachesDagroot')
 
@@ -470,29 +455,6 @@ class Mote(object):
         
         # only start sending data if I have some TX cells
         if self.getTxCells():
-            
-            if self.isBootstrapped==False:        
-                self.isBootstrapped=True
-                self.firstIsBootstrapped=self.engine.asn
-                # check if all motes are ready, if so, schedule end the simulation
-                if all(mote.isBootstrapped == True for mote in self.engine.motes):
-                    if self.settings.numCyclesPerRun!=0:
-                        #experiment time in ASNs
-                        simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
-                        #offset until the end of the current cycle
-                        offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-                        #experiment time + offset
-                        delay=simTime+offset
-                    else:
-                        #simulation will finish in the next asn
-                        delay=1
-                    # end the simulation
-                    self.engine.terminateSimulation(delay)
-                    #setting init experiment
-                    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-
-            if self.engine.asn > self.engine.asnInitExperiment:
-                self.pktGen+=1
 
             # create new packet
             newPacket = {
@@ -516,8 +478,6 @@ class Mote(object):
                 # increment traffic
                 self._otf_incrementIncomingTraffic(self)
             else:
-                if self.engine.asn > self.engine.asnInitExperiment:
-                    self.pktDropQueue+=1
                 # update mote stats
                 self._stats_incrementMoteStats('droppedDataFailedEnqueue')
 
@@ -2160,26 +2120,15 @@ class Mote(object):
         elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
             #my TX queue is full.
 
-            #However, I will allow to add an additional packet in some specific ocasions
-            #This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
+            # However, I will allow to add an additional packet in some specific ocasions
+            # This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
 
-            #if Bootstrap is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
-            if self.settings.withBootstrap:
+            # if join is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
+            if self.settings.withJoin:
                 if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO or packet['type'] == self.IANA_6TOP_TYPE_REQUEST or packet['type'] == self.IANA_6TOP_TYPE_RESPONSE:
                     for p in self.txQueue:
                         if packet['type'] == p['type']:
                             #There is already a DAO, JOIN or 6P in que queue, don't add more
-                            self._stats_incrementMoteStats('droppedQueueFull')
-                            return False
-                    self.txQueue    += [packet]
-                    return True
-
-            #if Joining is enabled, all nodes will wait until all nodes have joined. So it is allowed to enqueue 1 aditional DAO or JOIN
-            if self.settings.withJoin:
-                if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO:
-                    for p in self.txQueue:
-                        if packet['type'] == p['type']:
-                            #There is already a DAO or JOIN in que queue, don't add more
                             self._stats_incrementMoteStats('droppedQueueFull')
                             return False
                     self.txQueue    += [packet]
@@ -2594,8 +2543,6 @@ class Mote(object):
                         
                         #only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                                self.pktDropMac+=1
                             self._stats_incrementMoteStats('dataDroppedMacRetries')
 
                         # update mote stats
@@ -2647,10 +2594,8 @@ class Mote(object):
                     
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
                         
-                        #only count drops of DATA packets that are part of the experiment
+                        # counts drops of DATA packets
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                                self.pktDropMac+=1
                             self._stats_incrementMoteStats('dataDroppedMacRetries')
 
                         # update mote stats
@@ -2975,8 +2920,7 @@ class Mote(object):
             dataPktQueues=0
             for p in self.txQueue:
                 if p['type']==self.APP_TYPE_DATA:
-                    if p['payload'][1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                        dataPktQueues+=1
+                    dataPktQueues+=1
 
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
@@ -2989,10 +2933,6 @@ class Mote(object):
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
-            returnVal['pktReceived']        = self.pktReceived
-            returnVal['pktGen']             = self.pktGen
-            returnVal['pktDropQueue']       = self.pktDropQueue
-            returnVal['pktDropMac']         = self.pktDropMac
             returnVal['dataQueueFill']      = dataPktQueues
             returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
         

@@ -122,14 +122,6 @@ def parseCliOptions():
         default    = 60.0,
         help       = '[join process] Timeout to attempt join process (s).',
     )
-    # bootstrap process
-    parser.add_argument('--withBootstrap',
-        dest       = 'withBootstrap',
-        nargs      = '+',
-        type       = int,
-        default    = 1,
-        help       =' [bootstrap process] 1 to enable Bootstrap process.',
-    )
     # app
     parser.add_argument( '--pkPeriod',
         dest       = 'pkPeriod',
