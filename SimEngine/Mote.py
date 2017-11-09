@@ -277,6 +277,7 @@ class Mote(object):
                 "[join] Mote joined",
             )
 
+            # 6P add single cell to the preferred parent
             self._sixtop_cell_reservation_request(self.preferredParent,
                                                   1,
                                                   dir=self.DIR_TX)
