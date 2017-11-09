@@ -242,7 +242,7 @@ def parseCliOptions():
     parser.add_argument('--bayesianBroadcast',
         dest       = 'bayesianBroadcast',
         type       = int,
-        default    = 0,
+        default    = 1,
         help       = '[tsch] Enable Bayesian broadcast algorithm.',
     )
     parser.add_argument('--beaconProbability',
