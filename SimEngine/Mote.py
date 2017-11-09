@@ -847,6 +847,7 @@ class Mote(object):
                 
             #===
             # if we selected a parent for the first time, add one cell to it
+            # upon successful join, the reservation request is called explicitly
             if bootstrapParent and not self.settings.withJoin:
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       1,
