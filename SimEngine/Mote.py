@@ -824,13 +824,14 @@ class Mote(object):
                         "[rpl] churn: preferredParent {0}->{1}",
                         (self.preferredParent.id,newPreferredParent.id),
                     )
-
-                    # add the same number of cells with the new parent as we had with the old
-                    self._sixtop_cell_reservation_request(newPreferredParent,
-                                                          self.numCellsToNeighbors.get(self.preferredParent, 0),
-                                                          dir=self.DIR_TX)
-                    self._sixtop_removeCells(self.preferredParent,
-                                             self.numCellsToNeighbors.get(self.preferredParent, 0))
+                    # trigger 6P add to the new parent
+                    if self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
+                        # add the same number of cells with the new parent as we had with the old
+                        self._sixtop_cell_reservation_request(newPreferredParent,
+                                                              self.numCellsToNeighbors.get(self.preferredParent, 0),
+                                                              dir=self.DIR_TX)
+                        self._sixtop_removeCells(self.preferredParent,
+                                                 self.numCellsToNeighbors.get(self.preferredParent, 0))
 
                 # store new preferred parent and rank
                 (self.preferredParent,self.rank) = (newPreferredParent,newrank)
