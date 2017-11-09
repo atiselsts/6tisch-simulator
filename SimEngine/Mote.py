@@ -159,7 +159,7 @@ class Mote(object):
         self.propagation               = Propagation.Propagation()
         
         # join process
-        self.isJoined                  = False if self.settings.withJoin else True
+        self.isJoined                  = False
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
@@ -264,21 +264,25 @@ class Mote(object):
         )
 
     def join_setJoined(self):
-        assert self.settings.withJoin
+
+        assert not self.dagRoot
+        assert self.preferredParent
+
         if not self.isJoined:
             self.isJoined = True
-            self._tsch_schedule_sendEB(firstEB=True)
             self.joinAsn  = self.engine.getAsn()
-            # start scheduling packets once you have joined
-            self._app_schedule_sendSinglePacket(firstPacket=True)
             # log
             self._log(
                 self.INFO,
                 "[join] Mote joined",
             )
 
+            self._sixtop_cell_reservation_request(self.preferredParent,
+                                                  1,
+                                                  dir=self.DIR_TX)
+
             # check if all motes have joined, if so end the simulation after numCyclesPerRun
-            if all(mote.isJoined == True for mote in self.engine.motes):
+            if self.settings.withJoin and all(mote.isJoined == True for mote in self.engine.motes):
                 if self.settings.numCyclesPerRun != 0:
                     # experiment time in ASNs
                     simTime = self.settings.numCyclesPerRun * self.settings.slotframeLength
@@ -313,7 +317,7 @@ class Mote(object):
                 'asn': self.engine.getAsn(),
                 'type': self.APP_TYPE_JOIN,
                 'code': None,
-                'payload': token,
+                'payload': [token, self.id if not self.dagRoot else None, self.preferredParent.id if not self.dagRoot else None],
                 'retriesLeft': self.TSCH_MAXTXRETRIES,
                 'srcIp': self,  # DAG root
                 'dstIp': destination,
@@ -325,7 +329,7 @@ class Mote(object):
 
             if isEnqueued:
                 # increment traffic
-                self._otf_incrementIncomingTraffic(self)
+                self._log(self.INFO, "[join] Enqueued join packet for mote {0} with token = {1}", (destination.id, token))
             else:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedFailedEnqueue')
@@ -349,16 +353,23 @@ class Mote(object):
     def join_receiveJoinPacket(self, srcIp, payload, timestamp):
         self.engine.removeEvent((self.id, '_join_action_retransmission')) # remove the pending retransmission event
 
-        if payload != 0:
-            newPayload = payload - 1
+        self._log(self.INFO, "[join] Received join packet from {0} with token {1}", (srcIp.id, payload[0]))
 
-            self.join_sendJoinPacket(token=newPayload, destination=srcIp)
+        # this is a hack to allow downward routing of join packets before node has sent a DAO
+        if self.dagRoot:
+            self.parents.update({tuple([payload[1]]): [[payload[2]]]})
 
+        if payload[0] != 0:
+            newToken = payload[0] - 1
+            self.join_sendJoinPacket(token=newToken, destination=srcIp)
         else:
             self.join_setJoined()
+            # Trigger sending EBs and DIOs, and the rest of the stack
+            self._init_stack()
 
     def join_joinedNeighbors(self):
         return [nei for nei in self._myNeigbors() if nei.isJoined == True]
+
     #===== application
     
     def _app_schedule_sendSinglePacket(self,firstPacket=False):
@@ -452,9 +463,11 @@ class Mote(object):
           
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
-        
-        # only start sending data if I have some TX cells
-        if self.getTxCells():
+
+        assert not self.dagRoot
+
+        # only start sending DATA if: I have a preferred parent AND dedicated cells to that parent
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
 
             # create new packet
             newPacket = {
@@ -475,8 +488,7 @@ class Mote(object):
             isEnqueued = self._tsch_enqueue(newPacket)
             
             if isEnqueued:
-                # increment traffic
-                self._otf_incrementIncomingTraffic(self)
+                pass
             else:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedDataFailedEnqueue')
@@ -484,8 +496,8 @@ class Mote(object):
     def _tsch_action_enqueueEB(self):
         ''' enqueue EB packet into stack '''
 
-        # only start sending EBs if I have Shared cells
-        if self.getSharedCells():
+        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
 
             # create new packet
             newPacket = {
@@ -552,19 +564,32 @@ class Mote(object):
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB and not self.isSync:
+            assert self.settings.withJoin
+            # log
+            self._log(
+                self.INFO,
+                "[tsch] synced on EB received from mote {0}.",
+                (smac.id,),
+            )
             self.firstBeaconAsn = self.engine.getAsn()
             self.firstEB = False
+            # declare as synced to the network
             self.isSync = True
-            self._init_stack()
+            # add the minimal cell to the schedule
+            self._tsch_add_minimal_cell()
+            # trigger join process
+            self.join_scheduleJoinProcess()  # trigger the join process
 
     #===== rpl
 
     def _rpl_action_enqueueDIO(self):
         ''' enqueue DIO packet into stack '''
-        
-        # only start sending data if I have Shared cells
-        if self.getSharedCells():
-            
+
+        # only start sending DIOs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
+
+            self._stats_incrementMoteStats('rplTxDIO')
+
             # create new packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
@@ -587,8 +612,12 @@ class Mote(object):
     def _rpl_action_enqueueDAO(self):
         ''' enqueue DAO packet into stack '''
 
-        # only start sending data if I have Shared cells
-        if self.getSharedCells() or self.getTxCells():
+        assert not self.dagRoot
+
+        # only start sending DAOs if: I have a preferred parent AND dedicated cells to that parent
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
+
+            self._stats_incrementMoteStats('rplTxDAO')
 
             # create new packet
             newPacket = {
@@ -661,6 +690,8 @@ class Mote(object):
             if not self.isSync:
                 return
 
+            self._log(self.INFO, "[rpl] Received DIO from mote {0}", (smac.id,))
+
             # update my mote stats
             self._stats_incrementMoteStats('rplRxDIO')
 
@@ -690,6 +721,7 @@ class Mote(object):
                 self.timeCorrectedSlot      = asn
 
     def _rpl_action_receiveDAO(self, type, smac, payload):
+
         with self.dataLock:
 
             assert self.dagRoot
@@ -697,8 +729,9 @@ class Mote(object):
             self._stats_incrementMoteStats('rplRxDAO')
 
             self.parents.update({tuple([payload[0]]) : [[payload[1]]]})
+
     def _rpl_action_sendDIO(self):
-        
+
         with self.dataLock:
 
             if self.settings.bayesianBroadcast:
@@ -707,24 +740,20 @@ class Mote(object):
             else:
                 sendDio = True
 
-            if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.withJoin:
-                    if sendDio:
-                        self._rpl_action_enqueueDIO()
-                        self._stats_incrementMoteStats('rplTxDIO')
-            
+            if sendDio:
+                self._rpl_action_enqueueDIO()
+
             self._rpl_schedule_sendDIO() # schedule next DIO
 
     def _rpl_action_sendDAO(self):
 
         with self.dataLock:
-            if self.preferredParent and not self.dagRoot:
-                self._rpl_action_enqueueDAO()
-                self._stats_incrementMoteStats('rplTxDAO')
 
-            self._rpl_schedule_sendDAO()  # schedule next DIO
+            self._rpl_action_enqueueDAO()
+            self._rpl_schedule_sendDAO()  # schedule next DAO
 
     def _rpl_housekeeping(self):
+
         with self.dataLock:
             
             #===
@@ -736,6 +765,7 @@ class Mote(object):
             
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
+            bootstrapParent = False
             for (neighbor,neighborRank) in self.neighborRank.items():
                 # calculate the rank increase to that neighbor
                 rankIncrease = self._rpl_calcRankIncrease(neighbor)
@@ -772,15 +802,6 @@ class Mote(object):
                             # switch preferred parent only when rank difference is large enough
                             if rank-newrank<self.RPL_PARENT_SWITCH_THRESHOLD:
                                 (newPreferredParent,newrank) = (mote,rank)
-                            
-                    # update mote stats
-                    self._stats_incrementMoteStats('rplChurnPrefParent')
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[rpl] churn: preferredParent {0}->{1}",
-                        (self.preferredParent.id,newPreferredParent.id),
-                    )
                 
                 # update mote stats
                 if self.rank and newrank!=self.rank:
@@ -791,7 +812,26 @@ class Mote(object):
                         "[rpl] churn: rank {0}->{1}",
                         (self.rank,newrank),
                     )
-                
+                if self.preferredParent is None and newPreferredParent is not None:
+                    bootstrapParent = True
+                elif self.preferredParent != newPreferredParent:
+                    # update mote stats
+                    self._stats_incrementMoteStats('rplChurnPrefParent')
+
+                    # log
+                    self._log(
+                        self.INFO,
+                        "[rpl] churn: preferredParent {0}->{1}",
+                        (self.preferredParent.id,newPreferredParent.id),
+                    )
+
+                    # add the same number of cells with the new parent as we had with the old
+                    self._sixtop_cell_reservation_request(newPreferredParent,
+                                                          self.numCellsToNeighbors.get(self.preferredParent, 0),
+                                                          dir=self.DIR_TX)
+                    self._sixtop_removeCells(self.preferredParent,
+                                             self.numCellsToNeighbors.get(self.preferredParent, 0))
+
                 # store new preferred parent and rank
                 (self.preferredParent,self.rank) = (newPreferredParent,newrank)
                 
@@ -806,7 +846,12 @@ class Mote(object):
                     self._stats_incrementMoteStats('rplChurnParentSet')
                 
             #===
-            # refresh the following parameters:
+            # if we selected a parent for the first time, add one cell to it
+            if bootstrapParent and not self.settings.withJoin:
+                self._sixtop_cell_reservation_request(self.preferredParent,
+                                                      1,
+                                                      dir=self.DIR_TX)
+
             # - self.trafficPortionPerParent
             
             etxs        = dict([(p, 1.0/(self.neighborRank[p]+self._rpl_calcRankIncrease(p))) for p in self.parentSet])
@@ -1083,15 +1128,6 @@ class Mote(object):
             
             # schedule next housekeeping
             self._otf_schedule_housekeeping()
-    
-    def _otf_resetInboundTrafficCounters(self):
-        with self.dataLock:
-            for neighbor in self._myNeigbors()+[self]:
-                self.inTraffic[neighbor] = 0
-    
-    def _otf_incrementIncomingTraffic(self,neighbor):
-        with self.dataLock:
-            self.inTraffic[neighbor] += 1
     
     #===== 6top
     
@@ -2422,6 +2458,9 @@ class Mote(object):
             priority=3,
         )
 
+    def _tsch_add_minimal_cell(self):
+        # add minimal cell
+        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)])
     
     #===== radio
 
@@ -2699,8 +2738,6 @@ class Mote(object):
                         assert False
                 else:
                     # relaying packet
-                    # count incoming traffic for each node
-                    self._otf_incrementIncomingTraffic(smac)
 
                     if type == self.APP_TYPE_DATA:
                         # update the number of hops
@@ -2840,47 +2877,40 @@ class Mote(object):
     def boot(self):
         if self.settings.withJoin:
             if self.dagRoot:
+                self._tsch_add_minimal_cell()
                 self._init_stack()  # initialize the stack and start sending beacons and DIOs
             else:
                 self._tsch_schedule_synchronize()  # permanent rx until node hears an enhanced beacon to sync
         else:
             self.isSync = True  # without join we skip the always-on listening for EBs
+            self.isJoined = True # we consider all nodes have joined
+            self._tsch_add_minimal_cell()
             self._init_stack()
 
     def _init_stack(self):
         # start the stack layer by layer
-        
-        # add minimal cell
-        self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
+
+        # TSCH
+        self._tsch_schedule_sendEB(firstEB=True)
 
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
-
-        if self.dagRoot:
-            self._tsch_schedule_sendEB(firstEB=True)
-        else:
+        if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
 
         # OTF
-        self._otf_resetInboundTrafficCounters()
-        self._otf_schedule_housekeeping()
+        #self._otf_resetInboundTrafficCounters()
+        #self._otf_schedule_housekeeping()
         # 6top
         if not self.settings.sixtopNoHousekeeping:
             self._sixtop_schedule_housekeeping()
 
-        if self.settings.withJoin and not self.dagRoot:
-            self.join_scheduleJoinProcess()  # trigger the join process
-
         # app
         if not self.dagRoot:
-            if not self.settings.withJoin:
-                if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
-                    self._app_schedule_sendPacketBurst()
-                else:
-                    self._app_schedule_sendSinglePacket(firstPacket=True)
-                self._tsch_schedule_sendEB(firstEB=True)
-        # tsch
-        self._tsch_schedule_activeCell()
+            if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
+                self._app_schedule_sendPacketBurst()
+            else:
+                self._app_schedule_sendSinglePacket(firstPacket=True)
     
     def _logChargeConsumed(self,charge):
         with self.dataLock:
@@ -2905,9 +2935,13 @@ class Mote(object):
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
 
-    def getSharedCells(self):
+    def getSharedCells(self, neighbor = None):
         with self.dataLock:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == self.DIR_TXRX_SHARED]
+            if neighbor is None:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == self.DIR_TXRX_SHARED]
+            else:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
+                        c['dir'] == self.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
 
     #===== stats
     
