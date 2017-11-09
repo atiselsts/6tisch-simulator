@@ -2255,8 +2255,8 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        # do not send join traffic neither EB in dedicated slots, 6top messages can be sent either in dedicated or shared cells
-                        if (pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN and pkt['type'] != self.TSCH_TYPE_EB) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_RESPONSE) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_REQUEST):
+                        # send the frame if next hop matches the cell destination
+                        if pkt['nextHop'] == [cell['neighbor']]:
                             self.pktToSend = pkt
                             break
                     
