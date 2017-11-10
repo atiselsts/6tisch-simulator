@@ -169,6 +169,7 @@ class Mote(object):
         self.rank                      = None
         self.dagRank                   = None
         self.parentSet                 = []
+        self.oldPreferredParent        = None                  # preserve old preferred parent upon a change
         self.preferredParent           = None
         self.rplRxDIO                  = {}                    # indexed by neighbor, contains int
         self.neighborRank              = {}                    # indexed by neighbor
@@ -255,7 +256,6 @@ class Mote(object):
     def join_setJoined(self):
 
         assert not self.dagRoot
-        assert self.preferredParent
 
         if not self.isJoined:
             self.isJoined = True
@@ -266,10 +266,8 @@ class Mote(object):
                 "[join] Mote joined",
             )
 
-            # 6P add single cell to the preferred parent
-            self._sixtop_cell_reservation_request(self.preferredParent,
-                                                  1,
-                                                  dir=self.DIR_TX)
+            # schedule MSF bootstrap of the preferred parent
+            self._msf_schedule_bootstrap_preferred_parent()
 
             # check if all motes have joined, if so end the simulation after numCyclesPerRun
             if self.settings.withJoin and all(mote.isJoined == True for mote in self.engine.motes):
@@ -803,7 +801,10 @@ class Mote(object):
                         (self.rank,newrank),
                     )
                 if self.preferredParent is None and newPreferredParent is not None:
-                    bootstrapParent = True
+                    if not self.settings.withJoin:
+                        # if we selected a parent for the first time, add one cell to it
+                        # upon successful join, the reservation request is scheduled explicitly
+                        self._msf_schedule_bootstrap_preferred_parent()
                 elif self.preferredParent != newPreferredParent:
                     # update mote stats
                     self._stats_incrementMoteStats('rplChurnPrefParent')
@@ -815,13 +816,8 @@ class Mote(object):
                         (self.preferredParent.id,newPreferredParent.id),
                     )
                     # trigger 6P add to the new parent
-                    if self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
-                        # add the same number of cells with the new parent as we had with the old
-                        self._sixtop_cell_reservation_request(newPreferredParent,
-                                                              self.numCellsToNeighbors.get(self.preferredParent, 0),
-                                                              dir=self.DIR_TX)
-                        self._sixtop_removeCells(self.preferredParent,
-                                                 self.numCellsToNeighbors.get(self.preferredParent, 0))
+                    self.oldPreferredParent = self.preferredParent
+                    self._msf_schedule_parent_change()
 
                 # store new preferred parent and rank
                 (self.preferredParent,self.rank) = (newPreferredParent,newrank)
@@ -835,14 +831,6 @@ class Mote(object):
                 
                 if oldParentSet!=set([parent.id for parent in self.parentSet]):
                     self._stats_incrementMoteStats('rplChurnParentSet')
-                
-            #===
-            # if we selected a parent for the first time, add one cell to it
-            # upon successful join, the reservation request is called explicitly
-            if bootstrapParent and not self.settings.withJoin:
-                self._sixtop_cell_reservation_request(self.preferredParent,
-                                                      1,
-                                                      dir=self.DIR_TX)
     
     def _rpl_calcRankIncrease(self, neighbor):
         
@@ -930,8 +918,75 @@ class Mote(object):
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
+
 #===== msf
-    
+
+    def _msf_schedule_bootstrap_preferred_parent(self):
+        '''
+        Schedule MSF bootstrap to add one cell to the preferred parent and retransmit the request if it fails
+        '''
+        self.engine.scheduleAtAsn(
+            asn         = self.engine.asn + 1,
+            cb          = self._msf_action_bootstrap_preferred_parent,
+            uniqueTag   = (self.id,'_msf_action_bootstrap_preferred_parent'),
+            priority    = 4,
+        )
+
+    def _msf_action_bootstrap_preferred_parent(self):
+        '''
+        Trigger MSF bootstrap: Add one cell to the preferred parent
+        '''
+
+        assert self.preferredParent
+
+        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
+            # we can end up here as part of retransmission
+            # if the 6P reservation succeeded, there will be more than one cell with the preferred parent
+            return
+
+        self._sixtop_cell_reservation_request(self.preferredParent,
+                                              1,
+                                              dir=self.DIR_TX)
+
+        self.engine.scheduleIn(
+            delay       = self.SIXTOP_TIMEOUT * 3,
+            cb          = self._msf_action_bootstrap_preferred_parent,
+            uniqueTag   = (self.id,'_msf_action_bootstrap_preferred_parent_retransmission'),
+            priority    = 4,
+        )
+
+    def _msf_schedule_parent_change(self):
+        '''
+          Schedule MSF parent change
+        '''
+        self.engine.scheduleAtAsn(
+            asn         = self.engine.asn + 1,
+            cb          = self._msf_action_parent_change,
+            uniqueTag   = (self.id,'_msf_action_parent_change'),
+            priority    = 4,
+        )
+
+    def _msf_action_parent_change(self):
+        '''
+          Trigger MSF parent change: Add the same number of cells to the new parent as we had with the old one
+        '''
+
+        assert self.oldPreferredParent
+        assert self.preferredParent
+
+        self._sixtop_cell_reservation_request(self.preferredParent,
+                                              self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
+                                              dir=self.DIR_TX)
+
+        if self.numCellsToNeighbors.get(self.oldPreferredParent, 0):
+            self._sixtop_removeCells(self.oldPreferredParent,
+                                     self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
+
+        # FIXME implement this as an FSM
+
+        # upon success, invalidate old parent
+        self.oldPreferredParent = None
+
     def _msf_schedule_housekeeping(self):
         
         self.engine.scheduleIn(
@@ -950,6 +1005,8 @@ class Mote(object):
 
             if self.dagRoot:
                 return
+
+            # TODO MSF relocation algorithm
             
             # schedule next housekeeping
             self._msf_schedule_housekeeping()
