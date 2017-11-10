@@ -123,9 +123,7 @@ class Mote(object):
     
     #=== 6P default timeout value
     SIXTOP_TIMEOUT                     = 15
-    
-    #=== otf
-    OTF_TRAFFIC_SMOOTHING              = 0.5
+
     #=== 6top
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
@@ -175,7 +173,6 @@ class Mote(object):
         self.rplRxDIO                  = {}                    # indexed by neighbor, contains int
         self.neighborRank              = {}                    # indexed by neighbor
         self.neighborDagRank           = {}                    # indexed by neighbor
-        self.trafficPortionPerParent   = {}                    # indexed by parent, portion of outgoing traffic
         self.dagRootAddress            = None
         # MSF
         self.numCellsPassed            = 0
@@ -183,12 +180,6 @@ class Mote(object):
         # 6top
         self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
         self.numCellsFromNeighbors     = {}                    # indexed by neighbor, contains int
-        # changing this threshold the detection of a bad cell can be
-        # tuned, if as higher the slower to detect a wrong cell but the more prone
-        # to avoid churn as lower the faster but with some chances to introduces
-        # churn due to unstable medium
-        self.sixtopPdrThreshold           = self.settings.sixtopPdrThreshold
-        self.sixtopHousekeepingPeriod  = self.settings.sixtopHousekeepingPeriod
 
         # 6top protocol
         self.sixtopStates               = {}
@@ -249,6 +240,7 @@ class Mote(object):
             mote.dagRootAddress = self
     
     # ===== join process
+
     def join_scheduleJoinProcess(self):
         delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
 
@@ -851,27 +843,6 @@ class Mote(object):
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       1,
                                                       dir=self.DIR_TX)
-
-            # - self.trafficPortionPerParent
-            
-            etxs        = dict([(p, 1.0/(self.neighborRank[p]+self._rpl_calcRankIncrease(p))) for p in self.parentSet])
-            sumEtxs     = float(sum(etxs.values()))
-            self.trafficPortionPerParent = dict([(p, etxs[p]/sumEtxs) for p in self.parentSet])
-            
-            # remove TX cells to neighbor who are not in parent set
-            for neighbor in self.numCellsToNeighbors.keys():
-                if neighbor not in self.parentSet:
-                
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[otf] removing cell to {0}, since not in parentSet {1}",
-                        (neighbor.id,[p.id for p in self.parentSet]),
-                    )
-                    
-                    tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
-                    if tsList:
-                        self._sixtop_cell_deletion_sender(neighbor,tsList)
     
     def _rpl_calcRankIncrease(self, neighbor):
         
@@ -959,175 +930,29 @@ class Mote(object):
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
-#===== otf
+#===== msf
     
-    def _otf_schedule_housekeeping(self):
+    def _msf_schedule_housekeeping(self):
         
         self.engine.scheduleIn(
-            delay       = self.otfHousekeepingPeriod*(0.9+0.2*random.random()),
-            cb          = self._otf_action_housekeeping,
-            uniqueTag   = (self.id,'_otf_action_housekeeping'),
+            delay       = self.settings.msfHousekeepingPeriod*(0.9+0.2*random.random()),
+            cb          = self._msf_action_housekeeping,
+            uniqueTag   = (self.id,'_msf_action_housekeeping'),
             priority    = 4,
         )
     
-    def _otf_action_housekeeping(self):
+    def _msf_action_housekeeping(self):
         '''
-        OTF algorithm: decides when to add/delete cells.
+        MSF housekeeping: decides when to relocate cells
         '''
         
         with self.dataLock:
-            
-            if not self.dagRoot:
-                #if node does not have parent, or has not joined or is not sync, do not perform OTF
-                if self.preferredParent==None or self.isJoined==False or self.isSync==False:
-                    self._otf_schedule_housekeeping()
-                    return
 
-            # calculate the "moving average" incoming traffic, in pkts since last cycle, per neighbor
-                
-            # collect all neighbors I have RX cells to
-            rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX]
-            
-            # remove duplicates
-            rxNeighbors = list(set(rxNeighbors))
-            rxNeighbors = sorted(rxNeighbors, key=lambda x: x.id, reverse=True)
-            
-            # reset inTrafficMovingAve                
-            neighbors = self.inTrafficMovingAve.keys()
-            for neighbor in neighbors:
-                if neighbor not in rxNeighbors:
-                    del self.inTrafficMovingAve[neighbor]
-            
-            # set inTrafficMovingAve 
-            for neighborOrMe in rxNeighbors+[self]:
-                if neighborOrMe in self.inTrafficMovingAve:
-                    newTraffic   = 0
-                    newTraffic  += self.inTraffic[neighborOrMe]*self.OTF_TRAFFIC_SMOOTHING               # new
-                    newTraffic  += self.inTrafficMovingAve[neighborOrMe]*(1-self.OTF_TRAFFIC_SMOOTHING)  # old
-                    self.inTrafficMovingAve[neighborOrMe] = newTraffic
-                elif self.inTraffic[neighborOrMe] != 0:
-                    self.inTrafficMovingAve[neighborOrMe] = self.inTraffic[neighborOrMe]
-            
-            # reset the incoming traffic statistics, so they can build up until next housekeeping
-            self._otf_resetInboundTrafficCounters()
-            
-            # calculate my total generated traffic, in pkt/s
-            genTraffic       = 0
-            # generated/relayed by me
-            for neighborOrMe in self.inTrafficMovingAve:
-                genTraffic  += self.inTrafficMovingAve[neighborOrMe]/self.otfHousekeepingPeriod
-            # convert to pkts/cycle
-            genTraffic      *= self.settings.slotframeLength*self.settings.slotDuration
-            
-            remainingPortion = 0.0
-            parent_portion   = self.trafficPortionPerParent.items()
-            # sort list so that the parent assigned larger traffic can be checked first
-            sorted_parent_portion = sorted(parent_portion, key = lambda x: x[1], reverse=True)
-            
-            # split genTraffic across parents, trigger 6top to add/delete cells accordingly
-            for (parent,portion) in sorted_parent_portion:
-                
-                # if some portion is remaining, this is added to this parent
-                if remainingPortion!=0.0:
-                    portion                               += remainingPortion
-                    remainingPortion                       = 0.0
-                    self.trafficPortionPerParent[parent]   = portion
-                    
-                # calculate required number of cells to that parent
-                etx = self._estimateETX(parent)
-                if etx>self.RPL_MAX_ETX: # cap ETX
-                    etx  = self.RPL_MAX_ETX
-                reqCells      = int(math.ceil(portion*genTraffic*etx))
-                
-                # calculate the OTF threshold
-                threshold     = int(math.ceil(portion*self.settings.otfThreshold))
-                
-                # measure how many cells I have now to that parent
-                nowCells      = self.numCellsToNeighbors.get(parent,0)
-                
-                if nowCells==0 or nowCells<reqCells:
-                    # I don't have enough cells
-                    
-                    # calculate how many to add
-                    if reqCells>0:
-                        # according to traffic
-                        
-                        numCellsToAdd = reqCells-nowCells+(threshold+1)/2
-                    else:
-                        # but at least one cell
-                        
-                        numCellsToAdd = 1
-                    
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[otf] not enough cells to {0}: have {1}, need {2}, add {3}",
-                        (parent.id,nowCells,reqCells,numCellsToAdd),
-                    )
-                    
-                    # update mote stats
-                    self._stats_incrementMoteStats('otfAdd')
-                    
-                    # have 6top add cells
-                    self._sixtop_cell_reservation_request(parent,numCellsToAdd)
-                    
-                    # measure how many cells I have now to that parent
-                    nowCells     = self.numCellsToNeighbors.get(parent,0)
-                    
-                    # store handled portion and remaining portion
-                    if nowCells<reqCells:
-                        handledPortion   = (float(nowCells)/etx)/genTraffic
-                        remainingPortion = portion - handledPortion
-                        self.trafficPortionPerParent[parent] = handledPortion
-                    
-                    # remember OTF triggered
-                    otfTriggered = True
-                
-                elif reqCells<nowCells-threshold:
-                    # I have too many cells
-                    
-                    # calculate how many to remove
-                    numCellsToRemove = nowCells-reqCells
-                    
-                    if reqCells==0:        #I want always there is at least 1 cell available
-                        numCellsToRemove=numCellsToRemove-self.settings.otfThreshold-1
-                    
-                    # have 6top remove cells
-                    if numCellsToRemove > 0:
-                    
-                        # log
-                        self._log(
-                            self.INFO,
-                            "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
-                            (parent.id,nowCells,reqCells,numCellsToRemove),
-                        )
-                    
-                        self._sixtop_removeCells(parent,numCellsToRemove)
-                        # update mote stats
-                        self._stats_incrementMoteStats('otfRemove')
-
-                        # remember OTF triggered
-                        otfTriggered = True
-                    else:
-                        otfTriggered = False
-
-                else:
-                    # nothing to do
-                    
-                    # remember OTF did NOT trigger
-                    otfTriggered = False
-                
-                # maintain stats
-                if otfTriggered:
-                    now = self.engine.getAsn()
-                    if not self.asnOTFevent:
-                        assert not self.timeBetweenOTFevents
-                    else:
-                        self.timeBetweenOTFevents += [now-self.asnOTFevent]
-                    self.asnOTFevent = now
+            if self.dagRoot:
+                return
             
             # schedule next housekeeping
-            self._otf_schedule_housekeeping()
+            self._msf_schedule_housekeeping()
     
     #===== 6top
     
@@ -1148,217 +973,6 @@ class Mote(object):
 
         if not found: # if we did not find it, assert
             assert False
-
-    def _sixtop_schedule_housekeeping(self):
-        
-        self.engine.scheduleIn(
-            delay       = self.sixtopHousekeepingPeriod*(0.9+0.2*random.random()),
-            cb          = self._sixtop_action_housekeeping,
-            uniqueTag   = (self.id,'_sixtop_action_housekeeping'),
-            priority    = 5,
-        )
-    
-    def _sixtop_action_housekeeping(self):
-        '''
-        For each neighbor I have TX cells to, relocate cells if needed.
-        '''
-        
-        #=== tx-triggered housekeeping 
-        
-        # collect all neighbors I have TX cells to
-        txNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_TX]
-        
-        # remove duplicates
-        txNeighbors = list(set(txNeighbors))
-        txNeighbors = sorted(txNeighbors, key=lambda x: x.id, reverse=True)
-
-        for neighbor in txNeighbors:
-            nowCells = self.numCellsToNeighbors.get(neighbor,0)
-            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_TX and c['neighbor']==neighbor])
-        
-        # do some housekeeping for each neighbor
-        for neighbor in txNeighbors:
-            self._sixtop_txhousekeeping_per_neighbor(neighbor)
-        
-        #=== rx-triggered housekeeping 
-        
-        # collect neighbors from which I have RX cells that is detected as collision cell
-        rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision']]
-        
-        # remove duplicates
-        rxNeighbors = list(set(rxNeighbors))
-        rxNeighbors = sorted(rxNeighbors, key=lambda x: x.id, reverse=True)
-        
-        for neighbor in rxNeighbors:
-            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
-            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_RX and c['neighbor']==neighbor])
-        
-        # do some housekeeping for each neighbor
-        for neighbor in rxNeighbors:
-            self._sixtop_rxhousekeeping_per_neighbor(neighbor)
-        
-        #=== schedule next housekeeping
-        
-        self._sixtop_schedule_housekeeping()
-    
-    def _sixtop_txhousekeeping_per_neighbor(self,neighbor):
-        '''
-        For a particular neighbor, decide to relocate cells if needed.
-        '''
-        
-        #===== step 1. collect statistics
-        
-        # pdr for each cell
-        cell_pdr = []
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
-                # this is a TX cell to that neighbor
-                
-                # abort if not enough TX to calculate meaningful PDR
-                if cell['numTx']<self.NUM_SUFFICIENT_TX:
-                    continue
-                
-                # calculate pdr for that cell
-                recentHistory = cell['history'][-self.NUM_MAX_HISTORY:]
-                pdr = float(sum(recentHistory)) / float(len(recentHistory))
-                
-                # store result
-                cell_pdr += [(ts,pdr)]
-                
-        # pdr for the bundle as a whole
-        bundleNumTx     = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
-        bundleNumTxAck  = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
-        if bundleNumTx<self.NUM_SUFFICIENT_TX:
-            bundlePdr   = None
-        else:
-            bundlePdr   = float(bundleNumTxAck) / float(bundleNumTx)
-        
-        #===== step 2. relocate worst cell in bundle, if any
-        # this step will identify the cell with the lowest PDR in the bundle.
-        # If its PDR is self.sixtopPdrThreshold lower than the average of the bundle
-        # this step will move that cell.
-        
-        relocation = False
-        
-        if cell_pdr:
-            
-            # identify the cell with worst pdr, and calculate the average
-            
-            worst_ts   = None
-            worst_pdr  = None
-            
-            for (ts,pdr) in cell_pdr:
-                if worst_pdr==None or pdr<worst_pdr:
-                    worst_ts  = ts
-                    worst_pdr = pdr
-            
-            assert worst_ts!=None
-            assert worst_pdr!=None
-            
-            # ave pdr for other cells
-            othersNumTx      = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])
-            othersNumTxAck   = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])           
-            if othersNumTx<self.NUM_SUFFICIENT_TX:
-                ave_pdr      = None
-            else:
-                ave_pdr      = float(othersNumTxAck) / float(othersNumTx)
-
-            # relocate worst cell if "bad enough"
-            if ave_pdr and worst_pdr<(ave_pdr/self.sixtopPdrThreshold):
-                
-                # log
-                self._log(
-                    self.INFO,
-                    "[6top] relocating cell ts {0} to {1} (pdr={2:.3f} significantly worse than others {3})",
-                    (worst_ts,neighbor.id,worst_pdr,cell_pdr),
-                )
-                
-                # measure how many cells I have now to that parent
-                nowCells = self.numCellsToNeighbors.get(neighbor,0)
-                
-                # relocate: add new first
-                self._sixtop_cell_reservation_request(neighbor,1)
-                
-                # relocate: remove old only when successfully added 
-                if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-                    self._sixtop_cell_deletion_sender(neighbor,[worst_ts])
-                
-                    # update stats
-                    self._stats_incrementMoteStats('6topTxRelocatedCells')
-                
-                    # remember I relocated a cell for that bundle
-                    relocation = True
-        
-        #===== step 3. relocate the complete bundle
-        # this step only runs if the previous hasn't, and we were able to
-        # calculate a bundle PDR.
-        # This step verifies that the average PDR for the complete bundle is
-        # expected, given the RSSI to that neighbor. If it's lower, this step
-        # will move all cells in the bundle.
-        
-        bundleRelocation = False
-        
-        if (not relocation) and bundlePdr!=None:
-            
-            # calculate the theoretical PDR to that neighbor, using the measured RSSI
-            rssi            = self.getRSSI(neighbor)
-            theoPDR         = Topology.Topology.rssiToPdr(rssi)
-            
-            # relocate complete bundle if measured RSSI is significantly worse than theoretical
-            if bundlePdr<(theoPDR/self.sixtopPdrThreshold):
-                for (ts,_) in cell_pdr:
-                    
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[6top] relocating cell ts {0} to {1} (bundle pdr {2} << theoretical pdr {3})",
-                        (ts,neighbor.id,bundlePdr,theoPDR),
-                    )
-                    
-                    # measure how many cells I have now to that parent
-                    nowCells = self.numCellsToNeighbors.get(neighbor,0)
-                    
-                    # relocate: add new first
-                    self._sixtop_cell_reservation_request(neighbor,1)
-
-                    # relocate: remove old only when successfully added 
-                    if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-                        
-                        self._sixtop_cell_deletion_sender(neighbor,[ts])
-                        
-                        bundleRelocation = True
-                
-                # update stats
-                if bundleRelocation:
-                    self._stats_incrementMoteStats('6topTxRelocatedBundles')
-    
-    def _sixtop_rxhousekeeping_per_neighbor(self,neighbor):
-        '''
-        The RX node triggers a relocation when it has heard a packet
-        from a neighbor it did not expect ('rxDetectedCollision')
-        '''
-        
-        rxCells = [(ts,cell) for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision'] and cell['neighbor']==neighbor]
-        
-        relocation = False
-        for ts,cell in rxCells:
-            
-            # measure how many cells I have now from that child
-            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
-            
-            # relocate: add new first
-            self._sixtop_cell_reservation_request(neighbor,1,dir=self.DIR_RX)
-            
-            # relocate: remove old only when successfully added 
-            if nowCells < self.numCellsFromNeighbors.get(neighbor,0):
-                neighbor._sixtop_cell_deletion_sender(self,[ts])
-                
-                # remember I relocated a cell
-                relocation = True
-                
-        if relocation:
-            # update stats
-            self._stats_incrementMoteStats('6topRxRelocatedCells')
     
     def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
         ''' tries to reserve numCells cells to a neighbor. '''
@@ -2028,7 +1642,7 @@ class Mote(object):
             # log
             self._log(
                 self.INFO,
-                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                "[6top] remove cell ts={0} to {1} (pdr={2:.3f})",
                 (tscell[0],neighbor.id,tscell[3]),
             )
             tsList += [tscell[0]]
@@ -2929,12 +2543,8 @@ class Mote(object):
         if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
 
-        # OTF
-        #self._otf_resetInboundTrafficCounters()
-        #self._otf_schedule_housekeeping()
-        # 6top
-        #if not self.settings.sixtopNoHousekeeping:
-        #    self._sixtop_schedule_housekeeping()
+        # MSF
+        self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
@@ -3031,9 +2641,6 @@ class Mote(object):
                 'rplChurnRank':               0,   # number of time the mote changes rank
                 'rplChurnParentSet':          0,   # number of time the mote changes parent set
                 'droppedNoRoute':             0,   # packets dropped because no route (no preferred parent)
-                # otf
-                'otfAdd':                     0,   # OTF adds some cells
-                'otfRemove':                  0,   # OTF removes some cells
                 'droppedNoTxCells':           0,   # packets dropped because no TX cells
                 # 6top
                 '6topTxRelocatedCells':       0,   # number of time tx-triggered 6top relocates a single cell
