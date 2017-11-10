@@ -218,8 +218,8 @@ def plot_droppedPacketsVsCycle():
                     if line.startswith('# '):
                         elems                         = re.sub(' +',' ',line[2:]).split()
                         numcols                       = len(elems)
-                        colnumdroppedAppFailedEnqueue = elems.index('droppedAppFailedEnqueue')
-                        colnumdroppedMacRetries       = elems.index('droppedMacRetries')
+                        colnumdroppedAppFailedEnqueue = elems.index('droppedDataFailedEnqueue')
+                        colnumdroppedMacRetries       = elems.index('droppedDataMacRetries')
                         colnumcycle                   = elems.index('cycle')
                         colnumrunNum                  = elems.index('runNum')                
                         break
