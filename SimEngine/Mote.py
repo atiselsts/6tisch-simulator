@@ -177,12 +177,9 @@ class Mote(object):
         self.neighborDagRank           = {}                    # indexed by neighbor
         self.trafficPortionPerParent   = {}                    # indexed by parent, portion of outgoing traffic
         self.dagRootAddress            = None
-        # otf
-        self.asnOTFevent               = None
-        self.otfHousekeepingPeriod     = self.settings.otfHousekeepingPeriod
-        self.timeBetweenOTFevents      = []
-        self.inTraffic                 = {}                    # indexed by neighbor
-        self.inTrafficMovingAve        = {}                    # indexed by neighbor
+        # MSF
+        self.numCellsPassed            = 0
+        self.numCellsUsed              = 0
         # 6top
         self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
         self.numCellsFromNeighbors     = {}                    # indexed by neighbor, contains int
@@ -2259,9 +2256,17 @@ class Mote(object):
                         if pkt['nextHop'] == [cell['neighbor']]:
                             self.pktToSend = pkt
                             break
+
+                # MSF - updating numCellsPassed
+                if cell['neighbor'] == self.preferredParent:
+                    self.numCellsPassed += 1
                     
                 # send packet
                 if self.pktToSend:
+
+                    # MSF updating numCellsUsed
+                    if cell['neighbor'] == self.preferredParent:
+                        self.numCellsUsed += 1
                     
                     cell['numTx'] += 1
                     
@@ -2303,6 +2308,29 @@ class Mote(object):
                     
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
+
+                # MSF algorithm to adapt to traffic
+                if self.numCellsPassed == self.settings.msfMaxNumCells:
+                    if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
+                        # trigger 6P to add msfNumCellsToAddOrRemove cells
+                        self._log(self.INFO,
+                                  "[msf] numCellsUsed = {0}, triggering 6P ADD of {1} cell to mote {2}",
+                                  (self.numCellsUsed, self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
+                        self._sixtop_cell_reservation_request(self.preferredParent,
+                                                              self.settings.msfNumCellsToAddOrRemove,
+                                                              dir=self.DIR_TX)
+                    elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
+                        # ensure at least one dedicated cell is kept with preferred parent
+                        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 1:
+                            self._log(self.INFO,
+                                      "[msf] numCellsUsed = {0}, triggering 6P REMOVE of {1} cell to mote {2}",
+                                      (self.numCellsUsed, self.settings.msfNumCellsToAddOrRemove,
+                                       self.preferredParent.id))
+                            # trigger 6p to remove msfNumCellsToAddOrRemove cells
+                            self._sixtop_removeCells(self.preferredParent,
+                                                     self.settings.msfNumCellsToAddOrRemove)
+                    self.numCellsPassed = 0
+                    self.numCellsUsed = 0
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
@@ -2905,8 +2933,8 @@ class Mote(object):
         #self._otf_resetInboundTrafficCounters()
         #self._otf_schedule_housekeeping()
         # 6top
-        if not self.settings.sixtopNoHousekeeping:
-            self._sixtop_schedule_housekeeping()
+        #if not self.settings.sixtopNoHousekeeping:
+        #    self._sixtop_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
