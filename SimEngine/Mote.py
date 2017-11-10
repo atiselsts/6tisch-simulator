@@ -2585,7 +2585,7 @@ class Mote(object):
                         
                         #only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            self._stats_incrementMoteStats('dataDroppedMacRetries')
+                            self._stats_incrementMoteStats('droppedDataMacRetries')
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
@@ -2638,7 +2638,7 @@ class Mote(object):
                         
                         # counts drops of DATA packets
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            self._stats_incrementMoteStats('dataDroppedMacRetries')
+                            self._stats_incrementMoteStats('droppedDataMacRetries')
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
@@ -2987,43 +2987,43 @@ class Mote(object):
         with self.dataLock:
             self.motestats = {
                 # app
-                'appGenerated':            0,   # number of packets app layer generated
-                'appRelayed':              0,   # number of packets relayed
-                'appReachesDagroot':       0,   # number of packets received at the DAGroot
-                'droppedFailedEnqueue':    0,   # dropped packets because failed enqueue them
-                'droppedDataFailedEnqueue': 0,  # dropped DATA packets because app failed enqueue them
+                'appGenerated':               0,   # number of packets app layer generated
+                'appRelayed':                 0,   # number of packets relayed
+                'appReachesDagroot':          0,   # number of packets received at the DAGroot
+                'droppedFailedEnqueue':       0,   # dropped packets because failed enqueue them
+                'droppedDataFailedEnqueue':   0,   # dropped DATA packets because app failed enqueue them
                 # queue
-                'droppedQueueFull':        0,   # dropped packets because queue is full
+                'droppedQueueFull':           0,   # dropped packets because queue is full
                 # rpl
-                'rplTxDIO':                0,   # number of TX'ed DIOs
-                'rplRxDIO':                0,   # number of RX'ed DIOs
-                'rplTxDAO':                0,  # number of TX'ed DAOs
-                'rplRxDAO':                0,  # number of RX'ed DAOs
-                'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
-                'rplChurnRank':            0,   # number of time the mote changes rank
-                'rplChurnParentSet':       0,   # number of time the mote changes parent set
-                'droppedNoRoute':          0,   # packets dropped because no route (no preferred parent)
+                'rplTxDIO':                   0,   # number of TX'ed DIOs
+                'rplRxDIO':                   0,   # number of RX'ed DIOs
+                'rplTxDAO':                   0,   # number of TX'ed DAOs
+                'rplRxDAO':                   0,   # number of RX'ed DAOs
+                'rplChurnPrefParent':         0,   # number of time the mote changes preferred parent
+                'rplChurnRank':               0,   # number of time the mote changes rank
+                'rplChurnParentSet':          0,   # number of time the mote changes parent set
+                'droppedNoRoute':             0,   # packets dropped because no route (no preferred parent)
                 # otf
-                'otfAdd':                  0,   # OTF adds some cells
-                'otfRemove':               0,   # OTF removes some cells
-                'droppedNoTxCells':        0,   # packets dropped because no TX cells
+                'otfAdd':                     0,   # OTF adds some cells
+                'otfRemove':                  0,   # OTF removes some cells
+                'droppedNoTxCells':           0,   # packets dropped because no TX cells
                 # 6top
-                'topTxRelocatedCells':     0,   # number of time tx-triggered 6top relocates a single cell
-                'topTxRelocatedBundles':   0,   # number of time tx-triggered 6top relocates a bundle
-                'topRxRelocatedCells':     0,   # number of time rx-triggered 6top relocates a single cell
-                'txAddReq':                   0,        # number of 6P Add request transmitted
-                'txAddResp':                  0,        # number of 6P Add responses transmitted
-                'txDelReq':                   0,        # number of 6P del request transmitted
-                'txDelResp':                  0,        # number of 6P del responses transmitted
-                'rxAddReq':                   0,        # number of 6P Add request received
-                'rxAddResp':                  0,        # number of 6P Add responses received
-                'rxDelReq':                   0,        # number of 6P Del request received
-                'rxDelResp':                  0,        # number of 6P Del responses received
+                'topTxRelocatedCells':        0,   # number of time tx-triggered 6top relocates a single cell
+                'topTxRelocatedBundles':      0,   # number of time tx-triggered 6top relocates a bundle
+                'topRxRelocatedCells':        0,   # number of time rx-triggered 6top relocates a single cell
+                'txAddReq':                   0,   # number of 6P Add request transmitted
+                'txAddResp':                  0,   # number of 6P Add responses transmitted
+                'txDelReq':                   0,   # number of 6P del request transmitted
+                'txDelResp':                  0,   # number of 6P del responses transmitted
+                'rxAddReq':                   0,   # number of 6P Add request received
+                'rxAddResp':                  0,   # number of 6P Add responses received
+                'rxDelReq':                   0,   # number of 6P Del request received
+                'rxDelResp':                  0,   # number of 6P Del responses received
                 # tsch
-                'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
-                'dataDroppedMacRetries':   0,        # packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
-                'tschTxEB':                0,   # number of TX'ed EBs
-                'tschRxEB':                0,   # number of RX'ed EBs
+                'droppedMacRetries':          0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
+                'droppedDataMacRetries':      0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
+                'tschTxEB':                   0,   # number of TX'ed EBs
+                'tschRxEB':                   0,   # number of RX'ed EBs
             }
     
     def _stats_incrementMoteStats(self,name):
