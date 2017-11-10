@@ -963,6 +963,10 @@ class Mote(object):
                 )
             else:
                 assert self.numCellsToNeighbors.get(self.preferredParent, 0)
+                if all(mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 0 for mote in self.engine.motes if
+                       mote.dagRoot == False):
+                    self._log(self.INFO,
+                              "[bootstrap] complete, all motes have at least one cell to their preferred parent.")
                 # upon success, invalidate old parent
                 self.oldPreferredParent = None
 
