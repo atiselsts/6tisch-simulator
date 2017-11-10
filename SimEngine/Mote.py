@@ -1287,7 +1287,7 @@ class Mote(object):
                     self._sixtop_cell_deletion_sender(neighbor,[worst_ts])
                 
                     # update stats
-                    self._stats_incrementMoteStats('topTxRelocatedCells')
+                    self._stats_incrementMoteStats('6topTxRelocatedCells')
                 
                     # remember I relocated a cell for that bundle
                     relocation = True
@@ -1333,7 +1333,7 @@ class Mote(object):
                 
                 # update stats
                 if bundleRelocation:
-                    self._stats_incrementMoteStats('topTxRelocatedBundles')
+                    self._stats_incrementMoteStats('6topTxRelocatedBundles')
     
     def _sixtop_rxhousekeeping_per_neighbor(self,neighbor):
         '''
@@ -1361,7 +1361,7 @@ class Mote(object):
                 
         if relocation:
             # update stats
-            self._stats_incrementMoteStats('topRxRelocatedCells')
+            self._stats_incrementMoteStats('6topRxRelocatedCells')
     
     def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
         ''' tries to reserve numCells cells to a neighbor. '''
@@ -1481,7 +1481,7 @@ class Mote(object):
             seq=payload[3]
 
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor
-            self._stats_incrementMoteStats('rxAddReq')
+            self._stats_incrementMoteStats('6topRxAddReq')
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and self.sixtopStates[smac.id]['rx']['state'] != self.SIX_STATE_IDLE:
                 for pkt in self.txQueue:
@@ -1631,7 +1631,7 @@ class Mote(object):
                  # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET        #RC_BUSY not implemented yet
 
-                self._stats_incrementMoteStats('rxAddResp')
+                self._stats_incrementMoteStats('6topRxAddResp')
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -1754,7 +1754,7 @@ class Mote(object):
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
 
-                self._stats_incrementMoteStats('rxDelResp')
+                self._stats_incrementMoteStats('6topRxDelResp')
 
                 neighbor=smac
                 receivedCellList = payload[0]
@@ -2080,7 +2080,7 @@ class Mote(object):
             dirNeighbor = payload[2]
             seq=payload[3]
 
-            self._stats_incrementMoteStats('rxDelReq')
+            self._stats_incrementMoteStats('6topRxDelReq')
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
 
             self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
@@ -2267,20 +2267,20 @@ class Mote(object):
                     
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('txAddReq')
+                            self._stats_incrementMoteStats('6topTxAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('txDelReq')
+                            self._stats_incrementMoteStats('6topTxDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('txAddResp')
+                            self._stats_incrementMoteStats('6topTxAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('txDelResp')
+                            self._stats_incrementMoteStats('6topTxDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -2328,20 +2328,20 @@ class Mote(object):
                     
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('txAddReq')
+                            self._stats_incrementMoteStats('6topTxAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('txDelReq')
+                            self._stats_incrementMoteStats('6topTxDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('txAddResp')
+                            self._stats_incrementMoteStats('6topTxAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('txDelResp')
+                            self._stats_incrementMoteStats('6topTxDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -3008,17 +3008,17 @@ class Mote(object):
                 'otfRemove':                  0,   # OTF removes some cells
                 'droppedNoTxCells':           0,   # packets dropped because no TX cells
                 # 6top
-                'topTxRelocatedCells':        0,   # number of time tx-triggered 6top relocates a single cell
-                'topTxRelocatedBundles':      0,   # number of time tx-triggered 6top relocates a bundle
-                'topRxRelocatedCells':        0,   # number of time rx-triggered 6top relocates a single cell
-                'txAddReq':                   0,   # number of 6P Add request transmitted
-                'txAddResp':                  0,   # number of 6P Add responses transmitted
-                'txDelReq':                   0,   # number of 6P del request transmitted
-                'txDelResp':                  0,   # number of 6P del responses transmitted
-                'rxAddReq':                   0,   # number of 6P Add request received
-                'rxAddResp':                  0,   # number of 6P Add responses received
-                'rxDelReq':                   0,   # number of 6P Del request received
-                'rxDelResp':                  0,   # number of 6P Del responses received
+                '6topTxRelocatedCells':       0,   # number of time tx-triggered 6top relocates a single cell
+                '6topTxRelocatedBundles':     0,   # number of time tx-triggered 6top relocates a bundle
+                '6topRxRelocatedCells':       0,   # number of time rx-triggered 6top relocates a single cell
+                '6topTxAddReq':               0,   # number of 6P Add request transmitted
+                '6topTxAddResp':              0,   # number of 6P Add responses transmitted
+                '6topTxDelReq':               0,   # number of 6P del request transmitted
+                '6topTxDelResp':              0,   # number of 6P del responses transmitted
+                '6topRxAddReq':               0,   # number of 6P Add request received
+                '6topRxAddResp':              0,   # number of 6P Add responses received
+                '6topRxDelReq':               0,   # number of 6P Del request received
+                '6topRxDelResp':              0,   # number of 6P Del responses received
                 # tsch
                 'droppedMacRetries':          0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
                 'droppedDataMacRetries':      0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
