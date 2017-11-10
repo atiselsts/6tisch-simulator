@@ -127,7 +127,7 @@ def parseCliOptions():
         dest       = 'pkPeriod',
         nargs      = '+',
         type       = float,
-        default    = None,
+        default    = 10,
         help       = '[app] Average period between two data packets (s).',
     )
     parser.add_argument( '--pkPeriodVar',
@@ -140,14 +140,14 @@ def parseCliOptions():
         dest       = 'burstTimestamp',
         nargs      = '+',
         type       = float,
-        default    = 20,
+        default    = None,
         help       = '[app] Timestamp when the burst happens (s).',
     )
     parser.add_argument( '--numPacketsBurst',
         dest       = 'numPacketsBurst',
         nargs      = '+',
         type       = int,
-        default    = 5,
+        default    = None,
         help       = '[app] Number of packets in a burst, per node.',
     )
     parser.add_argument('--downwardAcks',
@@ -183,6 +183,35 @@ def parseCliOptions():
         type       = float,
         default    = 5.0,
         help       = '[otf] OTF housekeeping period (s).',
+    )
+    # msf
+    parser.add_argument( '--msfMaxNumCells',
+        dest       = 'msfMaxNumCells',
+        nargs      = '+',
+        type       = int,
+        default    = 16,
+        help       = '[msf] MSF MAX_NUMCELLS parameter.',
+    )
+    parser.add_argument( '--msfLimNumCellsUsedHIGH',
+        dest       = 'msfLimNumCellsUsedHigh',
+        nargs      = '+',
+        type       = int,
+        default    = 12,
+        help       = '[msf] MSF LIM_NUMCELLSUSED_HIGH parameter.',
+    )
+    parser.add_argument( '--msfLimNumCellsUsedLOW',
+        dest       = 'msfLimNumCellsUsedLow',
+        nargs      = '+',
+        type       = int,
+        default    = 4,
+        help       = '[msf] MSF LIM_NUMCELLSUSED_LOW parameter.',
+    )
+    parser.add_argument( '--msfNumCellsToAddOrRemove',
+        dest       = 'msfNumCellsToAddOrRemove',
+        nargs      = '+',
+        type       = int,
+        default    = 1,
+        help       = '[msf] MSF number of cells to add/remove when 6P is triggered.',
     )
     # sixtop
     parser.add_argument( '--sixtopMessaging',
