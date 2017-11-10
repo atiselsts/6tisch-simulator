@@ -220,25 +220,6 @@ def parseCliOptions():
         default    = 1,
         help       = '[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
     )
-    parser.add_argument( '--sixtopHousekeepingPeriod',
-        dest       = 'sixtopHousekeepingPeriod',
-        type       = float,
-        default    = 1.0,
-        help       = '[6top] 6top housekeeping period (s).',
-    )
-    parser.add_argument( '--sixtopPdrThreshold',
-        dest       = 'sixtopPdrThreshold',
-        type       = float,
-        default    = 1.5,
-        help       = '[6top] 6top PDR threshold.',
-    )
-    parser.add_argument('--sixtopNoHousekeeping',
-        dest       = 'sixtopNoHousekeeping',
-        nargs      = '+',
-        type       = int,
-        default    = 0,
-        help       = '[6top] 1 to disable 6top housekeeping.',
-    )
     parser.add_argument('--sixtopNoRemoveWorstCell',
         dest       = 'sixtopNoRemoveWorstCell',
         nargs      = '+',
