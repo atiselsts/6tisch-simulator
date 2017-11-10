@@ -1950,15 +1950,24 @@ class Mote(object):
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-                        # 6top messages can be sent either in dedicated or shared cells, but if there are already TX cells, use those. The same for DAOs
-                        if pkt['type']!=self.APP_TYPE_DATA:
-                            if ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST) ):
-                                continue
-                            elif ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.RPL_TYPE_DAO) ):
-                                continue
-                            else:
-                                self.pktToSend = pkt        
-                                break
+                        # send join packets on the shared cell only on first hop
+                        if pkt['type'] == self.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
+                        elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
+                        elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # DIOs and EBs always go on the shared cell
+                        elif pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
+                            self.pktToSend = pkt
+                            break
+                        else:
+                            continue
 
                 # Decrement backoff
                 if self.backoff > 0:
