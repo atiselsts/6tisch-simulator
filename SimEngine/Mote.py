@@ -121,10 +121,10 @@ class Mote(object):
     IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
     
-    #=== 6P default timeout value
-    SIXTOP_TIMEOUT                     = 15
-
-    #=== 6top
+    #=== 6P default timeout value in seconds
+    SIXTOP_TIMEOUT                              = 15
+    #=== MSF
+    MSF_MIN_NUM_CELLS                           = 5
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 5
@@ -1041,10 +1041,10 @@ class Mote(object):
                         for c in blockedCells:
                                 tsBlocked.append(c[0])
 
-                    # randomly picking cells (SF0)
+                    # randomly picking cells
                     availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
                     random.shuffle(availableTimeslots)
-                    cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+                    cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells*self.MSF_MIN_NUM_CELLS]])
                     cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
                     self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['tx']['seqNum'])
