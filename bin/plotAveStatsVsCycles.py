@@ -184,7 +184,7 @@ def plot_statsVsCycle(statsName):
 
 #===== dropped packets vs cycle
 
-def plot_droppedPacketsVsCycle():
+def plot_droppedDataPacketsVsCycle():
     
     dataDirs = []
     for dataDir in os.listdir(os.path.curdir):
@@ -401,6 +401,8 @@ def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False, xm
             index = 3
         elif dataDir == 'no interference':
             index = 4
+        else:
+            index = 0
         
         matplotlib.pyplot.errorbar(
             x        = x,
@@ -447,7 +449,7 @@ def main():
         plot_statsVsCycle(statsName)
     
     # plot dropped packets vs cycle
-    plot_droppedPacketsVsCycle()
+    plot_droppedDataPacketsVsCycle()
     
     # plot singaling for 6top housekeeping vs cycle
     plot_topHousekeepingSignalingVsCycle()
