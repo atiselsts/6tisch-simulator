@@ -178,11 +178,11 @@ def parseCliOptions():
         default    = 1,
         help       = '[otf] OTF threshold (cells).',
     )
-    parser.add_argument( '--otfHousekeepingPeriod',
-        dest       = 'otfHousekeepingPeriod',
+    parser.add_argument( '--msfHousekeepingPeriod',
+        dest       = 'msfHousekeepingPeriod',
         type       = float,
-        default    = 5.0,
-        help       = '[otf] OTF housekeeping period (s).',
+        default    = 60.0,
+        help       = '[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
     )
     # msf
     parser.add_argument( '--msfMaxNumCells',
