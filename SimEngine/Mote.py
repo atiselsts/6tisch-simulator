@@ -267,7 +267,7 @@ class Mote(object):
             )
 
             # schedule MSF bootstrap of the preferred parent
-            self._msf_schedule_bootstrap_preferred_parent()
+            self._msf_schedule_parent_change()
 
             # check if all motes have joined, if so end the simulation after numCyclesPerRun
             if self.settings.withJoin and all(mote.isJoined == True for mote in self.engine.motes):
@@ -804,7 +804,7 @@ class Mote(object):
                     if not self.settings.withJoin:
                         # if we selected a parent for the first time, add one cell to it
                         # upon successful join, the reservation request is scheduled explicitly
-                        self._msf_schedule_bootstrap_preferred_parent()
+                        self._msf_schedule_parent_change()
                 elif self.preferredParent != newPreferredParent:
                     # update mote stats
                     self._stats_incrementMoteStats('rplChurnPrefParent')
@@ -921,40 +921,6 @@ class Mote(object):
 
 #===== msf
 
-    def _msf_schedule_bootstrap_preferred_parent(self):
-        '''
-        Schedule MSF bootstrap to add one cell to the preferred parent and retransmit the request if it fails
-        '''
-        self.engine.scheduleAtAsn(
-            asn         = self.engine.asn + 1,
-            cb          = self._msf_action_bootstrap_preferred_parent,
-            uniqueTag   = (self.id,'_msf_action_bootstrap_preferred_parent'),
-            priority    = 4,
-        )
-
-    def _msf_action_bootstrap_preferred_parent(self):
-        '''
-        Trigger MSF bootstrap: Add one cell to the preferred parent
-        '''
-
-        assert self.preferredParent
-
-        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
-            # we can end up here as part of retransmission
-            # if the 6P reservation succeeded, there will be more than one cell with the preferred parent
-            return
-
-        self._sixtop_cell_reservation_request(self.preferredParent,
-                                              1,
-                                              dir=self.DIR_TX)
-
-        self.engine.scheduleIn(
-            delay       = self.SIXTOP_TIMEOUT * 3,
-            cb          = self._msf_action_bootstrap_preferred_parent,
-            uniqueTag   = (self.id,'_msf_action_bootstrap_preferred_parent_retransmission'),
-            priority    = 4,
-        )
-
     def _msf_schedule_parent_change(self):
         '''
           Schedule MSF parent change
@@ -971,21 +937,31 @@ class Mote(object):
           Trigger MSF parent change: Add the same number of cells to the new parent as we had with the old one
         '''
 
-        assert self.oldPreferredParent
         assert self.preferredParent
 
-        self._sixtop_cell_reservation_request(self.preferredParent,
-                                              self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
-                                              dir=self.DIR_TX)
+        armTimeout = False
+
+        if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
+            self._sixtop_cell_reservation_request(self.preferredParent,
+                                                  self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
+                                                  dir=self.DIR_TX)
+            armTimeout = True
 
         if self.numCellsToNeighbors.get(self.oldPreferredParent, 0):
             self._sixtop_removeCells(self.oldPreferredParent,
                                      self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
+            armTimeout = True
 
-        # FIXME implement this as an FSM
-
-        # upon success, invalidate old parent
-        self.oldPreferredParent = None
+        if armTimeout:
+            self.engine.scheduleIn(
+                delay       = self.SIXTOP_TIMEOUT * 3,
+                cb          = self._msf_action_parent_change,
+                uniqueTag   = (self.id,'_msf_action_parent_change_retransmission'),
+                priority    = 4,
+            )
+        else:
+            # upon success, invalidate old parent
+            self.oldPreferredParent = None
 
     def _msf_schedule_housekeeping(self):
         
