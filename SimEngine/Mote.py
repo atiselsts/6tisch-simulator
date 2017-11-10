@@ -926,7 +926,7 @@ class Mote(object):
           Schedule MSF parent change
         '''
         self.engine.scheduleAtAsn(
-            asn         = self.engine.asn + 1,
+            asn         = self.engine.asn + (self.settings.slotframeLength * 16 * random.random()),
             cb          = self._msf_action_parent_change,
             uniqueTag   = (self.id,'_msf_action_parent_change'),
             priority    = 4,
@@ -934,34 +934,36 @@ class Mote(object):
 
     def _msf_action_parent_change(self):
         '''
-          Trigger MSF parent change: Add the same number of cells to the new parent as we had with the old one
+          Trigger MSF parent change: Add the same number of cells to the new parent as we had with the old one.
+          In the case of bootstrap, add one cell to the preferred parent.
         '''
 
         assert self.preferredParent
 
-        armTimeout = False
+        with self.dataLock:
+            armTimeout = False
 
-        if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
-            self._sixtop_cell_reservation_request(self.preferredParent,
-                                                  self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
-                                                  dir=self.DIR_TX)
-            armTimeout = True
+            if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
+                self._sixtop_cell_reservation_request(self.preferredParent,
+                                                      self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
+                                                      dir=self.DIR_TX)
+                armTimeout = True
 
-        if self.numCellsToNeighbors.get(self.oldPreferredParent, 0):
-            self._sixtop_removeCells(self.oldPreferredParent,
-                                     self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
-            armTimeout = True
+            if self.numCellsToNeighbors.get(self.oldPreferredParent, 0):
+                self._sixtop_removeCells(self.oldPreferredParent,
+                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
+                armTimeout = True
 
-        if armTimeout:
-            self.engine.scheduleIn(
-                delay       = self.SIXTOP_TIMEOUT * 3,
-                cb          = self._msf_action_parent_change,
-                uniqueTag   = (self.id,'_msf_action_parent_change_retransmission'),
-                priority    = 4,
-            )
-        else:
-            # upon success, invalidate old parent
-            self.oldPreferredParent = None
+            if armTimeout:
+                self.engine.scheduleIn(
+                    delay       = self.SIXTOP_TIMEOUT * 3,
+                    cb          = self._msf_action_parent_change,
+                    uniqueTag   = (self.id,'_msf_action_parent_change_retransmission'),
+                    priority    = 4,
+                )
+            else:
+                # upon success, invalidate old parent
+                self.oldPreferredParent = None
 
     def _msf_schedule_housekeeping(self):
         
