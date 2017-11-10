@@ -962,6 +962,7 @@ class Mote(object):
                     priority    = 4,
                 )
             else:
+                assert self.numCellsToNeighbors.get(self.preferredParent, 0)
                 # upon success, invalidate old parent
                 self.oldPreferredParent = None
 
