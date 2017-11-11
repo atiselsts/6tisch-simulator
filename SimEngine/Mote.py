@@ -966,6 +966,56 @@ class Mote(object):
                 # upon success, invalidate old parent
                 self.oldPreferredParent = None
 
+    def _msf_schedule_bandwidth_increment(self):
+        '''
+          Schedule MSF bandwidth increment
+        '''
+        self.engine.scheduleAtAsn(
+            asn         = int(self.engine.asn + 1),
+            cb          = self._msf_action_bandwidth_increment,
+            uniqueTag   = (self.id,'_msf_action_bandwidth_increment'),
+            priority    = 4,
+        )
+
+    def _msf_action_bandwidth_increment(self):
+        '''
+          Trigger 6P to add msfNumCellsToAddOrRemove cells to preferred parent
+        '''
+        self._log(self.INFO,
+                  "[msf] triggering 6P ADD of {0} cell to mote {1}",
+                  (self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
+
+        self._sixtop_cell_reservation_request(self.preferredParent,
+                                              self.settings.msfNumCellsToAddOrRemove,
+                                              dir=self.DIR_TX)
+
+    def _msf_schedule_bandwidth_decrement(self):
+        '''
+          Schedule MSF bandwidth decrement
+        '''
+        self.engine.scheduleAtAsn(
+            asn=int(self.engine.asn + 1),
+            cb=self._msf_action_bandwidth_decrement,
+            uniqueTag=(self.id, '_msf_action_bandwidth_decrement'),
+            priority=4,
+        )
+
+    def _msf_action_bandwidth_decrement(self):
+        '''
+          Trigger 6P to remove msfNumCellsToAddOrRemove cells from preferred parent
+        '''
+        # ensure at least one dedicated cell is kept with preferred parent
+        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 1:
+
+            self._log(self.INFO,
+                      "[msf] triggering 6P REMOVE of {0} cell to mote {1}",
+                      (self.settings.msfNumCellsToAddOrRemove,
+                       self.preferredParent.id))
+
+            # trigger 6p to remove msfNumCellsToAddOrRemove cells
+            self._sixtop_removeCells(self.preferredParent,
+                                     self.settings.msfNumCellsToAddOrRemove)
+
     def _msf_schedule_housekeeping(self):
         
         self.engine.scheduleIn(
@@ -1963,23 +2013,9 @@ class Mote(object):
                 # MSF algorithm to adapt to traffic
                 if self.numCellsPassed == self.settings.msfMaxNumCells:
                     if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
-                        # trigger 6P to add msfNumCellsToAddOrRemove cells
-                        self._log(self.INFO,
-                                  "[msf] numCellsUsed = {0}, triggering 6P ADD of {1} cell to mote {2}",
-                                  (self.numCellsUsed, self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
-                        self._sixtop_cell_reservation_request(self.preferredParent,
-                                                              self.settings.msfNumCellsToAddOrRemove,
-                                                              dir=self.DIR_TX)
+                        self._msf_schedule_bandwidth_increment()
                     elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
-                        # ensure at least one dedicated cell is kept with preferred parent
-                        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 1:
-                            self._log(self.INFO,
-                                      "[msf] numCellsUsed = {0}, triggering 6P REMOVE of {1} cell to mote {2}",
-                                      (self.numCellsUsed, self.settings.msfNumCellsToAddOrRemove,
-                                       self.preferredParent.id))
-                            # trigger 6p to remove msfNumCellsToAddOrRemove cells
-                            self._sixtop_removeCells(self.preferredParent,
-                                                     self.settings.msfNumCellsToAddOrRemove)
+                        self._msf_schedule_bandwidth_decrement()
                     self.numCellsPassed = 0
                     self.numCellsUsed = 0
              
