@@ -949,7 +949,7 @@ class Mote(object):
                                                       dir=self.DIR_TX)
                 armTimeout = True
 
-            if self.numCellsToNeighbors.get(self.oldPreferredParent, 0):
+            if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
                 self._sixtop_removeCells(self.oldPreferredParent,
                                          self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
                 armTimeout = True
