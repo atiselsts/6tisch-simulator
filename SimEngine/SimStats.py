@@ -144,9 +144,8 @@ class SimStats(object):
         # count number of motes with at least one TX cell in their schedule
         numBootstrappedMotes = 0
         for mote in self.engine.motes:
-            for (ts,cell) in mote.schedule.items():
-                if cell['dir']==mote.DIR_TX:
-                    numBootstrappedMotes += 1
+            if len(mote.getTxCells()) > 0:
+                numBootstrappedMotes += 1
         
         # compute the number of schedule collisions
         
