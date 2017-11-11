@@ -140,6 +140,13 @@ class SimStats(object):
     def _collectScheduleStats(self):
 
         returnVal = {}
+
+        # count number of motes with at least one TX cell in their schedule
+        numBootstrappedMotes = 0
+        for mote in self.engine.motes:
+            for (ts,cell) in mote.schedule.items():
+                if cell['dir']==mote.DIR_TX:
+                    numBootstrappedMotes += 1
         
         # compute the number of schedule collisions
         
@@ -198,7 +205,7 @@ class SimStats(object):
                     else:
                         returnVal[k] += 0
 
-        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs})
+        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs , 'numBootstrappedMotes': numBootstrappedMotes})
                             
         return returnVal
     
