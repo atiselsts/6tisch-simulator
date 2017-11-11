@@ -1012,7 +1012,8 @@ class Mote(object):
                 )
 
         if not found: # if we did not find it, assert
-            assert False
+            #assert False
+            pass
     
     def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
         ''' tries to reserve numCells cells to a neighbor. '''
