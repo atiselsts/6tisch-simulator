@@ -753,7 +753,6 @@ class Mote(object):
             
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
-            bootstrapParent = False
             for (neighbor,neighborRank) in self.neighborRank.items():
                 # calculate the rank increase to that neighbor
                 rankIncrease = self._rpl_calcRankIncrease(neighbor)
