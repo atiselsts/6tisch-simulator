@@ -390,13 +390,13 @@ class Mote(object):
             self.engine.scheduleIn(
                 delay        = self.settings.burstTimestamp,
                 cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst1'),
+                uniqueTag    = (self.id, '_app_action_enqueueData_burst1_{0}'.format(i)),
                 priority     = 2,
             )
             self.engine.scheduleIn(
                 delay        = 3*self.settings.burstTimestamp,
                 cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst2'),
+                uniqueTag    = (self.id, '_app_action_enqueueData_burst2_{0}'.format(i)),
                 priority     = 2,
             )
     
