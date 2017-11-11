@@ -58,6 +58,9 @@ class SimStats(object):
         self.stats                          = {}
         self.columnNames                    = []
         self.numCycles                      = 0
+
+        # schedule bootstrap complete
+        self.scheduleBootstrapped           = False
         
         # start file
         if self.runNum==0:
@@ -143,9 +146,16 @@ class SimStats(object):
 
         # count number of motes with at least one TX cell in their schedule
         numBootstrappedMotes = 0
+        dagRoot = None
         for mote in self.engine.motes:
             if len(mote.getTxCells()) > 0:
                 numBootstrappedMotes += 1
+            if mote.dagRoot is True:
+                dagRoot = mote
+
+        if numBootstrappedMotes == len(self.engine.motes) - 1 and self.scheduleBootstrapped is False:
+            dagRoot._log(dagRoot.INFO, "[bootstrap] complete, all motes have at least one TX cell.")
+            self.scheduleBootstrapped = True
         
         # compute the number of schedule collisions
         
