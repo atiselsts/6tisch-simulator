@@ -926,7 +926,7 @@ class Mote(object):
           Schedule MSF parent change
         '''
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + (self.settings.slotframeLength * 16 * random.random())),
+            asn         = int(self.engine.asn + (1 + self.settings.slotframeLength * 16 * random.random())),
             cb          = self._msf_action_parent_change,
             uniqueTag   = (self.id,'_msf_action_parent_change'),
             priority    = 4,
