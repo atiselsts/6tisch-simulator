@@ -71,10 +71,6 @@ class SimEngine(threading.Thread):
         self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
-        
-        #not valid values. Will be set by the last mote that becomes ready (finishes bootstrap)
-        self.asnInitExperiment=999999999
-        self.asnEndExperiment=999999999
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -101,10 +97,7 @@ class SimEngine(threading.Thread):
         log.info("thread {0} starting".format(self.name))
         
         # schedule the endOfSimulation event if we are not simulating the join process
-        if not self.settings.withJoin and not self.settings.withBootstrap:
-            if self.settings.numCyclesPerRun==0:
-                #at least min cycle 0
-                self.settings.numCyclesPerRun=1
+        if not self.settings.withJoin:
             self.scheduleAtAsn(
                 asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
                 cb          = self._actionEndSim,
