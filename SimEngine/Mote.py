@@ -1146,8 +1146,8 @@ class Mote(object):
                 # log
                 self._log(
                     self.INFO,
-                    "[6top] fired timer on mote {0} for neighbor {1}.",
-                    (self.id, n),
+                    "[6top] fired timer on mote {0} for neighbor {1} for message with seqNum = {2}.",
+                    (self.id, n, self.sixtopStates[n]['tx']['seqNum']),
                 )
 
         if not found: # if we did not find it, assert
@@ -1440,13 +1440,13 @@ class Mote(object):
                         (len(cells),numCells,self.id,neighbor.id),
                     )
 
-    def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells,seq):
+    def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, seq):
         ''' enqueue a new 6P ADD request '''
 
         self._log(
             self.INFO,
-            '[6top] enqueueing a new 6P ADD message cellList={0}, numCells={1} from {2} to {3}',
-            (cellList, numCells, self.id, neighbor.id),
+            '[6top] enqueueing a new 6P ADD message (seqNum = {0}) cellList={1}, numCells={2} from {3} to {4}',
+            (seq, cellList, numCells, self.id, neighbor.id),
         )
 
         # create new packet
@@ -1490,8 +1490,8 @@ class Mote(object):
                         self.txQueue.remove(pkt)
                         self._log(
                             self.INFO,
-                            "[6top] removed a 6TOP_TYPE_RESPONSE packet in the queue of mote {0} to neighbor {1}, because a new TYPE_REQUEST (add) was received.",
-                            (self.id, smac.id),
+                            "[6top] removed a 6TOP_TYPE_RESPONSE packet (seqNum = {0}) in the queue of mote {1} to neighbor {2}, because a new TYPE_REQUEST (add, seqNum = {3}) was received.",
+                            (pkt['payload'][3], self.id, smac.id, seq),
                         )
                 returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
                 if smac.id not in self.sixtopStates:
@@ -1601,8 +1601,8 @@ class Mote(object):
 
         self._log(
             self.INFO,
-            '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, from {3} to {4}',
-            (cellList, len(cellList), returnCode, self.id, neighbor.id),
+            '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, seqNum={3} from {4} to {5}',
+            (cellList, len(cellList), returnCode, seq, self.id, neighbor.id),
         )
         seq+=1
         # create new packet
