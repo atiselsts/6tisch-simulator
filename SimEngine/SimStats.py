@@ -28,41 +28,41 @@ import SimSettings
 #============================ body ============================================
 
 class SimStats(object):
-    
+
     #===== start singleton
     _instance      = None
     _init          = False
-    
+
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(SimStats,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     #===== end singleton
-    
+
     def __init__(self,runNum):
-        
+
         #===== start singleton
         if self._init:
             return
         self._init = True
         #===== end singleton
-        
+
         # store params
         self.runNum                         = runNum
-        
+
         # local variables
         self.engine                         = SimEngine.SimEngine()
         self.settings                       = SimSettings.SimSettings()
-        
+
         # stats
         self.stats                          = {}
         self.columnNames                    = []
         self.numCycles                      = 0
-        
+
         # start file
         if self.runNum==0:
             self._fileWriteHeader()
-        
+
         # schedule actions
         self.engine.scheduleAtStart(
             cb          = self._actionStart,
@@ -76,26 +76,27 @@ class SimStats(object):
         self.engine.scheduleAtEnd(
             cb          = self._actionEnd,
         )
-    
+
     def destroy(self):
         # destroy my own instance
         self._instance                      = None
         self._init                          = False
-    
+
     #======================== private =========================================
-    
+
     def _actionStart(self):
         '''Called once at beginning of the simulation.'''
         pass
-    
+
     def _actionEndCycle(self):
         '''Called at each end of cycle.'''
-        
+
         cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
-        
+
         # print
         if self.settings.cpuID==None:
             print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
+
 
         # write statistics to output file
         self._fileWriteStats(
@@ -108,7 +109,7 @@ class SimStats(object):
                 self._collectScheduleStats().items()
             )
         )
-        
+
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
             asn         = self.engine.getAsn()+self.settings.slotframeLength,
@@ -116,17 +117,17 @@ class SimStats(object):
             uniqueTag   = (None,'_actionEndCycle'),
             priority    = 10,
         )
-    
+
     def _actionEnd(self):
         '''Called once at end of the simulation.'''
         self.numCycles = int(self.engine.getAsn()/self.settings.slotframeLength)
         self._fileWriteTopology()
-    
+
     #=== collecting statistics
-    
+
     def _collectSumMoteStats(self):
         returnVal = {}
-        
+
         for mote in self.engine.motes:
             moteStats        = mote.getMoteStats()
             if not returnVal:
@@ -134,17 +135,17 @@ class SimStats(object):
             else:
                 for k in returnVal.keys():
                     returnVal[k] += moteStats[k]
-        
+
         return returnVal
-    
+
     def _collectScheduleStats(self):
 
         returnVal = {}
-        
+
         # compute the number of schedule collisions
-        
+
         # Note that this cannot count past schedule collisions which have been relocated by 6top
-        # as this is called at the end of cycle   
+        # as this is called at the end of cycle
         scheduleCollisions = 0
         txCells = []
         for mote in self.engine.motes:
@@ -155,7 +156,7 @@ class SimStats(object):
                         scheduleCollisions += 1
                     else:
                         txCells += [(ts,ch)]
-        
+
         # collect collided links
         txLinks = {}
         for mote in self.engine.motes:
@@ -164,20 +165,20 @@ class SimStats(object):
                     (ts,ch) = (ts,cell['ch'])
                     (tx,rx) = (mote,cell['neighbor'])
                     if (ts,ch) in txLinks:
-                        txLinks[(ts,ch)] += [(tx,rx)] 
+                        txLinks[(ts,ch)] += [(tx,rx)]
                     else:
                         txLinks[(ts,ch)]  = [(tx,rx)]
-                        
+
         collidedLinks = [txLinks[(ts,ch)] for (ts,ch) in txLinks if len(txLinks[(ts,ch)])>=2]
-        
+
         # compute the number of Tx in schedule collision cells
         collidedTxs = 0
         for links in collidedLinks:
             collidedTxs += len(links)
-        
-        # compute the number of effective collided Tx    
+
+        # compute the number of effective collided Tx
         effectiveCollidedTxs = 0
-        insufficientLength   = 0 
+        insufficientLength   = 0
         for links in collidedLinks:
             for (tx1,rx1) in links:
                 for (tx2,rx2) in links:
@@ -199,45 +200,45 @@ class SimStats(object):
                         returnVal[k] += 0
 
         returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs})
-                            
+
         return returnVal
-    
+
     #=== writing to file
-    
+
     def _fileWriteHeader(self):
         output          = []
         output         += ['## {0} = {1}'.format(k,v) for (k,v) in self.settings.__dict__.items() if not k.startswith('_')]
         output         += ['\n']
         output          = '\n'.join(output)
-        
+
         with open(self.settings.getOutputFile(),'w') as f:
             f.write(output)
-    
+
     def _fileWriteStats(self,stats):
         output          = []
-        
+
         # columnNames
         if not self.columnNames:
             self.columnNames = sorted(stats.keys())
             output     += ['\n# '+' '.join(self.columnNames)]
-        
+
         # dataline
         formatString    = ' '.join(['{{{0}:>{1}}}'.format(i,len(k)) for (i,k) in enumerate(self.columnNames)])
         formatString   += '\n'
-        
+
         vals = []
         for k in self.columnNames:
             if type(stats[k])==float:
                 vals += ['{0:.3f}'.format(stats[k])]
             else:
                 vals += [stats[k]]
-        
+
         output += ['  '+formatString.format(*tuple(vals))]
-        
+
         # write to file
         with open(self.settings.getOutputFile(),'a') as f:
             f.write('\n'.join(output))
-    
+
     def _fileWriteTopology(self):
         output  = []
         output += [
@@ -336,6 +337,6 @@ class SimStats(object):
                 )
             ]
         output  = '\n'.join(output)
-        
+
         with open(self.settings.getOutputFile(),'a') as f:
             f.write(output)

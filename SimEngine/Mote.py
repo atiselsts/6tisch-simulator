@@ -122,7 +122,7 @@ class Mote(object):
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
 
     #=== 6P default timeout value
-    SIXTOP_TIMEOUT                     = 15
+    SIXTOP_TIMEOUT                     = 60
 
     #=== otf
     OTF_TRAFFIC_SMOOTHING              = 0.5
@@ -148,7 +148,6 @@ class Mote(object):
     BROADCAST_ADDRESS                  = 0xffff
 
     def __init__(self,id):
-
         # store params
         self.id                        = id
         # local variables
@@ -1604,7 +1603,6 @@ class Mote(object):
             '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, seqNum={3} from {4} to {5}',
             (cellList, len(cellList), returnCode, seq, self.id, neighbor.id),
         )
-        seq+=1
         # create new packet
         newPacket = {
             'asn':            self.engine.getAsn(),
@@ -1677,6 +1675,8 @@ class Mote(object):
                 )
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
+                self.sixtopStates[smac.id]['tx']['seqNum'] += 1
+
                 # if the request was successfull and there were enough resources
                 if code == self.IANA_6TOP_RC_SUCCESS:
                     cellList=[]
@@ -1709,7 +1709,7 @@ class Mote(object):
 
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
-                    self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
+                    self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
                 elif code == self.IANA_6TOP_RC_NORES:
                     # log
@@ -1800,6 +1800,8 @@ class Mote(object):
                 )
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
+                self.sixtopStates[smac.id]['tx']['seqNum'] += 1
+
                 # if the request was successfull and there were enough resources
                 if code == self.IANA_6TOP_RC_SUCCESS:
                     cellList=[]
@@ -1826,7 +1828,7 @@ class Mote(object):
 
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
-                    self.sixtopStates[neighbor.id]['tx']['blockedCells']=[]
+                    self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
                 elif code == self.IANA_6TOP_RC_NORES:
                     # log
@@ -1911,6 +1913,7 @@ class Mote(object):
                     # but if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
                     self.sixtopStates[neighbor.id]['rx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['rx']['blockedCells']=[]
+                    self.sixtopStates[neighbor.id]['rx']['seqNum'] += 1
 
             elif self.sixtopStates[packet['dstIp'].id]['rx']['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
 
@@ -2555,9 +2558,6 @@ class Mote(object):
                         )
                     else:
                         assert False
-
-                    self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['seqNum']+=1
-
 
                 if self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
