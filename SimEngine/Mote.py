@@ -120,13 +120,12 @@ class Mote(object):
     IANA_6TOP_RC_BUSY                           = 0x07 # busy
     IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
+    
+    #=== 6P default timeout value in seconds
+    SIXTOP_TIMEOUT                              = 15
+    #=== MSF
+    MSF_MIN_NUM_CELLS                           = 5
 
-    #=== 6P default timeout value
-    SIXTOP_TIMEOUT                     = 60
-
-    #=== otf
-    OTF_TRAFFIC_SMOOTHING              = 0.5
-    #=== 6top
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 5
@@ -158,13 +157,11 @@ class Mote(object):
         self.propagation               = Propagation.Propagation()
 
         # join process
-        self.isJoined                  = False if self.settings.withJoin else True
+        self.isJoined                  = False
         self.joinRetransmissionPayload = 0
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
-        #bootstrap   ->   nodes have a parent and at least 1 dedicated cell
-        self.isBootstrapped               = False if self.settings.withBootstrap else True
-        self.firstIsBootstrapped       = 0                      # ASN at the time node becomes ready (have at least 1 dedicated cell)
+
         # app
         self.pkPeriod                  = self.settings.pkPeriod
         # role
@@ -173,27 +170,18 @@ class Mote(object):
         self.rank                      = None
         self.dagRank                   = None
         self.parentSet                 = []
+        self.oldPreferredParent        = None                  # preserve old preferred parent upon a change
         self.preferredParent           = None
         self.rplRxDIO                  = {}                    # indexed by neighbor, contains int
         self.neighborRank              = {}                    # indexed by neighbor
         self.neighborDagRank           = {}                    # indexed by neighbor
-        self.trafficPortionPerParent   = {}                    # indexed by parent, portion of outgoing traffic
         self.dagRootAddress            = None
-        # otf
-        self.asnOTFevent               = None
-        self.otfHousekeepingPeriod     = self.settings.otfHousekeepingPeriod
-        self.timeBetweenOTFevents      = []
-        self.inTraffic                 = {}                    # indexed by neighbor
-        self.inTrafficMovingAve        = {}                    # indexed by neighbor
+        # MSF
+        self.numCellsPassed            = 0
+        self.numCellsUsed              = 0
         # 6top
         self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
         self.numCellsFromNeighbors     = {}                    # indexed by neighbor, contains int
-        # changing this threshold the detection of a bad cell can be
-        # tuned, if as higher the slower to detect a wrong cell but the more prone
-        # to avoid churn as lower the faster but with some chances to introduces
-        # churn due to unstable medium
-        self.sixtopPdrThreshold           = self.settings.sixtopPdrThreshold
-        self.sixtopHousekeepingPeriod  = self.settings.sixtopHousekeepingPeriod
 
         # 6top protocol
         self.sixtopStates               = {}
@@ -233,11 +221,8 @@ class Mote(object):
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
 
-        self.pktGen=0                                      #DATA packets generated during the experiment (without warming up)
-        self.pktReceived=0                                 #DATA packets received during the experiment (without warming up)
-        self.pktDropMac=0                                  #DATA packets drop during the experiment (without warming up) due to MAC retransmissions
-        self.pktDropQueue=0                                #DATA packets received during the experiment (without warming up) to Queue full
-        self.tsSixTopReqRecv           = {}                #for every neighbor, it tracks the 6top transaction latency
+        self.tsSixTopReqRecv           = {}                # for every neighbor, it tracks the 6top transaction latency
+
         self.avgsixtopLatency          = []                # it tracks the average 6P transaction latency in a given frame
     #======================== stack ===========================================
 
@@ -252,13 +237,13 @@ class Mote(object):
         self.parents              = {} # dictionary containing parents of each node from whom DAG root received a DAO
         self.isJoined             = True
         self.isSync               = True
-        self.isBootstrapped          = True
 
         # imprint DAG root's ID at each mote
         for mote in self.engine.motes:
             mote.dagRootAddress = self
 
     # ===== join process
+
     def join_scheduleJoinProcess(self):
         delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
 
@@ -271,44 +256,42 @@ class Mote(object):
         )
 
     def join_setJoined(self):
-        assert self.settings.withJoin
+
+        assert not self.dagRoot
+
         if not self.isJoined:
             self.isJoined = True
-            self._tsch_schedule_sendEB(firstEB=True)
             self.joinAsn  = self.engine.getAsn()
-            #start scheduling packets once you have joined
-            self._app_schedule_sendSinglePacket(firstPacket=True)
             # log
             self._log(
                 self.INFO,
                 "[join] Mote joined",
             )
 
-            #if there is not bootstrap phase, check if end of simulation has to be scheduled
-            if not self.settings.withBootstrap:
-                # check if all motes have joined, if so end the simulation
-                if all(mote.isJoined == True for mote in self.engine.motes):
-                    if self.settings.numCyclesPerRun!=0:
-                        #experiment time in ASNs
-                        simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
-                        #offset until the end of the current cycle
-                        offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-                        #experiment time + offset
-                        delay=simTime+offset
-                    else:
-                        #simulation will finish in the next asn
-                        delay=1
-                    # end the simulation
-                    self.engine.terminateSimulation(delay)
-                    #setting init experiment
-                    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
+            # schedule MSF bootstrap of the preferred parent
+            self._msf_schedule_parent_change()
+
+            # check if all motes have joined, if so end the simulation after numCyclesPerRun
+            if self.settings.withJoin and all(mote.isJoined == True for mote in self.engine.motes):
+                if self.settings.numCyclesPerRun != 0:
+                    # experiment time in ASNs
+                    simTime = self.settings.numCyclesPerRun * self.settings.slotframeLength
+                    # offset until the end of the current cycle
+                    offset = self.settings.slotframeLength - (self.engine.asn % self.settings.slotframeLength)
+                    # experiment time + offset
+                    delay = simTime + offset
+                else:
+                    # simulation will finish in the next asn
+                    delay = 1
+                # end the simulation
+                self.engine.terminateSimulation(delay)
 
     def join_initiateJoinProcess(self):
         if not self.dagRoot:
             if self.preferredParent:
                 if not self.isJoined:
                     self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
-            else:#node doesn't have a parent yet, re-scheduling
+            else: # node doesn't have a parent yet, re-scheduling
                 self.join_scheduleJoinProcess()
 
     def join_sendJoinPacket(self, token, destination):
@@ -324,7 +307,7 @@ class Mote(object):
                 'asn': self.engine.getAsn(),
                 'type': self.APP_TYPE_JOIN,
                 'code': None,
-                'payload': token,
+                'payload': [token, self.id if not self.dagRoot else None, self.preferredParent.id if not self.dagRoot else None],
                 'retriesLeft': self.TSCH_MAXTXRETRIES,
                 'srcIp': self,  # DAG root
                 'dstIp': destination,
@@ -336,7 +319,7 @@ class Mote(object):
 
             if isEnqueued:
                 # increment traffic
-                self._otf_incrementIncomingTraffic(self)
+                self._log(self.INFO, "[join] Enqueued join packet for mote {0} with token = {1}", (destination.id, token))
             else:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedFailedEnqueue')
@@ -360,16 +343,23 @@ class Mote(object):
     def join_receiveJoinPacket(self, srcIp, payload, timestamp):
         self.engine.removeEvent((self.id, '_join_action_retransmission')) # remove the pending retransmission event
 
-        if payload != 0:
-            newPayload = payload - 1
+        self._log(self.INFO, "[join] Received join packet from {0} with token {1}", (srcIp.id, payload[0]))
 
-            self.join_sendJoinPacket(token=newPayload, destination=srcIp)
+        # this is a hack to allow downward routing of join packets before node has sent a DAO
+        if self.dagRoot:
+            self.parents.update({tuple([payload[1]]): [[payload[2]]]})
 
+        if payload[0] != 0:
+            newToken = payload[0] - 1
+            self.join_sendJoinPacket(token=newToken, destination=srcIp)
         else:
             self.join_setJoined()
+            # Trigger sending EBs and DIOs, and the rest of the stack
+            self._init_stack()
 
     def join_joinedNeighbors(self):
         return [nei for nei in self._myNeigbors() if nei.isJoined == True]
+
     #===== application
 
     def _app_schedule_sendSinglePacket(self,firstPacket=False):
@@ -402,13 +392,13 @@ class Mote(object):
             self.engine.scheduleIn(
                 delay        = self.settings.burstTimestamp,
                 cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst1'),
+                uniqueTag    = (self.id, '_app_action_enqueueData_burst1_{0}'.format(i)),
                 priority     = 2,
             )
             self.engine.scheduleIn(
                 delay        = 3*self.settings.burstTimestamp,
                 cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst2'),
+                uniqueTag    = (self.id, '_app_action_enqueueData_burst2_{0}'.format(i)),
                 priority     = 2,
             )
 
@@ -426,9 +416,6 @@ class Mote(object):
 
     def _app_action_receivePacket(self, srcIp, payload, timestamp):
         assert self.dagRoot
-
-        if payload[1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-            self.pktReceived+=1
 
         # update mote stats
         self._stats_incrementMoteStats('appReachesDagroot')
@@ -467,31 +454,10 @@ class Mote(object):
     def _app_action_enqueueData(self):
         ''' enqueue data packet into stack '''
 
-        # only start sending data if I have some TX cells
-        if self.getTxCells():
+        assert not self.dagRoot
 
-            if self.isBootstrapped==False:
-                self.isBootstrapped=True
-                self.firstIsBootstrapped=self.engine.asn
-                # check if all motes are ready, if so, schedule end the simulation
-                if all(mote.isBootstrapped == True for mote in self.engine.motes):
-                    if self.settings.numCyclesPerRun!=0:
-                        #experiment time in ASNs
-                        simTime=self.settings.numCyclesPerRun*self.settings.slotframeLength
-                        #offset until the end of the current cycle
-                        offset=self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-                        #experiment time + offset
-                        delay=simTime+offset
-                    else:
-                        #simulation will finish in the next asn
-                        delay=1
-                    # end the simulation
-                    self.engine.terminateSimulation(delay)
-                    #setting init experiment
-                    self.engine.asnInitExperiment=self.engine.asn+self.settings.slotframeLength-(self.engine.asn%self.settings.slotframeLength)
-
-            if self.engine.asn > self.engine.asnInitExperiment:
-                self.pktGen+=1
+        # only start sending DATA if: I have a preferred parent AND dedicated cells to that parent
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
 
             # create new packet
             newPacket = {
@@ -512,19 +478,16 @@ class Mote(object):
             isEnqueued = self._tsch_enqueue(newPacket)
 
             if isEnqueued:
-                # increment traffic
-                self._otf_incrementIncomingTraffic(self)
+                pass
             else:
-                if self.engine.asn > self.engine.asnInitExperiment:
-                    self.pktDropQueue+=1
                 # update mote stats
                 self._stats_incrementMoteStats('droppedDataFailedEnqueue')
 
     def _tsch_action_enqueueEB(self):
         ''' enqueue EB packet into stack '''
 
-        # only start sending EBs if I have Shared cells
-        if self.getSharedCells():
+        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
 
             # create new packet
             newPacket = {
@@ -591,18 +554,31 @@ class Mote(object):
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB and not self.isSync:
+            assert self.settings.withJoin
+            # log
+            self._log(
+                self.INFO,
+                "[tsch] synced on EB received from mote {0}.",
+                (smac.id,),
+            )
             self.firstBeaconAsn = self.engine.getAsn()
             self.firstEB = False
+            # declare as synced to the network
             self.isSync = True
-            self._init_stack()
+            # add the minimal cell to the schedule
+            self._tsch_add_minimal_cell()
+            # trigger join process
+            self.join_scheduleJoinProcess()  # trigger the join process
 
     #===== rpl
 
     def _rpl_action_enqueueDIO(self):
         ''' enqueue DIO packet into stack '''
 
-        # only start sending data if I have Shared cells
-        if self.getSharedCells():
+        # only start sending DIOs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
+
+            self._stats_incrementMoteStats('rplTxDIO')
 
             # create new packet
             newPacket = {
@@ -626,8 +602,12 @@ class Mote(object):
     def _rpl_action_enqueueDAO(self):
         ''' enqueue DAO packet into stack '''
 
-        # only start sending data if I have Shared cells
-        if self.getSharedCells() or self.getTxCells():
+        assert not self.dagRoot
+
+        # only start sending DAOs if: I have a preferred parent AND dedicated cells to that parent
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
+
+            self._stats_incrementMoteStats('rplTxDAO')
 
             # create new packet
             newPacket = {
@@ -700,6 +680,8 @@ class Mote(object):
             if not self.isSync:
                 return
 
+            self._log(self.INFO, "[rpl] Received DIO from mote {0}", (smac.id,))
+
             # update my mote stats
             self._stats_incrementMoteStats('rplRxDIO')
 
@@ -729,6 +711,7 @@ class Mote(object):
                 self.timeCorrectedSlot      = asn
 
     def _rpl_action_receiveDAO(self, type, smac, payload):
+
         with self.dataLock:
 
             assert self.dagRoot
@@ -736,6 +719,7 @@ class Mote(object):
             self._stats_incrementMoteStats('rplRxDAO')
 
             self.parents.update({tuple([payload[0]]) : [[payload[1]]]})
+
     def _rpl_action_sendDIO(self):
 
         with self.dataLock:
@@ -746,81 +730,68 @@ class Mote(object):
             else:
                 sendDio = True
 
-            if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.withJoin:
-                    if sendDio:
-                        self._rpl_action_enqueueDIO()
-                        self._stats_incrementMoteStats('rplTxDIO')
+            if sendDio:
+                self._rpl_action_enqueueDIO()
 
             self._rpl_schedule_sendDIO() # schedule next DIO
 
     def _rpl_action_sendDAO(self):
 
         with self.dataLock:
-            if self.preferredParent and not self.dagRoot:
-                self._rpl_action_enqueueDAO()
-                self._stats_incrementMoteStats('rplTxDAO')
 
-            self._rpl_schedule_sendDAO()  # schedule next DIO
+            self._rpl_action_enqueueDAO()
+            self._rpl_schedule_sendDAO()  # schedule next DAO
 
     def _rpl_housekeeping(self):
-        with self.dataLock:
 
+        with self.dataLock:
+            
             #===
             # refresh the following parameters:
             # - self.preferredParent
             # - self.rank
             # - self.dagRank
             # - self.parentSet
-
+            
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
             for (neighbor,neighborRank) in self.neighborRank.items():
                 # calculate the rank increase to that neighbor
                 rankIncrease = self._rpl_calcRankIncrease(neighbor)
-                if rankIncrease!=None and rankIncrease<=min([self.RPL_MAX_RANK_INCREASE, self.RPL_MAX_TOTAL_RANK-neighborRank]):
+                if rankIncrease!=None and rankIncrease<=min([self.RPL_MAX_RANK_INCREASE, self.RPL_MAX_TOTAL_RANK-neighborRank]):                
                     # record this potential rank
                     potentialRanks[neighbor] = neighborRank+rankIncrease
-
+            
             # sort potential ranks
             sorted_potentialRanks = sorted(potentialRanks.iteritems(), key=lambda x:x[1])
-
+            
             # switch parents only when rank difference is large enough
             for i in range(1,len(sorted_potentialRanks)):
                 if sorted_potentialRanks[i][0] in self.parentSet:
-                    # compare the selected current parent with motes who have lower potential ranks
-                    # and who are not in the current parent set
-                    for j in range(i):
+                    # compare the selected current parent with motes who have lower potential ranks 
+                    # and who are not in the current parent set 
+                    for j in range(i):                    
                         if sorted_potentialRanks[j][0] not in self.parentSet:
                             if sorted_potentialRanks[i][1]-sorted_potentialRanks[j][1]<self.RPL_PARENT_SWITCH_THRESHOLD:
                                 mote_rank = sorted_potentialRanks.pop(i)
                                 sorted_potentialRanks.insert(j,mote_rank)
                                 break
-
+                    
             # pick my preferred parent and resulting rank
             if sorted_potentialRanks:
                 oldParentSet = set([parent.id for parent in self.parentSet])
-
+                
                 (newPreferredParent,newrank) = sorted_potentialRanks[0]
-
+                
                 # compare a current preferred parent with new one
                 if self.preferredParent and newPreferredParent!=self.preferredParent:
                     for (mote,rank) in sorted_potentialRanks[:self.RPL_PARENT_SET_SIZE]:
-
-                        if mote == self.preferredParent:
+                        
+                        if mote == self.preferredParent:                      
                             # switch preferred parent only when rank difference is large enough
                             if rank-newrank<self.RPL_PARENT_SWITCH_THRESHOLD:
                                 (newPreferredParent,newrank) = (mote,rank)
-
-                    # update mote stats
-                    self._stats_incrementMoteStats('rplChurnPrefParent')
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[rpl] churn: preferredParent {0}->{1}",
-                        (self.preferredParent.id,newPreferredParent.id),
-                    )
-
+                
                 # update mote stats
                 if self.rank and newrank!=self.rank:
                     self._stats_incrementMoteStats('rplChurnRank')
@@ -830,42 +801,37 @@ class Mote(object):
                         "[rpl] churn: rank {0}->{1}",
                         (self.rank,newrank),
                     )
-
-                # store new preferred parent and rank
-                (self.preferredParent,self.rank) = (newPreferredParent,newrank)
-
-                # calculate DAGrank
-                self.dagRank = int(self.rank/self.RPL_MIN_HOP_RANK_INCREASE)
-
-                # pick my parent set
-                self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
-                assert self.preferredParent in self.parentSet
-
-                if oldParentSet!=set([parent.id for parent in self.parentSet]):
-                    self._stats_incrementMoteStats('rplChurnParentSet')
-
-            #===
-            # refresh the following parameters:
-            # - self.trafficPortionPerParent
-
-            etxs        = dict([(p, 1.0/(self.neighborRank[p]+self._rpl_calcRankIncrease(p))) for p in self.parentSet])
-            sumEtxs     = float(sum(etxs.values()))
-            self.trafficPortionPerParent = dict([(p, etxs[p]/sumEtxs) for p in self.parentSet])
-
-            # remove TX cells to neighbor who are not in parent set
-            for neighbor in self.numCellsToNeighbors.keys():
-                if neighbor not in self.parentSet:
+                if self.preferredParent is None and newPreferredParent is not None:
+                    if not self.settings.withJoin:
+                        # if we selected a parent for the first time, add one cell to it
+                        # upon successful join, the reservation request is scheduled explicitly
+                        self._msf_schedule_parent_change()
+                elif self.preferredParent != newPreferredParent:
+                    # update mote stats
+                    self._stats_incrementMoteStats('rplChurnPrefParent')
 
                     # log
                     self._log(
                         self.INFO,
-                        "[otf] removing cell to {0}, since not in parentSet {1}",
-                        (neighbor.id,[p.id for p in self.parentSet]),
+                        "[rpl] churn: preferredParent {0}->{1}",
+                        (self.preferredParent.id,newPreferredParent.id),
                     )
+                    # trigger 6P add to the new parent
+                    self.oldPreferredParent = self.preferredParent
+                    self._msf_schedule_parent_change()
 
-                    tsList=[ts for ts, cell in self.schedule.iteritems() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX]
-                    if tsList:
-                        self._sixtop_cell_deletion_sender(neighbor,tsList)
+                # store new preferred parent and rank
+                (self.preferredParent,self.rank) = (newPreferredParent,newrank)
+                
+                # calculate DAGrank
+                self.dagRank = int(self.rank/self.RPL_MIN_HOP_RANK_INCREASE)
+            
+                # pick my parent set
+                self.parentSet = [n for (n,_) in sorted_potentialRanks if self.neighborRank[n]<self.rank][:self.RPL_PARENT_SET_SIZE]
+                assert self.preferredParent in self.parentSet
+                
+                if oldParentSet!=set([parent.id for parent in self.parentSet]):
+                    self._stats_incrementMoteStats('rplChurnParentSet')
 
     def _rpl_calcRankIncrease(self, neighbor):
 
@@ -953,187 +919,130 @@ class Mote(object):
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
-#===== otf
 
-    def _otf_schedule_housekeeping(self):
+#===== msf
 
-        self.engine.scheduleIn(
-            delay       = self.otfHousekeepingPeriod*(0.9+0.2*random.random()),
-            cb          = self._otf_action_housekeeping,
-            uniqueTag   = (self.id,'_otf_action_housekeeping'),
+    def _msf_schedule_parent_change(self):
+        '''
+          Schedule MSF parent change
+        '''
+        self.engine.scheduleAtAsn(
+            asn         = int(self.engine.asn + (1 + self.settings.slotframeLength * 16 * random.random())),
+            cb          = self._msf_action_parent_change,
+            uniqueTag   = (self.id,'_msf_action_parent_change'),
             priority    = 4,
         )
 
-    def _otf_action_housekeeping(self):
+    def _msf_action_parent_change(self):
         '''
-        OTF algorithm: decides when to add/delete cells.
+          Trigger MSF parent change: Add the same number of cells to the new parent as we had with the old one.
+          In the case of bootstrap, add one cell to the preferred parent.
         '''
+
+        assert self.preferredParent
 
         with self.dataLock:
+            armTimeout = False
 
-            if not self.dagRoot:
-                #if node does not have parent, or has not joined or is not sync, do not perform OTF
-                if self.preferredParent==None or self.isJoined==False or self.isSync==False:
-                    self._otf_schedule_housekeeping()
-                    return
+            if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
+                self._sixtop_cell_reservation_request(self.preferredParent,
+                                                      self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
+                                                      dir=self.DIR_TX)
+                armTimeout = True
 
-            # calculate the "moving average" incoming traffic, in pkts since last cycle, per neighbor
+            if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
+                self._sixtop_removeCells(self.oldPreferredParent,
+                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
+                armTimeout = True
 
-            # collect all neighbors I have RX cells to
-            rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX]
+            if armTimeout:
+                self.engine.scheduleIn(
+                    delay       = 300,
+                    cb          = self._msf_action_parent_change,
+                    uniqueTag   = (self.id,'_msf_action_parent_change_retransmission'),
+                    priority    = 4,
+                )
+            else:
+                assert self.numCellsToNeighbors.get(self.preferredParent, 0)
+                # upon success, invalidate old parent
+                self.oldPreferredParent = None
 
-            # remove duplicates
-            rxNeighbors = list(set(rxNeighbors))
-            rxNeighbors = sorted(rxNeighbors, key=lambda x: x.id, reverse=True)
+    def _msf_schedule_bandwidth_increment(self):
+        '''
+          Schedule MSF bandwidth increment
+        '''
+        self.engine.scheduleAtAsn(
+            asn         = int(self.engine.asn + 1),
+            cb          = self._msf_action_bandwidth_increment,
+            uniqueTag   = (self.id,'_msf_action_bandwidth_increment'),
+            priority    = 4,
+        )
 
-            # reset inTrafficMovingAve
-            neighbors = self.inTrafficMovingAve.keys()
-            for neighbor in neighbors:
-                if neighbor not in rxNeighbors:
-                    del self.inTrafficMovingAve[neighbor]
+    def _msf_action_bandwidth_increment(self):
+        '''
+          Trigger 6P to add msfNumCellsToAddOrRemove cells to preferred parent
+        '''
+        self._log(self.INFO,
+                  "[msf] triggering 6P ADD of {0} cell to mote {1}",
+                  (self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
 
-            # set inTrafficMovingAve
-            for neighborOrMe in rxNeighbors+[self]:
-                if neighborOrMe in self.inTrafficMovingAve:
-                    newTraffic   = 0
-                    newTraffic  += self.inTraffic[neighborOrMe]*self.OTF_TRAFFIC_SMOOTHING               # new
-                    newTraffic  += self.inTrafficMovingAve[neighborOrMe]*(1-self.OTF_TRAFFIC_SMOOTHING)  # old
-                    self.inTrafficMovingAve[neighborOrMe] = newTraffic
-                elif self.inTraffic[neighborOrMe] != 0:
-                    self.inTrafficMovingAve[neighborOrMe] = self.inTraffic[neighborOrMe]
+        self._sixtop_cell_reservation_request(self.preferredParent,
+                                              self.settings.msfNumCellsToAddOrRemove,
+                                              dir=self.DIR_TX)
 
-            # reset the incoming traffic statistics, so they can build up until next housekeeping
-            self._otf_resetInboundTrafficCounters()
+    def _msf_schedule_bandwidth_decrement(self):
+        '''
+          Schedule MSF bandwidth decrement
+        '''
+        self.engine.scheduleAtAsn(
+            asn=int(self.engine.asn + 1),
+            cb=self._msf_action_bandwidth_decrement,
+            uniqueTag=(self.id, '_msf_action_bandwidth_decrement'),
+            priority=4,
+        )
 
-            # calculate my total generated traffic, in pkt/s
-            genTraffic       = 0
-            # generated/relayed by me
-            for neighborOrMe in self.inTrafficMovingAve:
-                genTraffic  += self.inTrafficMovingAve[neighborOrMe]/self.otfHousekeepingPeriod
-            # convert to pkts/cycle
-            genTraffic      *= self.settings.slotframeLength*self.settings.slotDuration
+    def _msf_action_bandwidth_decrement(self):
+        '''
+          Trigger 6P to remove msfNumCellsToAddOrRemove cells from preferred parent
+        '''
+        # ensure at least one dedicated cell is kept with preferred parent
+        if self.numCellsToNeighbors.get(self.preferredParent, 0) > 1:
 
-            remainingPortion = 0.0
-            parent_portion   = self.trafficPortionPerParent.items()
-            # sort list so that the parent assigned larger traffic can be checked first
-            sorted_parent_portion = sorted(parent_portion, key = lambda x: x[1], reverse=True)
+            self._log(self.INFO,
+                      "[msf] triggering 6P REMOVE of {0} cell to mote {1}",
+                      (self.settings.msfNumCellsToAddOrRemove,
+                       self.preferredParent.id))
 
-            # split genTraffic across parents, trigger 6top to add/delete cells accordingly
-            for (parent,portion) in sorted_parent_portion:
+            # trigger 6p to remove msfNumCellsToAddOrRemove cells
+            self._sixtop_removeCells(self.preferredParent,
+                                     self.settings.msfNumCellsToAddOrRemove)
 
-                # if some portion is remaining, this is added to this parent
-                if remainingPortion!=0.0:
-                    portion                               += remainingPortion
-                    remainingPortion                       = 0.0
-                    self.trafficPortionPerParent[parent]   = portion
+    def _msf_schedule_housekeeping(self):
+        
+        self.engine.scheduleIn(
+            delay       = self.settings.msfHousekeepingPeriod*(0.9+0.2*random.random()),
+            cb          = self._msf_action_housekeeping,
+            uniqueTag   = (self.id,'_msf_action_housekeeping'),
+            priority    = 4,
+        )
+    
+    def _msf_action_housekeeping(self):
+        '''
+        MSF housekeeping: decides when to relocate cells
+        '''
+        
+        with self.dataLock:
 
-                # calculate required number of cells to that parent
-                etx = self._estimateETX(parent)
-                if etx>self.RPL_MAX_ETX: # cap ETX
-                    etx  = self.RPL_MAX_ETX
-                reqCells      = int(math.ceil(portion*genTraffic*etx))
+            if self.dagRoot:
+                return
 
-                # calculate the OTF threshold
-                threshold     = int(math.ceil(portion*self.settings.otfThreshold))
-
-                # measure how many cells I have now to that parent
-                nowCells      = self.numCellsToNeighbors.get(parent,0)
-
-                if nowCells==0 or nowCells<reqCells:
-                    # I don't have enough cells
-
-                    # calculate how many to add
-                    if reqCells>0:
-                        # according to traffic
-
-                        numCellsToAdd = reqCells-nowCells+(threshold+1)/2
-                    else:
-                        # but at least one cell
-
-                        numCellsToAdd = 1
-
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[otf] not enough cells to {0}: have {1}, need {2}, add {3}",
-                        (parent.id,nowCells,reqCells,numCellsToAdd),
-                    )
-
-                    # update mote stats
-                    self._stats_incrementMoteStats('otfAdd')
-
-                    # have 6top add cells
-                    self._sixtop_cell_reservation_request(parent,numCellsToAdd)
-
-                    # measure how many cells I have now to that parent
-                    nowCells     = self.numCellsToNeighbors.get(parent,0)
-
-                    # store handled portion and remaining portion
-                    if nowCells<reqCells:
-                        handledPortion   = (float(nowCells)/etx)/genTraffic
-                        remainingPortion = portion - handledPortion
-                        self.trafficPortionPerParent[parent] = handledPortion
-
-                    # remember OTF triggered
-                    otfTriggered = True
-
-                elif reqCells<nowCells-threshold:
-                    # I have too many cells
-
-                    # calculate how many to remove
-                    numCellsToRemove = nowCells-reqCells
-
-                    if reqCells==0:        #I want always there is at least 1 cell available
-                        numCellsToRemove=numCellsToRemove-self.settings.otfThreshold-1
-
-                    # have 6top remove cells
-                    if numCellsToRemove > 0:
-
-                        # log
-                        self._log(
-                            self.INFO,
-                            "[otf] too many cells to {0}:  have {1}, need {2}, remove {3}",
-                            (parent.id,nowCells,reqCells,numCellsToRemove),
-                        )
-
-                        self._sixtop_removeCells(parent,numCellsToRemove)
-                        # update mote stats
-                        self._stats_incrementMoteStats('otfRemove')
-
-                        # remember OTF triggered
-                        otfTriggered = True
-                    else:
-                        otfTriggered = False
-
-                else:
-                    # nothing to do
-
-                    # remember OTF did NOT trigger
-                    otfTriggered = False
-
-                # maintain stats
-                if otfTriggered:
-                    now = self.engine.getAsn()
-                    if not self.asnOTFevent:
-                        assert not self.timeBetweenOTFevents
-                    else:
-                        self.timeBetweenOTFevents += [now-self.asnOTFevent]
-                    self.asnOTFevent = now
-
+            # TODO MSF relocation algorithm
+            
             # schedule next housekeeping
-            self._otf_schedule_housekeeping()
-
-    def _otf_resetInboundTrafficCounters(self):
-        with self.dataLock:
-            for neighbor in self._myNeigbors()+[self]:
-                self.inTraffic[neighbor] = 0
-
-    def _otf_incrementIncomingTraffic(self,neighbor):
-        with self.dataLock:
-            self.inTraffic[neighbor] += 1
+            self._msf_schedule_housekeeping()
 
     #===== 6top
-
+    
     def _sixtop_timer_fired(self):
         found = False
         for n in self.sixtopStates.keys():
@@ -1145,223 +1054,13 @@ class Mote(object):
                 # log
                 self._log(
                     self.INFO,
-                    "[6top] fired timer on mote {0} for neighbor {1} for message with seqNum = {2}.",
-                    (self.id, n, self.sixtopStates[n]['tx']['seqNum']),
+                    "[6top] fired timer on mote {0} for neighbor {1}.",
+                    (self.id, n),
                 )
 
         if not found: # if we did not find it, assert
-            assert False
-
-    def _sixtop_schedule_housekeeping(self):
-
-        self.engine.scheduleIn(
-            delay       = self.sixtopHousekeepingPeriod*(0.9+0.2*random.random()),
-            cb          = self._sixtop_action_housekeeping,
-            uniqueTag   = (self.id,'_sixtop_action_housekeeping'),
-            priority    = 5,
-        )
-
-    def _sixtop_action_housekeeping(self):
-        '''
-        For each neighbor I have TX cells to, relocate cells if needed.
-        '''
-
-        #=== tx-triggered housekeeping
-
-        # collect all neighbors I have TX cells to
-        txNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_TX]
-
-        # remove duplicates
-        txNeighbors = list(set(txNeighbors))
-        txNeighbors = sorted(txNeighbors, key=lambda x: x.id, reverse=True)
-
-        for neighbor in txNeighbors:
-            nowCells = self.numCellsToNeighbors.get(neighbor,0)
-            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_TX and c['neighbor']==neighbor])
-
-        # do some housekeeping for each neighbor
-        for neighbor in txNeighbors:
-            self._sixtop_txhousekeeping_per_neighbor(neighbor)
-
-        #=== rx-triggered housekeeping
-
-        # collect neighbors from which I have RX cells that is detected as collision cell
-        rxNeighbors = [cell['neighbor'] for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision']]
-
-        # remove duplicates
-        rxNeighbors = list(set(rxNeighbors))
-        rxNeighbors = sorted(rxNeighbors, key=lambda x: x.id, reverse=True)
-
-        for neighbor in rxNeighbors:
-            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
-            assert nowCells == len([t for (t,c) in self.schedule.items() if c['dir']==self.DIR_RX and c['neighbor']==neighbor])
-
-        # do some housekeeping for each neighbor
-        for neighbor in rxNeighbors:
-            self._sixtop_rxhousekeeping_per_neighbor(neighbor)
-
-        #=== schedule next housekeeping
-
-        self._sixtop_schedule_housekeeping()
-
-    def _sixtop_txhousekeeping_per_neighbor(self,neighbor):
-        '''
-        For a particular neighbor, decide to relocate cells if needed.
-        '''
-
-        #===== step 1. collect statistics
-
-        # pdr for each cell
-        cell_pdr = []
-        for (ts,cell) in self.schedule.items():
-            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
-                # this is a TX cell to that neighbor
-
-                # abort if not enough TX to calculate meaningful PDR
-                if cell['numTx']<self.NUM_SUFFICIENT_TX:
-                    continue
-
-                # calculate pdr for that cell
-                recentHistory = cell['history'][-self.NUM_MAX_HISTORY:]
-                pdr = float(sum(recentHistory)) / float(len(recentHistory))
-
-                # store result
-                cell_pdr += [(ts,pdr)]
-
-        # pdr for the bundle as a whole
-        bundleNumTx     = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
-        bundleNumTxAck  = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for cell in self.schedule.values() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX])
-        if bundleNumTx<self.NUM_SUFFICIENT_TX:
-            bundlePdr   = None
-        else:
-            bundlePdr   = float(bundleNumTxAck) / float(bundleNumTx)
-
-        #===== step 2. relocate worst cell in bundle, if any
-        # this step will identify the cell with the lowest PDR in the bundle.
-        # If its PDR is self.sixtopPdrThreshold lower than the average of the bundle
-        # this step will move that cell.
-
-        relocation = False
-
-        if cell_pdr:
-
-            # identify the cell with worst pdr, and calculate the average
-
-            worst_ts   = None
-            worst_pdr  = None
-
-            for (ts,pdr) in cell_pdr:
-                if worst_pdr==None or pdr<worst_pdr:
-                    worst_ts  = ts
-                    worst_pdr = pdr
-
-            assert worst_ts!=None
-            assert worst_pdr!=None
-
-            # ave pdr for other cells
-            othersNumTx      = sum([len(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])
-            othersNumTxAck   = sum([sum(cell['history'][-self.NUM_MAX_HISTORY:]) for (ts,cell) in self.schedule.items() if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX and ts != worst_ts])
-            if othersNumTx<self.NUM_SUFFICIENT_TX:
-                ave_pdr      = None
-            else:
-                ave_pdr      = float(othersNumTxAck) / float(othersNumTx)
-
-            # relocate worst cell if "bad enough"
-            if ave_pdr and worst_pdr<(ave_pdr/self.sixtopPdrThreshold):
-
-                # log
-                self._log(
-                    self.INFO,
-                    "[6top] relocating cell ts {0} to {1} (pdr={2:.3f} significantly worse than others {3})",
-                    (worst_ts,neighbor.id,worst_pdr,cell_pdr),
-                )
-
-                # measure how many cells I have now to that parent
-                nowCells = self.numCellsToNeighbors.get(neighbor,0)
-
-                # relocate: add new first
-                self._sixtop_cell_reservation_request(neighbor,1)
-
-                # relocate: remove old only when successfully added
-                if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-                    self._sixtop_cell_deletion_sender(neighbor,[worst_ts])
-
-                    # update stats
-                    self._stats_incrementMoteStats('topTxRelocatedCells')
-
-                    # remember I relocated a cell for that bundle
-                    relocation = True
-
-        #===== step 3. relocate the complete bundle
-        # this step only runs if the previous hasn't, and we were able to
-        # calculate a bundle PDR.
-        # This step verifies that the average PDR for the complete bundle is
-        # expected, given the RSSI to that neighbor. If it's lower, this step
-        # will move all cells in the bundle.
-
-        bundleRelocation = False
-
-        if (not relocation) and bundlePdr!=None:
-
-            # calculate the theoretical PDR to that neighbor, using the measured RSSI
-            rssi            = self.getRSSI(neighbor)
-            theoPDR         = Topology.Topology.rssiToPdr(rssi)
-
-            # relocate complete bundle if measured RSSI is significantly worse than theoretical
-            if bundlePdr<(theoPDR/self.sixtopPdrThreshold):
-                for (ts,_) in cell_pdr:
-
-                    # log
-                    self._log(
-                        self.INFO,
-                        "[6top] relocating cell ts {0} to {1} (bundle pdr {2} << theoretical pdr {3})",
-                        (ts,neighbor.id,bundlePdr,theoPDR),
-                    )
-
-                    # measure how many cells I have now to that parent
-                    nowCells = self.numCellsToNeighbors.get(neighbor,0)
-
-                    # relocate: add new first
-                    self._sixtop_cell_reservation_request(neighbor,1)
-
-                    # relocate: remove old only when successfully added
-                    if nowCells < self.numCellsToNeighbors.get(neighbor,0):
-
-                        self._sixtop_cell_deletion_sender(neighbor,[ts])
-
-                        bundleRelocation = True
-
-                # update stats
-                if bundleRelocation:
-                    self._stats_incrementMoteStats('topTxRelocatedBundles')
-
-    def _sixtop_rxhousekeeping_per_neighbor(self,neighbor):
-        '''
-        The RX node triggers a relocation when it has heard a packet
-        from a neighbor it did not expect ('rxDetectedCollision')
-        '''
-
-        rxCells = [(ts,cell) for (ts,cell) in self.schedule.items() if cell['dir']==self.DIR_RX and cell['rxDetectedCollision'] and cell['neighbor']==neighbor]
-
-        relocation = False
-        for ts,cell in rxCells:
-
-            # measure how many cells I have now from that child
-            nowCells = self.numCellsFromNeighbors.get(neighbor,0)
-
-            # relocate: add new first
-            self._sixtop_cell_reservation_request(neighbor,1,dir=self.DIR_RX)
-
-            # relocate: remove old only when successfully added
-            if nowCells < self.numCellsFromNeighbors.get(neighbor,0):
-                neighbor._sixtop_cell_deletion_sender(self,[ts])
-
-                # remember I relocated a cell
-                relocation = True
-
-        if relocation:
-            # update stats
-            self._stats_incrementMoteStats('topRxRelocatedCells')
+            #assert False
+            pass  
 
     def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
         ''' tries to reserve numCells cells to a neighbor. '''
@@ -1394,10 +1093,10 @@ class Mote(object):
                         for c in blockedCells:
                                 tsBlocked.append(c[0])
 
-                    # randomly picking cells (SF0)
+                    # randomly picking cells
                     availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(self.schedule.keys())-set(tsBlocked))
                     random.shuffle(availableTimeslots)
-                    cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells]])
+                    cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells*self.MSF_MIN_NUM_CELLS]])
                     cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
                     self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['tx']['seqNum'])
@@ -1481,7 +1180,7 @@ class Mote(object):
             seq=payload[3]
 
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor
-            self._stats_incrementMoteStats('rxAddReq')
+            self._stats_incrementMoteStats('6topRxAddReq')
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and self.sixtopStates[smac.id]['rx']['state'] != self.SIX_STATE_IDLE:
                 for pkt in self.txQueue:
@@ -1630,7 +1329,7 @@ class Mote(object):
                  # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET        #RC_BUSY not implemented yet
 
-                self._stats_incrementMoteStats('rxAddResp')
+                self._stats_incrementMoteStats('6topRxAddResp')
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -1755,7 +1454,7 @@ class Mote(object):
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET
 
-                self._stats_incrementMoteStats('rxDelResp')
+                self._stats_incrementMoteStats('6topRxDelResp')
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -2035,7 +1734,7 @@ class Mote(object):
             # log
             self._log(
                 self.INFO,
-                "[otf] remove cell ts={0} to {1} (pdr={2:.3f})",
+                "[6top] remove cell ts={0} to {1} (pdr={2:.3f})",
                 (tscell[0],neighbor.id,tscell[3]),
             )
             tsList += [tscell[0]]
@@ -2084,7 +1783,7 @@ class Mote(object):
             dirNeighbor = payload[2]
             seq=payload[3]
 
-            self._stats_incrementMoteStats('rxDelReq')
+            self._stats_incrementMoteStats('6topRxDelReq')
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
 
             self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
@@ -2163,26 +1862,15 @@ class Mote(object):
         elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
             #my TX queue is full.
 
-            #However, I will allow to add an additional packet in some specific ocasions
-            #This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
+            # However, I will allow to add an additional packet in some specific ocasions
+            # This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
 
-            #if Bootstrap is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
-            if self.settings.withBootstrap:
+            # if join is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
+            if self.settings.withJoin:
                 if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO or packet['type'] == self.IANA_6TOP_TYPE_REQUEST or packet['type'] == self.IANA_6TOP_TYPE_RESPONSE:
                     for p in self.txQueue:
                         if packet['type'] == p['type']:
                             #There is already a DAO, JOIN or 6P in que queue, don't add more
-                            self._stats_incrementMoteStats('droppedQueueFull')
-                            return False
-                    self.txQueue    += [packet]
-                    return True
-
-            #if Joining is enabled, all nodes will wait until all nodes have joined. So it is allowed to enqueue 1 aditional DAO or JOIN
-            if self.settings.withJoin:
-                if packet['type'] == self.APP_TYPE_JOIN or packet['type'] == self.RPL_TYPE_DAO:
-                    for p in self.txQueue:
-                        if packet['type'] == p['type']:
-                            #There is already a DAO or JOIN in que queue, don't add more
                             self._stats_incrementMoteStats('droppedQueueFull')
                             return False
                     self.txQueue    += [packet]
@@ -2235,67 +1923,75 @@ class Mote(object):
             priority    = 0,
         )
 
-    def _tsch_action_activeCell(self):
+def _tsch_action_activeCell(self):
         '''
         active slot starts. Determine what todo, either RX or TX, use the propagation model to introduce
         interference and Rx packet drops.
         '''
-
+        
         asn = self.engine.getAsn()
         ts  = asn%self.settings.slotframeLength
-
+        
         with self.dataLock:
-
-            # make sure this is an active slot
+            
+            # make sure this is an active slot   
             assert ts in self.schedule
             # make sure we're not in the middle of a TX/RX operation
             assert not self.waitingFor
-
+            
             cell = self.schedule[ts]
-
+            
             if  cell['dir']==self.DIR_RX:
-
+                
                 # start listening
                 self.propagation.startRx(
                     mote          = self,
                     channel       = cell['ch'],
                 )
-
+                
                 # indicate that we're waiting for the RX operation to finish
                 self.waitingFor   = self.DIR_RX
-
+            
             elif cell['dir']==self.DIR_TX:
-
+                
                 # check whether packet to send
                 self.pktToSend = None
                 if self.txQueue:
                     for pkt in self.txQueue:
-                        # do not send join traffic neither EB in dedicated slots, 6top messages can be sent either in dedicated or shared cells
-                        if (pkt['nextHop'] == [cell['neighbor']] and pkt['type'] != self.APP_TYPE_JOIN and pkt['type'] != self.TSCH_TYPE_EB) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_RESPONSE) or (pkt['nextHop'] == [cell['neighbor']] and pkt['type']==self.IANA_6TOP_TYPE_REQUEST):
+                        # send the frame if next hop matches the cell destination
+                        if pkt['nextHop'] == [cell['neighbor']]:
                             self.pktToSend = pkt
                             break
 
+                # MSF - updating numCellsPassed
+                if cell['neighbor'] == self.preferredParent:
+                    self.numCellsPassed += 1
+                    
                 # send packet
                 if self.pktToSend:
 
+                    # MSF updating numCellsUsed
+                    if cell['neighbor'] == self.preferredParent:
+                        self.numCellsUsed += 1
+                    
                     cell['numTx'] += 1
-
+                    
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('txAddReq')
+                            self._stats_incrementMoteStats('6topTxAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('txDelReq')
+                            self._stats_incrementMoteStats('6topTxDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('txAddResp')
+                            self._stats_incrementMoteStats('6topTxAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('txDelResp')
+                            self._stats_incrementMoteStats('6topTxDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -2315,48 +2011,66 @@ class Mote(object):
                         srcRoute  = self.pktToSend['sourceRoute'],
                         payload   = self.pktToSend['payload'],
                     )
-
+                    
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
 
+                # MSF algorithm to adapt to traffic
+                if self.numCellsPassed == self.settings.msfMaxNumCells:
+                    if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
+                        self._msf_schedule_bandwidth_increment()
+                    elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
+                        self._msf_schedule_bandwidth_decrement()
+                    self.numCellsPassed = 0
+                    self.numCellsUsed = 0
+             
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 self.pktToSend = None
                 if self.txQueue and self.backoff == 0:
                     for pkt in self.txQueue:
-                        # 6top messages can be sent either in dedicated or shared cells, but if there are already TX cells, use those. The same for DAOs
-                        if pkt['type']!=self.APP_TYPE_DATA:
-                            if ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.IANA_6TOP_TYPE_RESPONSE or pkt['type']==self.IANA_6TOP_TYPE_REQUEST) ):
-                                continue
-                            elif ( len(self.getTxCells(pkt['nextHop'][0]))>0 and ( pkt['type']==self.RPL_TYPE_DAO) ):
-                                continue
-                            else:
-                                self.pktToSend = pkt
-                                break
+                        # send join packets on the shared cell only on first hop
+                        if pkt['type'] == self.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
+                        elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
+                        elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getTxCells(pkt['nextHop'][0])) == 0:
+                            self.pktToSend = pkt
+                            break
+                        # DIOs and EBs always go on the shared cell
+                        elif pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
+                            self.pktToSend = pkt
+                            break
+                        else:
+                            continue
 
                 # Decrement backoff
                 if self.backoff > 0:
                     self.backoff -= 1
                 # send packet
                 if self.pktToSend:
-
+                    
                     cell['numTx'] += 1
-
+                    
                     if pkt['type']==self.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==self.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('txAddReq')
+                            self._stats_incrementMoteStats('6topTxAddReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code']==self.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('txDelReq')
+                            self._stats_incrementMoteStats('6topTxDelReq')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type']==self.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('txAddResp')
+                            self._stats_incrementMoteStats('6topTxAddResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state']==self.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('txDelResp')
+                            self._stats_incrementMoteStats('6topTxDelResp')
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -2378,7 +2092,7 @@ class Mote(object):
                     )
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = self.DIR_TX
-
+                
                 else:
                     # start listening
                     self.propagation.startRx(
@@ -2476,7 +2190,10 @@ class Mote(object):
             priority=3,
         )
 
-
+    def _tsch_add_minimal_cell(self):
+        # add minimal cell
+        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)])
+    
     #===== radio
 
     def radio_isSync(self):
@@ -2594,9 +2311,7 @@ class Mote(object):
 
                         #only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                                self.pktDropMac+=1
-                            self._stats_incrementMoteStats('dataDroppedMacRetries')
+                            self._stats_incrementMoteStats('droppedDataMacRetries')
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
@@ -2646,12 +2361,11 @@ class Mote(object):
                 if self.txQueue[i]['retriesLeft'] == 0:
 
                     if  len(self.txQueue) == self.TSCH_QUEUE_SIZE:
+                       
+                        # counts drops of DATA packets
 
-                        #only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == self.APP_TYPE_DATA:
-                            if self.pktToSend['payload'][1] >= self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                                self.pktDropMac+=1
-                            self._stats_incrementMoteStats('dataDroppedMacRetries')
+                            self._stats_incrementMoteStats('droppedDataMacRetries')
 
                         # update mote stats
                         self._stats_incrementMoteStats('droppedMacRetries')
@@ -2754,8 +2468,6 @@ class Mote(object):
                         assert False
                 else:
                     # relaying packet
-                    # count incoming traffic for each node
-                    self._otf_incrementIncomingTraffic(smac)
 
                     if type == self.APP_TYPE_DATA:
                         # update the number of hops
@@ -2895,48 +2607,37 @@ class Mote(object):
     def boot(self):
         if self.settings.withJoin:
             if self.dagRoot:
+                self._tsch_add_minimal_cell()
                 self._init_stack()  # initialize the stack and start sending beacons and DIOs
             else:
                 self._tsch_schedule_synchronize()  # permanent rx until node hears an enhanced beacon to sync
         else:
             self.isSync = True  # without join we skip the always-on listening for EBs
+            self.isJoined = True # we consider all nodes have joined
+            self._tsch_add_minimal_cell()
             self._init_stack()
 
     def _init_stack(self):
         # start the stack layer by layer
 
-        # add minimal cell
-        self._tsch_addCells(self._myNeigbors(),[(0,0,self.DIR_TXRX_SHARED)])
+        # TSCH
+        self._tsch_schedule_sendEB(firstEB=True)
 
         # RPL
         self._rpl_schedule_sendDIO(firstDIO=True)
-
-        if self.dagRoot:
-            self._tsch_schedule_sendEB(firstEB=True)
-        else:
+        if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
 
-        # OTF
-        self._otf_resetInboundTrafficCounters()
-        self._otf_schedule_housekeeping()
-        # 6top
-        if not self.settings.sixtopNoHousekeeping:
-            self._sixtop_schedule_housekeeping()
-
-        if self.settings.withJoin and not self.dagRoot:
-            self.join_scheduleJoinProcess()  # trigger the join process
+        # MSF
+        self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
-            if not self.settings.withJoin:
-                if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
-                    self._app_schedule_sendPacketBurst()
-                else:
-                    self._app_schedule_sendSinglePacket(firstPacket=True)
-                self._tsch_schedule_sendEB(firstEB=True)
-        # tsch
-        self._tsch_schedule_activeCell()
-
+            if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
+                self._app_schedule_sendPacketBurst()
+            else:
+                self._app_schedule_sendSinglePacket(firstPacket=True)
+    
     def _logChargeConsumed(self,charge):
         with self.dataLock:
             self.chargeConsumed  += charge
@@ -2960,9 +2661,13 @@ class Mote(object):
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
 
-    def getSharedCells(self):
+    def getSharedCells(self, neighbor = None):
         with self.dataLock:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == self.DIR_TXRX_SHARED]
+            if neighbor is None:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == self.DIR_TXRX_SHARED]
+            else:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
+                        c['dir'] == self.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
 
     #===== stats
 
@@ -2975,8 +2680,7 @@ class Mote(object):
             dataPktQueues=0
             for p in self.txQueue:
                 if p['type']==self.APP_TYPE_DATA:
-                    if p['payload'][1] > self.engine.asnInitExperiment and self.engine.asn <= self.engine.asnEndExperiment:
-                        dataPktQueues+=1
+                    dataPktQueues+=1
 
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
@@ -2989,10 +2693,6 @@ class Mote(object):
             returnVal['txQueueFill']        = len(self.txQueue)
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_,cell) in self.schedule.items()])
-            returnVal['pktReceived']        = self.pktReceived
-            returnVal['pktGen']             = self.pktGen
-            returnVal['pktDropQueue']       = self.pktDropQueue
-            returnVal['pktDropMac']         = self.pktDropMac
             returnVal['dataQueueFill']      = dataPktQueues
             returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
 
@@ -3010,43 +2710,40 @@ class Mote(object):
         with self.dataLock:
             self.motestats = {
                 # app
-                'appGenerated':            0,   # number of packets app layer generated
-                'appRelayed':              0,   # number of packets relayed
-                'appReachesDagroot':       0,   # number of packets received at the DAGroot
-                'droppedFailedEnqueue':    0,   # dropped packets because failed enqueue them
-                'droppedDataFailedEnqueue': 0,  # dropped DATA packets because app failed enqueue them
+                'appGenerated':               0,   # number of packets app layer generated
+                'appRelayed':                 0,   # number of packets relayed
+                'appReachesDagroot':          0,   # number of packets received at the DAGroot
+                'droppedFailedEnqueue':       0,   # dropped packets because failed enqueue them
+                'droppedDataFailedEnqueue':   0,   # dropped DATA packets because app failed enqueue them
                 # queue
-                'droppedQueueFull':        0,   # dropped packets because queue is full
+                'droppedQueueFull':           0,   # dropped packets because queue is full
                 # rpl
-                'rplTxDIO':                0,   # number of TX'ed DIOs
-                'rplRxDIO':                0,   # number of RX'ed DIOs
-                'rplTxDAO':                0,  # number of TX'ed DAOs
-                'rplRxDAO':                0,  # number of RX'ed DAOs
-                'rplChurnPrefParent':      0,   # number of time the mote changes preferred parent
-                'rplChurnRank':            0,   # number of time the mote changes rank
-                'rplChurnParentSet':       0,   # number of time the mote changes parent set
-                'droppedNoRoute':          0,   # packets dropped because no route (no preferred parent)
-                # otf
-                'otfAdd':                  0,   # OTF adds some cells
-                'otfRemove':               0,   # OTF removes some cells
-                'droppedNoTxCells':        0,   # packets dropped because no TX cells
+                'rplTxDIO':                   0,   # number of TX'ed DIOs
+                'rplRxDIO':                   0,   # number of RX'ed DIOs
+                'rplTxDAO':                   0,   # number of TX'ed DAOs
+                'rplRxDAO':                   0,   # number of RX'ed DAOs
+                'rplChurnPrefParent':         0,   # number of time the mote changes preferred parent
+                'rplChurnRank':               0,   # number of time the mote changes rank
+                'rplChurnParentSet':          0,   # number of time the mote changes parent set
+                'droppedNoRoute':             0,   # packets dropped because no route (no preferred parent)
+                'droppedNoTxCells':           0,   # packets dropped because no TX cells
                 # 6top
-                'topTxRelocatedCells':     0,   # number of time tx-triggered 6top relocates a single cell
-                'topTxRelocatedBundles':   0,   # number of time tx-triggered 6top relocates a bundle
-                'topRxRelocatedCells':     0,   # number of time rx-triggered 6top relocates a single cell
-                'txAddReq':                   0,        # number of 6P Add request transmitted
-                'txAddResp':                  0,        # number of 6P Add responses transmitted
-                'txDelReq':                   0,        # number of 6P del request transmitted
-                'txDelResp':                  0,        # number of 6P del responses transmitted
-                'rxAddReq':                   0,        # number of 6P Add request received
-                'rxAddResp':                  0,        # number of 6P Add responses received
-                'rxDelReq':                   0,        # number of 6P Del request received
-                'rxDelResp':                  0,        # number of 6P Del responses received
+                '6topTxRelocatedCells':       0,   # number of time tx-triggered 6top relocates a single cell
+                '6topTxRelocatedBundles':     0,   # number of time tx-triggered 6top relocates a bundle
+                '6topRxRelocatedCells':       0,   # number of time rx-triggered 6top relocates a single cell
+                '6topTxAddReq':               0,   # number of 6P Add request transmitted
+                '6topTxAddResp':              0,   # number of 6P Add responses transmitted
+                '6topTxDelReq':               0,   # number of 6P del request transmitted
+                '6topTxDelResp':              0,   # number of 6P del responses transmitted
+                '6topRxAddReq':               0,   # number of 6P Add request received
+                '6topRxAddResp':              0,   # number of 6P Add responses received
+                '6topRxDelReq':               0,   # number of 6P Del request received
+                '6topRxDelResp':              0,   # number of 6P Del responses received
                 # tsch
-                'droppedMacRetries':       0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
-                'dataDroppedMacRetries':   0,        # packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
-                'tschTxEB':                0,   # number of TX'ed EBs
-                'tschRxEB':                0,   # number of RX'ed EBs
+                'droppedMacRetries':          0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries
+                'droppedDataMacRetries':      0,   # packets dropped because more than TSCH_MAXTXRETRIES MAC retries in a DATA packet
+                'tschTxEB':                   0,   # number of TX'ed EBs
+                'tschRxEB':                   0,   # number of RX'ed EBs
             }
 
     def _stats_incrementMoteStats(self,name):

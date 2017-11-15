@@ -59,6 +59,9 @@ class SimStats(object):
         self.columnNames                    = []
         self.numCycles                      = 0
 
+        # schedule bootstrap complete
+        self.scheduleBootstrapped           = False
+
         # start file
         if self.runNum==0:
             self._fileWriteHeader()
@@ -142,6 +145,19 @@ class SimStats(object):
 
         returnVal = {}
 
+        # count number of motes with at least one TX cell in their schedule
+        numBootstrappedMotes = 0
+        dagRoot = None
+        for mote in self.engine.motes:
+            if len(mote.getTxCells()) > 0:
+                numBootstrappedMotes += 1
+            if mote.dagRoot is True:
+                dagRoot = mote
+
+        if numBootstrappedMotes == len(self.engine.motes) - 1 and self.scheduleBootstrapped is False:
+            dagRoot._log(dagRoot.INFO, "[bootstrap] complete, all motes have at least one TX cell.")
+            self.scheduleBootstrapped = True
+
         # compute the number of schedule collisions
 
         # Note that this cannot count past schedule collisions which have been relocated by 6top
@@ -199,8 +215,8 @@ class SimStats(object):
                     else:
                         returnVal[k] += 0
 
-        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs})
-
+        returnVal.update({'scheduleCollisions':scheduleCollisions, 'collidedTxs': collidedTxs, 'effectiveCollidedTxs': effectiveCollidedTxs , 'numBootstrappedMotes': numBootstrappedMotes})
+                            
         return returnVal
 
     #=== writing to file
@@ -270,52 +286,6 @@ class SimStats(object):
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.numCycles) for mote in self.engine.motes])
             )
         ]
-        pgen=0
-        for mote in self.engine.motes:
-                pgen=pgen+mote.getMoteStats()['pktGen']
-        output += [
-            '#PktGen runNum={0} {1} {2}'.format(
-                self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktGen']) for mote in self.engine.motes]),pgen
-            )
-        ]
-        prec=0
-        for mote in self.engine.motes:
-                prec=prec+mote.getMoteStats()['pktReceived']
-        output += [
-            '#PktReceived runNum={0} {1} {2}'.format(
-                self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktReceived']) for mote in self.engine.motes]),prec
-            )
-        ]
-        pqueued=0
-        for mote in self.engine.motes:
-                pqueued=pqueued+mote.getMoteStats()['dataQueueFill']
-        output += [
-            '#PktInQueue runNum={0} {1} {2}'.format(
-                self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['dataQueueFill']) for mote in self.engine.motes]),pqueued
-            )
-        ]
-        pdropqueue=0
-        for mote in self.engine.motes:
-                pdropqueue=pdropqueue+mote.getMoteStats()['pktDropQueue']
-        output += [
-            '#PktDropsQueue runNum={0} {1} {2}'.format(
-                self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktDropQueue']) for mote in self.engine.motes]),pdropqueue
-            )
-        ]
-        pdropmac=0
-        for mote in self.engine.motes:
-                pdropmac=pdropmac+mote.getMoteStats()['pktDropMac']
-        output += [
-            '#PktDropsMac runNum={0} {1} {2}'.format(
-                self.runNum,
-                ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['pktDropMac']) for mote in self.engine.motes]),pdropmac
-            )
-        ]
-        assert pgen == prec + pqueued + pdropqueue + pdropmac
         if self.settings.withJoin:
             output += [
                 '#join runNum={0} {1}'.format(
@@ -327,13 +297,6 @@ class SimStats(object):
                 '#firstBeacon runNum={0} {1}'.format(
                     self.runNum,
                     ' '.join(['{0}@{1}'.format(mote.id, mote.firstBeaconAsn) for mote in self.engine.motes])
-                )
-            ]
-        if self.settings.withBootstrap:
-            output += [
-                '#firstReady runNum={0} {1}'.format(
-                    self.runNum,
-                    ' '.join(['{0}@{1}'.format(mote.id, mote.firstIsBootstrapped) for mote in self.engine.motes])
                 )
             ]
         output  = '\n'.join(output)

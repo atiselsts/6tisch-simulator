@@ -122,20 +122,12 @@ def parseCliOptions():
         default    = 60.0,
         help       = '[join process] Timeout to attempt join process (s).',
     )
-    # bootstrap process
-    parser.add_argument('--withBootstrap',
-        dest       = 'withBootstrap',
-        nargs      = '+',
-        type       = int,
-        default    = 1,
-        help       =' [bootstrap process] 1 to enable Bootstrap process.',
-    )
     # app
     parser.add_argument( '--pkPeriod',
         dest       = 'pkPeriod',
         nargs      = '+',
         type       = float,
-        default    = None,
+        default    = 10,
         help       = '[app] Average period between two data packets (s).',
     )
     parser.add_argument( '--pkPeriodVar',
@@ -148,14 +140,14 @@ def parseCliOptions():
         dest       = 'burstTimestamp',
         nargs      = '+',
         type       = float,
-        default    = 20,
+        default    = None,
         help       = '[app] Timestamp when the burst happens (s).',
     )
     parser.add_argument( '--numPacketsBurst',
         dest       = 'numPacketsBurst',
         nargs      = '+',
         type       = int,
-        default    = 5,
+        default    = None,
         help       = '[app] Number of packets in a burst, per node.',
     )
     parser.add_argument('--downwardAcks',
@@ -186,37 +178,47 @@ def parseCliOptions():
         default    = 1,
         help       = '[otf] OTF threshold (cells).',
     )
-    parser.add_argument( '--otfHousekeepingPeriod',
-        dest       = 'otfHousekeepingPeriod',
+    parser.add_argument( '--msfHousekeepingPeriod',
+        dest       = 'msfHousekeepingPeriod',
         type       = float,
-        default    = 5.0,
-        help       = '[otf] OTF housekeeping period (s).',
+        default    = 60.0,
+        help       = '[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
+    )
+    # msf
+    parser.add_argument( '--msfMaxNumCells',
+        dest       = 'msfMaxNumCells',
+        nargs      = '+',
+        type       = int,
+        default    = 16,
+        help       = '[msf] MSF MAX_NUMCELLS parameter.',
+    )
+    parser.add_argument( '--msfLimNumCellsUsedHIGH',
+        dest       = 'msfLimNumCellsUsedHigh',
+        nargs      = '+',
+        type       = int,
+        default    = 12,
+        help       = '[msf] MSF LIM_NUMCELLSUSED_HIGH parameter.',
+    )
+    parser.add_argument( '--msfLimNumCellsUsedLOW',
+        dest       = 'msfLimNumCellsUsedLow',
+        nargs      = '+',
+        type       = int,
+        default    = 4,
+        help       = '[msf] MSF LIM_NUMCELLSUSED_LOW parameter.',
+    )
+    parser.add_argument( '--msfNumCellsToAddOrRemove',
+        dest       = 'msfNumCellsToAddOrRemove',
+        nargs      = '+',
+        type       = int,
+        default    = 1,
+        help       = '[msf] MSF number of cells to add/remove when 6P is triggered.',
     )
     # sixtop
     parser.add_argument( '--sixtopMessaging',
         dest       = 'sixtopMessaging',
         type       = int,
-        default    = 1,
-        help       = '[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
-    )
-    parser.add_argument( '--sixtopHousekeepingPeriod',
-        dest       = 'sixtopHousekeepingPeriod',
-        type       = float,
-        default    = 1.0,
-        help       = '[6top] 6top housekeeping period (s).',
-    )
-    parser.add_argument( '--sixtopPdrThreshold',
-        dest       = 'sixtopPdrThreshold',
-        type       = float,
-        default    = 1.5,
-        help       = '[6top] 6top PDR threshold.',
-    )
-    parser.add_argument('--sixtopNoHousekeeping',
-        dest       = 'sixtopNoHousekeeping',
-        nargs      = '+',
-        type       = int,
         default    = 0,
-        help       = '[6top] 1 to disable 6top housekeeping.',
+        help       = '[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
     )
     parser.add_argument('--sixtopNoRemoveWorstCell',
         dest       = 'sixtopNoRemoveWorstCell',
@@ -250,7 +252,7 @@ def parseCliOptions():
     parser.add_argument('--bayesianBroadcast',
         dest       = 'bayesianBroadcast',
         type       = int,
-        default    = 0,
+        default    = 1,
         help       = '[tsch] Enable Bayesian broadcast algorithm.',
     )
     parser.add_argument('--beaconProbability',
