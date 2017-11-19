@@ -38,8 +38,9 @@ class ScheduleFrame(Tkinter.Frame):
     COLOR_OK                 = "blue"
     COLOR_ERROR              = "red"
     
-    COLOR_TX                 = "green"
-    COLOR_RX                 = "magenta"
+    COLOR_TX                 = "blue"
+    COLOR_RX                 = "blue"
+    COLOR_DEDICATED          = "magenta"
     COLOR_SHARED             = "yellow"
     
     def __init__(self,guiParent):
@@ -118,6 +119,8 @@ class ScheduleFrame(Tkinter.Frame):
                     self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_ERROR)
             for (ts, ch, _) in m.getSharedCells():
                 self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_SHARED)
+            for (ts, ch, _) in m.getDedicatedCells():
+                self.schedule.itemconfig(self.cells[ts][ch], fill=self.COLOR_DEDICATED)
         
         # color selected mote's cells
         mote = self.guiParent.selectedMote
@@ -127,6 +130,9 @@ class ScheduleFrame(Tkinter.Frame):
                 self.schedule.itemconfig(self.cells[ts][ch], width=2.0)
             for (ts,ch,_) in mote.getRxCells():
                 self.schedule.itemconfig(self.cells[ts][ch], outline=self.COLOR_RX)
+                self.schedule.itemconfig(self.cells[ts][ch], width=2.0)
+            for (ts,ch,_) in mote.getDedicatedCells():
+                self.schedule.itemconfig(self.cells[ts][ch], outline=self.COLOR_DEDICATED)
                 self.schedule.itemconfig(self.cells[ts][ch], width=2.0)
             for (ts,ch,_) in mote.getSharedCells():
                 self.schedule.itemconfig(self.cells[ts][ch], outline=self.COLOR_SHARED)

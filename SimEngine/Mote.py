@@ -200,6 +200,8 @@ class Mote(object):
         self.isSync                    = False
         self.firstEB                   = True                  # flag to indicate first received enhanced beacon
         self._tsch_resetBackoff()
+        self.backoffPerNeigh={}
+        self.backoffExponentPerNeigh={}
         # radio
         self.txPower                   = 0                     # dBm
         self.antennaGain               = 0                     # dBi
@@ -945,12 +947,12 @@ class Mote(object):
             if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
-                                                      dir=self.DIR_TX)
+                                                      dir=self.DIR_TXRX_SHARED)
                 armTimeout = True
 
             if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
                 self._sixtop_removeCells(self.oldPreferredParent,
-                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0))
+                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0),dir=self.DIR_TXRX_SHARED)
                 armTimeout = True
 
             if armTimeout:
@@ -986,7 +988,7 @@ class Mote(object):
 
         self._sixtop_cell_reservation_request(self.preferredParent,
                                               self.settings.msfNumCellsToAddOrRemove,
-                                              dir=self.DIR_TX)
+                                              dir=self.DIR_TXRX_SHARED)
 
     def _msf_schedule_bandwidth_decrement(self):
         '''
@@ -1013,7 +1015,7 @@ class Mote(object):
 
             # trigger 6p to remove msfNumCellsToAddOrRemove cells
             self._sixtop_removeCells(self.preferredParent,
-                                     self.settings.msfNumCellsToAddOrRemove)
+                                     self.settings.msfNumCellsToAddOrRemove,dir=self.DIR_TXRX_SHARED)
 
     def _msf_schedule_housekeeping(self):
         
@@ -1060,7 +1062,7 @@ class Mote(object):
             #assert False
             pass
     
-    def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TX):
+    def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TXRX_SHARED):
         ''' tries to reserve numCells cells to a neighbor. '''
         
         with self.dataLock:
@@ -1097,7 +1099,9 @@ class Mote(object):
                     cells                 = dict([(ts,random.randint(0,self.settings.numChans-1)) for ts in availableTimeslots[:numCells*self.MSF_MIN_NUM_CELLS]])
                     cellList              = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
-                    self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells,self.sixtopStates[neighbor.id]['tx']['seqNum'])
+                    isBroadcast=False
+
+                    self._sixtop_enqueue_ADD_REQUEST(neighbor, cellList, numCells, dir, self.sixtopStates[neighbor.id]['tx']['seqNum'],isBroadcast)
                 else:
                     self._log(
                         self.DEBUG,
@@ -1116,7 +1120,7 @@ class Mote(object):
                         (ts,ch,self.id,neighbor.id),
                     )
                     cellList += [(ts,ch,dir)]
-                self._tsch_addCells(neighbor,cellList)
+                self._tsch_addCells(neighbor,cellList,False)
 
                 # update counters
                 if dir==self.DIR_TX:
@@ -1136,7 +1140,7 @@ class Mote(object):
                         (len(cells),numCells,self.id,neighbor.id),
                     )
 
-    def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells,seq):
+    def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, dir, seq,isBroadcast):
         ''' enqueue a new 6P ADD request '''
 
         self._log(
@@ -1150,7 +1154,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_REQUEST,
             'code':           self.IANA_6TOP_CMD_ADD,
-            'payload':        [cellList, numCells, self.DIR_TX,seq,self.engine.getAsn()],
+            'payload':        [cellList, numCells, dir,seq,self.engine.getAsn(),isBroadcast],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1176,6 +1180,7 @@ class Mote(object):
             numCells = payload[1]
             dirNeighbor = payload[2]
             seq=payload[3]
+            isBroadcast=payload[5]
 
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor
             self._stats_incrementMoteStats('6topRxAddReq')
@@ -1197,7 +1202,7 @@ class Mote(object):
                     self.sixtopStates[smac.id]['rx']['blockedCells']=[]
                     self.sixtopStates[smac.id]['rx']['seqNum']=0
                 self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
-                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq,isBroadcast)
                 return
 
             # go to the correct state
@@ -1213,8 +1218,10 @@ class Mote(object):
             # set direction of cells
             if dirNeighbor == self.DIR_TX:
                 newDir = self.DIR_RX
-            else: 
+            elif dirNeighbor == self.DIR_RX:
                 newDir = self.DIR_TX
+            else:
+                newDir = self.DIR_TXRX_SHARED
 
             # cells that will be in the response
             newCellList = []
@@ -1252,7 +1259,7 @@ class Mote(object):
             self.sixtopStates[neighbor.id]['rx']['blockedCells'] = newCellList
 
             #enqueue response
-            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq)
+            self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir,seq,isBroadcast)
 
     def _sixtop_cell_reservation_response(self,neighbor,numCells,dirNeighbor):
         ''' get a response from the neighbor. '''
@@ -1278,7 +1285,7 @@ class Mote(object):
                     (ts,ch,self.id,neighbor.id),
                 )
                 cellList         += [(ts,ch,dir)]
-            self._tsch_addCells(neighbor,cellList)
+            self._tsch_addCells(neighbor,cellList,False)
             
             # update counters
             if dir==self.DIR_TX:
@@ -1292,20 +1299,20 @@ class Mote(object):
             
             return cells
     
-    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir,seq):
+    def _sixtop_enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir,seq,isBroadcast):
         ''' enqueue a new 6P ADD or DELETE response '''
 
         self._log(
             self.INFO,
-            '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, seqNum={3} from {4} to {5}',
-            (cellList, len(cellList), returnCode, seq, self.id, neighbor.id),
+            '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, seqNum={3} from {4} to {5}, isBroadcast={6}',
+            (cellList, len(cellList), returnCode, seq, self.id, neighbor.id,isBroadcast),
         )
         # create new packet
         newPacket = {
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_RESPONSE,
             'code':           returnCode,
-            'payload':        [cellList,len(cellList), dir,seq],
+            'payload':        [cellList,len(cellList), dir,seq,isBroadcast],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1334,6 +1341,7 @@ class Mote(object):
                 numCells = payload[1]
                 receivedDir = payload[2]
                 seq = payload[3]
+                isBroadcast=payload[4]
 
                 #seqNum mismatch, transaction failed, ignore packet
                 if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
@@ -1381,8 +1389,10 @@ class Mote(object):
                     # set direction of cells
                     if receivedDir == self.DIR_TX:
                         newDir = self.DIR_RX
-                    else:
+                    elif receivedDir == self.DIR_RX:
                         newDir = self.DIR_TX
+                    else:
+                        newDir = self.DIR_TXRX_SHARED
 
                     for (ts, ch, cellDir) in receivedCellList:
                         # log
@@ -1392,10 +1402,10 @@ class Mote(object):
                             (ts,ch,self.id,neighbor.id,newDir),
                         )
                         cellList         += [(ts,ch,newDir)]
-                    self._tsch_addCells(neighbor, cellList)
+                    self._tsch_addCells(neighbor, cellList,isBroadcast)
 
                     # update counters
-                    if newDir==self.DIR_TX:
+                    if newDir==self.DIR_TX or (newDir==self.DIR_TXRX_SHARED and isBroadcast==False):
                         if neighbor not in self.numCellsToNeighbors:
                             self.numCellsToNeighbors[neighbor]     = 0
                         self.numCellsToNeighbors[neighbor]        += len(receivedCellList)
@@ -1459,6 +1469,7 @@ class Mote(object):
                 numCells = payload[1]
                 receivedDir = payload[2]
                 seq=payload[3]
+                isBroadcast=payload[4]
 
                 #seqNum mismatch, transaction failed, ignore packet
                 if seq!=self.sixtopStates[neighbor.id]['tx']['seqNum']:
@@ -1506,8 +1517,10 @@ class Mote(object):
                     # set direction of cells
                     if receivedDir == self.DIR_TX:
                         newDir = self.DIR_RX
-                    else:
+                    elif receivedDir == self.DIR_RX:
                         newDir = self.DIR_TX
+                    else:
+                        newDir = self.DIR_TXRX_SHARED
 
                     for (ts, ch, cellDir) in receivedCellList:
                         # log
@@ -1581,6 +1594,7 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
+                    isBroadcast=packet['payload'][4]
 
                     self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])
                     self.tsSixTopReqRecv[neighbor]=0
@@ -1594,7 +1608,10 @@ class Mote(object):
                                         '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
                                         (ts,ch,self.id,neighbor.id,cellDir),
                                     )
-                            self._tsch_addCells(neighbor, confirmedCellList)
+                            if isBroadcast:
+                                self._tsch_addCells(self._myNeigbors(), confirmedCellList,True)
+                            else:
+                                self._tsch_addCells(neighbor, confirmedCellList,False)
 
                             # update counters
                             if receivedDir==self.DIR_TX:
@@ -1618,6 +1635,7 @@ class Mote(object):
                     receivedDir = packet['payload'][1]
                     neighbor=packet['dstIp']
                     code=packet['code']
+                    isBroadcast=packet['payload']=4
 
                     self._stats_logSixTopLatencyStat(self.engine.asn-self.tsSixTopReqRecv[neighbor])
                     self.tsSixTopReqRecv[neighbor]=0
@@ -1645,7 +1663,7 @@ class Mote(object):
                 #only add and delete are implemented so far
                 assert False
 
-    def _sixtop_cell_deletion_sender(self,neighbor,tsList):
+    def _sixtop_cell_deletion_sender(self,neighbor,tsList,dir):
         with self.dataLock:
             if self.settings.sixtopMessaging:
                 if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and self.sixtopStates[neighbor.id]['tx']['state'] == self.SIX_STATE_IDLE):
@@ -1658,8 +1676,9 @@ class Mote(object):
                             self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                             self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                             self.sixtopStates[neighbor.id]['tx']['seqNum']=0
+                        isBroadcast=False
 
-                        self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),self.sixtopStates[neighbor.id]['tx']['seqNum'])
+                        self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),dir,self.sixtopStates[neighbor.id]['tx']['seqNum'],isBroadcast)
                 else:
                     self._log(
                         self.DEBUG,
@@ -1691,7 +1710,7 @@ class Mote(object):
             self.numCellsFromNeighbors[neighbor]     -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
     
-    def _sixtop_removeCells(self,neighbor,numCellsToRemove):
+    def _sixtop_removeCells(self,neighbor,numCellsToRemove,dir):
         '''
         Finds cells to neighbor, and remove it.
         '''
@@ -1701,7 +1720,7 @@ class Mote(object):
         
         # worst cell removing initialized by theoretical pdr
         for (ts,cell) in self.schedule.iteritems():
-            if cell['neighbor']==neighbor and cell['dir']==self.DIR_TX:
+            if (cell['neighbor']==neighbor and cell['dir']==self.DIR_TX) or (cell['neighbor']==neighbor and cell['dir']==self.DIR_TXRX_SHARED and cell['isBroadcast']==False):
                 cellPDR           = (float(cell['numTxAck'])+(self.getPDR(neighbor)*self.NUM_SUFFICIENT_TX))/(cell['numTx']+self.NUM_SUFFICIENT_TX)
                 scheduleList     += [(ts,cell['numTxAck'],cell['numTx'],cellPDR)]
         
@@ -1738,9 +1757,9 @@ class Mote(object):
             tsList += [tscell[0]]
         
         # remove cells
-        self._sixtop_cell_deletion_sender(neighbor,tsList)
+        self._sixtop_cell_deletion_sender(neighbor,tsList,dir)
     
-    def _sixtop_enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells,seq):
+    def _sixtop_enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells,dir,seq,isBroadcast):
         ''' enqueue a new 6P DELETE request '''
 
         self._log(
@@ -1754,7 +1773,7 @@ class Mote(object):
             'asn':            self.engine.getAsn(),
             'type':           self.IANA_6TOP_TYPE_REQUEST,
             'code':           self.IANA_6TOP_CMD_DELETE,
-            'payload':        [cellList, numCells, self.DIR_TX,seq,self.engine.getAsn()],
+            'payload':        [cellList, numCells, dir,seq,self.engine.getAsn(),isBroadcast],
             'retriesLeft':    self.TSCH_MAXTXRETRIES,
             'srcIp':          self,
             'dstIp':          neighbor, # currently upstream
@@ -1780,6 +1799,7 @@ class Mote(object):
             numCells = payload[1]
             dirNeighbor = payload[2]
             seq=payload[3]
+            isBroadcast=payload[5]
 
             self._stats_incrementMoteStats('6topRxDelReq')
             self.tsSixTopReqRecv[neighbor]=payload[4]        #has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
@@ -1803,7 +1823,7 @@ class Mote(object):
                     self.sixtopStates[smac.id]['rx']['blockedCells']=[]
                     self.sixtopStates[smac.id]['rx']['seqNum']=0
                 self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
-                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq,isBroadcast)
                 return
 
             # set state to receiving request for this neighbor
@@ -1815,14 +1835,16 @@ class Mote(object):
                 self.sixtopStates[smac.id]['rx']['seqNum']=0
                 #if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
                 returnCode = self.IANA_6TOP_RC_RESET # error, neighbor has to abort transaction
-                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq)
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq,isBroadcast)
                 return
 
             # set direction of cells
-            if dirNeighbor == self.DIR_TX:
+            if receivedDir == self.DIR_TX:
                 newDir = self.DIR_RX
-            else:
+            elif receivedDir == self.DIR_RX:
                 newDir = self.DIR_TX
+            else:
+                newDir = self.DIR_TXRX_SHARED
 
             returnCode = self.IANA_6TOP_RC_SUCCESS # all is fine
 
@@ -1831,14 +1853,21 @@ class Mote(object):
                     returnCode = self.IANA_6TOP_RC_NORES # resources are not present
 
             #enqueue response
-            self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq)
+            self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir,seq,isBroadcast)
 
     #===== tsch
 
+    #BROADCAST cells
     def _tsch_resetBackoff(self):
         self.backoff = 0
         self.backoffExponent = self.TSCH_MIN_BACKOFF_EXPONENT - 1
-    
+
+    #SHARED Dedicated cells
+    def _tsch_resetBackoffPerNeigh(self,neigh):
+	#print neigh.id
+        self.backoffPerNeigh[neigh] = 0
+        self.backoffExponentPerNeigh[neigh] = self.TSCH_MIN_BACKOFF_EXPONENT - 1
+
     def _tsch_enqueue(self,packet):
         
         if not self._rpl_addNextHop(packet):
@@ -1849,7 +1878,7 @@ class Mote(object):
             
             return False
         
-        elif not (self.getTxCells() or self.getSharedCells()):
+        elif not (self.getDedicatedCells() or self.getSharedCells()):
             # I don't have any transmit cells
             
             # increment mote state
@@ -2023,31 +2052,52 @@ class Mote(object):
                     self.numCellsUsed = 0
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
-                self.pktToSend = None
-                if self.txQueue and self.backoff == 0:
-                    for pkt in self.txQueue:
-                        # send join packets on the shared cell only on first hop
-                        if pkt['type'] == self.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0])) == 0:
-                            self.pktToSend = pkt
-                            break
-                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
-                        elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getTxCells(pkt['nextHop'][0])) == 0:
-                            self.pktToSend = pkt
-                            break
-                        # send 6P messages on the shared cell only if there is no dedicated cells to that neighbor
-                        elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getTxCells(pkt['nextHop'][0])) == 0:
-                            self.pktToSend = pkt
-                            break
-                        # DIOs and EBs always go on the shared cell
-                        elif pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
-                            self.pktToSend = pkt
-                            break
-                        else:
-                            continue
+                if cell['isBroadcast']:
+                    self.pktToSend = None
+                    if self.txQueue and self.backoff == 0:
+                        for pkt in self.txQueue:
+                            # send join packets on the shared cell only on first hop
+                            if pkt['type'] == self.APP_TYPE_JOIN and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                                self.pktToSend = pkt
+                                break
+                            # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
+                            elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                                self.pktToSend = pkt
+                                break
+                            # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
+                            elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                                self.pktToSend = pkt
+                                break
+                            # DIOs and EBs always go on the shared broadcast cell
+                            elif pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
+                                self.pktToSend = pkt
+                                break
+                            # DAOs go on the shared shared broadcast cell if there are no dedicated cells to that neighbor
+                            elif pkt['type'] == self.RPL_TYPE_DAO and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                                self.pktToSend = pkt
+                                break
+                            else:
+                                continue
+                    # Decrement backoff
+                    if self.backoff > 0:
+                        self.backoff -= 1
+                else:
 
-                # Decrement backoff
-                if self.backoff > 0:
-                    self.backoff -= 1
+                    # check whether packet to send
+                    self.pktToSend = None
+                    if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
+                        for pkt in self.txQueue:
+                        # send the frame if next hop matches the cell destination
+                            if pkt['nextHop'] == [cell['neighbor']]:
+                                self.pktToSend = pkt
+                                break
+
+                    # Decrement backoffPerNeigh
+#		    print "I am "+str(self.id)+" backoffs "+str(self.backoffPerNeigh.keys())
+#		    print cell['neighbor'].id
+#		    print cell
+                    if self.backoffPerNeigh[cell['neighbor']] > 0:
+                        self.backoffPerNeigh[cell['neighbor']] -= 1
                 # send packet
                 if self.pktToSend:
                     
@@ -2103,7 +2153,7 @@ class Mote(object):
             # schedule next active cell
             self._tsch_schedule_activeCell()
     
-    def _tsch_addCells(self,neighbor,cellList):
+    def _tsch_addCells(self,neighbor,cellList,isBroadcast):
         ''' adds cell(s) to the schedule '''
         
         with self.dataLock:
@@ -2124,6 +2174,7 @@ class Mote(object):
                     'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level
                     'debug_lockInterference':    [],                      # [debug] shows locking on the interference packet
                     'debug_cellCreatedAsn':      self.engine.getAsn(),    # [debug]
+                    'isBroadcast':		 isBroadcast,
                 }
                 # log
                 self._log(
@@ -2190,7 +2241,9 @@ class Mote(object):
 
     def _tsch_add_minimal_cell(self):
         # add minimal cell
-        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)])
+        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)],True)
+        for m in self._myNeigbors():
+            self._tsch_resetBackoffPerNeigh(m)
     
     #===== radio
 
@@ -2281,7 +2334,10 @@ class Mote(object):
                 self.txQueue.remove(self.pktToSend)
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
-                   self._tsch_resetBackoff()
+                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and not self.schedule[ts]['isBroadcast']:
+                        self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
+                    else:
+                        self._tsch_resetBackoff()
                 
             elif isNACKed:
                 # NACK received
@@ -2344,7 +2400,10 @@ class Mote(object):
 
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
-                    self._tsch_resetBackoff()
+                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and not self.schedule[ts]['isBroadcast']:
+                        self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
+                    else:
+                        self._tsch_resetBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
                 self._logChargeConsumed(self.CHARGE_TxData_uC)
@@ -2357,10 +2416,14 @@ class Mote(object):
 
                 # increment backoffExponent and get new backoff value
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
-                    if self.backoffExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
-                        self.backoffExponent += 1
-
-                    self.backoff = random.randint(0, 2 ** self.backoffExponent - 1)
+                    if self.schedule[ts]['isBroadcast']:
+                        if self.backoffExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
+                            self.backoffExponent += 1
+                        self.backoff = random.randint(0, 2 ** self.backoffExponent - 1)
+                    else:
+                        if self.backoffExponentPerNeigh[self.schedule[ts]['neighbor']] < self.TSCH_MAX_BACKOFF_EXPONENT:
+                            self.backoffExponentPerNeigh[self.schedule[ts]['neighbor']] += 1
+                        self.backoffPerNeigh[self.schedule[ts]['neighbor']] = random.randint(0, 2 ** self.backoffExponentPerNeigh[self.schedule[ts]['neighbor']] - 1)
                 
                 # update history
                 self.schedule[ts]['history'] += [0]
@@ -2575,7 +2638,7 @@ class Mote(object):
             numTxAck              = math.floor(pdr*numTx)
             
             for (_,cell) in self.schedule.items():
-                if (cell['neighbor'] == neighbor) and (cell['dir'] == self.DIR_TX):
+                if (cell['neighbor']==neighbor and cell['dir']==self.DIR_TX) or (cell['neighbor']==neighbor and cell['dir']==self.DIR_TXRX_SHARED and cell['isBroadcast']==False):
                     numTx        += cell['numTx']
                     numTxAck     += cell['numTxAck']
             
@@ -2686,6 +2749,12 @@ class Mote(object):
             else:
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
+    def getDedicatedCells(self, neighbor = None):
+	with self.dataLock:
+            if neighbor is None:			    
+                return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items() if c['isBroadcast']==False]
+            else:
+                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if (c['isBroadcast']==False and neighbor == c['neighbor'])]
 
     def getSharedCells(self, neighbor = None):
         with self.dataLock:
@@ -2711,6 +2780,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
+	    returnVal['numDedicatedCells']  = len(self.getDedicatedCells())
             returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()

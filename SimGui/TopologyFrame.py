@@ -101,7 +101,7 @@ class TopologyFrame(Tkinter.Frame):
         
         # go over all links in the network
         for mote in self.engine.motes:
-            for (ts,ch,neighbor) in mote.getTxCells():
+            for (ts,ch,neighbor) in mote.getDedicatedCells():
                 if (mote,neighbor) not in self.links:
                     # create
                     newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))
