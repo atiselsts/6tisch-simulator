@@ -1658,6 +1658,7 @@ class Mote(object):
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['rx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['rx']['blockedCells']=[]
+                    self.sixtopStates[neighbor.id]['rx']['seqNum'] += 1
 
             else:
                 #only add and delete are implemented so far
@@ -2383,15 +2384,14 @@ class Mote(object):
                             self.sixtopStates[self.pktToSend['dstIp'].id]['rx']['state'] = self.SIX_STATE_IDLE
                             self.sixtopStates[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
                     else:
-			if self.pktToSend['type'] != self.APP_TYPE_DATA:
-
+                        if self.pktToSend['type'] != self.APP_TYPE_DATA:
                             # update mote stats
                             self._stats_incrementMoteStats('droppedMacRetries')
 
                             # remove packet from queue
                             self.txQueue.remove(self.pktToSend)
 
-			    if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
+                            if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
                                 self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = self.SIX_STATE_IDLE
                                 self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
                             elif self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
@@ -2457,7 +2457,7 @@ class Mote(object):
                             self.sixtopStates[self.pktToSend['dstIp'].id]['rx']['state'] = self.SIX_STATE_IDLE
                             self.sixtopStates[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
                     else:
-			if self.pktToSend['type'] != self.APP_TYPE_DATA:
+                        if self.pktToSend['type'] != self.APP_TYPE_DATA:
 
                             # update mote stats
                             self._stats_incrementMoteStats('droppedMacRetries')
