@@ -122,7 +122,7 @@ class Mote(object):
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
     
     #=== 6P default timeout value in seconds
-    SIXTOP_TIMEOUT                              = 120
+    SIXTOP_TIMEOUT                              = 60
     #=== MSF
     MSF_MIN_NUM_CELLS                           = 5
     #=== tsch
