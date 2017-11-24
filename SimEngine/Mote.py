@@ -184,7 +184,7 @@ class Mote(object):
         self.numCellsFromNeighbors     = {}                    # indexed by neighbor, contains int
 
         # 6top protocol
-        self.sixtopStates               = {}
+        self.sixtopStates              = {}
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id
         # the values are:
@@ -216,7 +216,7 @@ class Mote(object):
         # battery
         self.chargeConsumed            = 0
 	# msf
-	self.msfTimeoutExp             = {}
+        self.msfTimeoutExp             = {}
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
