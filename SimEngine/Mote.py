@@ -125,6 +125,9 @@ class Mote(object):
     SIXTOP_TIMEOUT                              = 60
     #=== MSF
     MSF_MIN_NUM_CELLS                           = 5
+    MSF_DEFAULT_TIMEOUT_EXP                     = 1
+    MSF_MAX_TIMEOUT_EXP				= 4
+    MSF_DEFAULT_SIXTOP_TIMEOUT                  = 15
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 5
@@ -944,15 +947,17 @@ class Mote(object):
         with self.dataLock:
             armTimeout = False
 
+            timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+            celloptions=self.DIR_TXRX_SHARED
             if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
-                                                      dir=self.DIR_TXRX_SHARED)
+                                                      celloptions,timeout)
                 armTimeout = True
 
             if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
                 self._sixtop_removeCells(self.oldPreferredParent,
-                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0),dir=self.DIR_TXRX_SHARED)
+                                         self.numCellsToNeighbors.get(self.oldPreferredParent, 0),celloptions,timeout)
                 armTimeout = True
 
             if armTimeout:
@@ -966,6 +971,30 @@ class Mote(object):
                 assert self.numCellsToNeighbors.get(self.preferredParent, 0)
                 # upon success, invalidate old parent
                 self.oldPreferredParent = None
+
+    def _msf_get_timeout_exponent(self,neighborId):
+        '''
+          Get the current exponent according to MSF
+        '''
+        return self.msfTimeoutExp[neighborId]
+
+    def _msf_reset_timeout_exponent(self,neighborId,firstTime):
+        '''
+          reset current exponent according to MSF
+	  it can be reset or doubled
+        '''
+        if firstTime:
+            self.msfTimeoutExp[neighborId]=self.MSF_MAX_TIMEOUT_EXP
+	else:
+            self.msfTimeoutExp[neighborId]=self.MSF_DEFAULT_TIMEOUT_EXP
+
+    def _msf_increase_timeout_exponent(self,neighborId):
+        '''
+          update current exponent according to MSF
+	  it can be reset or doubled
+        '''
+        if self.msfTimeoutExp[neighborId] < self.MSF_MAX_TIMEOUT_EXP:
+            self.msfTimeoutExp[neighborId] += 1
 
     def _msf_schedule_bandwidth_increment(self):
         '''
@@ -985,10 +1014,11 @@ class Mote(object):
         self._log(self.INFO,
                   "[msf] triggering 6P ADD of {0} cell to mote {1}",
                   (self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
-
+        timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+        celloptions=self.DIR_TXRX_SHARED
         self._sixtop_cell_reservation_request(self.preferredParent,
                                               self.settings.msfNumCellsToAddOrRemove,
-                                              dir=self.DIR_TXRX_SHARED)
+                                              celloptions,timeout)
 
     def _msf_schedule_bandwidth_decrement(self):
         '''
@@ -1012,10 +1042,11 @@ class Mote(object):
                       "[msf] triggering 6P REMOVE of {0} cell to mote {1}",
                       (self.settings.msfNumCellsToAddOrRemove,
                        self.preferredParent.id))
-
+            timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+            celloptions=self.DIR_TXRX_SHARED
             # trigger 6p to remove msfNumCellsToAddOrRemove cells
             self._sixtop_removeCells(self.preferredParent,
-                                     self.settings.msfNumCellsToAddOrRemove,dir=self.DIR_TXRX_SHARED)
+                                     self.settings.msfNumCellsToAddOrRemove,celloptions,timeout)
 
     def _msf_schedule_housekeeping(self):
         
@@ -1050,6 +1081,7 @@ class Mote(object):
                 self.sixtopStates[n]['tx']['state'] = self.SIX_STATE_IDLE # put back to IDLE
                 self.sixtopStates[n]['tx']['blockedCells']=[] # transaction gets aborted, so also delete the blocked cells
                 del self.sixtopStates[n]['tx']['timer']
+                self._msf_increase_timeout_exponent(n)
                 found = True
                 # log
                 self._log(
@@ -1059,10 +1091,10 @@ class Mote(object):
                 )
 
         if not found: # if we did not find it, assert
-            #assert False
-            pass
+            assert False
+            #pass
     
-    def _sixtop_cell_reservation_request(self,neighbor,numCells,dir=DIR_TXRX_SHARED):
+    def _sixtop_cell_reservation_request(self,neighbor,numCells,dir,timeout):
         ''' tries to reserve numCells cells to a neighbor. '''
         
         with self.dataLock:
@@ -1077,6 +1109,7 @@ class Mote(object):
                         self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                         self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                         self.sixtopStates[neighbor.id]['tx']['seqNum']=0
+                        self.sixtopStates[neighbor.id]['tx']['timeout']=timeout
 
                     #get blocked cells from other 6top operations
                     blockedCells = []
@@ -1377,6 +1410,7 @@ class Mote(object):
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
                 self.sixtopStates[smac.id]['tx']['seqNum'] += 1
+                self._msf_reset_timeout_exponent(smac.id,firstTime=False)
 
                 # if the request was successfull and there were enough resources
                 if code == self.IANA_6TOP_RC_SUCCESS:
@@ -1511,6 +1545,7 @@ class Mote(object):
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
                 self.sixtopStates[smac.id]['tx']['seqNum'] += 1
+                self._msf_reset_timeout_exponent(smac.id,firstTime=False)
 
                 # if the request was successfull and there were enough resources
                 if code == self.IANA_6TOP_RC_SUCCESS:
@@ -1668,7 +1703,7 @@ class Mote(object):
                 #only add and delete are implemented so far
                 assert False
 
-    def _sixtop_cell_deletion_sender(self,neighbor,tsList,dir):
+    def _sixtop_cell_deletion_sender(self,neighbor,tsList,dir,timeout):
         with self.dataLock:
             if self.settings.sixtopMessaging:
                 if neighbor.id not in self.sixtopStates or (neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and self.sixtopStates[neighbor.id]['tx']['state'] == self.SIX_STATE_IDLE):
@@ -1681,6 +1716,7 @@ class Mote(object):
                             self.sixtopStates[neighbor.id]['tx']['state'] = self.SIX_STATE_IDLE
                             self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                             self.sixtopStates[neighbor.id]['tx']['seqNum']=0
+                            self.sixtopStates[neighbor.id]['tx']['timeout']=timeout
 
                         self._sixtop_enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList),dir,self.sixtopStates[neighbor.id]['tx']['seqNum'])
                 else:
@@ -1714,7 +1750,7 @@ class Mote(object):
             self.numCellsFromNeighbors[neighbor]     -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
     
-    def _sixtop_removeCells(self,neighbor,numCellsToRemove,dir):
+    def _sixtop_removeCells(self,neighbor,numCellsToRemove,dir,timeout):
         '''
         Finds cells to neighbor, and remove it.
         '''
@@ -1761,7 +1797,7 @@ class Mote(object):
             tsList += [tscell[0]]
         
         # remove cells
-        self._sixtop_cell_deletion_sender(neighbor,tsList,dir)
+        self._sixtop_cell_deletion_sender(neighbor,tsList,dir,timeout)
     
     def _sixtop_enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells,dir,seq):
         ''' enqueue a new 6P DELETE request '''
@@ -2279,7 +2315,7 @@ class Mote(object):
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = self.SIX_STATE_WAIT_ADDRESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn()+(float(self.SIXTOP_TIMEOUT)/float(self.settings.slotDuration)))
+                        fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
                         uniqueTag1 = '_sixtop_timer_fired_dest_%s' % (self.pktToSend['dstIp'].id)
                         self.engine.scheduleAtAsn(
                             asn         = fireASN,
@@ -2300,7 +2336,7 @@ class Mote(object):
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = self.SIX_STATE_WAIT_DELETERESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn()+(float(self.SIXTOP_TIMEOUT)/float(self.settings.slotDuration)))
+                        fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
                         uniqueTag2 = '_sixtop_timer_fired_dest_%s' % (self.pktToSend['dstIp'].id)
                         self.engine.scheduleAtAsn(
                             asn         = fireASN,
@@ -2710,6 +2746,7 @@ class Mote(object):
 
 	for m in self._myNeigbors():
             self._tsch_resetBackoffPerNeigh(m)
+            self._msf_reset_timeout_exponent(m.id,firstTime=True)
 
         # MSF
         self._msf_schedule_housekeeping()
