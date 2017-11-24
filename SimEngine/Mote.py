@@ -199,7 +199,7 @@ class Mote(object):
         self.timeCorrectedSlot         = None
         self.isSync                    = False
         self.firstEB                   = True                  # flag to indicate first received enhanced beacon
-        self._tsch_resetBackoff()
+        self._tsch_resetBroadcastBackoff()
         self.backoffPerNeigh           = {}
         self.backoffExponentPerNeigh   = {}
         # radio
@@ -1861,9 +1861,9 @@ class Mote(object):
     #===== tsch
 
     #BROADCAST cells
-    def _tsch_resetBackoff(self):
-        self.backoff = 0
-        self.backoffExponent = self.TSCH_MIN_BACKOFF_EXPONENT - 1
+    def _tsch_resetBroadcastBackoff(self):
+        self.backoffBroadcast = 0
+        self.backoffBroadcastExponent = self.TSCH_MIN_BACKOFF_EXPONENT - 1
 
     #SHARED Dedicated cells
     def _tsch_resetBackoffPerNeigh(self,neigh):
@@ -2056,7 +2056,7 @@ class Mote(object):
             elif cell['dir']==self.DIR_TXRX_SHARED:
                 if type(cell['neighbor'])!=type(self):
                     self.pktToSend = None
-                    if self.txQueue and self.backoff == 0:
+                    if self.txQueue and self.backoffBroadcast == 0:
                         for pkt in self.txQueue:
                             # send join packets on the shared cell only on first hop
                             if pkt['type'] == self.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
@@ -2077,8 +2077,8 @@ class Mote(object):
                             else:
                                 continue
                     # Decrement backoff
-                    if self.backoff > 0:
-                        self.backoff -= 1
+                    if self.backoffBroadcast > 0:
+                        self.backoffBroadcast -= 1
                 else:
 
                     # check whether packet to send
@@ -2331,7 +2331,7 @@ class Mote(object):
                     if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and type(self)==type(self.schedule[ts]['neighbor']):
                         self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
                     else:
-                        self._tsch_resetBackoff()
+                        self._tsch_resetBroadcastBackoff()
                 
             elif isNACKed:
                 # NACK received
@@ -2396,12 +2396,12 @@ class Mote(object):
                     if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and type(self)==type(self.schedule[ts]['neighbor']):
                         self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
                     else:
-                        self._tsch_resetBackoff()
+                        self._tsch_resetBroadcastBackoff()
             elif self.pktToSend['dstIp'] == self.BROADCAST_ADDRESS:
                 # broadcast packet is not acked, remove from queue and update stats
                 self._logChargeConsumed(self.CHARGE_TxData_uC)
                 self.txQueue.remove(self.pktToSend)
-                self._tsch_resetBackoff()
+                self._tsch_resetBroadcastBackoff()
             
             else:
                 # neither ACK nor NACK received
@@ -2410,9 +2410,9 @@ class Mote(object):
                 # increment backoffExponent and get new backoff value
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
                     if type(self)!=type(self.schedule[ts]['neighbor']):
-                        if self.backoffExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
-                            self.backoffExponent += 1
-                        self.backoff = random.randint(0, 2 ** self.backoffExponent - 1)
+                        if self.backoffBroadcastExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
+                            self.backoffBroadcastExponent += 1
+                        self.backoffBroadcast = random.randint(0, 2 ** self.backoffBroadcastExponent - 1)
                     else:
                         if self.backoffExponentPerNeigh[self.schedule[ts]['neighbor']] < self.TSCH_MAX_BACKOFF_EXPONENT:
                             self.backoffExponentPerNeigh[self.schedule[ts]['neighbor']] += 1
