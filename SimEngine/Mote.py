@@ -2072,10 +2072,6 @@ class Mote(object):
                             elif pkt['type'] == self.RPL_TYPE_DIO or pkt['type'] == self.TSCH_TYPE_EB:
                                 self.pktToSend = pkt
                                 break
-                            # DAOs go on the shared shared broadcast cell if there are no dedicated cells to that neighbor
-                            elif pkt['type'] == self.RPL_TYPE_DAO and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
-                                self.pktToSend = pkt
-                                break
                             else:
                                 continue
                     # Decrement backoff
