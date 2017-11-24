@@ -2236,8 +2236,6 @@ class Mote(object):
     def _tsch_add_minimal_cell(self):
         # add minimal cell
         self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)],True)
-        for m in self._myNeigbors():
-            self._tsch_resetBackoffPerNeigh(m)
     
     #===== radio
 
@@ -2709,6 +2707,9 @@ class Mote(object):
         self._rpl_schedule_sendDIO(firstDIO=True)
         if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
+
+	for m in self._myNeigbors():
+            self._tsch_resetBackoffPerNeigh(m)
 
         # MSF
         self._msf_schedule_housekeeping()
