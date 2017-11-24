@@ -217,7 +217,8 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-        
+	# msf
+	self.msfTimeoutExp             = {}
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -568,6 +569,11 @@ class Mote(object):
             self.firstEB = False
             # declare as synced to the network
             self.isSync = True
+	    # set neighbors variables before starting request cells to the preferred parent
+	    for m in self._myNeigbors():
+	        print "I am "+str(self.id)+" initializing neigh "+str(m.id)
+                self._msf_reset_timeout_exponent(m.id,firstTime=True)
+                self._tsch_resetBackoffPerNeigh(m)
             # add the minimal cell to the schedule
             self._tsch_add_minimal_cell()
             # trigger join process
@@ -1151,7 +1157,7 @@ class Mote(object):
                         (ts,ch,self.id,neighbor.id),
                     )
                     cellList += [(ts,ch,dir)]
-                self._tsch_addCells(neighbor,cellList,False)
+                self._tsch_addCells(neighbor,cellList)
 
                 # update counters
                 if dir==self.DIR_TX:
@@ -2148,15 +2154,15 @@ class Mote(object):
                     if self.backoffBroadcast > 0:
                         self.backoffBroadcast -= 1
                 else:
-
-                    # check whether packet to send
-                    self.pktToSend = None
-                    if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
-                        for pkt in self.txQueue:
-                        # send the frame if next hop matches the cell destination
-                            if pkt['nextHop'] == [cell['neighbor']]:
-                                self.pktToSend = pkt
-                                break
+		    if self.isSync:
+                        # check whether packet to send
+                        self.pktToSend = None
+                        if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
+                            for pkt in self.txQueue:
+                            # send the frame if next hop matches the cell destination
+                                if pkt['nextHop'] == [cell['neighbor']]:
+                                    self.pktToSend = pkt
+                                    break
 
                     # Decrement backoffPerNeigh
                     if self.backoffPerNeigh[cell['neighbor']] > 0:
@@ -2303,7 +2309,7 @@ class Mote(object):
 
     def _tsch_add_minimal_cell(self):
         # add minimal cell
-        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)],True)
+        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)])
     
     #===== radio
 
@@ -2776,12 +2782,14 @@ class Mote(object):
         if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
 
-	for m in self._myNeigbors():
-            self._tsch_resetBackoffPerNeigh(m)
-            self._msf_reset_timeout_exponent(m.id,firstTime=True)
+	#if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
+	if not self.settings.withJoin or self.dagRoot:
+            for m in self._myNeigbors():
+                self._msf_reset_timeout_exponent(m.id,firstTime=True)
+                self._tsch_resetBackoffPerNeigh(m)
 
-        # MSF
-        self._msf_schedule_housekeeping()
+	# MSF
+	self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
