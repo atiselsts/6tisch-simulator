@@ -200,8 +200,8 @@ class Mote(object):
         self.isSync                    = False
         self.firstEB                   = True                  # flag to indicate first received enhanced beacon
         self._tsch_resetBackoff()
-        self.backoffPerNeigh={}
-        self.backoffExponentPerNeigh={}
+        self.backoffPerNeigh           = {}
+        self.backoffExponentPerNeigh   = {}
         # radio
         self.txPower                   = 0                     # dBm
         self.antennaGain               = 0                     # dBi
@@ -2093,9 +2093,6 @@ class Mote(object):
                                 break
 
                     # Decrement backoffPerNeigh
-#		    print "I am "+str(self.id)+" backoffs "+str(self.backoffPerNeigh.keys())
-#		    print cell['neighbor'].id
-#		    print cell
                     if self.backoffPerNeigh[cell['neighbor']] > 0:
                         self.backoffPerNeigh[cell['neighbor']] -= 1
                 # send packet
