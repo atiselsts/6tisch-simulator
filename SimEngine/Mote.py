@@ -1823,7 +1823,7 @@ class Mote(object):
                     self.sixtopStates[smac.id]['rx'] = {}
                     self.sixtopStates[smac.id]['rx']['blockedCells']=[]
                     self.sixtopStates[smac.id]['rx']['seqNum']=0
-                self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_ADD_RECEIVED
+                self.sixtopStates[smac.id]['rx']['state'] = self.SIX_STATE_REQUEST_DELETE_RECEIVED
                 self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor,seq,isBroadcast)
                 return
 
@@ -1887,7 +1887,7 @@ class Mote(object):
 
             return False
         
-        elif len(self.txQueue)==self.TSCH_QUEUE_SIZE:
+        elif len(self.txQueue)>=self.TSCH_QUEUE_SIZE:
             #my TX queue is full.
 
             # However, I will allow to add an additional packet in some specific ocasions
