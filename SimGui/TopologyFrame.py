@@ -101,7 +101,18 @@ class TopologyFrame(Tkinter.Frame):
         
         # go over all links in the network
         for mote in self.engine.motes:
-            for (ts,ch,neighbor) in mote.getDedicatedCells():
+            for (ts,ch,neighbor) in mote.getTxCells():
+                if (mote,neighbor) not in self.links:
+                    # create
+                    newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))
+                    self.topology.itemconfig(newLink,activefill='red')
+                    self.topology.tag_bind(newLink, '<ButtonPress-1>', self._linkClicked)
+                    self.links[(mote,neighbor)] = newLink
+                else:
+                    # move
+                    self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
+                    # TODO:move
+            for (ts,ch,neighbor) in mote.getSharedCells():
                 if (mote,neighbor) not in self.links:
                     # create
                     newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))

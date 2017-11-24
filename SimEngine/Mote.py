@@ -121,8 +121,6 @@ class Mote(object):
     IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
     IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
     
-    #=== 6P default timeout value in seconds
-    SIXTOP_TIMEOUT                              = 60
     #=== MSF
     MSF_MIN_NUM_CELLS                           = 5
     MSF_DEFAULT_TIMEOUT_EXP                     = 1
@@ -571,7 +569,6 @@ class Mote(object):
             self.isSync = True
 	    # set neighbors variables before starting request cells to the preferred parent
 	    for m in self._myNeigbors():
-	        print "I am "+str(self.id)+" initializing neigh "+str(m.id)
                 self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
             # add the minimal cell to the schedule
@@ -1941,7 +1938,6 @@ class Mote(object):
 
     #SHARED Dedicated cells
     def _tsch_resetBackoffPerNeigh(self,neigh):
-	#print neigh.id
         self.backoffPerNeigh[neigh] = 0
         self.backoffExponentPerNeigh[neigh] = self.TSCH_MIN_BACKOFF_EXPONENT - 1
 
@@ -2820,6 +2816,7 @@ class Mote(object):
             else:
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
+
     def getSharedCells(self, neighbor = None):
         with self.dataLock:
             if neighbor is None:
