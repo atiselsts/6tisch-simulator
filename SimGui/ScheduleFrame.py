@@ -38,7 +38,7 @@ class ScheduleFrame(Tkinter.Frame):
     COLOR_OK                 = "blue"
     COLOR_ERROR              = "red"
     
-    COLOR_TX                 = "blue"
+    COLOR_TX                 = "green"
     COLOR_RX                 = "blue"
     COLOR_DEDICATED          = "magenta"
     COLOR_SHARED             = "yellow"
