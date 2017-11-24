@@ -1158,10 +1158,17 @@ class Mote(object):
                     if neighbor not in self.numCellsToNeighbors:
                         self.numCellsToNeighbors[neighbor]     = 0
                     self.numCellsToNeighbors[neighbor]        += len(cells)
+                elif dir==self.DIR_RX:
+                    if neighbor not in self.numCellsFromNeighbors:
+                        self.numCellsFromNeighbors[neighbor]   = 0
+                    self.numCellsFromNeighbors[neighbor]      += len(cells)
                 else:
                     if neighbor not in self.numCellsFromNeighbors:
                         self.numCellsFromNeighbors[neighbor]   = 0
                     self.numCellsFromNeighbors[neighbor]      += len(cells)
+                    if neighbor not in self.numCellsToNeighbors:
+                        self.numCellsToNeighbors[neighbor]     = 0
+                    self.numCellsToNeighbors[neighbor]        += len(cells)
 
                 if len(cells)!=numCells:
                     # log
@@ -1298,9 +1305,11 @@ class Mote(object):
             
             # set direction of cells
             if dirNeighbor == self.DIR_TX:
-                dir = self.DIR_RX
+                newDir = self.DIR_RX
+            elif dirNeighbor == self.DIR_RX:
+                newDir = self.DIR_TX
             else:
-                dir = self.DIR_TX
+                newDir = self.DIR_TXRX_SHARED
                 
             availableTimeslots    = list(set(range(self.settings.slotframeLength))-set(neighbor.schedule.keys())-set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
@@ -1315,17 +1324,24 @@ class Mote(object):
                     (ts,ch,self.id,neighbor.id),
                 )
                 cellList         += [(ts,ch,dir)]
-            self._tsch_addCells(neighbor,cellList,False)
+            self._tsch_addCells(neighbor,cellList)
             
             # update counters
             if dir==self.DIR_TX:
                 if neighbor not in self.numCellsToNeighbors:
                     self.numCellsToNeighbors[neighbor]     = 0
                 self.numCellsToNeighbors[neighbor]        += len(cells)
+            elif dir==self.DIR_RX:
+                if neighbor not in self.numCellsFromNeighbors:
+                    self.numCellsFromNeighbors[neighbor]   = 0
+                self.numCellsFromNeighbors[neighbor]      += len(cells)
             else:
                 if neighbor not in self.numCellsFromNeighbors:
                     self.numCellsFromNeighbors[neighbor]   = 0
                 self.numCellsFromNeighbors[neighbor]      += len(cells)
+                if neighbor not in self.numCellsToNeighbors:
+                    self.numCellsToNeighbors[neighbor]     = 0
+                self.numCellsToNeighbors[neighbor]        += len(cells)
             
             return cells
     
@@ -1737,17 +1753,33 @@ class Mote(object):
                     tsList       = tsList,
                 )
 
-                neighbor._sixtop_cell_deletion_receiver(self,tsList)
-                self.numCellsToNeighbors[neighbor]       -= len(tsList)
+                neighbor._sixtop_cell_deletion_receiver(self,tsList,dir)
+
+                # update counters
+	        if dir==self.DIR_TX:
+	            self.numCellsToNeighbors[neighbor]        -= len(tsList)
+	        elif dir==self.DIR_RX:
+	            self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+                else:
+	            self.numCellsToNeighbors[neighbor]        -= len(tsList)
+	            self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+
                 assert self.numCellsToNeighbors[neighbor]>=0
 
-    def _sixtop_cell_deletion_receiver(self,neighbor,tsList):
+    def _sixtop_cell_deletion_receiver(self,neighbor,tsList,dir):
         with self.dataLock:
             self._tsch_removeCells(
                 neighbor     = neighbor,
                 tsList       = tsList,
             )
-            self.numCellsFromNeighbors[neighbor]     -= len(tsList)
+            # update counters
+	    if dir==self.DIR_TX:
+	        self.numCellsToNeighbors[neighbor]        -= len(tsList)
+	    elif dir==self.DIR_RX:
+	        self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+            else:
+	        self.numCellsToNeighbors[neighbor]        -= len(tsList)
+	        self.numCellsFromNeighbors[neighbor]      -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
     
     def _sixtop_removeCells(self,neighbor,numCellsToRemove,dir,timeout):
