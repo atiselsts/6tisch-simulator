@@ -1881,7 +1881,7 @@ class Mote(object):
             
             return False
         
-        elif not (self.getDedicatedCells() or self.getSharedCells()):
+        elif not (self.getTxCells() or self.getSharedCells()):
             # I don't have any transmit cells
             
             # increment mote state
@@ -2059,15 +2059,15 @@ class Mote(object):
                     if self.txQueue and self.backoff == 0:
                         for pkt in self.txQueue:
                             # send join packets on the shared cell only on first hop
-                            if pkt['type'] == self.APP_TYPE_JOIN and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                            if pkt['type'] == self.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
                                 self.pktToSend = pkt
                                 break
                             # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
-                            elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                            elif pkt['type'] == self.IANA_6TOP_TYPE_REQUEST and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
                                 self.pktToSend = pkt
                                 break
                             # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
-                            elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getDedicatedCells(pkt['nextHop'][0])) == 0:
+                            elif pkt['type'] == self.IANA_6TOP_TYPE_RESPONSE and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
                                 self.pktToSend = pkt
                                 break
                             # DIOs and EBs always go on the shared broadcast cell
@@ -2742,13 +2742,6 @@ class Mote(object):
             else:
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_RX and c['neighbor'] == neighbor]
-    def getDedicatedCells(self, neighbor = None):
-	with self.dataLock:
-            if neighbor is None:			    
-                return [(ts,c['ch'],c['neighbor']) for (ts,c) in self.schedule.items()]
-            else:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if neighbor == c['neighbor']]
-
     def getSharedCells(self, neighbor = None):
         with self.dataLock:
             if neighbor is None:
@@ -2773,7 +2766,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
-	    returnVal['numDedicatedCells']  = len(self.getDedicatedCells())
+	    returnVal['numDedicatedCells']  = len(self.getTxCells()) + len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
             returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
