@@ -126,6 +126,7 @@ class Mote(object):
     MSF_DEFAULT_TIMEOUT_EXP                     = 1
     MSF_MAX_TIMEOUT_EXP				= 4
     MSF_DEFAULT_SIXTOP_TIMEOUT                  = 15
+    MSF_6PTIMEOUT_SEC_FACTOR                    = 3
     #=== tsch
     TSCH_QUEUE_SIZE                    = 10
     TSCH_MAXTXRETRIES                  = 5
@@ -950,15 +951,16 @@ class Mote(object):
         with self.dataLock:
             armTimeout = False
 
-            timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
             celloptions=self.DIR_TXRX_SHARED
             if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
+                timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
                                                       celloptions,timeout)
                 armTimeout = True
 
             if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
+                timeout = self._msf_get_sixtop_timeout(self.oldPreferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.oldPreferredParent.id) - 1))
                 self._sixtop_removeCells(self.oldPreferredParent,
                                          self.numCellsToNeighbors.get(self.oldPreferredParent, 0),celloptions,timeout)
                 armTimeout = True
@@ -981,13 +983,28 @@ class Mote(object):
         '''
         return self.msfTimeoutExp[neighborId]
 
+    def _msf_get_sixtop_timeout(self,neighbor):
+        '''
+          calculate the timeout to a neighbor according to MSF
+        '''
+        cellPDR = []
+        for (ts,cell) in self.schedule.iteritems():
+            if (cell['neighbor']==neighbor and cell['dir']==self.DIR_TX) or (cell['dir']==self.DIR_TXRX_SHARED and cell['neighbor']==neighbor):
+                cellPDR.append((float(cell['numTxAck'])+(self.getPDR(neighbor)*self.NUM_SUFFICIENT_TX)/(cell['numTx']+self.NUM_SUFFICIENT_TX)))
+
+        if len(cellPDR) > 0:
+            meanPDR=sum(cellPDR) / float(len(cellPDR))
+            return math.ceil((len(cellPDR)/meanPDR)*self.MSF_6PTIMEOUT_SEC_FACTOR)
+        else:
+            return self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+
     def _msf_reset_timeout_exponent(self,neighborId,firstTime):
         '''
           reset current exponent according to MSF
 	  it can be reset or doubled
         '''
         if firstTime:
-            self.msfTimeoutExp[neighborId]=self.MSF_MAX_TIMEOUT_EXP
+            self.msfTimeoutExp[neighborId]=self.MSF_MAX_TIMEOUT_EXP-1
 	else:
             self.msfTimeoutExp[neighborId]=self.MSF_DEFAULT_TIMEOUT_EXP
 
@@ -1017,7 +1034,7 @@ class Mote(object):
         self._log(self.INFO,
                   "[msf] triggering 6P ADD of {0} cell to mote {1}",
                   (self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
-        timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+        timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
         celloptions=self.DIR_TXRX_SHARED
         self._sixtop_cell_reservation_request(self.preferredParent,
                                               self.settings.msfNumCellsToAddOrRemove,
@@ -1045,7 +1062,7 @@ class Mote(object):
                       "[msf] triggering 6P REMOVE of {0} cell to mote {1}",
                       (self.settings.msfNumCellsToAddOrRemove,
                        self.preferredParent.id))
-            timeout = self.MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+            timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
             celloptions=self.DIR_TXRX_SHARED
             # trigger 6p to remove msfNumCellsToAddOrRemove cells
             self._sixtop_removeCells(self.preferredParent,
