@@ -124,7 +124,7 @@ class Mote(object):
     #=== MSF
     MSF_MIN_NUM_CELLS                           = 5
     MSF_DEFAULT_TIMEOUT_EXP                     = 1
-    MSF_MAX_TIMEOUT_EXP				= 4
+    MSF_MAX_TIMEOUT_EXP                         = 4
     MSF_DEFAULT_SIXTOP_TIMEOUT                  = 15
     MSF_6PTIMEOUT_SEC_FACTOR                    = 3
     #=== tsch
