@@ -361,7 +361,7 @@ class Mote(object):
             self._init_stack()
 
     def join_joinedNeighbors(self):
-        return [nei for nei in self._myNeigbors() if nei.isJoined == True]
+        return [nei for nei in self._myNeighbors() if nei.isJoined == True]
 
     #===== application
     
@@ -569,7 +569,7 @@ class Mote(object):
             # declare as synced to the network
             self.isSync = True
 	    # set neighbors variables before starting request cells to the preferred parent
-	    for m in self._myNeigbors():
+	    for m in self._myNeighbors():
                 self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
             # add the minimal cell to the schedule
@@ -910,7 +910,7 @@ class Mote(object):
         nextHop = None
 
         if packet['dstIp'] == self.BROADCAST_ADDRESS:
-            nextHop = self._myNeigbors()
+            nextHop = self._myNeighbors()
         # 6Top packet. don't send to the parent necessarily. Send it directly to your neighbor (1 hop)
         elif packet['type'] == self.IANA_6TOP_TYPE_REQUEST or packet['type'] == self.IANA_6TOP_TYPE_RESPONSE:
             nextHop = [packet['dstIp']]
@@ -918,10 +918,10 @@ class Mote(object):
             nextHop = [self.preferredParent]
         elif packet['sourceRoute']:                   # downward packet with source route info filled correctly
             nextHopId = packet['sourceRoute'].pop()
-            for nei in self._myNeigbors():
+            for nei in self._myNeighbors():
                 if [nei.id] == nextHopId:
                     nextHop = [nei]
-        elif packet['dstIp'] in self._myNeigbors():   #used for 1hop packets, such as 6top messages. This has to be the last one, since some neighbours can have very low PDR
+        elif packet['dstIp'] in self._myNeighbors():   #used for 1hop packets, such as 6top messages. This has to be the last one, since some neighbours can have very low PDR
             nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
@@ -2141,7 +2141,7 @@ class Mote(object):
                     self.numCellsUsed = 0
              
             elif cell['dir']==self.DIR_TXRX_SHARED:
-                if type(cell['neighbor'])!=type(self):
+                if cell['neighbor'] == self._myNeighbors():
                     self.pktToSend = None
                     if self.txQueue and self.backoffBroadcast == 0:
                         for pkt in self.txQueue:
@@ -2322,7 +2322,7 @@ class Mote(object):
 
     def _tsch_add_minimal_cell(self):
         # add minimal cell
-        self._tsch_addCells(self._myNeigbors(), [(0, 0, self.DIR_TXRX_SHARED)])
+        self._tsch_addCells(self._myNeighbors(), [(0, 0, self.DIR_TXRX_SHARED)])
     
     #===== radio
 
@@ -2413,7 +2413,7 @@ class Mote(object):
                 self.txQueue.remove(self.pktToSend)
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
-                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and type(self)==type(self.schedule[ts]['neighbor']):
+                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and self.schedule[ts]['neighbor'] != self._myNeighbors():
                         self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
                     else:
                         self._tsch_resetBroadcastBackoff()
@@ -2478,7 +2478,7 @@ class Mote(object):
 
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == self.DIR_TX and not self.txQueue):
-                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and type(self)==type(self.schedule[ts]['neighbor']):
+                    if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED and self.schedule[ts]['neighbor'] != self._myNeighbors():
                         self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
                     else:
                         self._tsch_resetBroadcastBackoff()
@@ -2494,7 +2494,7 @@ class Mote(object):
 
                 # increment backoffExponent and get new backoff value
                 if self.schedule[ts]['dir'] == self.DIR_TXRX_SHARED:
-                    if type(self)!=type(self.schedule[ts]['neighbor']):
+                    if self.schedule[ts]['neighbor'] == self._myNeighbors():
                         if self.backoffBroadcastExponent < self.TSCH_MAX_BACKOFF_EXPONENT:
                             self.backoffBroadcastExponent += 1
                         self.backoffBroadcast = random.randint(0, 2 ** self.backoffBroadcastExponent - 1)
@@ -2729,7 +2729,7 @@ class Mote(object):
             
             return etx
     
-    def _myNeigbors(self):
+    def _myNeighbors(self):
         return [n for n in self.PDR.keys() if self.PDR[n]>0]
     
     #===== clock
@@ -2797,7 +2797,7 @@ class Mote(object):
 
 	#if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
 	if not self.settings.withJoin or self.dagRoot:
-            for m in self._myNeigbors():
+            for m in self._myNeighbors():
                 self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
 
