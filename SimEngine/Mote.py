@@ -216,7 +216,7 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-	# msf
+        # msf
         self.msfTimeoutExp             = {}
         # stats
         self._stats_resetMoteStats()
@@ -568,8 +568,8 @@ class Mote(object):
             self.firstEB = False
             # declare as synced to the network
             self.isSync = True
-	    # set neighbors variables before starting request cells to the preferred parent
-	    for m in self._myNeighbors():
+            # set neighbors variables before starting request cells to the preferred parent
+            for m in self._myNeighbors():
                 self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
             # add the minimal cell to the schedule
@@ -1001,17 +1001,17 @@ class Mote(object):
     def _msf_reset_timeout_exponent(self,neighborId,firstTime):
         '''
           reset current exponent according to MSF
-	  it can be reset or doubled
+          it can be reset or doubled
         '''
         if firstTime:
             self.msfTimeoutExp[neighborId]=self.MSF_MAX_TIMEOUT_EXP-1
-	else:
+        else:
             self.msfTimeoutExp[neighborId]=self.MSF_DEFAULT_TIMEOUT_EXP
 
     def _msf_increase_timeout_exponent(self,neighborId):
         '''
           update current exponent according to MSF
-	  it can be reset or doubled
+          it can be reset or doubled
         '''
         if self.msfTimeoutExp[neighborId] < self.MSF_MAX_TIMEOUT_EXP:
             self.msfTimeoutExp[neighborId] += 1
@@ -1343,15 +1343,15 @@ class Mote(object):
                     '[6top] add RX cell ts={0},ch={1} from {2} to {3}',
                     (ts,ch,self.id,neighbor.id),
                 )
-                cellList         += [(ts,ch,dir)]
+                cellList         += [(ts,ch,newDir)]
             self._tsch_addCells(neighbor,cellList)
             
             # update counters
-            if dir==self.DIR_TX:
+            if newDir==self.DIR_TX:
                 if neighbor not in self.numCellsToNeighbors:
                     self.numCellsToNeighbors[neighbor]     = 0
                 self.numCellsToNeighbors[neighbor]        += len(cells)
-            elif dir==self.DIR_RX:
+            elif newDir==self.DIR_RX:
                 if neighbor not in self.numCellsFromNeighbors:
                     self.numCellsFromNeighbors[neighbor]   = 0
                 self.numCellsFromNeighbors[neighbor]      += len(cells)
@@ -1672,32 +1672,31 @@ class Mote(object):
                     self.tsSixTopReqRecv[neighbor]=0
 
                     if code == self.IANA_6TOP_RC_SUCCESS:
+                        for (ts, ch, cellDir) in confirmedCellList:
+                                # log
+                                self._log(
+                                    self.INFO,
+                                    '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
+                                    (ts,ch,self.id,neighbor.id,cellDir),
+                                )
+                        self._tsch_addCells(neighbor, confirmedCellList)
 
-                            for (ts, ch, cellDir) in confirmedCellList:
-                                    # log
-                                    self._log(
-                                        self.INFO,
-                                        '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-                                        (ts,ch,self.id,neighbor.id,cellDir),
-                                    )
-			    self._tsch_addCells(neighbor, confirmedCellList)
-
-		            # update counters
-		            if receivedDir==self.DIR_TX:
-		                if neighbor not in self.numCellsToNeighbors:
-                                    self.numCellsToNeighbors[neighbor]     = 0
-		                self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
-		            elif receivedDir==self.DIR_RX:
-		                if neighbor not in self.numCellsFromNeighbors:
-                                    self.numCellsFromNeighbors[neighbor]   = 0
-		                self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
-                            else:
-		                if neighbor not in self.numCellsToNeighbors:
-		                    self.numCellsToNeighbors[neighbor]     = 0
-		                self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
-		                if neighbor not in self.numCellsFromNeighbors:
-		                    self.numCellsFromNeighbors[neighbor]   = 0
-		                self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+                        # update counters
+                        if receivedDir==self.DIR_TX:
+                            if neighbor not in self.numCellsToNeighbors:
+                                self.numCellsToNeighbors[neighbor]     = 0
+                            self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
+                        elif receivedDir==self.DIR_RX:
+                            if neighbor not in self.numCellsFromNeighbors:
+                                self.numCellsFromNeighbors[neighbor]   = 0
+                            self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
+                        else:
+                            if neighbor not in self.numCellsToNeighbors:
+                                self.numCellsToNeighbors[neighbor]     = 0
+                            self.numCellsToNeighbors[neighbor]        += len(confirmedCellList)
+                            if neighbor not in self.numCellsFromNeighbors:
+                                self.numCellsFromNeighbors[neighbor]   = 0
+                            self.numCellsFromNeighbors[neighbor]      += len(confirmedCellList)
 
                     # go back to IDLE, i.e. remove the neighbor form the states
                     # but if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
@@ -1776,13 +1775,13 @@ class Mote(object):
                 neighbor._sixtop_cell_deletion_receiver(self,tsList,dir)
 
                 # update counters
-	        if dir==self.DIR_TX:
-	            self.numCellsToNeighbors[neighbor]        -= len(tsList)
-	        elif dir==self.DIR_RX:
-	            self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+                if dir==self.DIR_TX:
+                    self.numCellsToNeighbors[neighbor]        -= len(tsList)
+                elif dir==self.DIR_RX:
+                    self.numCellsFromNeighbors[neighbor]      -= len(tsList)
                 else:
-	            self.numCellsToNeighbors[neighbor]        -= len(tsList)
-	            self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+                    self.numCellsToNeighbors[neighbor]        -= len(tsList)
+                    self.numCellsFromNeighbors[neighbor]      -= len(tsList)
 
                 assert self.numCellsToNeighbors[neighbor]>=0
 
@@ -1793,13 +1792,13 @@ class Mote(object):
                 tsList       = tsList,
             )
             # update counters
-	    if dir==self.DIR_TX:
-	        self.numCellsToNeighbors[neighbor]        -= len(tsList)
-	    elif dir==self.DIR_RX:
-	        self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+            if dir==self.DIR_TX:
+                self.numCellsToNeighbors[neighbor]        -= len(tsList)
+            elif dir==self.DIR_RX:
+                self.numCellsFromNeighbors[neighbor]      -= len(tsList)
             else:
-	        self.numCellsToNeighbors[neighbor]        -= len(tsList)
-	        self.numCellsFromNeighbors[neighbor]      -= len(tsList)
+                self.numCellsToNeighbors[neighbor]        -= len(tsList)
+                self.numCellsFromNeighbors[neighbor]      -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor]>=0
     
     def _sixtop_removeCells(self,neighbor,numCellsToRemove,dir,timeout):
@@ -2167,7 +2166,7 @@ class Mote(object):
                     if self.backoffBroadcast > 0:
                         self.backoffBroadcast -= 1
                 else:
-		    if self.isSync:
+                    if self.isSync:
                         # check whether packet to send
                         self.pktToSend = None
                         if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
@@ -2543,7 +2542,7 @@ class Mote(object):
                             # remove packet from queue
                             self.txQueue.remove(self.pktToSend)
 
-			    if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
+                            if self.pktToSend['type'] == self.IANA_6TOP_TYPE_REQUEST:
                                 self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = self.SIX_STATE_IDLE
                                 self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
                             elif self.pktToSend['type'] == self.IANA_6TOP_TYPE_RESPONSE:
@@ -2795,14 +2794,14 @@ class Mote(object):
         if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
 
-	#if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
-	if not self.settings.withJoin or self.dagRoot:
+        #if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
+        if not self.settings.withJoin or self.dagRoot:
             for m in self._myNeighbors():
                 self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
 
-	# MSF
-	self._msf_schedule_housekeeping()
+        # MSF
+        self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
@@ -2858,7 +2857,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
-	    returnVal['numDedicatedCells']  = len(self.getTxCells()) + len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
+            returnVal['numDedicatedCells']  = len(self.getTxCells()) + len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
             returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
