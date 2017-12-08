@@ -148,7 +148,7 @@ class Mote(object):
     BROADCAST_ADDRESS                  = 0xffff
     
     def __init__(self,id):
-        
+
         # store params
         self.id                        = id
         # local variables
@@ -951,7 +951,7 @@ class Mote(object):
         with self.dataLock:
             armTimeout = False
 
-            celloptions=self.DIR_TXRX_SHARED
+            celloptions = self.DIR_TXRX_SHARED
             if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
                 timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
                 self._sixtop_cell_reservation_request(self.preferredParent,
@@ -1771,8 +1771,16 @@ class Mote(object):
                     neighbor     = neighbor,
                     tsList       = tsList,
                 )
+                
+                newDir = self.DIR_RX
+                if dir == self.DIR_TX:
+                    newDir = self.DIR_RX
+                elif dir == self.DIR_RX:
+                    newDir = self.DIR_TX
+                else:
+                    newDir = self.DIR_TXRX_SHARED
 
-                neighbor._sixtop_cell_deletion_receiver(self,tsList,dir)
+                neighbor._sixtop_cell_deletion_receiver(self,tsList,newDir)
 
                 # update counters
                 if dir==self.DIR_TX:
