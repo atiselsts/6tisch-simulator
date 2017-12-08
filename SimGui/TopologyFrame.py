@@ -112,6 +112,19 @@ class TopologyFrame(Tkinter.Frame):
                     # move
                     self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
                     # TODO:move
+            for (ts,ch,neighbor) in mote.getSharedCells():
+                # only include unicast links
+                if neighbor != mote._myNeighbors():
+                    if (mote,neighbor) not in self.links:
+                        # create
+                        newLink = self.topology.create_line(self._linkCoordinates(mote,neighbor))
+                        self.topology.itemconfig(newLink,activefill='red')
+                        self.topology.tag_bind(newLink, '<ButtonPress-1>', self._linkClicked)
+                        self.links[(mote,neighbor)] = newLink
+                    else:
+                        # move
+                        self.topology.dtag(self.links[(mote,neighbor)],"deleteMe")
+                        # TODO:move
         
         #===== draw motes and moteIds
         

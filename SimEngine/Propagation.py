@@ -45,7 +45,6 @@ class Propagation(object):
     #===== end singleton
     
     def __init__(self):
-        
         #===== start singleton
         # don't re-initialize an instance (needed because singleton)
         if self._init:
