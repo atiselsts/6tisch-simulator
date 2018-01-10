@@ -11,6 +11,12 @@ Brought to you by:
 * Esteban Municio (esteban.municio@uantwerpen.be)
 * Glenn Daneels (glenn.daneels@uantwerpen.be)
 
+You are on the development branch, containing latest and hottest updates to the simulator, following the work in the 6TiSCH standardization group.
+This comes at a price that it may not be most thoroughly tested, and bugs are to be expected.
+If you encounter some, please report them with a detailed bug report containing the parameters you used to run the simulation, through the Bitbucket issue tracker.
+
+If you are looking for a more stable, but outdated version, please check out the master branch.
+
 Scope
 -----
 
@@ -20,9 +26,9 @@ What is simulated:
 
 * protocols
     * IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
-    * RPL (http://tools.ietf.org/html/rfc6550) with downstream traffic using source routing
-    * 6top (http://tools.ietf.org/html/draft-wang-6tisch-6top-sublayer)
-    * On-The-Fly scheduling (http://tools.ietf.org/html/draft-dujovne-6tisch-on-the-fly)
+    * RPL (https://tools.ietf.org/html/rfc6550) with downstream traffic using source routing
+    * 6top (https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09)
+    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-00)
 * join process with initial synchronization to the first received Enhanced Beacon.
 * the "Pister-hack" propagation model with collisions
 * the energy consumption model taken from
@@ -55,10 +61,10 @@ Installation
 Running
 -------
 
-* Run a simulation: `bin/simpleSim/runSim.py`
-* Plot fancy graphs: `bin/simpleSim/plotStuff.py`
+* Run a simulation: `bin/runSimOneCPU.py`
+* Plot fancy graphs: `bin/plotStuff.py`
 
-Use `bin/simpleSim/runSim.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
+Use `bin/runSimOneCPU.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
 
 Code Organization
 -----------------
