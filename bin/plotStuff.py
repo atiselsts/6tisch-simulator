@@ -776,8 +776,8 @@ def plot_otfActivity_vs_time(dataBins,doPlot=True):
     otfAddData     = {}
     otfRemoveData  = {}
     for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
-        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfAdd')
-        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfRemove')
+        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'6topTxAddReq')
+        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'6topTxDelReq')
     
     # otfAddData = {
     #     (otfThreshold,pkPeriod) = {
@@ -954,8 +954,8 @@ def gather_sumOtfActivity_data(dataBins):
     otfAddData     = {}
     otfRemoveData  = {}
     for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
-        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfAdd')
-        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'otfRemove')
+        otfAddData[   (otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'6topTxAddReq')
+        otfRemoveData[(otfThreshold,pkPeriod)] = gatherPerCycleData(filepaths,'6topTxDelReq')
     
     # otfAddData = {
     #     (otfThreshold,pkPeriod) = {

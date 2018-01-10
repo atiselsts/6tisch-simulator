@@ -61,15 +61,16 @@ Installation
 Running
 -------
 
-* Run a simulation: `bin/runSimOneCPU.py`
-* Plot fancy graphs: `bin/plotStuff.py`
+Change directory to `bin`.
+Use `python runSimOneCPU.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
 
-Use `bin/runSimOneCPU.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
+* Run a simulation: `python runSimOneCPU.py`
+* Use one of the helper plot\*.py scripts to generate fancy graphs. 
 
 Code Organization
 -----------------
 
-* `bin/`: the script for you to run
+* `bin/`: the scripts for you to run
 * `SimEngine/`: the simulator
     * `Mote.py`: Models a 6TiSCH mote running the different standards listed above.
     * `Propagation.py`: Wireless propagation model.
