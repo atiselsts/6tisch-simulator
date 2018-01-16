@@ -144,9 +144,11 @@ def gatherPerRunData(infilepaths,elemName):
                     m = re.search('cpuID\s+=\s+([0-9]+)',line)
                     if m:
                         cpuID = int(m.group(1))
+        
         assert col_elemName!=None
         assert col_runNum!=None
-        assert cpuID!=None
+        # see SimSettings.getOutputFile() for the data file naming pattern.
+        assert cpuID==None or re.match('output_cpu[0-9]+.dat', os.path.basename(infilepath))!=None
         
         # parse data
         with open(infilepath,'r') as f:
