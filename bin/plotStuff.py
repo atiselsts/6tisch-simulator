@@ -1021,11 +1021,11 @@ def plot_reliability_vs_threshold(dataBins):
     # gather raw add/remove data
     appGeneratedData    = {}
     appReachedData      = {}
-    txQueueFillData     = {}
+    dataQueueFillData     = {}
     for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
         appGeneratedData[(otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'appGenerated')
         appReachedData[  (otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'appReachesDagroot')
-        txQueueFillData[ (otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'txQueueFill')
+        dataQueueFillData[ (otfThreshold,pkPeriod)]=gatherPerRunData(filepaths,'dataQueueFill')
     
     # appGeneratedData = {
     #     (otfThreshold,pkPeriod) = {
@@ -1039,7 +1039,7 @@ def plot_reliability_vs_threshold(dataBins):
     #         (cpuID,runNum): [12,12,12,12,12,0,0,0,0],
     #     }
     # }
-    # txQueueFillData = {
+    # dataQueueFillData = {
     #     (otfThreshold,pkPeriod) = {
     #         (cpuID,runNum): [12,12,12,12,12,12,12,12,12],
     #         (cpuID,runNum): [12,12,12,12,12,0,0,0,0],
@@ -1051,7 +1051,7 @@ def plot_reliability_vs_threshold(dataBins):
             f.write('\n============ {0}\n'.format('gather raw add/remove data'))
             f.write('appGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
             f.write('appReachedData={0}'.format(pp.pformat(appReachedData)))
-            f.write('txQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
+            f.write('dataQueueFillData={0}'.format(pp.pformat(dataQueueFillData)))
     
     #===== format data
     
@@ -1063,8 +1063,8 @@ def plot_reliability_vs_threshold(dataBins):
     for ((otfThreshold,pkPeriod),perRunData) in appReachedData.items():
         for cpuID_runNum in perRunData.keys():
             perRunData[cpuID_runNum] = sum(perRunData[cpuID_runNum])
-    # get last of txQueueFillData
-    for ((otfThreshold,pkPeriod),perRunData) in txQueueFillData.items():
+    # get last of dataQueueFillData
+    for ((otfThreshold,pkPeriod),perRunData) in dataQueueFillData.items():
         for cpuID_runNum in perRunData.keys():
             perRunData[cpuID_runNum] = perRunData[cpuID_runNum][-1]
     
@@ -1080,7 +1080,7 @@ def plot_reliability_vs_threshold(dataBins):
     #         (cpuID,runNum): sum_over_all_cycles,
     #     }
     # }
-    # txQueueFillData = {
+    # dataQueueFillData = {
     #     (otfThreshold,pkPeriod) = {
     #         (cpuID,runNum): value_last_cycles,
     #         (cpuID,runNum): value_last_cycles,
@@ -1092,7 +1092,7 @@ def plot_reliability_vs_threshold(dataBins):
             f.write('\n============ {0}\n'.format('format data'))
             f.write('\nappGeneratedData={0}'.format(pp.pformat(appGeneratedData)))
             f.write('\nappReachedData={0}'.format(pp.pformat(appReachedData)))
-            f.write('\ntxQueueFillData={0}'.format(pp.pformat(txQueueFillData)))
+            f.write('\ndataQueueFillData={0}'.format(pp.pformat(dataQueueFillData)))
     
     #===== calculate the end-to-end reliability for each runNum
     
@@ -1102,9 +1102,9 @@ def plot_reliability_vs_threshold(dataBins):
         for cpuID_runNum in appReachedData[otfThreshold_pkPeriod]:
             g = float(appGeneratedData[otfThreshold_pkPeriod][cpuID_runNum])
             r = float(appReachedData[otfThreshold_pkPeriod][cpuID_runNum])
-            q = float(txQueueFillData[otfThreshold_pkPeriod][cpuID_runNum])
+            q = float(dataQueueFillData[otfThreshold_pkPeriod][cpuID_runNum])
             assert g>0
-            reliability = (r+q)/g
+            reliability = r/(g-q)
             assert reliability>=0
             assert reliability<=1
             reliabilityData[otfThreshold_pkPeriod][cpuID_runNum] = reliability
