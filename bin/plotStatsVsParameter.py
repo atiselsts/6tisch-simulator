@@ -38,6 +38,7 @@ import argparse
 
 #============================ defines =========================================
 
+DATADIR       = 'simData'
 CONFINT         = 0.95
 START_CYCLE     = 100 # statistics (reliability, packet loss, latency) are collected after this cycle
 
@@ -1012,7 +1013,7 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
 
         index = (index + 1) % len(COLORS)
         
-        datafile=open(outfilename+'.dat', "a")
+        datafile=open(os.path.join(DATADIR,outfilename+'.dat'), "a")
         print >> datafile,dataSetDir
         print >> datafile,xlabel,x
         print >> datafile,ylabel,y
@@ -1027,8 +1028,8 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
         matplotlib.pyplot.ylim(ymin=ymin)
     if ymax:
         matplotlib.pyplot.ylim(ymax=ymax)
-    matplotlib.pyplot.savefig(outfilename + '.png')
-    matplotlib.pyplot.savefig(outfilename + '.eps')    
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,outfilename + '.png'))
+    matplotlib.pyplot.savefig(os.path.join(DATADIR,outfilename + '.eps'))
     matplotlib.pyplot.close('all')
     
     # print
