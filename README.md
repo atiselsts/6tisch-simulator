@@ -58,14 +58,29 @@ Installation
 * Clone or download this repository
 * To plot the graphs, you need Matplotlib and scipy. On Windows, Anaconda (http://continuum.io/downloads) is a good on-stop-shop.
 
-Running
--------
+Getting Started
+---------------
 
-Change directory to `bin`.
-Use `python runSimOneCPU.py --help` for a list of simulation parameters. In particular, use `--gui` for a graphical interface.
-
-* Run a simulation: `python runSimOneCPU.py`
-* Use one of the helper plot\*.py scripts to generate fancy graphs. 
+1. Download the code (in this case, cloning `develop` branch): 
+   ```
+   $ git clone -b develop https://bitbucket.org/6tisch/simulator.git
+   ```
+2. Move down to `bin` directory: 
+   ```
+   $ cd simulator/bin
+   ```
+3. Execute runSimOneCPU.py:
+   ```
+   $ python runSimOneCPU.py
+   ```
+    * You'll have raw output data under `bin/simData` directory.
+    * You can specify configuration parameters such as slot length and application packet interval if you want. `$ python runSimOneCPU.py --help` shows available options.
+4. Execute plotStuff.py to see the results:
+   ```
+   $ python plotStuff.py
+   ```
+    * You’ll have charts derived from the data under `bin/simData` directory.
+    * You need to define your simulation scenarios and identify necessary parameter sets in order to have meaningful results or charts.
 
 Code Organization
 -----------------
