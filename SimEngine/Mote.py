@@ -1664,7 +1664,7 @@ class Mote(object):
             if self.sixtopStates[packet['dstIp'].id]['rx']['state'] == self.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
 
                     confirmedCellList = packet['payload'][0]
-                    receivedDir = packet['payload'][1]
+                    receivedDir = packet['payload'][2]
                     neighbor=packet['dstIp']
                     code=packet['code']
 
@@ -1707,7 +1707,7 @@ class Mote(object):
             elif self.sixtopStates[packet['dstIp'].id]['rx']['state'] == self.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
 
                     confirmedCellList = packet['payload'][0]
-                    receivedDir = packet['payload'][1]
+                    receivedDir = packet['payload'][2]
                     neighbor=packet['dstIp']
                     code=packet['code']
 
