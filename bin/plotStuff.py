@@ -230,7 +230,7 @@ def calcMeanConfInt(vals):
     m         = numpy.mean(a)
     confint   = se * scipy.stats.t._ppf((1+CONFINT)/2., len(a)-1)
 
-    return (m,confint)
+    return m, confint
 
 def getSlotDuration(dataBins):
     for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
@@ -883,7 +883,7 @@ def plot_otfActivity_vs_time(dataBins,doPlot=True):
             f.write(pp.pformat(otfRemoveData))
 
     if not doPlot:
-        return (otfAddData,otfRemoveData)
+        return otfAddData, otfRemoveData
 
     pkPeriods           = []
     otfThresholds       = []

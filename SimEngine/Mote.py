@@ -643,7 +643,7 @@ class Mote(object):
                 futureAsn = int(self.settings.slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / (self.settings.slotDuration)))
+                    random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / self.settings.slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -1432,7 +1432,7 @@ class Mote(object):
                     return False
 
                 # delete the timer.
-                uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
+                uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
                 self._log(
@@ -1567,7 +1567,7 @@ class Mote(object):
                     return False
 
                 # delete the timer.
-                uniqueTag = '_sixtop_timer_fired_dest_%s' % (neighbor.id)
+                uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
                 self._log(
@@ -2370,7 +2370,7 @@ class Mote(object):
 
                         # calculate the asn at which it should fire
                         fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
-                        uniqueTag1 = '_sixtop_timer_fired_dest_%s' % (self.pktToSend['dstIp'].id)
+                        uniqueTag1 = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn         = fireASN,
                             cb          = self._sixtop_timer_fired,
@@ -2391,7 +2391,7 @@ class Mote(object):
 
                         # calculate the asn at which it should fire
                         fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
-                        uniqueTag2 = '_sixtop_timer_fired_dest_%s' % (self.pktToSend['dstIp'].id)
+                        uniqueTag2 = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn         = fireASN,
                             cb          = self._sixtop_timer_fired,
@@ -2591,8 +2591,8 @@ class Mote(object):
                     # update schedule stats
                     self.schedule[ts]['numRx'] += 1
 
-                if (dstIp == self.BROADCAST_ADDRESS):
-                    if (type == self.RPL_TYPE_DIO):
+                if dstIp == self.BROADCAST_ADDRESS:
+                    if type == self.RPL_TYPE_DIO:
                         # got a DIO
                         self._rpl_action_receiveDIO(type, smac, payload)
 
@@ -2601,7 +2601,7 @@ class Mote(object):
                         self.waitingFor = None
 
                         return isACKed, isNACKed
-                    elif (type == self.TSCH_TYPE_EB):
+                    elif type == self.TSCH_TYPE_EB:
                         self._tsch_action_receiveEB(type, smac, payload)
 
                         (isACKed, isNACKed) = (False, False)
@@ -2609,7 +2609,7 @@ class Mote(object):
                         self.waitingFor = None
 
                         return isACKed, isNACKed
-                elif (dstIp == self):
+                elif dstIp == self:
                     # receiving packet
                     if type == self.RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
@@ -2770,7 +2770,7 @@ class Mote(object):
 
     def getLocation(self):
         with self.dataLock:
-            return (self.x,self.y)
+            return self.x, self.y
 
     #==== battery
 
