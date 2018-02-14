@@ -61,11 +61,11 @@ Installation
 Getting Started
 ---------------
 
-1. Download the code (in this case, cloning `develop` branch): 
+1. Download the code (in this case, cloning `develop` branch):
    ```
    $ git clone -b develop https://bitbucket.org/6tisch/simulator.git
    ```
-2. Move down to `bin` directory: 
+2. Move down to `bin` directory:
    ```
    $ cd simulator/bin
    ```
@@ -118,3 +118,15 @@ To close relevant issues, you could add a command into your commit
 message. For available commands and the command format, please refer
 to [Resolve issues automatically when users push
 code](https://confluence.atlassian.com/bitbucket/resolve-issues-automatically-when-users-push-code-221451126.html).
+
+Code Style
+---------------
+
+The code should follow the PEP8 coding style: https://www.python.org/dev/peps/pep-0008/
+
+The main rules are:
+* Spaces are the preferred indentation method (4 spaces)
+* For triple-quoted strings, always use double quote characters to be consistent with the docstring convention in PEP 257.
+* Use spaces around operators: `x == 4` instead of `x==4`
+* Use spaces after comma: `def example(x, y)` instead of `def example(x,y)`
+* Function and variable names should be lower case
