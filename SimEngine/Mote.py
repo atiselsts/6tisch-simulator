@@ -1827,7 +1827,7 @@ class Mote(object):
             # (cell list is sorted according to worst cell selection)
             scheduleListByPDR     = {}
             for tscell in scheduleList:
-                if not scheduleListByPDR.has_key(tscell[3]):
+                if not tscell[3] in scheduleListByPDR:
                     scheduleListByPDR[tscell[3]]=[]
                 scheduleListByPDR[tscell[3]]+=[tscell]
             rssi                  = self.getRSSI(neighbor)
