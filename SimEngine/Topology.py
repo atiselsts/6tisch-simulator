@@ -274,7 +274,7 @@ def main():
             # find marked mote
             for (currentMote,s) in moteState.items():
                 if s==MARKED:
-                   break
+                    break
             assert moteState[currentMote]==MARKED
 
             # mark all of its neighbors with pdr >50%

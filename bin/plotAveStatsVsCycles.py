@@ -142,7 +142,7 @@ def plot_statsVsCycle(statsName):
                     runNum              = int(m.group(colnumrunNum+1))
 
                     if cycle not in statsPerDir:
-                         statsPerDir[cycle] = []
+                        statsPerDir[cycle] = []
                     statsPerDir[cycle] += [stat]
 
                     if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
@@ -232,7 +232,7 @@ def plot_droppedDataPacketsVsCycle():
                     runNum                  = int(m.group(colnumrunNum+1))
 
                     if cycle not in statsPerDir:
-                         statsPerDir[cycle] = []
+                        statsPerDir[cycle] = []
                     statsPerDir[cycle] += [droppedAppFailedEnqueue+droppedMacRetries]
 
                     if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:

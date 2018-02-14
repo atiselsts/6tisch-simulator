@@ -1394,7 +1394,7 @@ class Mote(object):
 
         with self.dataLock:
             if self.sixtopStates[smac.id]['tx']['state'] == self.SIX_STATE_WAIT_ADDRESPONSE:
-                 # TODO: now this is still an assert, later this should be handled appropriately
+                # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == self.IANA_6TOP_RC_SUCCESS or code == self.IANA_6TOP_RC_NORES or code == self.IANA_6TOP_RC_RESET        #RC_BUSY not implemented yet
 
                 self._stats_incrementMoteStats('6topRxAddResp')
@@ -1627,7 +1627,7 @@ class Mote(object):
                     # log
                     self._log(
                             self.INFO,
-                             '[6top] The node {0} is busy and has not available resources for perform another 6top deletion operation with mote {1}',
+                            '[6top] The node {0} is busy and has not available resources for perform another 6top deletion operation with mote {1}',
                             (neighbor.id,self.id),
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
@@ -1639,7 +1639,7 @@ class Mote(object):
                     # log
                     self._log(
                             self.INFO,
-                             '[6top] The node {0} has detected an state inconsistency in a 6top deletion operation with mote {1}',
+                            '[6top] The node {0} has detected an state inconsistency in a 6top deletion operation with mote {1}',
                             (neighbor.id,self.id),
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
@@ -2175,7 +2175,7 @@ class Mote(object):
                         self.pktToSend = None
                         if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
                             for pkt in self.txQueue:
-                            # send the frame if next hop matches the cell destination
+                                # send the frame if next hop matches the cell destination
                                 if pkt['nextHop'] == [cell['neighbor']]:
                                     self.pktToSend = pkt
                                     break
@@ -2298,6 +2298,7 @@ class Mote(object):
                         self.schedule.pop(cell)
 
             self._tsch_schedule_activeCell()
+
     def _tsch_action_synchronize(self):
 
         if not self.isSync:
@@ -2828,6 +2829,7 @@ class Mote(object):
             else:
                 return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                         c['dir'] == self.DIR_TX and c['neighbor'] == neighbor]
+
     def getRxCells(self, neighbor = None):
         with self.dataLock:
             if neighbor is None:
