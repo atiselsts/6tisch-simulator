@@ -1,9 +1,9 @@
 #!/usr/bin/python
-'''
+"""
 \brief Start batch of simulations concurrently.
 Workload is distributed equally among CPU cores.
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-'''
+"""
 
 import os
 import time
