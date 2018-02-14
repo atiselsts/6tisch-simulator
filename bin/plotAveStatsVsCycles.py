@@ -150,7 +150,6 @@ def plot_statsVsCycle(statsName):
 
                     previousCycle = cycle
 
-
             stats[dataDir] = statsPerDir
 
     xlabel         = 'slotframe cycles'
@@ -241,9 +240,7 @@ def plot_droppedDataPacketsVsCycle():
 
                     previousCycle = cycle
 
-
             stats[dataDir] = statsPerDir
-
 
     xlabel = 'slotframe cycles'
     ylabel = 'dropped packets'

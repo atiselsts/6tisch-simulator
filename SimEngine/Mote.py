@@ -48,7 +48,6 @@ class Mote(object):
     DIR_RX                             = 'RX'
     DIR_TXRX_SHARED                    = 'SHARED'
 
-
     DEBUG                              = 'DEBUG'
     INFO                               = 'INFO'
     WARNING                            = 'WARNING'
@@ -434,7 +433,6 @@ class Mote(object):
 
             sourceRoute = self._rpl_getSourceRoute([destination.id])
 
-
             if sourceRoute: # if DAO was received from this node
 
                 # send an ACK
@@ -634,7 +632,6 @@ class Mote(object):
             if not isEnqueued:
                 # update mote stats
                 self._stats_incrementMoteStats('droppedFailedEnqueue')
-
 
     def _rpl_schedule_sendDIO(self,firstDIO=False):
 
@@ -1728,7 +1725,6 @@ class Mote(object):
                     self.numCellsFromNeighbors[neighbor]     -= len(confirmedCellList)
                     assert self.numCellsFromNeighbors[neighbor]>=0
 
-
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['rx']['state'] = self.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['rx']['blockedCells']=[]
@@ -2271,7 +2267,6 @@ class Mote(object):
                     (cell[0],cell[1],cell[2],neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
                 )
             self._tsch_schedule_activeCell()
-
 
     def _tsch_removeCells(self,neighbor,tsList):
         """ removes cell(s) from the schedule """
@@ -2967,7 +2962,6 @@ class Mote(object):
 
         with self.dataLock:
             self.schedule[ts]['sharedCellSuccess'] = 1
-
 
     def getSharedCellStats(self):
         returnVal = {}

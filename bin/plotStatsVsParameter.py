@@ -124,7 +124,6 @@ def plot_reliability(elemName):
 
         reliabilities[dataSetDir] = reliabilitiesEachSet
 
-
     if elemName == 'numMotes':
         xlabel = 'number of motes'
     elif elemName == 'pkPeriod':
@@ -626,7 +625,6 @@ def plot_latency(elemName):
 
         latencies[dataSetDir]    = latenciesEachSet
 
-
     if elemName == 'numMotes':
         xlabel = 'number of motes'
     elif elemName == 'pkPeriod':
@@ -755,7 +753,6 @@ def plot_statsOfLastCycle(elemName,statsName):
 
         stats[dataSetDir] = statsEachSet
 
-
     if elemName == 'numMotes':
         xlabel = 'number of motes'
     elif elemName == 'pkPeriod':
@@ -881,7 +878,6 @@ def calcProbabilityOfCollision(dir, infilename, elemName):
     for key in dictCyclesPerRun.keys():
         dictCyclesPerRun[key] = max(dictCyclesPerRun[key])
 
-
     # parse data
     stats = []
     sumPerRun = 0
@@ -900,8 +896,6 @@ def calcProbabilityOfCollision(dir, infilename, elemName):
                 sumPerRun = 0
 
     return elem, stats
-
-
 
 def calcStatsOfLastCycle(dir,infilename,elemName,statsName):
 
