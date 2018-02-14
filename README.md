@@ -95,7 +95,26 @@ Code Organization
     * `Topology.py`: creates a topology of the motes in the network.
 * `SimGui/`: the graphical user interface to the simulator
 
-Issues and bugs
+Issues and bugs / Development Workflow
 ---------------
 
-* Report at https://bitbucket.org/6tsch/simulator/issues
+When you find any issue or bug, please open an issue at [the issue
+tracker](https://bitbucket.org/6tisch/simulator/issues). In the issue
+ticket, it'd be nice to have expected behaviors of the simulator, a
+way to reproduce the issue, and the branch name or commit hash of the
+code you are using.
+
+If you come up with a solution for the issue, that's great. We
+encourage you to send a Pull-Request!
+
+The basic development workflow looks like:
+
+1. open a issue
+2. send a PR with your proposal, which refers to relevant a issue or issues
+3. merge your proposal
+4. close the issue
+
+To close relevant issues, you could add a command into your commit
+message. For available commands and the command format, please refer
+to [Resolve issues automatically when users push
+code](https://confluence.atlassian.com/bitbucket/resolve-issues-automatically-when-users-push-code-221451126.html).
