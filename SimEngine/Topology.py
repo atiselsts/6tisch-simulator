@@ -1,12 +1,12 @@
 #!/usr/bin/python
-'''
+"""
 \brief Wireless network topology creator.
 
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
-'''
+"""
 
 #============================ logging =========================================
 
@@ -30,19 +30,19 @@ import SimSettings
 #============================ body ============================================
 
 class Topology(object):
-    
+
     TWO_DOT_FOUR_GHZ         = 2400000000   # Hz
     PISTER_HACK_LOWER_SHIFT  = 40           # -40 dB
     SPEED_OF_LIGHT           = 299792458    # m/s
-    
+
     STABLE_RSSI              = -93.6        # dBm, corresponds to PDR = 0.5 (see rssiPdrTable below)
     STABLE_NEIGHBORS         = 3
     FULLY_MESHED_SQUARE_SIDE = 0.005        # (hack) small value to speed up the construction of fully-meshed topology
-    
+
     def __init__(self, motes):
         # store params
         self.motes           = motes
-        
+
         # local variables
         self.settings        = SimSettings.SimSettings()
 
@@ -53,17 +53,17 @@ class Topology(object):
         else:
             self.stable_neighbors = self.STABLE_NEIGHBORS
             self.squareSide = self.settings.squareSide
-        
+
     #======================== public ==========================================
-    
+
     def createTopology(self):
-        '''
+        """
         Create a topology in which all nodes have at least stable_neighbors link
         with enough RSSI.
         If the mote does not have stable_neighbors links with enough RSSI,
         reset the location of the mote.
-        '''
-        
+        """
+
         # find DAG root
         dagRoot = None
         for mote in self.motes:
@@ -71,19 +71,19 @@ class Topology(object):
                 mote.role_setDagRoot()
                 dagRoot = mote
         assert dagRoot
-        
+
         # put DAG root at center of area
         dagRoot.setLocation(
             x = self.squareSide/2,
             y = self.squareSide/2
         )
-        
+
         # reposition each mote until it is connected
         connectedMotes = [dagRoot]
         for mote in self.motes:
             if mote in connectedMotes:
                 continue
-            
+
             connected = False
             while not connected:
                 # pick a random location
@@ -91,27 +91,27 @@ class Topology(object):
                     x = self.squareSide*random.random(),
                     y = self.squareSide*random.random()
                 )
-                
+
                 numStableNeighbors = 0
-                
+
                 # count number of neighbors with sufficient RSSI
                 for cm in connectedMotes:
-                    
+
                     rssi = self._computeRSSI(mote, cm)
                     mote.setRSSI(cm, rssi)
                     cm.setRSSI(mote, rssi)
-                    
+
                     if rssi>self.STABLE_RSSI:
                         numStableNeighbors += 1
 
                 # make sure it is connected to at least stable_neighbors motes
-                # or connected to all the currently deployed motes when the number of deployed motes 
+                # or connected to all the currently deployed motes when the number of deployed motes
                 # are smaller than stable_neighbors
                 if numStableNeighbors >= self.stable_neighbors or numStableNeighbors == len(connectedMotes):
                     connected = True
-            
+
             connectedMotes += [mote]
-        
+
         # for each mote, compute PDR to each neighbors
         for mote in self.motes:
             for m in self.motes:
@@ -121,9 +121,9 @@ class Topology(object):
                     pdr = self._computePDR(mote,m)
                     mote.setPDR(m,pdr)
                     m.setPDR(mote,pdr)
-        
+
         # print topology information
-        '''
+        """
         for mote in self.motes:
             for neighbor in self.motes:
                 try:
@@ -140,43 +140,43 @@ class Topology(object):
                         int(rssi),
                         100*pdr
                     )
-        '''
-    
+        """
+
     #======================== private =========================================
-    
+
     def _computeRSSI(self,mote,neighbor):
-        ''' computes RSSI between any two nodes (not only neighbors) according to the Pister-hack model.'''
-        
+        """ computes RSSI between any two nodes (not only neighbors) according to the Pister-hack model."""
+
         # distance in m
         distance = self._computeDistance(mote,neighbor)
-        
+
         # sqrt and inverse of the free space path loss
         fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ))
-        
+
         # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)
         pr = mote.txPower + mote.antennaGain + neighbor.antennaGain + (20*math.log10(fspl))
-        
+
         # according to the receiver power (RSSI) we can apply the Pister hack model.
         mu = pr-self.PISTER_HACK_LOWER_SHIFT/2 #chosing the "mean" value
-    
+
         # the receiver will receive the packet with an rssi uniformly distributed between friis and friis -40
         rssi = mu + random.uniform(-self.PISTER_HACK_LOWER_SHIFT/2, self.PISTER_HACK_LOWER_SHIFT/2)
-        
+
         return rssi
-    
+
     def _computePDR(self,mote,neighbor):
-        ''' computes pdr to neighbor according to RSSI'''
-        
+        """ computes pdr to neighbor according to RSSI"""
+
         rssi        = mote.getRSSI(neighbor)
         return self.rssiToPdr(rssi)
-    
+
     @classmethod
     def rssiToPdr(self,rssi):
-        '''
+        """
         rssi and pdr relationship obtained by experiment below
         http://wsn.eecs.berkeley.edu/connectivity/?dataset=dust
-        '''
-        
+        """
+
         rssiPdrTable    = {
             -97:    0.0000, # this value is not from experiment
             -96:    0.1494,
@@ -199,7 +199,7 @@ class Topology(object):
             -80:    0.9903,
             -79:    1.0000, # this value is not from experiment
         }
-        
+
         minRssi         = min(rssiPdrTable.keys())
         maxRssi         = max(rssiPdrTable.keys())
 
@@ -212,32 +212,32 @@ class Topology(object):
             pdrLow      = rssiPdrTable[floorRssi]
             pdrHigh     = rssiPdrTable[floorRssi+1]
             pdr         = (pdrHigh-pdrLow)*(rssi-float(floorRssi))+pdrLow # linear interpolation
-        
+
         assert pdr>=0.0
         assert pdr<=1.0
-        
+
         return pdr
-    
+
     def _computeDistance(self,mote,neighbor):
-        '''
+        """
         mote.x and mote.y are in km. This function returns the distance in m.
-        '''
-        
+        """
+
         return 1000*math.sqrt(
             (mote.x - neighbor.x)**2 +
             (mote.y - neighbor.y)**2
         )
 
 #============================ main ============================================
-        
+
 def main():
     import Mote
     import SimSettings
-    
+
     NOTVISITED     = 'notVisited'
     MARKED         = 'marked'
     VISITED        = 'visited'
-    
+
     allRanks = []
     for _ in range(100):
         print '.',
@@ -257,7 +257,7 @@ def main():
         motes                              = [Mote.Mote(id) for id in range(settings.numMotes)]
         topology                           = Topology(motes)
         topology.createTopology()
-        
+
         # print stats
         hopVal    = {}
         moteState = {}
@@ -268,15 +268,15 @@ def main():
             else:
                 hopVal[mote]     = None
                 moteState[mote]  = NOTVISITED
-        
+
         while (NOTVISITED in moteState.values()) or (MARKED in moteState.values()):
-            
+
             # find marked mote
             for (currentMote,s) in moteState.items():
                 if s==MARKED:
-                   break
+                    break
             assert moteState[currentMote]==MARKED
-            
+
             # mark all of its neighbors with pdr >50%
             for neighbor in motes:
                 try:
@@ -289,20 +289,20 @@ def main():
                                 hopVal[neighbor]     = hopVal[currentMote]+1
                 except KeyError as err:
                     pass # happens when no a neighbor
-            
+
             # mark it as visited
             moteState[currentMote]=VISITED
-        
+
         allRanks += hopVal.values()
-    
+
     assert len(allRanks)==100*50
-    
+
     print ''
     print 'average rank: {0}'.format(float(sum(allRanks))/float(len(allRanks)))
     print 'max rank:     {0}'.format(max(allRanks))
     print ''
-    
+
     raw_input("Script ended. Press Enter to close.")
-    
+
 if __name__=="__main__":
     main()
