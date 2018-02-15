@@ -125,6 +125,7 @@ Code Style
 The code should follow the PEP8 coding style: https://www.python.org/dev/peps/pep-0008/
 
 The main rules are:
+
 * Spaces are the preferred indentation method (4 spaces)
 * For triple-quoted strings, always use double quote characters to be consistent with the docstring convention in PEP 257.
 * Use spaces around operators: `x == 4` instead of `x==4`
