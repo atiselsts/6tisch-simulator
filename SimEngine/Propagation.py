@@ -23,6 +23,7 @@ log.addHandler(NullHandler())
 import threading
 import random
 import math
+from abc import ABCMeta, abstractmethod
 
 import Topology
 import SimSettings
@@ -30,9 +31,40 @@ import SimEngine
 
 #============================ defines =========================================
 
-#============================ body ============================================
+#============================ functions =======================================
+
+def _dBmTomW(dBm):
+    """ translate dBm to mW """
+    return math.pow(10.0, dBm / 10.0)
+
+
+def _mWTodBm(mW):
+    """ translate dBm to mW """
+    return 10 * math.log10(mW)
+
+#============================ classes =========================================
 
 class Propagation(object):
+
+    def __new__(cls, *args, **kwargs):
+        """
+        This method instantiates the proper `Propagate` class given the simulator settings.
+        :return: a Propagate class depending on the settings
+        :rtype: PropagationFromModel | PropagationFormTrace
+        """
+        settings = SimSettings.SimSettings()
+        if hasattr(settings, "scenario"):
+            return PropagationFromTrace()
+        else:
+            return PropagationFromModel()
+
+
+class PropagationCreator(object):
+    """
+    This class is a meta class, it is not mean to be instantiated.
+    """
+
+    __metaclass__ = ABCMeta
 
     #===== start singleton
     _instance      = None
@@ -40,7 +72,7 @@ class Propagation(object):
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
-            cls._instance = super(Propagation,cls).__new__(cls, *args, **kwargs)
+            cls._instance = super(PropagationCreator,cls).__new__(cls, *args, **kwargs)
         return cls._instance
     #===== end singleton
 
@@ -95,13 +127,32 @@ class Propagation(object):
                 'payload':             payload,
             }]
 
+    @abstractmethod
+    def propagate(self):
+        """ Simulate the propagation of pkts in a slot. """
+        raise NotImplementedError
+
+    #======================== private =========================================
+
+    def _schedule_propagate(self):
+        with self.dataLock:
+            self.engine.scheduleAtAsn(
+                asn         = self.engine.getAsn()+1,# so propagation happens in next slot
+                cb          = self.propagate,
+                uniqueTag   = (None,'propagation'),
+                priority    = 1,
+            )
+
+# ==================== Propagation From Model =================================
+
+class PropagationFromModel(PropagationCreator):
     def propagate(self):
         """ Simulate the propagation of pkts in a slot. """
 
         with self.dataLock:
 
             asn   = self.engine.getAsn()
-            ts    = asn%self.settings.slotframeLength
+            ts    = asn % self.settings.slotframeLength
 
             arrivalTime = {}
 
@@ -305,23 +356,15 @@ class Propagation(object):
 
         self._schedule_propagate()
 
-    #======================== private =========================================
+    # ======================== static =========================================
 
-    def _schedule_propagate(self):
-        with self.dataLock:
-            self.engine.scheduleAtAsn(
-                asn         = self.engine.getAsn()+1,# so propagation happens in next slot
-                cb          = self.propagate,
-                uniqueTag   = (None,'propagation'),
-                priority    = 1,
-            )
-
-    def _computeSINR(self,source,destination,interferers):
+    @staticmethod
+    def _computeSINR(source, destination, interferers):
         """ compute SINR  """
 
-        noise = self._dBmTomW(destination.noisepower)
+        noise = _dBmTomW(destination.noisepower)
         # S = RSSI - N
-        signal = self._dBmTomW(source.getRSSI(destination)) - noise
+        signal = _dBmTomW(source.getRSSI(destination)) - noise
         if signal < 0.0:
             # RSSI has not to be below noise level. If this happens, return very low SINR (-10.0dB)
             return -10.0
@@ -329,31 +372,32 @@ class Propagation(object):
         totalInterference = 0.0
         for interferer in interferers:
             # I = RSSI - N
-            interference = self._dBmTomW(interferer.getRSSI(destination)) - noise
+            interference = _dBmTomW(interferer.getRSSI(destination)) - noise
             if interference < 0.0:
                 # RSSI has not to be below noise level. If this happens, set interference 0.0
                 interference = 0.0
             totalInterference += interference
 
-        sinr = signal/(totalInterference + noise)
+        sinr = signal / (totalInterference + noise)
 
-        return self._mWTodBm(sinr)
+        return _mWTodBm(sinr)
 
-    def _computePdrFromSINR(self, sinr, destination):
+    @staticmethod
+    def _computePdrFromSINR(sinr, destination):
         """ compute PDR from SINR """
 
-        equivalentRSSI  = self._mWTodBm(
-            self._dBmTomW(sinr+destination.noisepower) + self._dBmTomW(destination.noisepower)
+        equivalentRSSI = _mWTodBm(
+            _dBmTomW(sinr + destination.noisepower) +
+            _dBmTomW(destination.noisepower)
         )
 
-        pdr             = Topology.Topology.rssiToPdr(equivalentRSSI)
+        pdr = Topology.Topology.rssiToPdr(equivalentRSSI)
 
         return pdr
 
-    def _dBmTomW(self, dBm):
-        """ translate dBm to mW """
-        return math.pow(10.0, dBm/10.0)
+# ==================== Propagation From Trace =================================
 
-    def _mWTodBm(self, mW):
-        """ translate dBm to mW """
-        return 10*math.log10(mW)
+class PropagationFromTrace(PropagationCreator):
+    def propagate(self):
+        """ Simulate the propagation of pkts in a slot. """
+        raise NotImplementedError
