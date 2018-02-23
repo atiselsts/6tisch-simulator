@@ -369,6 +369,10 @@ class Mote(object):
         create an event that is inserted into the simulator engine to send the data according to the traffic
         """
 
+        if self.pkPeriod == 0:
+            # disable sending packet
+            return
+
         if not firstPacket:
             # compute random delay
             delay            = self.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar,self.settings.pkPeriodVar))
@@ -484,6 +488,10 @@ class Mote(object):
                 # update mote stats
                 self._stats_incrementMoteStats('droppedDataFailedEnqueue')
 
+    def app_schedule_transmition(self, pkPeriod):
+        self.pkPeriod = pkPeriod
+        self._app_schedule_sendSinglePacket(firstPacket=True)
+
     def _tsch_action_enqueueEB(self):
         """ enqueue EB packet into stack """
 
@@ -510,6 +518,10 @@ class Mote(object):
                 self._stats_incrementMoteStats('droppedFailedEnqueue')
 
     def _tsch_schedule_sendEB(self, firstEB=False):
+
+        if (not hasattr(self.settings, 'beaconPeriod')) or (self.settings.beaconPeriod == 0):
+            # disable periodic EB transmission
+            return
 
         with self.dataLock:
 
@@ -635,6 +647,10 @@ class Mote(object):
 
     def _rpl_schedule_sendDIO(self,firstDIO=False):
 
+        if (not hasattr(self.settings, 'dioPeriod')) or self.settings.dioPeriod == 0:
+            # disable DIO
+            return
+
         with self.dataLock:
 
             asn    = self.engine.getAsn()
@@ -654,6 +670,10 @@ class Mote(object):
             )
 
     def _rpl_schedule_sendDAO(self, firstDAO=False):
+
+        if (not hasattr(self.settings, 'daoPeriod')) or self.settings.daoPeriod == 0:
+            # disable DIO
+            return
 
         with self.dataLock:
 
@@ -925,6 +945,8 @@ class Mote(object):
         return True if nextHop else False
 
 #===== msf
+    def _is_msf_enabled(self):
+        return hasattr(self.settings, 'msfHousekeepingPeriod') and self.settings.msfHousekeepingPeriod == 0
 
     def _msf_schedule_parent_change(self):
         """
@@ -1066,6 +1088,10 @@ class Mote(object):
                                      self.settings.msfNumCellsToAddOrRemove,celloptions,timeout)
 
     def _msf_schedule_housekeeping(self):
+
+        if not self._is_msf_enabled():
+            # disable MSF
+            return
 
         self.engine.scheduleIn(
             delay       = self.settings.msfHousekeepingPeriod*(0.9+0.2*random.random()),
@@ -2809,7 +2835,7 @@ class Mote(object):
 
         # app
         if not self.dagRoot:
-            if self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
+            if hasattr(self.settings, 'numPacketsBurst') and self.settings.numPacketsBurst != None and self.settings.burstTimestamp != None:
                 self._app_schedule_sendPacketBurst()
             else:
                 self._app_schedule_sendSinglePacket(firstPacket=True)

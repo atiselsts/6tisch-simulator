@@ -81,6 +81,13 @@ def parseCliOptions():
         help       = '[simulation] Simulation log directory.',
     )
     # topology
+    parser.add_argument('--topology',
+        dest       = 'topology',
+        type       = str,
+        choices    = ['random', 'linear'],
+        default    = 'random',
+        help       = '[topology] Specify a topology creator to be used',
+    )
     parser.add_argument( '--numMotes',
         dest       = 'numMotes',
         nargs      = '+',
@@ -288,6 +295,13 @@ def parseCliOptions():
         type       = int,
         default    = 0,
         help       = '[phy] Disable interference model.',
+    )
+    # linear-topology specific
+    parser.add_argument('--linearTopologyStaticScheduling',
+        dest       = 'linearTopologyStaticScheduling',
+        type       = bool,
+        default    = False,
+        help       = '[topology] Enable a static scheduling in LinearTopology',
     )
 
     options        = parser.parse_args()

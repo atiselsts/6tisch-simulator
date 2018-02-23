@@ -78,3 +78,10 @@ class SimSettings(object):
     def destroy(self):
         self._instance       = None
         self._init           = False
+
+        # This destroy method doesn't destroy the instance in fact. Since I'm
+        # not sure how to destroy the singleton instance from its instance
+        # method, just remove relevant instance attributes so that tests
+        # get happy.
+        if hasattr(self, 'topology'):
+            del self.topology
