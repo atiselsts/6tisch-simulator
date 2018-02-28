@@ -329,7 +329,7 @@ class LinearTopology(TopologyCreator):
             if mote.id == 0:
                 mote.role_setDagRoot()
                 root = mote
-                mote.rank = Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+                mote.rank = Mote.RPL_MIN_HOP_RANK_INCREASE
             else:
                 # mote with smaller ID becomes its preferred parent
                 for neighbor in mote.PDR:
@@ -338,17 +338,17 @@ class LinearTopology(TopologyCreator):
                         mote.preferredParent = neighbor
                 root.parents.update({tuple([mote.id]):
                                      [[mote.preferredParent.id]]})
-                mote.rank = (7 * Mote.Mote.RPL_MIN_HOP_RANK_INCREASE +
+                mote.rank = (7 * Mote.RPL_MIN_HOP_RANK_INCREASE +
                              mote.preferredParent.rank)
 
-            mote.dagRank = mote.rank / Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+            mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
 
     def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
         # cell structure: (slot_offset, channel_offset, direction)
         transmitter._tsch_addCells(receiver,
                                    [(slot_offset,
                                      channel_offset,
-                                     Mote.Mote.DIR_TX)])
+                                     Mote.DIR_TX)])
         if receiver not in transmitter.numCellsToNeighbors:
             transmitter.numCellsToNeighbors[receiver] = 1
         else:
@@ -357,7 +357,7 @@ class LinearTopology(TopologyCreator):
         receiver._tsch_addCells(transmitter,
                                 [(slot_offset,
                                   channel_offset,
-                                  Mote.Mote.DIR_RX)])
+                                  Mote.DIR_RX)])
         if transmitter not in receiver.numCellsFromNeighbors:
             receiver.numCellsFromNeighbors[transmitter] = 1
         else:

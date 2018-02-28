@@ -28,6 +28,7 @@ from abc import ABCMeta, abstractmethod
 import Topology
 import SimSettings
 import SimEngine
+import Mote
 
 #============================ defines =========================================
 
@@ -190,7 +191,7 @@ class PropagationFromModel(PropagationCreator):
 
                                 if interferenceFlag:
                                     transmission['smac'].stats_incrementRadioStats('probableCollisions')
-                                if transmission['smac'].schedule[ts]['dir'] == transmission['smac'].DIR_TXRX_SHARED:
+                                if transmission['smac'].schedule[ts]['dir'] == Mote.DIR_TXRX_SHARED:
                                     if interferenceFlag:
                                         transmission['smac'].stats_sharedCellCollisionSignal()
                                     else:
