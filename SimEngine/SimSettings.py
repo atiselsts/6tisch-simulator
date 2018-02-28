@@ -89,3 +89,5 @@ class SimSettings(object):
         # get happy.
         if hasattr(self, 'topology'):
             del self.topology
+        if hasattr(self, 'numFragments'):
+            del self.numFragments

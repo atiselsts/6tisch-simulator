@@ -53,6 +53,7 @@ ERROR                              = 'ERROR'
 APP_TYPE_DATA                      = 'DATA'
 APP_TYPE_ACK                       = 'ACK'  # end to end ACK
 APP_TYPE_JOIN                      = 'JOIN' # join traffic
+APP_TYPE_FRAG                      = 'FRAG'
 RPL_TYPE_DIO                       = 'DIO'
 RPL_TYPE_DAO                       = 'DAO'
 TSCH_TYPE_EB                       = 'EB'
@@ -164,6 +165,9 @@ class Mote(object):
         self.firstBeaconAsn            = 0
         # app
         self.pkPeriod                  = self.settings.pkPeriod
+        self.reassQueue                = {}
+        self.vrbTable                  = {}
+        self.next_datagram_tag         = random.randint(0, 2**16-1)
         # role
         self.dagRoot                   = False
         # rpl
@@ -411,6 +415,13 @@ class Mote(object):
     def _app_action_sendSinglePacket(self):
         """ actual send data function. Evaluates queue length too """
 
+        # stop sending application packets during the last 10% of the simulation period
+        simEndTime = self.settings.slotframeLength * self.settings.numCyclesPerRun
+        guardTime = simEndTime * 0.9
+        if self.engine.getAsn() > guardTime:
+            # stop sending application packet
+            return
+
         # enqueue data
         self._app_action_enqueueData()
 
@@ -480,13 +491,137 @@ class Mote(object):
             self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
-
-            if isEnqueued:
-                pass
+            if hasattr(self.settings, 'numFragments') and self.settings.numFragments > 1:
+                self._app_frag_packet(newPacket)
             else:
-                # update mote stats
-                self._stats_incrementMoteStats('droppedDataFailedEnqueue')
+                # send it as a single frame
+                isEnqueued = self._tsch_enqueue(newPacket)
+                if isEnqueued:
+                    pass
+                else:
+                    # update mote stats
+                    self._stats_incrementMoteStats('droppedDataFailedEnqueue')
+
+    def _app_is_frag_to_forward(self, frag):
+
+        smac = frag['smac']
+        dstIp = frag['dstIp']
+        size = frag['payload'][3]['datagram_size']
+        itag = frag['payload'][3]['datagram_tag']
+        offset = frag['payload'][3]['datagram_offset']
+        entry_lifetime = 60 / self.settings.slotDuration
+
+        for mac in self.vrbTable.keys():
+            for tag in self.vrbTable[mac].keys():
+                if (self.engine.getAsn() - self.vrbTable[mac][tag]['ts']) > entry_lifetime:
+                    del self.vrbTable[mac][tag]
+            if len(self.vrbTable[mac]) == 0:
+                del self.vrbTable[mac]
+
+        if offset == 0:
+            # no size limit for vrbTable since it's supposed to be small enough
+            # comparing to reassQueue
+
+            if smac not in self.vrbTable:
+                self.vrbTable[smac] = {}
+
+            # In our design, vrbTable has (in-smac, in-tag, nexthop,
+            # out-tag). However, it doesn't have nexthop mac address since
+            # nexthop is determined at TSCH layer in this simulation.
+            if itag in self.vrbTable[smac]:
+                # duplicate first fragment
+                frag['dstIp'] = None # this frame will be dropped by the caller
+                return False
+            else:
+                self.vrbTable[smac][itag] = {}
+
+            if dstIp == self:
+                # this is a special entry for fragments destined to the mote
+                self.vrbTable[smac][itag]['otag'] = None
+            else:
+                self.vrbTable[smac][itag]['otag'] = self.next_datagram_tag
+                self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
+            self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
+
+        if smac in self.vrbTable and itag in self.vrbTable[smac]:
+            if self.vrbTable[smac][itag]['otag'] == None:
+                return False # this is for us, which needs to be reassembled
+
+            frag['asn'] = self.engine.getAsn()
+            frag['payload'][2] += 1 # update the number of hops
+            frag['payload'][3]['datagram_tag'] = self.vrbTable[smac][itag]['otag']
+        else:
+            frag['dstIp'] = None # this frame will be dropped by the caller
+            return False
+
+        # return True when the fragment is to be forwarded even if it cannot be
+        # forwarded due to out-of-order or full of queue
+        return True
+
+    def _app_frag_packet(self, packet):
+
+        # fragment packet into the specified number of pieces
+        tag = self.next_datagram_tag
+        self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
+        for i in range(0,self.settings.numFragments):
+            frag = copy.copy(packet)
+            frag['type'] = APP_TYPE_FRAG
+            frag['payload'] = copy.deepcopy(packet['payload'])
+            frag['payload'].append({'datagram_size': self.settings.numFragments,
+                                    'datagram_tag': tag,
+                                    'datagram_offset': i})
+            frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
+            if self._tsch_enqueue(frag) == False:
+                # we may want to stop fragmentation here. but just continue it
+                # for simplicity
+                pass
+
+    def _app_reass_packet(self, smac, payload):
+        size = payload[3]['datagram_size']
+        tag = payload[3]['datagram_tag']
+        offset = payload[3]['datagram_offset']
+        reass_queue_lifetime = 60 / self.settings.slotDuration
+
+        if len(self.reassQueue) > 0:
+            # remove expired entry
+            for s in list(self.reassQueue):
+                for t in list(self.reassQueue[s]):
+                    if (self.engine.getAsn() - self.reassQueue[s][t]['ts']) > reass_queue_lifetime:
+                        del self.reassQueue[s][t]
+                    if len(self.reassQueue[s]) == 0:
+                        del self.reassQueue[s]
+
+        if size > self.settings.numFragments:
+            # the size of reassQueue is the same number as self.settings.numFragments.
+            # larger packet than reassQueue should be dropped.
+            return False
+
+        # currently, we support only a single line of the reassemble queue for
+        # intermediate nodes. Root doesn't have such limitation
+        if (smac not in self.reassQueue) or (tag not in self.reassQueue[smac]):
+            if not self.dagRoot and len(self.reassQueue) == 1:
+                return False
+            else:
+                pass
+
+        if smac not in self.reassQueue:
+            self.reassQueue[smac] = {}
+        if tag not in self.reassQueue[smac]:
+            self.reassQueue[smac][tag] = {'ts': self.engine.getAsn(), 'fragments': []}
+
+        if offset not in self.reassQueue[smac][tag]['fragments']:
+            self.reassQueue[smac][tag]['fragments'].append(offset)
+        else:
+            # it's a duplicate fragment or queue overflow
+            return False
+
+        if size == len(self.reassQueue[smac][tag]['fragments']):
+            del self.reassQueue[smac][tag]
+            if len(self.reassQueue[smac]) == 0:
+                del self.reassQueue[smac]
+            return True
+
+        return False
 
     def app_schedule_transmition(self, pkPeriod):
         self.pkPeriod = pkPeriod
@@ -672,7 +807,7 @@ class Mote(object):
     def _rpl_schedule_sendDAO(self, firstDAO=False):
 
         if (not hasattr(self.settings, 'daoPeriod')) or self.settings.daoPeriod == 0:
-            # disable DIO
+            # disable DAO
             return
 
         with self.dataLock:
@@ -946,7 +1081,7 @@ class Mote(object):
 
 #===== msf
     def _is_msf_enabled(self):
-        return hasattr(self.settings, 'msfHousekeepingPeriod') and self.settings.msfHousekeepingPeriod == 0
+        return hasattr(self.settings, 'msfHousekeepingPeriod') and self.settings.msfHousekeepingPeriod > 0
 
     def _msf_schedule_parent_change(self):
         """
@@ -2034,7 +2169,7 @@ class Mote(object):
 
             return False
 
-        elif len(self.txQueue)>=TSCH_QUEUE_SIZE:
+        elif len(self.txQueue) >= TSCH_QUEUE_SIZE:
             #my TX queue is full.
 
             # However, I will allow to add an additional packet in some specific ocasions
@@ -2187,8 +2322,9 @@ class Mote(object):
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = DIR_TX
 
-                # Invoke MSF to monitor utilization
-                self._msf_adapt_to_traffic()
+                if self._is_msf_enabled():
+                    # Invoke MSF to monitor utilization
+                    self._msf_adapt_to_traffic()
 
             elif cell['dir']==DIR_TXRX_SHARED:
                 # Signal to MSF that a cell has been triggered
@@ -2288,8 +2424,9 @@ class Mote(object):
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor = DIR_RX
 
-                # Invoke MSF to monitor utilization
-                self._msf_adapt_to_traffic()
+                if self._is_msf_enabled():
+                    # Invoke MSF to monitor utilization
+                    self._msf_adapt_to_traffic()
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -2647,6 +2784,45 @@ class Mote(object):
                     # update schedule stats
                     self.schedule[ts]['numRx'] += 1
 
+                if type == APP_TYPE_FRAG:
+                    frag = {'type':        type,
+                            'code':        code,
+                            'retriesLeft': TSCH_MAXTXRETRIES,
+                            'smac':        smac,
+                            'srcIp':       srcIp,
+                            'dstIp':       dstIp}
+                    frag['payload'] = copy.deepcopy(payload)
+                    frag['sourceRoute'] = copy.deepcopy(srcRoute)
+                    self.waitingFor = None
+                    if (hasattr(self.settings, 'enableFragmentForwarding') and
+                       self.settings.enableFragmentForwarding):
+                        if self._app_is_frag_to_forward(frag) is True:
+                            if self._tsch_enqueue(frag):
+                                # ACK when succeeded to enqueue
+                                return True, False
+                            else:
+                                # ACK anyway
+                                return True, False
+                        elif dstIp == self:
+                            if self._app_reass_packet(smac, payload) is True:
+                                payload.pop()
+                                type = APP_TYPE_DATA
+                            else:
+                                # not fully reassembled yet
+                                return True, False
+                        else:
+                            # frag is out-of-order; ACK anyway since it's received successfully
+                            return True, False
+                    else:
+                        if self._app_reass_packet(smac, payload) is True:
+                            # remove fragment information out of payload
+                            # XXX: assuming the last element has the fragment information
+                            payload.pop()
+                            type = APP_TYPE_DATA
+                        else:
+                            # ACK here
+                            return True, False
+
                 if dstIp == BROADCAST_ADDRESS:
                     if type == RPL_TYPE_DIO:
                         # got a DIO
@@ -2690,8 +2866,14 @@ class Mote(object):
                     elif type == APP_TYPE_JOIN:
                         self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
+                    elif type == APP_TYPE_FRAG:
+                        # never comes here; but just in case
+                        (isACKed, isNACKed) = (True, False)
                     else:
                         assert False
+                elif type == APP_TYPE_FRAG:
+                    # do nothing for fragmented packet; just ack
+                    (isACKed, isNACKed) = (True, False)
                 else:
                     # relaying packet
 
@@ -2716,17 +2898,22 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    isEnqueued = self._tsch_enqueue(relayPacket)
-
-                    if isEnqueued:
-
-                        # update mote stats
-                        self._stats_incrementMoteStats('appRelayed')
-
+                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'numFragments') and
+                       self.settings.numFragments > 1):
+                        self._app_frag_packet(relayPacket)
+                        # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)
-
                     else:
-                        (isACKed, isNACKed) = (False, True)
+                        isEnqueued = self._tsch_enqueue(relayPacket)
+                        if isEnqueued:
+
+                            # update mote stats
+                            self._stats_incrementMoteStats('appRelayed')
+
+                            (isACKed, isNACKed) = (True, False)
+
+                        else:
+                            (isACKed, isNACKed) = (False, True)
 
             else:
                 # this was an idle listen

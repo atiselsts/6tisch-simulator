@@ -161,6 +161,21 @@ def parseCliOptions():
                       default=0,
                       help='[app] 1 to enable downward end-to-end ACKs.',
                       )
+    parser.add_argument('--numFragments',
+                      dest='numFragments',
+                      nargs='+',
+                      type=int,
+                      default=0,
+                      help='''[app] Number of fragments for an app packet;
+                            a number less than 2 disables fragmentation'''
+                      )
+    parser.add_argument('--enableFragmentForwarding',
+                      dest='enableFragmentForwarding',
+                      nargs='+',
+                      type=bool,
+                      default=False,
+                      help='[app] Enable Fragment Forwarding feature'
+                      )
     # rpl
     parser.add_argument('--dioPeriod',
                       dest='dioPeriod',
