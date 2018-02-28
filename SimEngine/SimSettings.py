@@ -91,3 +91,5 @@ class SimSettings(object):
             del self.topology
         if hasattr(self, 'numFragments'):
             del self.numFragments
+        if hasattr(self, 'cascadingScheduling'):
+            del self.cascadingScheduling
