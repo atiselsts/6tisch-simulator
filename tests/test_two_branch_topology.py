@@ -4,8 +4,9 @@
 \author Yasuyuki Tanaka <yasuyuki.tanaka@inria.fr>
 """
 
+import SimEngine.SimEngine as SimEngine
+import SimEngine.SimSettings as SimSettings
 import SimEngine.Mote as Mote
-
 
 def test_two_branch_topology_with_6_motes(motes):
     motes = motes(6, **{'topology': 'twoBranch'})
@@ -424,3 +425,96 @@ def test_two_branch_cascading_schedule_installation_2(motes):
     assert motes[0].schedule[19]['ch'] == 0
     assert motes[0].schedule[19]['dir'] == Mote.DIR_RX
     assert motes[0].schedule[19]['neighbor'] == motes[1]
+
+
+def test_two_branch_cascading_schedule_installation(motes):
+    # even tree *without* random pick
+    params = {'withJoin': False, 'topology': 'twoBranch',
+              'cascadingScheduling': True}
+
+    settings = SimSettings.SimSettings(**params)
+    engine = SimEngine.SimEngine()
+    motes1 = engine.motes
+    engine.destroy()
+    settings.destroy()
+
+    settings = SimSettings.SimSettings(**params)
+    engine = SimEngine.SimEngine()
+    motes2 = engine.motes
+    engine.destroy()
+    settings.destroy()
+
+    assert len(motes1) == len(motes2)
+    for i, v in enumerate(motes1):
+        assert len(motes1[i].schedule) == len(motes2[i].schedule)
+        for j, cell in enumerate(motes1[i].schedule):
+            if j not in motes1[i].schedule:
+                continue
+
+            cell1 = motes1[i].schedule[j]
+            cell2 = motes2[i].schedule[j]
+
+            if type(cell1['neighbor']) is list:
+                ret = (cell1['ch'] == cell2['ch'] and
+                       cell1['dir'] == Mote.DIR_TXRX_SHARED and
+                       cell1['dir'] == cell2['dir'] and
+                       (sorted(map(lambda x: x.id, cell1['neighbor'])) ==
+                        sorted(map(lambda x: x.id, cell2['neighbor']))))
+            else:
+                ret = (cell1['ch'] == cell2['ch'] and
+                       cell1['dir'] == cell2['dir'] and
+                       cell1['neighbor'].id == cell2['neighbor'].id)
+            assert ret is True
+
+
+def test_two_branch_cascading_schedule_installation_4(motes):
+    # even tree with random pick
+    params = {'withJoin': False, 'topology': 'twoBranch',
+              'cascadingScheduling': True,
+              'schedulingMode': 'random-pick'}
+
+    settings = SimSettings.SimSettings(**params)
+    engine = SimEngine.SimEngine()
+    motes1 = engine.motes
+    engine.destroy()
+    settings.destroy()
+
+    settings = SimSettings.SimSettings(**params)
+    engine = SimEngine.SimEngine()
+    motes2 = engine.motes
+    engine.destroy()
+    settings.destroy()
+
+    assert len(motes1) == len(motes2)
+    prev_ret = True
+    for i, v in enumerate(motes1):
+        assert len(motes1[i].schedule) == len(motes2[i].schedule)
+        for j, cell in enumerate(motes1[i].schedule):
+            if j not in motes1[i].schedule:
+                continue
+
+            try:
+                cell1 = motes1[i].schedule[j]
+                cell2 = motes2[i].schedule[j]
+            except KeyError:
+                ret = False
+                break
+
+            if type(cell1['neighbor']) is list:
+                ret = (cell1['ch'] == cell2['ch'] and
+                       cell1['dir'] == Mote.DIR_TXRX_SHARED and
+                       cell1['dir'] == cell2['dir'] and
+                       (sorted(map(lambda x: x.id, cell1['neighbor'])) ==
+                        sorted(map(lambda x: x.id, cell2['neighbor']))))
+            else:
+                ret = (cell1['ch'] == cell2['ch'] and
+                       cell1['dir'] == cell2['dir'] and
+                       cell1['neighbor'].id == cell2['neighbor'].id)
+
+            ret = prev_ret and ret
+
+        if ret is False:
+            break
+
+    # all schedules must not be the same
+    assert ret is False

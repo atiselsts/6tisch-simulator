@@ -93,3 +93,5 @@ class SimSettings(object):
             del self.numFragments
         if hasattr(self, 'cascadingScheduling'):
             del self.cascadingScheduling
+        if hasattr(self, 'schedulingMode'):
+            del self.schedulingMode

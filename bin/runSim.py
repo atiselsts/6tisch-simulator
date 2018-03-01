@@ -315,6 +315,13 @@ def parseCliOptions():
                       default=False,
                       help='[topology] Enable a static scheduling in LinearTopology',
                       )
+    parser.add_argument('--schedulingMode',
+                      dest='schedulingMode',
+                      type=str,
+                      choices=['static', 'random-pick'],
+                      default=None,
+                      help='[topology] Specify scheduling mode',
+                      )
 
     options        = parser.parse_args()
     return options.__dict__

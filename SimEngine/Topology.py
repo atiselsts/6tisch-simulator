@@ -551,13 +551,36 @@ class TwoBranchTopology(TopologyCreator):
 
     def _install_cascading_schedule(self):
         # allocate TX cells and RX cells in a cascading bandwidth manner.
-        alloc_pointer = 1
+
         for mote in self.motes[::-1]: # loop in the reverse order
             child = mote
             while child and child.preferredParent:
+                if (hasattr(self.settings, 'schedulingMode') and
+                   self.settings.schedulingMode == 'random-pick'):
+                    if 'alloc_table' not in locals():
+                        alloc_table = set()
+
+                    if len(alloc_table) >= self.settings.slotframeLength:
+                        raise ValueError('slotframe is too small')
+
+                    while True:
+                        # we don't use slot-0 since it's designated for a shared cell
+                        alloc_pointer = random.randint(1,
+                                                       self.settings.slotframeLength - 1)
+                        if alloc_pointer not in alloc_table:
+                            alloc_table.add(alloc_pointer)
+                            break
+                else:
+                    if 'alloc_pointer' not in locals():
+                        alloc_pointer = 1
+                    else:
+                        alloc_pointer += 1
+
+                    if alloc_pointer > self.settings.slotframeLength:
+                        raise ValueError('slotframe is too small')
+
                 self._alloc_cell(child,
                                  child.preferredParent,
                                  alloc_pointer,
                                  0)
-                alloc_pointer += 1
                 child = child.preferredParent
