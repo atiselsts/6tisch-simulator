@@ -43,7 +43,7 @@ class SimEngine(threading.Thread):
         return cls._instance
     #===== end singleton
 
-    def __init__(self,runNum=None,failIfNotInit=False):
+    def __init__(self, cpuID=None, runNum=None, failIfNotInit=False):
 
         if failIfNotInit and not self._init:
             raise EnvironmentError('SimEngine singleton not initialized.')
@@ -55,6 +55,7 @@ class SimEngine(threading.Thread):
         #===== end singleton
 
         # store params
+        self.cpuID                          = cpuID
         self.runNum                         = runNum
 
         # local variables
