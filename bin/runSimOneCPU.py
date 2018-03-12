@@ -25,7 +25,7 @@ import logging
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
-log = logging.getLogger('BatchSim')
+log = logging.getLogger('runSim')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
