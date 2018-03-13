@@ -2918,7 +2918,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
-            returnVal['numDedicatedCells']  = len(self.getTxCells()) + len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
+            returnVal['numDedicatedCells']  = len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
             returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
