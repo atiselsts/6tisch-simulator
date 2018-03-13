@@ -82,22 +82,4 @@ class SimSettings(object):
     def destroy(self):
         self._instance       = None
         self._init           = False
-
-        # This destroy method doesn't destroy the instance in fact. Since I'm
-        # not sure how to destroy the singleton instance from its instance
-        # method, just remove relevant instance attributes so that tests
-        # get happy.
-        if hasattr(self, 'topology'):
-            del self.topology
-        if hasattr(self, 'numFragments'):
-            del self.numFragments
-        if hasattr(self, 'cascadingScheduling'):
-            del self.cascadingScheduling
-        if hasattr(self, 'schedulingMode'):
-            del self.schedulingMode
-        if hasattr(self, 'numReassQueue'):
-            del self.numReassQueue
-        if hasattr(self, 'maxVRBEntryNum'):
-            del self.maxVRBEntryNum
-        if hasattr(self, 'optFragmentForwarding'):
-            del self.optFragmentForwarding
+        del self.__dict__

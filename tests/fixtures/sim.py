@@ -6,28 +6,41 @@
 
 import pytest
 
-import SimEngine.SimEngine as SimEngine
-import SimEngine.SimSettings as SimSettings
-
+from SimEngine import SimSettings, SimEngine, Topology, sf
 
 @pytest.fixture(scope="function")
 def sim(request):
 
     def create_sim(**kwargs):
 
-        params = {}
+        params = {
+            # prerequisite parameters for SimEngine
+            'numMotes': 15,
+            'withJoin': False,
 
-        # mandatory parameters to create a SimEngine instance
-        params['pkPeriod'] = 0
-        params['minRssi'] = 0
-        params['withJoin'] = False
-        params['slotframeLength'] = 101
-        params['slotDuration'] = 0.010
-        params['bayesianBroadcast'] = False
-        params['numCyclesPerRun'] = 101
+            # prerequisite parameters for Topology
+            'fullyMeshed': False,
+            'squareSide': 2.000,
+            'topology': Topology.DEFAULT_TOPOLOGY,
 
-        # disable interference model
-        params['noInterference'] = True
+            # prerequisite parameters for Schedule
+            'scheduling_function': sf.DEFAULT_SCHEDULING_FUNCTION,
+            'msfHousekeepingPeriod': 60,
+            'msfMaxNumCells': 16,
+            'msfLimNumCellsUsedHigh': 12,
+            'msfLimNumCellsUsedLow': 4,
+            'msfNumCellsToAddOrRemove': 1,
+
+            # prerequisite parameters for Propagation
+            'propagation': 'pisterhack',
+            'slotDuration': 0.010,
+            'slotframeLength': 101,
+            'noInterference': True,
+            'minRssi': -97,
+
+            # there are prerequisite parameters for Mote
+            'pkPeriod': 0,
+        }
 
         if kwargs:
             params.update(kwargs)
@@ -36,9 +49,12 @@ def sim(request):
         engine = SimEngine.SimEngine(1)
 
         def fin():
-
-            engine.destroy()
-            settings.destroy()
+            # We check the _init value to make sure the singletons were not already
+            # deleted in the test
+            if engine._init is True:
+                engine.destroy()
+            if settings._init is True:
+                settings.destroy()
 
         request.addfinalizer(fin)
 
