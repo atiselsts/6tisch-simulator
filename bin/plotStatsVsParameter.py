@@ -33,7 +33,7 @@ import scipy
 import scipy.stats
 
 import logging.config
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import argparse
 import datasetreader
 
@@ -179,7 +179,7 @@ def calcReliability(dir, infilename, elemName):
     infilepath = os.path.join(dir, infilename)
 
     # read dataset
-    data, params = datasetreader.read_dataset(infilepath)
+    data, params = datasetreader.read_dataset_file(infilepath)
 
     assert params["numCyclesPerRun"] > START_CYCLE
 
@@ -938,12 +938,12 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
     # print
     print 'Generating {0}...'.format(outfilename),
 
-    matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel(xlabel, fontsize='large')
-    matplotlib.pyplot.ylabel(ylabel, fontsize='large')
-    matplotlib.pyplot.grid()
+    plt.figure()
+    plt.xlabel(xlabel, fontsize='large')
+    plt.ylabel(ylabel, fontsize='large')
+    plt.grid()
     if log:
-        matplotlib.pyplot.yscale('log')
+        plt.yscale('log')
     index = 0
     for dataSetDir in dirs:
         # calculate mean and confidence interval
@@ -963,7 +963,7 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
         y         = [meanPerParameter[k] for k in x]
         yerr      = [confintPerParameter[k] for k in x]
 
-        matplotlib.pyplot.errorbar(
+        plt.errorbar(
             x        = x,
             y        = y,
             yerr     = yerr,
@@ -981,18 +981,18 @@ def genStatsVsParameterPlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False
         print >> datafile,ylabel,y
         #print >> datafile,'conf. inverval',yerr
 
-    matplotlib.pyplot.legend(prop={'size':12},loc=0)
+    plt.legend(prop={'size':12},loc=0)
     if xmin:
-        matplotlib.pyplot.xlim(xmin=xmin)
+        plt.xlim(xmin=xmin)
     if xmax:
-        matplotlib.pyplot.xlim(xmax=xmax)
+        plt.xlim(xmax=xmax)
     if ymin:
-        matplotlib.pyplot.ylim(ymin=ymin)
+        plt.ylim(ymin=ymin)
     if ymax:
-        matplotlib.pyplot.ylim(ymax=ymax)
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,outfilename + '.png'))
-    matplotlib.pyplot.savefig(os.path.join(DATADIR,outfilename + '.eps'))
-    matplotlib.pyplot.close('all')
+        plt.ylim(ymax=ymax)
+    plt.savefig(os.path.join(DATADIR,outfilename + '.png'))
+    plt.savefig(os.path.join(DATADIR,outfilename + '.eps'))
+    plt.close('all')
 
     # print
     print 'done.'

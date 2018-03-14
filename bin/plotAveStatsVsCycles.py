@@ -33,7 +33,7 @@ import scipy
 import scipy.stats
 
 import logging.config
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import argparse
 import random
 
@@ -263,11 +263,11 @@ def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False, xm
     # print
     print 'Generating {0}...'.format(outfilename),
 
-    matplotlib.pyplot.figure()
-    matplotlib.pyplot.xlabel(xlabel, fontsize='large')
-    matplotlib.pyplot.ylabel(ylabel, fontsize='large')
+    plt.figure()
+    plt.xlabel(xlabel, fontsize='large')
+    plt.ylabel(ylabel, fontsize='large')
     if log:
-        matplotlib.pyplot.yscale('log')
+        plt.yscale('log')
 
     for dataDir in dirs:
         # calculate mean and confidence interval
@@ -300,7 +300,7 @@ def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False, xm
         else:
             index = random.randint(0,4)
 
-        matplotlib.pyplot.errorbar(
+        plt.errorbar(
             x        = x,
             y        = y,
             #yerr     = yerr,
@@ -316,19 +316,19 @@ def genStatsVsCyclePlots(vals, dirs, outfilename, xlabel, ylabel, xmin=False, xm
         print >> datafile,ylabel,y
         #print >> datafile,'conf. inverval',yerr
 
-    matplotlib.pyplot.legend(prop={'size':12},loc=0)
+    plt.legend(prop={'size':12},loc=0)
     if xmin:
-        matplotlib.pyplot.xlim(xmin=xmin)
+        plt.xlim(xmin=xmin)
     if xmax:
-        matplotlib.pyplot.xlim(xmax=xmax)
+        plt.xlim(xmax=xmax)
     if ymin:
-        matplotlib.pyplot.ylim(ymin=ymin)
+        plt.ylim(ymin=ymin)
     if ymax:
-        matplotlib.pyplot.ylim(ymax=ymax)
+        plt.ylim(ymax=ymax)
 
-    matplotlib.pyplot.savefig(outfilename + '.png')
-    matplotlib.pyplot.savefig(outfilename + '.eps')
-    matplotlib.pyplot.close('all')
+    plt.savefig(outfilename + '.png')
+    plt.savefig(outfilename + '.eps')
+    plt.close('all')
 
     # print
     print 'done.'

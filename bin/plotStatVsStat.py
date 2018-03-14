@@ -10,7 +10,7 @@ import datasetreader
 
 def main(options):
     # read dataset
-    df, stats = datasetreader.read_dataset(options.input_file)
+    df, stats = datasetreader.read_dataset_file(options.input_file)
 
     # plot
     df.plot(x=options.first_stat, y=options.second_stat, style='+', legend=False)
