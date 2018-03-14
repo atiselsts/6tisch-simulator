@@ -8,16 +8,20 @@
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
 
+# standard libraries
 import os
 import re
 import glob
 import pprint
 
+# third party libraries
 import numpy
 import scipy
 import scipy.stats
-
 import matplotlib.pyplot
+
+# local libraries
+import datasetreader
 
 #============================ defines =========================================
 
@@ -90,26 +94,16 @@ def binDataFiles():
 
     dataBins       = {}
     for infilepath in infilepaths:
-        with open(infilepath,'r') as f:
-            for line in f:
-                if not line.startswith('## ') or not line.strip():
-                    continue
-                # otfThreshold
-                m = re.search('otfThreshold\s+=\s+([\.0-9]+)',line)
-                if m:
-                    otfThreshold = float(m.group(1))
-                # pkPeriod
-                m = re.search('pkPeriod\s+=\s+([\.0-9]+)',line)
-                if m:
-                    pkPeriod     = float(m.group(1))
-                else:
-                    pkPeriod     = 'NA'
-            if (otfThreshold,pkPeriod) not in dataBins:
-                dataBins[(otfThreshold,pkPeriod)] = []
-            dataBins[(otfThreshold,pkPeriod)] += [infilepath]
+        # read dataset
+        data, params = datasetreader.read_dataset(infilepath)
+
+        # append dataset
+        if (params["otfThreshold"], params["pkPeriod"]) not in dataBins:
+            dataBins[(params["otfThreshold"], params["pkPeriod"])] = []
+        dataBins[(params["otfThreshold"], params["pkPeriod"])] += [infilepath]
 
     output  = []
-    for ((otfThreshold,pkPeriod),filepaths) in dataBins.items():
+    for ((otfThreshold,pkPeriod), filepaths) in dataBins.items():
         output         += ['otfThreshold={0} pkPeriod={1}'.format(otfThreshold,pkPeriod)]
         for f in filepaths:
             output     += ['   {0}'.format(f)]

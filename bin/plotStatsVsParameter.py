@@ -35,6 +35,7 @@ import scipy.stats
 import logging.config
 import matplotlib.pyplot
 import argparse
+import datasetreader
 
 #============================ defines =========================================
 
@@ -173,79 +174,46 @@ def plot_reliability(elemName):
         log            = False,
     )
 
-def calcReliability(dir,infilename,elemName):
+def calcReliability(dir, infilename, elemName):
 
-    infilepath     = os.path.join(dir,infilename)
+    infilepath = os.path.join(dir, infilename)
 
-    # find xAxis, numCyclesPerRun
-    with open(infilepath,'r') as f:
-        for line in f:
+    # read dataset
+    data, params = datasetreader.read_dataset(infilepath)
 
-            if line.startswith('##'):
-
-                # elem
-                m = re.search(elemName+'\s+=\s+([\.0-9]+)',line)
-                if m:
-                    elem               = float(m.group(1))
-
-                # numCyclesPerRun
-                m = re.search('numCyclesPerRun\s+=\s+([\.0-9]+)',line)
-                if m:
-                    numCyclesPerRun    = int(m.group(1))
-
-    # find appGenerated, appReachesDagroot, txQueueFill, colnumcycle
-    with open(infilepath,'r') as f:
-        for line in f:
-            if line.startswith('# '):
-                elems                   = re.sub(' +',' ',line[2:]).split()
-                numcols                 = len(elems)
-                colnumappGenerated      = elems.index('appGenerated')
-                colnumappReachesDagroot = elems.index('appReachesDagroot')
-                colnumtxQueueFill       = elems.index('txQueueFill')
-                colnumcycle             = elems.index('cycle')
-                colnumrunNum            = elems.index('runNum')
-                break
-
-    assert numCyclesPerRun > START_CYCLE
+    assert params["numCyclesPerRun"] > START_CYCLE
 
     # parse data
     reliabilities  = []
     totalGenerated = 0
     totalReaches   = 0
     previousCycle  = None
-    with open(infilepath,'r') as f:
-        for line in f:
-            if line.startswith('#') or not line.strip():
-                continue
-            m = re.search('\s+'.join(['([\.0-9]+)']*numcols),line.strip())
-            appGenerated        = int(m.group(colnumappGenerated+1))
-            appReachesDagroot   = int(m.group(colnumappReachesDagroot+1))
-            txQueueFill         = int(m.group(colnumtxQueueFill+1))
-            cycle               = int(m.group(colnumcycle+1))
-            runNum              = int(m.group(colnumrunNum+1))
 
-            if cycle==START_CYCLE-1:
-                initTxQueueFill     = txQueueFill
+    for index, row in data.iterrows():
+        if row["cycle"] == START_CYCLE-1:
+            initTxQueueFill     = row["txQueueFill"]
 
-            if cycle>=START_CYCLE:
-                totalGenerated     += appGenerated
-                totalReaches       += appReachesDagroot
+        if row["cycle"] >= START_CYCLE:
+            totalGenerated     += row["appGenerated"]
+            totalReaches       += row["appReachesDagroot"]
 
-            if cycle == numCyclesPerRun-1:
-                if START_CYCLE==0:
-                    initTxQueueFill = 0
-                reliabilities  += [float(totalReaches)/float(totalGenerated+initTxQueueFill-txQueueFill)]
-                totalGenerated  = 0
-                totalReaches    = 0
+        if row["cycle"] == params["numCyclesPerRun"]-1:
+            if START_CYCLE == 0:
+                initTxQueueFill = 0
+            if float(totalGenerated + initTxQueueFill - row["txQueueFill"]) != 0:
+                reliabilities  += [float(totalReaches) / float(totalGenerated + initTxQueueFill - row["txQueueFill"])]
+            totalGenerated  = 0
+            totalReaches    = 0
 
-            if cycle==0 and previousCycle and previousCycle!=numCyclesPerRun-1:
-                print 'runNum({0}) in {1} is incomplete data'.format(runNum-1,dir)
-                # initialize counters and skip the incomplete data
-                totalGenerated  = appGenerated
-                totalReaches    = appReachesDagroot
+        if row["cycle"] == 0 and previousCycle and previousCycle != params["numCyclesPerRun"]-1:
+            print 'runNum({0}) in {1} is incomplete data'.format(row["runNum"]-1, dir)
+            # initialize counters and skip the incomplete data
+            totalGenerated  = row["appGenerated"]
+            totalReaches    = row["appReachesDagroot"]
 
-            previousCycle = cycle
-    return elem, reliabilities
+        previousCycle = row["cycle"]
+
+    return params[elemName], reliabilities
 
 #===== battery life
 
