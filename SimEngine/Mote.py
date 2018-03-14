@@ -1017,6 +1017,35 @@ class Mote(object):
         else:
             return MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
 
+    def _msf_signal_cell_used(self, neighbor, direction):
+        # cell direction is not used for now
+        assert direction in [DIR_TXRX_SHARED, DIR_TX, DIR_RX]
+
+        # MSF: updating numCellsUsed
+        if neighbor == self.preferredParent:
+            self.numCellsUsed += 1
+
+    def _msf_signal_cell_elapsed(self, neighbor, direction):
+        # cell direction is not used for now
+        assert direction in [DIR_TXRX_SHARED, DIR_TX, DIR_RX]
+
+        # MSF: updating numCellsPassed
+        if neighbor == self.preferredParent:
+            self.numCellsPassed += 1
+
+    def _msf_reset_counters(self):
+        self.numCellsPassed = 0
+        self.numCellsUsed = 0
+
+    def _msf_adapt_to_traffic(self):
+        # MSF algorithm to adapt to traffic
+        if self.numCellsPassed == self.settings.msfMaxNumCells:
+            if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
+                self._msf_schedule_bandwidth_increment()
+            elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
+                self._msf_schedule_bandwidth_decrement()
+            self._msf_reset_counters()
+
     def _msf_reset_timeout_exponent(self,neighborId,firstTime):
         """
           reset current exponent according to MSF
@@ -2108,16 +2137,14 @@ class Mote(object):
                             self.pktToSend = pkt
                             break
 
-                # MSF - updating numCellsPassed
-                if cell['neighbor'] == self.preferredParent:
-                    self.numCellsPassed += 1
+                # Signal to MSF that a cell to a neighbor has been triggered
+                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
 
                 # send packet
                 if self.pktToSend:
 
-                    # MSF updating numCellsUsed
-                    if cell['neighbor'] == self.preferredParent:
-                        self.numCellsUsed += 1
+                    # Signal to MSF that a cell to a neighbor is used
+                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'])
 
                     cell['numTx'] += 1
 
@@ -2160,16 +2187,13 @@ class Mote(object):
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = DIR_TX
 
-                # MSF algorithm to adapt to traffic
-                if self.numCellsPassed == self.settings.msfMaxNumCells:
-                    if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
-                        self._msf_schedule_bandwidth_increment()
-                    elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
-                        self._msf_schedule_bandwidth_decrement()
-                    self.numCellsPassed = 0
-                    self.numCellsUsed = 0
+                # Invoke MSF to monitor utilization
+                self._msf_adapt_to_traffic()
 
             elif cell['dir']==DIR_TXRX_SHARED:
+                # Signal to MSF that a cell has been triggered
+                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
+
                 if cell['neighbor'] == self._myNeighbors():
                     self.pktToSend = None
                     if self.txQueue and self.backoffBroadcast == 0:
@@ -2213,6 +2237,9 @@ class Mote(object):
                 if self.pktToSend:
 
                     cell['numTx'] += 1
+
+                    # Signal to MSF that a cell to a neighbor is used
+                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'])
 
                     if pkt['type']==IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==IANA_6TOP_CMD_ADD:
@@ -2260,6 +2287,9 @@ class Mote(object):
                      )
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor = DIR_RX
+
+                # Invoke MSF to monitor utilization
+                self._msf_adapt_to_traffic()
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -2888,7 +2918,7 @@ class Mote(object):
             returnVal = copy.deepcopy(self.motestats)
             returnVal['numTxCells']         = len(self.getTxCells())
             returnVal['numRxCells']         = len(self.getRxCells())
-            returnVal['numDedicatedCells']  = len(self.getTxCells()) + len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
+            returnVal['numDedicatedCells']  = len([(ts, c) for (ts, c) in self.schedule.items() if type(self) == type(c['neighbor'])])
             returnVal['numSharedCells']     = len(self.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
