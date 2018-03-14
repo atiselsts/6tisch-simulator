@@ -1,26 +1,26 @@
 The 6TiSCH Simulator
 ====================
 
-Brought to you by:
+Maintainers:
 
-* Thomas Watteyne (watteyne@eecs.berkeley.edu)
+* Mališa Vučinić (malisa.vucinic@inria.fr)
+* Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr) - Sensei
+* Keoma Brun-Laguna (keoma.brun@inria.fr)
+
+Contributers:
+
+* Thomas Watteyne (thomas.watteyne@inria.fr)
 * Kazushi Muraoka (k-muraoka@eecs.berkeley.edu)
 * Nicola Accettura (nicola.accettura@eecs.berkeley.edu)
 * Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
-* Mališa Vučinić (malisa.vucinic@inria.fr)
 * Esteban Municio (esteban.municio@uantwerpen.be)
 * Glenn Daneels (glenn.daneels@uantwerpen.be)
-
-You are on the development branch, containing latest and hottest updates to the simulator, following the work in the 6TiSCH standardization group.
-This comes at a price that it may not be most thoroughly tested, and bugs are to be expected.
-If you encounter some, please report them with a detailed bug report containing the parameters you used to run the simulation, through the Bitbucket issue tracker.
-
-If you are looking for a more stable, but outdated version, please check out the master branch.
 
 Scope
 -----
 
-6TiSCH is an active IETF standardization working group which defines mechanisms to build and maintain communication schedules in tomorrow's Internet of (Important) Things. This simulator allows you to measure the performance of those different mechanisms under different conditions.
+6TiSCH is an active IETF standardization working group that defines mechanisms to build and maintain communication schedules in tomorrow's Internet of (Important) Things.
+This simulator allows you to measure the performance of those different mechanisms under different conditions.
 
 What is simulated:
 
@@ -69,12 +69,12 @@ Getting Started
    ```
    $ cd simulator/bin
    ```
-3. Execute runSimOneCPU.py:
+3. Execute runSim.py:
    ```
-   $ python runSimOneCPU.py
+   $ python runSim.py
    ```
     * You'll have raw output data under `bin/simData` directory.
-    * You can specify configuration parameters such as slot length and application packet interval if you want. `$ python runSimOneCPU.py --help` shows available options.
+    * You can specify configuration parameters such as slot length and application packet interval if you want. `$ python runSim.py --help` shows available options.
 4. Execute plotStuff.py to see the results:
    ```
    $ python plotStuff.py
@@ -95,39 +95,19 @@ Code Organization
     * `Topology.py`: creates a topology of the motes in the network.
 * `SimGui/`: the graphical user interface to the simulator
 
-Issues and bugs / Development Workflow
+Development Workflow and Coding Style
 ---------------
 
-When you find any issue or bug, please open an issue at [the issue
-tracker](https://bitbucket.org/6tisch/simulator/issues). In the issue
-ticket, it'd be nice to have expected behaviors of the simulator, a
-way to reproduce the issue, and the branch name or commit hash of the
-code you are using.
+* We follow the standard Git branching workflow: https://git-scm.com/book/en/v2/Git-Branching-Branching-Workflows
+* The code should follow the PEP8 coding style: https://www.python.org/dev/peps/pep-0008/
 
-If you come up with a solution for the issue, that's great. We
-encourage you to send a Pull-Request!
-
-The basic development workflow looks like:
-
-1. open a issue
-2. send a PR with your proposal, which refers to relevant a issue or issues
-3. merge your proposal
-4. close the issue
-
-To close relevant issues, you could add a command into your commit
-message. For available commands and the command format, please refer
-to [Resolve issues automatically when users push
-code](https://confluence.atlassian.com/bitbucket/resolve-issues-automatically-when-users-push-code-221451126.html).
-
-Code Style
+Running Simulation on Traces
 ---------------
 
-The code should follow the PEP8 coding style: https://www.python.org/dev/peps/pep-0008/
+## How to Run on Traces
 
-The main rules are:
+`python runSim.py --trace tracefile.csv`
 
-* Spaces are the preferred indentation method (4 spaces)
-* For triple-quoted strings, always use double quote characters to be consistent with the docstring convention in PEP 257.
-* Use spaces around operators: `x == 4` instead of `x==4`
-* Use spaces after comma: `def example(x, y)` instead of `def example(x,y)`
-* Function and variable names should be lower case
+## Trace Format
+
+We follow the CTR format, specified in: https://github.com/keomabrun/dense_connectivity_datasets
