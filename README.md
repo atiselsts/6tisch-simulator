@@ -1,7 +1,7 @@
 The 6TiSCH Simulator
 ====================
 
-Maintainers:
+Core Developers:
 
 * Mališa Vučinić (malisa.vucinic@inria.fr)
 * Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr) - Sensei
