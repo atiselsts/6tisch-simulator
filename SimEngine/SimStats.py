@@ -40,7 +40,7 @@ class SimStats(object):
         return cls._instance
     #===== end singleton
 
-    def __init__(self,runNum):
+    def __init__(self, cpuID, runNum):
 
         #===== start singleton
         if self._init:
@@ -49,6 +49,7 @@ class SimStats(object):
         #===== end singleton
 
         # store params
+        self.cpuID                          = cpuID
         self.runNum                         = runNum
 
         # local variables

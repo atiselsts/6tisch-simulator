@@ -38,7 +38,7 @@ class SimSettings(object):
         return cls._instance
     #===== end singleton
 
-    def __init__(self,failIfNotInit=False,**kwargs):
+    def __init__(self, cpuID=None, runNum=None, failIfNotInit=False, **kwargs):
 
         if failIfNotInit and not self._init:
             raise EnvironmentError('SimSettings singleton not initialized.')
@@ -48,6 +48,10 @@ class SimSettings(object):
             return
         self._init = True
         #===== end singleton
+
+        # store params
+        self.cpuID                          = cpuID
+        self.runNum                         = runNum
 
         self.__dict__.update(kwargs)
 
