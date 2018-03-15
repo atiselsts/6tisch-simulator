@@ -1013,7 +1013,7 @@ class Mote(object):
 
         if len(cellPDR) > 0:
             meanPDR=sum(cellPDR) / float(len(cellPDR))
-            return math.ceil((len(cellPDR)/meanPDR)*MSF_6PTIMEOUT_SEC_FACTOR)
+            return math.ceil(float(1 / len(cellPDR)) * float(1 / meanPDR) * MSF_6PTIMEOUT_SEC_FACTOR)
         else:
             return MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
 
