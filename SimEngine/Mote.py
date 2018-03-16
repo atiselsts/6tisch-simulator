@@ -564,9 +564,22 @@ class Mote(object):
                 self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
             self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
 
+            if (hasattr(self.settings, 'optFragmentForwarding') and
+               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+                self.vrbTable[smac][itag]['next_offset'] = 0
+
         if smac in self.vrbTable and itag in self.vrbTable[smac]:
             if self.vrbTable[smac][itag]['otag'] == None:
                 return False # this is for us, which needs to be reassembled
+
+            if (hasattr(self.settings, 'optFragmentForwarding') and
+               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+                if offset == self.vrbTable[smac][itag]['next_offset']:
+                    self.vrbTable[smac][itag]['next_offset'] += 1
+                else:
+                    del self.vrbTable[smac][itag]
+                    self._radio_drop_packet(frag, 'droppedFragMissingFrag')
+                    return False
 
             frag['asn'] = self.engine.getAsn()
             frag['payload'][2] += 1 # update the number of hops
@@ -577,6 +590,12 @@ class Mote(object):
 
         # return True when the fragment is to be forwarded even if it cannot be
         # forwarded due to out-of-order or full of queue
+        if (hasattr(self.settings, 'optFragmentForwarding') and
+           'kill_entry_by_last' in self.settings.optFragmentForwarding and
+           offset == (self.settings.numFragments - 1)):
+            # this fragment is the last one
+            del self.vrbTable[smac][itag]
+
         return True
 
     def _app_frag_packet(self, packet):

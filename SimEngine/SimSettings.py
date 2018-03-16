@@ -99,3 +99,5 @@ class SimSettings(object):
             del self.numReassQueue
         if hasattr(self, 'maxVRBEntryNum'):
             del self.maxVRBEntryNum
+        if hasattr(self, 'optFragmentForwarding'):
+            del self.optFragmentForwarding

@@ -176,6 +176,14 @@ def parseCliOptions():
                       default=False,
                       help='[app] Enable Fragment Forwarding feature'
                       )
+    parser.add_argument('--optFragmentForwarding',
+                      dest='optFragmentForwarding',
+                      nargs='+',
+                      type=str,
+                      default=[],
+                      choices=['kill_entry_by_last', 'kill_entry_by_missing'],
+                      help='[app] Specify Fragment Forwarding options',
+                      )
     parser.add_argument('--maxVRBEntryNum',
                       dest='enableFragmentForwarding',
                       type=int,

@@ -698,3 +698,182 @@ class TestDatagramTag:
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
         assert tag2 == (tag1 + 1) % 65536
+
+class TestOptimization:
+    def test_remove_vrb_table_entry_by_expiration(self, sim):
+        sim = sim(**{'enableFragmentForwarding': True,
+                     'numFragments': 4,
+                     'numMotes': 3,
+                     'topology': 'linear',
+                     'linearTopology': True,
+                     'optFragmentForwarding': []})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf = sim.motes[2]
+        packet = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf,
+            'dstIp': root,
+            'smac': leaf,
+            'sourceRoute': []
+        }
+        leaf._app_frag_packet(packet)
+        frag0 = leaf.txQueue[0]
+        frag1 = leaf.txQueue[1]
+        frag2 = leaf.txQueue[2]
+        frag3 = leaf.txQueue[3]
+
+
+        assert len(node.vrbTable) == 0
+
+        assert node._app_is_frag_to_forward(frag0) is True
+        assert node._app_is_frag_to_forward(frag3) is True
+        sim.asn += (60 / sim.settings.slotDuration)
+        assert node._app_is_frag_to_forward(frag1) is True
+        sim.asn += 1
+        # VRB Table entry expires
+        assert node._app_is_frag_to_forward(frag2) is False
+
+    def test_remove_vrb_table_entry_on_last_frag(self, sim):
+        sim = sim(**{'enableFragmentForwarding': True,
+                     'numFragments': 3,
+                     'numMotes': 3,
+                     'topology': 'linear',
+                     'linearTopology': True,
+                     'optFragmentForwarding': ['kill_entry_by_last']})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf = sim.motes[2]
+        packet = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf,
+            'dstIp': root,
+            'smac': leaf,
+            'sourceRoute': []
+        }
+        leaf._app_frag_packet(packet)
+        frag0 = leaf.txQueue[0]
+        frag1 = leaf.txQueue[1]
+        frag2 = leaf.txQueue[2]
+
+        assert len(node.vrbTable) == 0
+
+        assert node._app_is_frag_to_forward(frag0) is True
+        assert node._app_is_frag_to_forward(frag2) is True
+        # the VRB entry is removed by frag2 (last)
+        assert node._app_is_frag_to_forward(frag1) is False
+
+    def test_remove_vrb_table_entry_on_missing_frag(self, sim):
+        sim = sim(**{'enableFragmentForwarding': True,
+                     'numFragments': 4,
+                     'numMotes': 3,
+                     'topology': 'linear',
+                     'linearTopology': True,
+                     'optFragmentForwarding': ['kill_entry_by_missing']})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf = sim.motes[2]
+        packet = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf,
+            'dstIp': root,
+            'smac': leaf,
+            'sourceRoute': []
+        }
+        leaf._app_frag_packet(packet)
+        frag0 = leaf.txQueue[0]
+        frag1 = leaf.txQueue[1]
+        frag2 = leaf.txQueue[2]
+        frag3 = leaf.txQueue[3]
+
+        assert len(node.vrbTable) == 0
+
+        assert node._app_is_frag_to_forward(frag0) is True
+        # frag2 afterb frag0 indicates frag1 is missing
+        assert node._app_is_frag_to_forward(frag2) is False
+        assert node._app_is_frag_to_forward(frag1) is False
+        assert node._app_is_frag_to_forward(frag3) is False
+
+    def test_remove_vrb_table_entry_on_last_and_missing(self, sim):
+        sim = sim(**{'enableFragmentForwarding': True,
+                     'numFragments': 4,
+                     'numMotes': 3,
+                     'topology': 'linear',
+                     'linearTopology': True,
+                     'optFragmentForwarding': ['kill_entry_by_last', 'kill_entry_by_missing']})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf = sim.motes[2]
+        packet1 = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf,
+            'dstIp': root,
+            'smac': leaf,
+            'sourceRoute': []
+        }
+        packet2 = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf,
+            'dstIp': root,
+            'smac': leaf,
+            'sourceRoute': []
+        }
+        leaf._app_frag_packet(packet1)
+        frag1_0 = leaf.txQueue[0]
+        frag1_1 = leaf.txQueue[1]
+        frag1_2 = leaf.txQueue[2]
+        frag1_3_1 = leaf.txQueue[3]
+        frag1_3_2 = copy.copy(frag1_3_1)
+        frag1_3_2['payload'] = copy.deepcopy(frag1_3_1['payload'])
+        leaf._app_frag_packet(packet2)
+        frag2_0 = leaf.txQueue[0]
+        frag2_1 = leaf.txQueue[1]
+        frag2_2 = leaf.txQueue[2]
+        frag2_3 = leaf.txQueue[3]
+
+        node.original_radio_drop_packet = node._radio_drop_packet
+        test_is_called = {'result': False}
+
+        def test(self, pkt, reason):
+            test_is_called['result'] = True
+            assert reason == 'droppedFragNoVRBEntry'
+
+        node._radio_drop_packet = types.MethodType(test, node)
+
+        assert len(node.vrbTable) == 0
+
+        assert node._app_is_frag_to_forward(frag1_0) is True
+        assert node._app_is_frag_to_forward(frag1_1) is True
+        assert node._app_is_frag_to_forward(frag1_2) is True
+        assert node._app_is_frag_to_forward(frag1_3_1) is True
+        # the VRB entry is removed by frag1_3_1 (last)
+        frag1_3_2['smac'] = leaf
+        assert node._app_is_frag_to_forward(frag1_3_2) is False
+        assert test_is_called['result'] is True
+        node._radio_drop_packet = node.original_radio_drop_packet
+
+        assert node._app_is_frag_to_forward(frag2_0) is True
+        # frag2 afterb frag0 indicates frag1 is missing
+        assert node._app_is_frag_to_forward(frag2_2) is False
+        assert node._app_is_frag_to_forward(frag2_1) is False
+        assert node._app_is_frag_to_forward(frag2_3) is False
