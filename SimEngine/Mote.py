@@ -1990,7 +1990,7 @@ class Mote(object):
                 self.sixtopStates[smac.id]['rx'] = {}
                 self.sixtopStates[smac.id]['rx']['blockedCells'] = []
                 self.sixtopStates[smac.id]['rx']['seqNum'] = 0
-                # if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
+                # if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Send a RESET.
                 returnCode = IANA_6TOP_RC_RESET  # error, neighbor has to abort transaction
                 self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, receivedDir, seq)
                 return
@@ -2430,47 +2430,48 @@ class Mote(object):
 
                 # received an ACK for the request, change state and increase the sequence number
                 if self.pktToSend['type'] == IANA_6TOP_TYPE_REQUEST:
-                    if self.pktToSend['code']==IANA_6TOP_CMD_ADD:
-                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state']==SIX_STATE_WAIT_ADDREQUEST_SENDDONE
+                    if self.pktToSend['code'] == IANA_6TOP_CMD_ADD:
+                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] == SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = SIX_STATE_WAIT_ADDRESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
-                        uniqueTag1 = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
+                        fireASN = int(self.engine.getAsn() + (
+                                    float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                        uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
-                            asn         = fireASN,
-                            cb          = self._sixtop_timer_fired,
-                            uniqueTag   = (self.id, uniqueTag1),
-                            priority    = 5,
+                            asn=fireASN,
+                            cb=self._sixtop_timer_fired,
+                            uniqueTag=(self.id, uniqueTag),
+                            priority=5,
                         )
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
-                        self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.id, uniqueTag1)
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.id, uniqueTag)
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
                         self._log(
                             DEBUG,
                             "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}",
-                            (self.id,self.pktToSend['dstIp'].id, fireASN, str((self.id, uniqueTag1))),
+                            (self.id, self.pktToSend['dstIp'].id, fireASN, str((self.id, uniqueTag))),
                         )
-                    elif self.pktToSend['code']==IANA_6TOP_CMD_DELETE:
-                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state']==SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
+                    elif self.pktToSend['code'] == IANA_6TOP_CMD_DELETE:
+                        assert self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] == SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = SIX_STATE_WAIT_DELETERESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn()+(float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout'])/float(self.settings.slotDuration)))
-                        uniqueTag2 = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
+                        fireASN = int(self.engine.getAsn() + (float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                        uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
-                            asn         = fireASN,
-                            cb          = self._sixtop_timer_fired,
-                            uniqueTag   = (self.id, uniqueTag2),
-                            priority    = 5,
+                            asn=fireASN,
+                            cb=self._sixtop_timer_fired,
+                            uniqueTag=(self.id, uniqueTag),
+                            priority=5,
                         )
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
-                        self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.id, uniqueTag2)
+                        self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.id, uniqueTag)
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
                         self._log(
                             DEBUG,
                             "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}",
-                            (self.id,self.pktToSend['dstIp'].id, fireASN, str((self.id, uniqueTag2))),
+                            (self.id, self.pktToSend['dstIp'].id, fireASN, str((self.id, uniqueTag))),
                         )
                     else:
                         assert False
@@ -2514,9 +2515,9 @@ class Mote(object):
                 # drop packet if retried too many time
                 if self.txQueue[i]['retriesLeft'] == 0:
 
-                    if  len(self.txQueue) == TSCH_QUEUE_SIZE:
+                    if len(self.txQueue) == TSCH_QUEUE_SIZE:
 
-                        #only count drops of DATA packets that are part of the experiment
+                        # only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == APP_TYPE_DATA:
                             self._stats_incrementMoteStats('droppedDataMacRetries')
 
@@ -2673,22 +2674,22 @@ class Mote(object):
                     if type == RPL_TYPE_DAO:
                         self._rpl_action_receiveDAO(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif type == IANA_6TOP_TYPE_REQUEST and code == IANA_6TOP_CMD_ADD: # received an 6P ADD request
+                    elif type == IANA_6TOP_TYPE_REQUEST and code == IANA_6TOP_CMD_ADD:  # received an 6P ADD request
                         self._sixtop_receive_ADD_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif type == IANA_6TOP_TYPE_REQUEST and code == IANA_6TOP_CMD_DELETE: # received an 6P DELETE request
+                    elif type == IANA_6TOP_TYPE_REQUEST and code == IANA_6TOP_CMD_DELETE:  # received an 6P DELETE request
                         self._sixtop_receive_DELETE_REQUEST(type, smac, payload)
                         (isACKed, isNACKed) = (True, False)
-                    elif type == IANA_6TOP_TYPE_RESPONSE: # received an 6P response
+                    elif type == IANA_6TOP_TYPE_RESPONSE:  # received an 6P response
                         if self._sixtop_receive_RESPONSE(type, code, smac, payload):
                             (isACKed, isNACKed) = (True, False)
                         else:
                             (isACKed, isNACKed) = (False, False)
-                    elif type == APP_TYPE_DATA: # application packet
-                        self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp = asn)
+                    elif type == APP_TYPE_DATA:  # application packet
+                        self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_ACK:
-                        self._app_action_receiveAck(srcIp=srcIp, payload=payload,timestamp=asn)
+                        self._app_action_receiveAck(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_JOIN:
                         self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
