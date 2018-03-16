@@ -141,6 +141,11 @@ CHARGE_RxDataTxAck_uC              = 32.6
 CHARGE_RxData_uC                   = 22.6
 CHARGE_IdleNotSync_uC              = 45.0
 
+#=== 6LoWPAN Reassembly
+SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM = 1
+#=== Fragment Forwarding
+FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM = 50
+
 BROADCAST_ADDRESS                  = 0xffff
 
 #============================ body ============================================
@@ -221,6 +226,15 @@ class Mote(object):
         self.chargeConsumed            = 0
         # msf
         self.msfTimeoutExp             = {}
+        # reassembly/fragmentation
+        if not hasattr(self.settings, 'numReassQueue'):
+            self.maxReassQueueNum = SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM
+        else:
+            self.maxReassQueueNum = self.settings.numReassQueue
+        if hasattr(self.settings, 'maxVRBEntryNum') and self.settings.maxVRBEntryNum > 0:
+            self.maxVRBEntryNum = self.settings.maxVRBEntryNum
+        else:
+            self.maxVRBEntryNum = FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -519,8 +533,14 @@ class Mote(object):
                 del self.vrbTable[mac]
 
         if offset == 0:
-            # no size limit for vrbTable since it's supposed to be small enough
-            # comparing to reassQueue
+            vrb_entry_num = 0
+            for i in self.vrbTable:
+                vrb_entry_num += len(self.vrbTable[i])
+
+            if (not self.dagRoot) and (vrb_entry_num == self.maxVRBEntryNum):
+                # no room for a new entry
+                self._radio_drop_packet(frag, 'droppedFragVRBTableFull')
+                return False
 
             if smac not in self.vrbTable:
                 self.vrbTable[smac] = {}
@@ -596,11 +616,15 @@ class Mote(object):
             # larger packet than reassQueue should be dropped.
             return False
 
-        # currently, we support only a single line of the reassemble queue for
-        # intermediate nodes. Root doesn't have such limitation
         if (smac not in self.reassQueue) or (tag not in self.reassQueue[smac]):
-            if not self.dagRoot and len(self.reassQueue) == 1:
-                return False
+            if not self.dagRoot:
+                reass_queue_num = 0
+                for i in self.reassQueue:
+                    reass_queue_num += len(self.reassQueue[i])
+                if reass_queue_num == self.maxReassQueueNum:
+                    # no room for a new entry
+                    self._radio_drop_packet({'payload': payload}, 'droppedFragReassQueueFull')
+                    return False
             else:
                 pass
 

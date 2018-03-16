@@ -176,6 +176,17 @@ def parseCliOptions():
                       default=False,
                       help='[app] Enable Fragment Forwarding feature'
                       )
+    parser.add_argument('--maxVRBEntryNum',
+                      dest='enableFragmentForwarding',
+                      type=int,
+                      help='[app] Maximum number of entries VRBTable can have'
+                      )
+    parser.add_argument('--numReassQueue',
+                      dest='numReassQueue',
+                      type=int,
+                      default=1,
+                      help='[app] Number of reassembly queues; one per packet'
+                      )
     # rpl
     parser.add_argument('--dioPeriod',
                       dest='dioPeriod',

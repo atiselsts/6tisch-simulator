@@ -265,7 +265,7 @@ class TestReassembly:
         assert root._app_reass_packet(leaf, frag0['payload']) is False
         assert len(root.reassQueue) == 0
 
-    def test_app_reass_packet_node_queue_num(self, sim):
+    def test_app_reass_packet_node_queue_num_1(self, sim):
         sim = sim(**{'numFragments': 2,
                      'numMotes': 4,
                      'topology': 'linear',
@@ -299,6 +299,86 @@ class TestReassembly:
         assert len(node.reassQueue) == 1
         assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
         assert len(node.reassQueue) == 1
+
+    def test_app_reass_packet_node_queue_num_2(self, sim):
+        sim = sim(**{'numFragments': 2,
+                     'numMotes': 4,
+                     'topology': 'linear',
+                     'linearTopologyStaticScheduling': True,
+                     'numReassQueue': 1})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf1 = sim.motes[2]
+        leaf2 = sim.motes[3]
+        packet = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf1,
+            'dstIp': root,
+            'smac': leaf1,
+            'dmac': node,
+            'sourceRoute': []
+        }
+        leaf1._app_frag_packet(packet)
+        frag0_1 = leaf1.txQueue[0]
+        assert len(node.reassQueue) == 0
+        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert len(node.reassQueue) == 1
+
+        packet['srcIp'] = leaf2
+        packet['smac'] = leaf2
+        leaf2._app_frag_packet(packet)
+        frag0_2 = leaf2.txQueue[0]
+        assert len(node.reassQueue) == 1
+        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        reass_queue_num = 0
+        for i in node.reassQueue:
+            reass_queue_num += len(node.reassQueue[i])
+        assert reass_queue_num == 1
+
+
+    def test_app_reass_packet_node_queue_num_3(self, sim):
+        sim = sim(**{'numFragments': 2,
+                     'numMotes': 4,
+                     'topology': 'linear',
+                     'linearTopologyStaticScheduling': True,
+                     'numReassQueue': 2})
+        root = sim.motes[0]
+        node = sim.motes[1]
+        leaf1 = sim.motes[2]
+        leaf2 = sim.motes[3]
+        packet = {
+            'asn': 0,
+            'type': Mote.APP_TYPE_DATA,
+            'code': None,
+            'payload': [1, 0, 1],
+            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'srcIp': leaf1,
+            'dstIp': root,
+            'smac': leaf1,
+            'dmac': node,
+            'sourceRoute': []
+        }
+        leaf1._app_frag_packet(packet)
+        frag0_1 = leaf1.txQueue[0]
+        assert len(node.reassQueue) == 0
+        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert len(node.reassQueue) == 1
+
+        packet['srcIp'] = leaf2
+        packet['smac'] = leaf2
+        leaf2._app_frag_packet(packet)
+        frag0_2 = leaf2.txQueue[0]
+        assert len(node.reassQueue) == 1
+        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        reass_queue_num = 0
+        for i in node.reassQueue:
+            reass_queue_num += len(node.reassQueue[i])
+        assert reass_queue_num == 2
+
 
     def test_app_reass_packet_root_queue_num(self, sim):
         sim = sim(**{'numFragments': 2,

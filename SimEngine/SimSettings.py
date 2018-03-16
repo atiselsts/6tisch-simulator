@@ -95,3 +95,7 @@ class SimSettings(object):
             del self.cascadingScheduling
         if hasattr(self, 'schedulingMode'):
             del self.schedulingMode
+        if hasattr(self, 'numReassQueue'):
+            del self.numReassQueue
+        if hasattr(self, 'maxVRBEntryNum'):
+            del self.maxVRBEntryNum

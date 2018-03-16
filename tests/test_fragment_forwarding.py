@@ -4,6 +4,9 @@
 \author Yasuyuki Tanaka <yasuyuki.tanaka@inria.fr>
 """
 
+import copy
+import types
+
 import pytest
 
 import SimEngine.Mote as Mote
@@ -494,6 +497,55 @@ class TestPacketFowarding:
         assert len(hop1.txQueue) == 1
         assert len(hop1.reassQueue) == 0
 
+
+    def test_vrb_table_size_limit_1(self, sim):
+        params = {'enableFragmentForwarding': True,
+                  'maxVRBEntryNum': 10,
+                  'numFragments': 2,
+                  'numMotes': 2,
+                  'topology': 'linear',
+                  'linearTopology': True}
+        params.update({'pkPeriod': 0, 'pkPeriodVar': 0, 'downwardAcks': False})
+        sim = sim(**params)
+        root = sim.motes[0]
+        hop1 = sim.motes[1]
+        frag = {
+            'dstIp': root,
+            'payload': [1, 0, 1, {}],
+        }
+        frag['payload'][3]['datagram_size'] = params['numFragments']
+        frag['payload'][3]['datagram_offset'] = 0
+        for i in range(0, 10):
+            frag['smac'] = i
+            frag['payload'][3]['datagram_tag'] = i
+            assert hop1._app_is_frag_to_forward(frag) is True
+        frag['smac'] += 1
+        frag['payload'][3]['datagram_tag'] += 1
+        assert hop1._app_is_frag_to_forward(frag) is False
+
+    def test_vrb_table_size_limit_2(self, sim):
+        params = {'enableFragmentForwarding': True,
+                  'numFragments': 2,
+                  'numMotes': 2,
+                  'topology': 'linear',
+                  'linearTopology': True}
+        params.update({'pkPeriod': 0, 'pkPeriodVar': 0, 'downwardAcks': False})
+        sim = sim(**params)
+        root = sim.motes[0]
+        hop1 = sim.motes[1]
+        frag = {
+            'dstIp': root,
+            'payload': [1, 0, 1, {}],
+        }
+        frag['payload'][3]['datagram_size'] = params['numFragments']
+        frag['payload'][3]['datagram_offset'] = 0
+        for i in range(0, Mote.FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM):
+            frag['smac'] = i
+            frag['payload'][3]['datagram_tag'] = i
+            assert hop1._app_is_frag_to_forward(frag) is True
+        frag['smac'] += 1
+        frag['payload'][3]['datagram_tag'] += 1
+        assert hop1._app_is_frag_to_forward(frag) is False
 
 class TestDatagramTag:
     def test_tag_on_its_fragments_1(self, sim):
