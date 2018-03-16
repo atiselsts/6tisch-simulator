@@ -342,7 +342,7 @@ class Mote(object):
                 self._log(INFO, "[join] Enqueued join packet for mote {0} with token = {1}", (destination.id, token))
             else:
                 # update mote stats
-                self._stats_incrementMoteStats('droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
 
             # save last token sent
             self.joinRetransmissionPayload = token
@@ -479,7 +479,8 @@ class Mote(object):
                 }
 
                 # enqueue packet in TSCH queue
-                isEnqueued = self._tsch_enqueue(newPacket)
+                if not self._tsch_enqueue(newPacket):
+                    self._radio_drop_packet(newPacket, 'droppedAppAckFailedEnqueue')
 
     def _app_action_enqueueData(self):
         """ enqueue data packet into stack """
@@ -514,7 +515,7 @@ class Mote(object):
                     pass
                 else:
                     # update mote stats
-                    self._stats_incrementMoteStats('droppedDataFailedEnqueue')
+                    self._radio_drop_packet(newPacket, 'droppedDataFailedEnqueue')
 
     def _app_is_frag_to_forward(self, frag):
 
@@ -571,7 +572,7 @@ class Mote(object):
             frag['payload'][2] += 1 # update the number of hops
             frag['payload'][3]['datagram_tag'] = self.vrbTable[smac][itag]['otag']
         else:
-            frag['dstIp'] = None # this frame will be dropped by the caller
+            self._radio_drop_packet(frag, 'droppedFragNoVRBEntry')
             return False
 
         # return True when the fragment is to be forwarded even if it cannot be
@@ -591,10 +592,10 @@ class Mote(object):
                                     'datagram_tag': tag,
                                     'datagram_offset': i})
             frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
-            if self._tsch_enqueue(frag) == False:
+            if not self._tsch_enqueue(frag):
                 # we may want to stop fragmentation here. but just continue it
                 # for simplicity
-                pass
+                self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
 
     def _app_reass_packet(self, smac, payload):
         size = payload[3]['datagram_size']
@@ -614,6 +615,7 @@ class Mote(object):
         if size > self.settings.numFragments:
             # the size of reassQueue is the same number as self.settings.numFragments.
             # larger packet than reassQueue should be dropped.
+            self._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
             return False
 
         if (smac not in self.reassQueue) or (tag not in self.reassQueue[smac]):
@@ -670,11 +672,9 @@ class Mote(object):
             }
 
             # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
-
-            if not isEnqueued:
+            if not self._tsch_enqueue(newPacket):
                 # update mote stats
-                self._stats_incrementMoteStats('droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
@@ -769,11 +769,9 @@ class Mote(object):
             }
 
             # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
-
-            if not isEnqueued:
+            if not self._tsch_enqueue(newPacket):
                 # update mote stats
-                self._stats_incrementMoteStats('droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
 
     def _rpl_action_enqueueDAO(self):
         """ enqueue DAO packet into stack """
@@ -798,11 +796,9 @@ class Mote(object):
             }
 
             # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
-
-            if not isEnqueued:
+            if not self._tsch_enqueue(newPacket):
                 # update mote stats
-                self._stats_incrementMoteStats('droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
 
     def _rpl_schedule_sendDIO(self,firstDIO=False):
 
@@ -1435,7 +1431,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedFailedEnqueue')
+            self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = SIX_STATE_SENDING_REQUEST
@@ -1601,7 +1597,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedFailedEnqueue')
+           self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
 
     def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
         """ receive a 6P response messages """
@@ -2094,7 +2090,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._stats_incrementMoteStats('droppedFailedEnqueue')
+            self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = SIX_STATE_SENDING_REQUEST
@@ -2546,6 +2542,13 @@ class Mote(object):
 
     #===== radio
 
+    def _radio_drop_packet(self, pkt, reason):
+        # remove all the element of pkt so that it won't be processed further
+        for k in pkt.keys():
+            del pkt[k]
+        if reason in self.motestats:
+            self._stats_incrementMoteStats(reason)
+
     def radio_isSync(self):
         with self.dataLock:
             return self.isSync
@@ -2826,6 +2829,7 @@ class Mote(object):
                                 return True, False
                             else:
                                 # ACK anyway
+                                self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
                                 return True, False
                         elif dstIp == self:
                             if self._app_reass_packet(smac, payload) is True:
@@ -2937,6 +2941,7 @@ class Mote(object):
                             (isACKed, isNACKed) = (True, False)
 
                         else:
+                            self._radio_drop_packet(relayPacket, 'droppedRelayFailedEnqueue')
                             (isACKed, isNACKed) = (False, True)
 
             else:
