@@ -147,7 +147,6 @@ BROADCAST_ADDRESS                  = 0xffff
 class Mote(object):
 
     def __init__(self,id):
-
         # store params
         self.id                        = id
         # local variables
@@ -1327,6 +1326,7 @@ class Mote(object):
                 self.sixtopStates[smac.id]['rx'] = {}
                 self.sixtopStates[smac.id]['rx']['blockedCells'] = []
                 self.sixtopStates[smac.id]['rx']['seqNum'] = 0
+
             self.sixtopStates[smac.id]['rx']['state'] = SIX_STATE_REQUEST_ADD_RECEIVED
 
             # set direction of cells
@@ -1644,7 +1644,6 @@ class Mote(object):
 
                 # if the request was successfull and there were enough resources
                 if code == IANA_6TOP_RC_SUCCESS:
-                    cellList = []
 
                     # set direction of cells
                     if receivedDir == DIR_TX:
@@ -1654,18 +1653,17 @@ class Mote(object):
                     else:
                         newDir = DIR_TXRX_SHARED
 
-                    for (ts, ch, cellDir) in receivedCellList:
+                    for ts in receivedCellList:
                         # log
                         self._log(
                             INFO,
-                            '[6top] Delete {4} cell ts={0},ch={1} from {2} to {3}',
-                            (ts, ch, self.id, neighbor.id, newDir),
+                            '[6top] Delete {3} cell ts={0} from {1} to {2}',
+                            (ts, self.id, neighbor.id, newDir),
                         )
-                        cellList += [(ts, ch, newDir)]
 
-                    self._tsch_removeCells(neighbor, cellList)
+                    self._tsch_removeCells(neighbor, receivedCellList)
 
-                    self.numCellsFromNeighbors[neighbor] -= len(cellList)
+                    self.numCellsFromNeighbors[neighbor] -= len(receivedCellList)
                     assert self.numCellsFromNeighbors[neighbor] >= 0
 
                     # go back to IDLE, i.e. remove the neighbor form the states
@@ -1774,13 +1772,12 @@ class Mote(object):
                 self.tsSixTopReqRecv[neighbor] = 0
 
                 if code == IANA_6TOP_RC_SUCCESS:
-
-                    for (ts, ch, cellDir) in confirmedCellList:
+                    for ts in confirmedCellList:
                         # log
                         self._log(
                             INFO,
-                            '[6top] delete {4} cell ts={0},ch={1} from {2} to {3}',
-                            (ts, ch, self.id, neighbor.id, cellDir),
+                            '[6top] delete {3} cell ts={0} from {1} to {2}',
+                            (ts, self.id, neighbor.id, receivedDir),
                         )
                     self._tsch_removeCells(neighbor, confirmedCellList)
 
@@ -1958,14 +1955,12 @@ class Mote(object):
             neighbor = smac
             cellList = payload[0]
             numCells = payload[1]
-            dirNeighbor = payload[2]
+            receivedDir = payload[2]
             seq = payload[3]
 
             self._stats_incrementMoteStats('6topRxDelReq')
             # has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
             self.tsSixTopReqRecv[neighbor] = payload[4]
-
-            self.sixtopStates[smac.id]['rx']['state'] = SIX_STATE_REQUEST_DELETE_RECEIVED
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and self.sixtopStates[smac.id]['rx'][
                 'state'] != SIX_STATE_IDLE:
@@ -1985,7 +1980,7 @@ class Mote(object):
                     self.sixtopStates[smac.id]['rx']['blockedCells'] = []
                     self.sixtopStates[smac.id]['rx']['seqNum'] = 0
                 self.sixtopStates[smac.id]['rx']['state'] = SIX_STATE_REQUEST_DELETE_RECEIVED
-                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor, seq)
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, receivedDir, seq)
                 return
 
             # set state to receiving request for this neighbor
@@ -1997,8 +1992,10 @@ class Mote(object):
                 self.sixtopStates[smac.id]['rx']['seqNum'] = 0
                 # if neighbor is not in sixtopstates and receives a delete, something has gone wrong. Sending reset
                 returnCode = IANA_6TOP_RC_RESET  # error, neighbor has to abort transaction
-                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, dirNeighbor, seq)
+                self._sixtop_enqueue_RESPONSE(neighbor, [], returnCode, receivedDir, seq)
                 return
+
+            self.sixtopStates[smac.id]['rx']['state'] = SIX_STATE_REQUEST_DELETE_RECEIVED
 
             # set direction of cells
             if receivedDir == DIR_TX:
@@ -2337,34 +2334,22 @@ class Mote(object):
                 )
             self._tsch_schedule_activeCell()
 
-    def _tsch_removeCells(self,neighbor,tsList):
+    def _tsch_removeCells(self, neighbor, tsList):
         """ removes cell(s) from the schedule """
 
         with self.dataLock:
             for cell in tsList:
-                if type(cell) == list:
-                        # log
-                        self._log(
-                                INFO,
-                                "[tsch] remove cell=({0}{1}) with {2}",
-                                (cell[0],cell[1],neighbor.id if not type(neighbor) == list else BROADCAST_ADDRESS),
-                        )
+                assert type(cell) == int
+                # log
+                self._log(
+                    INFO,
+                    "[tsch] remove cell=({0}) with {1}",
+                    (cell, neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
+                )
 
-                        assert cell[0] in self.schedule.keys()
-                        assert self.schedule[cell[0]]['neighbor']==neighbor
-                        self.schedule.pop(cell[0])
-                else:
-                        assert type(cell)==int
-                        # log
-                        self._log(
-                                INFO,
-                                "[tsch] remove cell=({0}) with {1}",
-                                (cell,neighbor.id if not type(neighbor) == list else BROADCAST_ADDRESS),
-                        )
-
-                        assert cell in self.schedule.keys()
-                        assert self.schedule[cell]['neighbor']==neighbor
-                        self.schedule.pop(cell)
+                assert cell in self.schedule.keys()
+                assert self.schedule[cell]['neighbor'] == neighbor
+                self.schedule.pop(cell)
 
             self._tsch_schedule_activeCell()
 
@@ -2413,6 +2398,18 @@ class Mote(object):
             assert ts in self.schedule
             assert self.schedule[ts]['dir']==DIR_TX or self.schedule[ts]['dir']==DIR_TXRX_SHARED
             assert self.waitingFor==DIR_TX
+
+            # for debug
+            ch = self.schedule[ts]['ch']
+            rx = self.schedule[ts]['neighbor']
+            canbeInterfered = 0
+            for mote in self.engine.motes:
+                if mote == self:
+                    continue
+                if ts in mote.schedule and ch == mote.schedule[ts]['ch'] and mote.schedule[ts]['dir'] == DIR_TX:
+                    if mote.getRSSI(rx)>rx.minRssi:
+                        canbeInterfered = 1
+            self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]
 
             if isACKed:
                 # ACK received
@@ -2478,15 +2475,20 @@ class Mote(object):
                     else:
                         assert False
 
+                # save it in a tmp variable
+                # because it is possible that self.schedule[ts] does not exist anymore after receiving an ACK for a DELETE RESPONSE
+                tmpNeighbor = self.schedule[ts]['dir']
+                tmpDir = self.schedule[ts]['neighbor']
+
                 if self.pktToSend['type'] == IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
                 # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
-                if self.schedule[ts]['dir'] == DIR_TXRX_SHARED or (self.schedule[ts]['dir'] == DIR_TX and not self.txQueue):
-                    if self.schedule[ts]['dir'] == DIR_TXRX_SHARED and self.schedule[ts]['neighbor'] != self._myNeighbors():
-                        self._tsch_resetBackoffPerNeigh(self.schedule[ts]['neighbor'])
+                if tmpDir == DIR_TXRX_SHARED or (tmpDir == DIR_TX and not self.txQueue):
+                    if tmpDir == DIR_TXRX_SHARED and tmpNeighbor != self._myNeighbors():
+                        self._tsch_resetBackoffPerNeigh(tmpNeighbor)
                     else:
                         self._tsch_resetBroadcastBackoff()
 
@@ -2623,18 +2625,6 @@ class Mote(object):
                                 self.sixtopStates[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
             # end of radio activity, not waiting for anything
             self.waitingFor = None
-
-            # for debug
-            ch = self.schedule[ts]['ch']
-            rx = self.schedule[ts]['neighbor']
-            canbeInterfered = 0
-            for mote in self.engine.motes:
-                if mote == self:
-                    continue
-                if ts in mote.schedule and ch == mote.schedule[ts]['ch'] and mote.schedule[ts]['dir'] == DIR_TX:
-                    if mote.getRSSI(rx)>rx.minRssi:
-                        canbeInterfered = 1
-            self.schedule[ts]['debug_canbeInterfered'] += [canbeInterfered]
 
     def radio_rxDone(self,type=None,code=None,smac=None,dmac=None,srcIp=None,dstIp=None,srcRoute=None,payload=None):
         """end of RX radio activity"""
