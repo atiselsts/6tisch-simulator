@@ -1,11 +1,48 @@
 import pandas as pd
 import re
+import glob
+import os
 
-def read_dataset(file_name):
+def read_dataset_folder(folder_path):
     """
-    Read the dataset and returs the simulation data and parameters
-    :param string file_name:
-    :return: A Pandas dataframe containing the data and a dict containings the simulation parameters
+    Read the dataset folder and returns concatenation of the datasets
+    :param string folder_path:
+    :return: A Pandas Dataframe containing the stats and a dict containing the parameters
+    :rtype: dict
+    """
+
+    # init results
+    merged_params = None
+    dataframe_list = []
+
+    # read files and concatenate results
+    file_path_list = glob.glob(os.path.join(folder_path, '**', '*.dat'))
+    for file_path in file_path_list:
+        # read dataset file
+        stats, params = read_dataset_file(file_path)
+
+        # add cpuId column
+        stats['cpuId'] = params['cpuID']
+
+        # concatenate stats
+        dataframe_list.append(stats)
+
+        # merge simulation parameters
+        del params['cpuID']
+        if merged_params is None:
+            merged_params = params
+        else:
+            assert merged_params == params
+
+    merged_stats = pd.concat(dataframe_list)
+    merged_stats.sort_values(["cycle"], inplace=True)
+    return {"stats": merged_stats, "params": merged_params}
+
+def read_dataset_file(file_path):
+    """
+    Read the dataset and returns the simulation stats and parameters
+    :param string file_path:
+    :return: A Pandas Dataframe containing the stats and a dict containing the parameters
     :rtype: pandas.Dataframe & dict
     """
 
@@ -13,7 +50,7 @@ def read_dataset(file_name):
     parameters = {}
 
     # read column names
-    with open(file_name, 'r') as f:
+    with open(file_path, 'r') as f:
         for line in f:
             # get stats
             if line.startswith('## '):
@@ -27,12 +64,12 @@ def read_dataset(file_name):
                 break
 
     if column_names is None:
-        raise Exception("Could not read column names from file {0}".format(file_name))
+        raise Exception("Could not read column names from file {0}".format(file_path))
 
-    # read data (ignoring comment lines)
-    data = pd.read_csv(file_name, sep='[ ^]+', comment='#', names=column_names, engine='python')
+    # read stats (ignoring comment lines)
+    stats = pd.read_csv(file_path, sep='[ ^]+', comment='#', names=column_names, engine='python')
 
-    return data, parameters
+    return stats, parameters
 
 def get_parameter_from_line(line):
     """Split line and return the parameter key and value"""
