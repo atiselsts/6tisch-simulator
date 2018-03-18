@@ -47,7 +47,7 @@ class Topology(object):
                 return LinearTopology.rssiToPdr(rssi)
             elif settings.topology == 'twoBranch':
                 return TwoBranchTopology.rssiToPdr(rssi)
-        else:
+        if not hasattr(settings, 'topology') or settings.topology == 'random':
             return RandomTopology.rssiToPdr(rssi)
 
 
