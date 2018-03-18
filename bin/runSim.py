@@ -165,13 +165,12 @@ def parseCliOptions():
                       dest='numFragments',
                       nargs='+',
                       type=int,
-                      default=0,
+                      default=None,
                       help='''[app] Number of fragments for an app packet;
                             a number less than 2 disables fragmentation'''
                       )
     parser.add_argument('--enableFragmentForwarding',
                       dest='enableFragmentForwarding',
-                      nargs='+',
                       type=bool,
                       default=False,
                       help='[app] Enable Fragment Forwarding feature'
@@ -180,7 +179,7 @@ def parseCliOptions():
                       dest='optFragmentForwarding',
                       nargs='+',
                       type=str,
-                      default=[],
+                      default=None,
                       choices=['kill_entry_by_last', 'kill_entry_by_missing'],
                       help='[app] Specify Fragment Forwarding options',
                       )
