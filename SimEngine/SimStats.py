@@ -40,7 +40,7 @@ class SimStats(object):
         return cls._instance
     #===== end singleton
 
-    def __init__(self, cpuID, runNum):
+    def __init__(self, cpuID, runNum, verbose):
 
         #===== start singleton
         if self._init:
@@ -51,6 +51,7 @@ class SimStats(object):
         # store params
         self.cpuID                          = cpuID
         self.runNum                         = runNum
+        self.verbose                        = verbose
 
         # local variables
         self.engine                         = SimEngine.SimEngine()
@@ -99,7 +100,7 @@ class SimStats(object):
         cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
 
         # print
-        if self.settings.cpuID==None:
+        if self.verbose:
             print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
 
         # write statistics to output file
