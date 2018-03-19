@@ -161,6 +161,39 @@ def parseCliOptions():
                       default=0,
                       help='[app] 1 to enable downward end-to-end ACKs.',
                       )
+    parser.add_argument('--numFragments',
+                      dest='numFragments',
+                      nargs='+',
+                      type=int,
+                      default=None,
+                      help='''[app] Number of fragments for an app packet;
+                            a number less than 2 disables fragmentation'''
+                      )
+    parser.add_argument('--enableFragmentForwarding',
+                      dest='enableFragmentForwarding',
+                      type=bool,
+                      default=False,
+                      help='[app] Enable Fragment Forwarding feature'
+                      )
+    parser.add_argument('--optFragmentForwarding',
+                      dest='optFragmentForwarding',
+                      nargs='+',
+                      type=str,
+                      default=None,
+                      choices=['kill_entry_by_last', 'kill_entry_by_missing'],
+                      help='[app] Specify Fragment Forwarding options',
+                      )
+    parser.add_argument('--maxVRBEntryNum',
+                      dest='enableFragmentForwarding',
+                      type=int,
+                      help='[app] Maximum number of entries VRBTable can have'
+                      )
+    parser.add_argument('--numReassQueue',
+                      dest='numReassQueue',
+                      type=int,
+                      default=1,
+                      help='[app] Number of reassembly queues; one per packet'
+                      )
     # rpl
     parser.add_argument('--dioPeriod',
                       dest='dioPeriod',
@@ -299,6 +332,13 @@ def parseCliOptions():
                       type=bool,
                       default=False,
                       help='[topology] Enable a static scheduling in LinearTopology',
+                      )
+    parser.add_argument('--schedulingMode',
+                      dest='schedulingMode',
+                      type=str,
+                      choices=['static', 'random-pick'],
+                      default=None,
+                      help='[topology] Specify scheduling mode',
                       )
 
     options        = parser.parse_args()

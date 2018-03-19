@@ -89,3 +89,15 @@ class SimSettings(object):
         # get happy.
         if hasattr(self, 'topology'):
             del self.topology
+        if hasattr(self, 'numFragments'):
+            del self.numFragments
+        if hasattr(self, 'cascadingScheduling'):
+            del self.cascadingScheduling
+        if hasattr(self, 'schedulingMode'):
+            del self.schedulingMode
+        if hasattr(self, 'numReassQueue'):
+            del self.numReassQueue
+        if hasattr(self, 'maxVRBEntryNum'):
+            del self.maxVRBEntryNum
+        if hasattr(self, 'optFragmentForwarding'):
+            del self.optFragmentForwarding

@@ -31,17 +31,23 @@ class Topology(object):
 
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology') and settings.topology == 'linear':
-            return LinearTopology(motes)
-        else:
+        if hasattr(settings, 'topology'):
+            if settings.topology == 'linear':
+                return LinearTopology(motes)
+            elif settings.topology == 'twoBranch':
+                return TwoBranchTopology(motes)
+        if not hasattr(settings, 'topology') or settings.topology == 'random':
             return RandomTopology(motes)
 
     @classmethod
     def rssiToPdr(cls, rssi):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology') and settings.topology == 'linear':
-            return LinearTopology.rssiToPdr(rssi)
-        else:
+        if hasattr(settings, 'topology'):
+            if settings.topology == 'linear':
+                return LinearTopology.rssiToPdr(rssi)
+            elif settings.topology == 'twoBranch':
+                return TwoBranchTopology.rssiToPdr(rssi)
+        if not hasattr(settings, 'topology') or settings.topology == 'random':
             return RandomTopology.rssiToPdr(rssi)
 
 
@@ -285,7 +291,12 @@ class LinearTopology(TopologyCreator):
             assert ((not hasattr(self.settings, 'withJoin')) or
                     (self.settings.withJoin is False))
             self._build_rpl_tree()
-            self._install_symmetric_schedule()
+
+            if (not hasattr(self.settings, 'cascadingScheduling')) or (self.settings.cascadingScheduling == False):
+                self._install_symmetric_schedule()
+            else:
+                self._install_cascading_schedule()
+
             # make all the motes synchronized
             for mote in self.motes:
                 mote.timeCorrectedSlot = 0
@@ -372,3 +383,204 @@ class LinearTopology(TopologyCreator):
                                  mote.preferredParent,
                                  depth - mote.id,
                                  0)
+
+    def _install_cascading_schedule(self):
+        alloc_pointer = 1 # start allocating with slot-1
+
+        for mote in self.motes[::-1]: # loop in the reverse order
+            child = mote
+            while child and child.preferredParent:
+                self._alloc_cell(child, child.preferredParent,
+                                 alloc_pointer, 0)
+                alloc_pointer += 1
+                child = child.preferredParent
+
+
+class TwoBranchTopology(TopologyCreator):
+
+    COMM_RANGE_RADIUS = 50
+
+    def __init__(self, motes):
+        self.motes = motes
+        self.settings = SimSettings.SimSettings()
+        self.depth = int(math.ceil((float(len(self.motes)) - 2) / 2) + 1)
+        if len(self.motes) < 2:
+            self.switch_to_right_branch = 2
+        else:
+            self.switch_to_right_branch = self.depth + 1
+
+    def createTopology(self):
+        # place motes on a line at every 30m
+        # coordinate of mote is expressed in km
+        gap = 0.030
+
+        for m in self.motes:
+            if m.id == 0:
+                m.role_setDagRoot()
+
+            if m.id < self.switch_to_right_branch:
+                m.x = gap * m.id
+            else:
+                m.x = gap * (m.id - self.switch_to_right_branch + 2)
+
+            if m.id < 2:
+                m.y = 0
+            elif m.id < self.switch_to_right_branch:
+                m.y = -0.03
+            else:
+                m.y = 0.03
+
+        for mote in self.motes:
+            # clear RSSI and PDR table; we may need clearRSSI and clearPDR methods
+            mote.RSSI = {}
+            mote.PDR = {}
+
+            for neighbor in self.motes:
+                if mote == neighbor:
+                    continue
+                mote.setRSSI(neighbor, self._computeRSSI(mote, neighbor))
+                pdr = self._computePDR(mote, neighbor)
+                if(pdr > 0):
+                    mote.setPDR(neighbor, pdr)
+
+        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin == False):
+            self._build_rpl_tree()
+            if (not hasattr(self.settings, 'cascadingScheduling') or
+               not self.settings.cascadingScheduling):
+                self._install_symmetric_schedule()
+            else:
+                self._install_cascading_schedule()
+            # make all the motes synchronized
+            for mote in self.motes:
+                mote.timeCorrectedSlot = 0
+
+    @classmethod
+    def rssiToPdr(cls, rssi):
+        # This is for test purpose; PDR is 1.0 for -93 and above, otherwise PDR
+        # is 0.0.
+        rssiPdrTable = {
+            -95: 0.0,
+            -94: 1.0,
+        }
+
+        minRssi = min(rssiPdrTable.keys())
+        maxRssi = max(rssiPdrTable.keys())
+
+        if rssi < minRssi:
+            pdr = 0.0
+        elif rssi > maxRssi:
+            pdr = 1.0
+        else:
+            pdr = rssiPdrTable[int(math.floor(rssi))]
+
+        assert pdr >= 0.0
+        assert pdr <= 1.0
+
+        return pdr
+
+    def _computeRSSI(self, mote, neighbor):
+        if self._computeDistance(mote, neighbor) < self.COMM_RANGE_RADIUS:
+            return -80
+        else:
+            return -100
+
+    def _computePDR(self, mote, neighbor):
+        return self.rssiToPdr(self._computeRSSI(mote, neighbor))
+
+    def _build_rpl_tree(self):
+        root = None
+        for mote in self.motes:
+            if mote.id == 0:
+                mote.role_setDagRoot()
+                root = mote
+            else:
+                # mote with smaller ID becomes its preferred parent
+                for neighbor in mote.PDR:
+                    if (not mote.preferredParent or
+                       neighbor.id < mote.preferredParent.id):
+                        mote.preferredParent = neighbor
+                root.parents.update({tuple([mote.id]):
+                                     [[mote.preferredParent.id]]})
+
+            if mote.id == 0:
+                mote.rank = Mote.RPL_MIN_HOP_RANK_INCREASE
+            else:
+                mote.rank = (7 * Mote.RPL_MIN_HOP_RANK_INCREASE +
+                             mote.preferredParent.rank)
+            mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
+
+    def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
+        # cell structure: (slot_offset, channel_offset, direction)
+        transmitter._tsch_addCells(receiver, [(slot_offset, channel_offset,
+                                               Mote.DIR_TX)])
+        if receiver not in transmitter.numCellsToNeighbors:
+            transmitter.numCellsToNeighbors[receiver] = 1
+        else:
+            transmitter.numCellsToNeighbors[receiver] += 1
+
+        receiver._tsch_addCells(transmitter, [(slot_offset, channel_offset,
+                                               Mote.DIR_RX)])
+        if transmitter not in receiver.numCellsFromNeighbors:
+            receiver.numCellsFromNeighbors[transmitter] = 1
+        else:
+            receiver.numCellsFromNeighbors[transmitter] += 1
+
+    def _install_symmetric_schedule(self):
+        # allocate TX cells for each node to its parent, which has the same
+        # channel offset, 0.
+        tx_alloc_factor = 1
+
+        for mote in self.motes:
+            if mote.preferredParent:
+                if mote.id == 1:
+                    slot_offset = len(self.motes) - 1
+                elif mote.id < self.switch_to_right_branch:
+                    slot_offset = (self.depth - mote.id) * 2 + 1
+                elif len(self.motes) % 2 == 0: # even branches
+                    slot_offset = (self.depth +
+                                   self.switch_to_right_branch -
+                                   1 - mote.id) * 2
+                else:
+                    slot_offset = (self.depth - 1 +
+                                   self.switch_to_right_branch - 1 -
+                                   mote.id) * 2
+
+                self._alloc_cell(mote,
+                                 mote.preferredParent,
+                                 int(slot_offset), 0)
+
+    def _install_cascading_schedule(self):
+        # allocate TX cells and RX cells in a cascading bandwidth manner.
+
+        for mote in self.motes[::-1]: # loop in the reverse order
+            child = mote
+            while child and child.preferredParent:
+                if (hasattr(self.settings, 'schedulingMode') and
+                   self.settings.schedulingMode == 'random-pick'):
+                    if 'alloc_table' not in locals():
+                        alloc_table = set()
+
+                    if len(alloc_table) >= self.settings.slotframeLength:
+                        raise ValueError('slotframe is too small')
+
+                    while True:
+                        # we don't use slot-0 since it's designated for a shared cell
+                        alloc_pointer = random.randint(1,
+                                                       self.settings.slotframeLength - 1)
+                        if alloc_pointer not in alloc_table:
+                            alloc_table.add(alloc_pointer)
+                            break
+                else:
+                    if 'alloc_pointer' not in locals():
+                        alloc_pointer = 1
+                    else:
+                        alloc_pointer += 1
+
+                    if alloc_pointer > self.settings.slotframeLength:
+                        raise ValueError('slotframe is too small')
+
+                self._alloc_cell(child,
+                                 child.preferredParent,
+                                 alloc_pointer,
+                                 0)
+                child = child.preferredParent
