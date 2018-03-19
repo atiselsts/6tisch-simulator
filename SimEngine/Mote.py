@@ -565,6 +565,7 @@ class Mote(object):
             self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
 
             if (hasattr(self.settings, 'optFragmentForwarding') and
+               (self.settings.optFragmentForwarding is not None) and
                'kill_entry_by_missing' in self.settings.optFragmentForwarding):
                 self.vrbTable[smac][itag]['next_offset'] = 0
 
@@ -573,6 +574,7 @@ class Mote(object):
                 return False # this is for us, which needs to be reassembled
 
             if (hasattr(self.settings, 'optFragmentForwarding') and
+               (self.settings.optFragmentForwarding is not None) and
                'kill_entry_by_missing' in self.settings.optFragmentForwarding):
                 if offset == self.vrbTable[smac][itag]['next_offset']:
                     self.vrbTable[smac][itag]['next_offset'] += 1
