@@ -1012,9 +1012,9 @@ class Mote(object):
 
         if len(cellPDR) > 0:
             meanPDR=sum(cellPDR) / float(len(cellPDR))
-            return math.ceil(float(1 / len(cellPDR)) * float(1 / meanPDR) * MSF_6PTIMEOUT_SEC_FACTOR)
+            return math.ceil((1 / float(len(cellPDR))) * float(1 / meanPDR) * MSF_6PTIMEOUT_SEC_FACTOR)
         else:
-            return MSF_DEFAULT_SIXTOP_TIMEOUT * (2 ** (self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+            return MSF_DEFAULT_SIXTOP_TIMEOUT
 
     def _msf_signal_cell_used(self, neighbor, direction):
         # cell direction is not used for now
