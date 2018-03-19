@@ -418,6 +418,8 @@ def main():
 
         # start GUI's mainloop (in main thread)
         gui.mainloop()
+    elif num_cores_to_use == 1:
+        runSimsSequentially((None, options['numRuns'], options))
     else:
         # parallelize
         runsPerCore = int(math.ceil(float(options['numRuns']) / float(num_cores_to_use)))
