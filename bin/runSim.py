@@ -344,17 +344,19 @@ def parseCliOptions():
     options        = parser.parse_args()
     return options.__dict__
 
-def printOrLog(cpuID, output):
-    if cpuID is not None:
-        with open('cpu{0}.templog'.format(cpuID),'w') as f:
-            f.write(output)
-    else:
+def printOrLog(cpuID, output, verbose):
+    assert cpuID is not None
+
+    with open('cpu{0}.templog'.format(cpuID),'w') as f:
+        f.write(output)
+
+    if verbose:
         print output
 
 # runs simulations sequentially on all combinations of input parameters
 def runSimsSequentially(params):
 
-    (cpuID, numRuns, options) = params
+    (cpuID, numRuns, options, verbose) = params
 
     # record simulation start time
     simStartTime   = time.time()
@@ -387,14 +389,14 @@ def runSimsSequentially(params):
                runNum+1,
                numRuns
             )
-            printOrLog(cpuID, output)
+            printOrLog(cpuID, output, verbose)
 
             # create singletons
             settings         = SimSettings.SimSettings(cpuID=cpuID, runNum=runNum, **simParam)
             settings.setStartTime(runStartTime)
             settings.setCombinationKeys(combinationKeys)
             simengine        = SimEngine.SimEngine(cpuID=cpuID, runNum=runNum)
-            simstats         = SimStats.SimStats(cpuID=cpuID, runNum=runNum)
+            simstats         = SimStats.SimStats(cpuID=cpuID, runNum=runNum, verbose=verbose)
 
             # start simulation run
             simengine.start()
@@ -409,7 +411,7 @@ def runSimsSequentially(params):
 
         # print
         output  = 'simulation ended after {0:.0f}s.'.format(time.time()-simStartTime)
-        printOrLog(cpuID,output)
+        printOrLog(cpuID, output, verbose)
 
 def printProgress(cpuIDs):
     while True:
@@ -427,8 +429,7 @@ def printProgress(cpuIDs):
         print output
         if allDone:
             break
-    for cpuID in cpuIDs:
-        os.remove('cpu{0}.templog'.format(cpuID))
+
 
 #============================ main ============================================
 
@@ -453,20 +454,23 @@ def main():
         gui        = SimGui.SimGui()
 
         # run simulations (in separate thread)
-        simThread  = threading.Thread(target=runSimsSequentially, args=((None, options['numRuns'], options),))
+        simThread  = threading.Thread(target=runSimsSequentially, args=((0, options['numRuns'], options, True),))
         simThread.start()
 
         # start GUI's mainloop (in main thread)
         gui.mainloop()
     elif num_cores_to_use == 1:
-        runSimsSequentially((None, options['numRuns'], options))
+        runSimsSequentially((0, options['numRuns'], options, True))
     else:
         # parallelize
         runsPerCore = int(math.ceil(float(options['numRuns']) / float(num_cores_to_use)))
         pool = multiprocessing.Pool(num_cores_to_use)
-        pool.map_async(runSimsSequentially,[(i, runsPerCore, options) for i in range(num_cores_to_use)])
+        pool.map_async(runSimsSequentially,[(i, runsPerCore, options, False) for i in range(num_cores_to_use)])
         printProgress([i for i in range(num_cores_to_use)])
         raw_input("Done. Press Enter to close.")
+
+    for i in range(num_cores_to_use):
+        os.remove('cpu{0}.templog'.format(i))
 
 if __name__ == '__main__':
     main()
