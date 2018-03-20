@@ -67,11 +67,12 @@ Getting Started
    ```
 1. Install the Python dependencies:
    ```
+   cd simulator
    pip install -r requirements.txt
    ```
 1. Move down to `bin` directory:
    ```
-   $ cd simulator/bin
+   $ cd bin
    ```
 1. Execute runSim.py:
    ```
