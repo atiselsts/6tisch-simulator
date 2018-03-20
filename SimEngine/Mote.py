@@ -2634,8 +2634,8 @@ class Mote(object):
 
                 # save it in a tmp variable
                 # because it is possible that self.schedule[ts] does not exist anymore after receiving an ACK for a DELETE RESPONSE
-                tmpNeighbor = self.schedule[ts]['dir']
-                tmpDir = self.schedule[ts]['neighbor']
+                tmpNeighbor = self.schedule[ts]['neighbor']
+                tmpDir = self.schedule[ts]['dir']
 
                 if self.pktToSend['type'] == IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
