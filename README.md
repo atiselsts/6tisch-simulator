@@ -61,9 +61,9 @@ Installation
 Getting Started
 ---------------
 
-1. Download the code (in this case, cloning `develop` branch):
+1. Download the code:
    ```
-   $ git clone -b develop https://bitbucket.org/6tisch/simulator.git
+   $ git clone https://bitbucket.org/6tisch/simulator.git
    ```
 2. Move down to `bin` directory:
    ```
@@ -100,14 +100,3 @@ Development Workflow and Coding Style
 
 * We follow the standard Git branching workflow: https://git-scm.com/book/en/v2/Git-Branching-Branching-Workflows
 * The code should follow the PEP8 coding style: https://www.python.org/dev/peps/pep-0008/
-
-Running Simulation on Traces
----------------
-
-## How to Run on Traces
-
-`python runSim.py --trace tracefile.csv`
-
-## Trace Format
-
-We follow the CTR format, specified in: https://github.com/keomabrun/dense_connectivity_datasets
