@@ -257,12 +257,12 @@ def parseCliOptions():
                       default=0,
                       help='[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
                       )
-    parser.add_argument('--sixtopNoRemoveWorstCell',
-                      dest='sixtopNoRemoveWorstCell',
+    parser.add_argument('--sixtopRemoveRandomCell',
+                      dest='sixtopRemoveRandomCell',
                       nargs='+',
                       type=int,
                       default=0,
-                      help='[6top] 1 to remove random cell, not worst.',
+                      help='[6top] 1 to remove random cells, 0 to remove worst cells by PDR.',
                       )
     # tsch
     parser.add_argument('--slotDuration',

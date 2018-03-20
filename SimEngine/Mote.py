@@ -2059,10 +2059,10 @@ class Mote(object):
                             cell['numTx'] + NUM_SUFFICIENT_TX)
                 scheduleList += [(ts, cell['numTxAck'], cell['numTx'], cellPDR)]
 
-        # introduce randomness in the cell list order
-        random.shuffle(scheduleList)
-
-        if not self.settings.sixtopNoRemoveWorstCell:
+        if self.settings.sixtopRemoveRandomCell:
+            # introduce randomness in the cell list order
+            random.shuffle(scheduleList)
+        else:
             # triggered only when worst cell selection is due
             # (cell list is sorted according to worst cell selection)
             scheduleListByPDR = {}
@@ -2089,6 +2089,8 @@ class Mote(object):
                 (tscell[0], neighbor.id, tscell[3]),
             )
             tsList += [tscell[0]]
+
+        assert len(tsList) == numCellsToRemove
 
         # remove cells
         self._sixtop_cell_deletion_sender(neighbor, tsList, dir, timeout)
