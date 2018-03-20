@@ -1,42 +1,57 @@
-import pandas as pd
 import re
 import glob
 import os
 
+import pandas as pd
+import matplotlib.pyplot as plt
+
 def read_dataset_folder(folder_path):
     """
-    Read the dataset folder and returns concatenation of the datasets
+    Read the dataset folder and returns a list of datasets.
+    Each dataset is a dict of the following format:
+      {
+        'stats': a pandas Dataframe containing the simulations statistics,
+        'params': a dict containing the simulation parameters
+      }
     :param string folder_path:
-    :return: A Pandas Dataframe containing the stats and a dict containing the parameters
-    :rtype: dict
+    :return: the list of datasets
+    :rtype: list
     """
 
     # init results
-    merged_params = None
-    dataframe_list = []
+    dataset_list = []
 
-    # read files and concatenate results
-    file_path_list = glob.glob(os.path.join(folder_path, '**', '*.dat'))
-    for file_path in file_path_list:
-        # read dataset file
-        stats, params = read_dataset_file(file_path)
+    for subfolder in os.listdir(folder_path):
+        file_path_list = glob.glob(os.path.join(folder_path, subfolder, '*.dat'))
+        merged_params = None
+        dataframe_list = []
 
-        # add cpuId column
-        stats['cpuId'] = params['cpuID']
+        # read files and concatenate results
+        for file_path in file_path_list:
+            # read dataset file
+            stats, params = read_dataset_file(file_path)
 
-        # concatenate stats
-        dataframe_list.append(stats)
+            # add cpuId column
+            stats['cpuId'] = params['cpuID']
 
-        # merge simulation parameters
-        del params['cpuID']
-        if merged_params is None:
-            merged_params = params
-        else:
-            assert merged_params == params
+            # concatenate stats
+            dataframe_list.append(stats)
 
-    merged_stats = pd.concat(dataframe_list)
-    merged_stats.sort_values(["cycle"], inplace=True)
-    return {"stats": merged_stats, "params": merged_params}
+            # merge simulation parameters
+            del params['cpuID']
+            if merged_params is None:
+                merged_params = params
+            else:
+                assert merged_params == params
+
+        merged_stats = pd.concat(dataframe_list)
+        merged_stats.sort_values(["cycle"], inplace=True)
+        dataset_list.append({
+            "stats": merged_stats,
+            "params": merged_params,
+            "name": subfolder
+        })
+    return dataset_list
 
 def read_dataset_file(file_path):
     """
@@ -67,7 +82,8 @@ def read_dataset_file(file_path):
         raise Exception("Could not read column names from file {0}".format(file_path))
 
     # read stats (ignoring comment lines)
-    stats = pd.read_csv(file_path, sep='[ ^]+', comment='#', names=column_names, engine='python')
+    stats = pd.read_csv(file_path, sep='[ ^]+', comment='#', names=column_names,
+                        engine='python')
 
     return stats, parameters
 
@@ -108,3 +124,14 @@ def islist(str):
         return True
     else:
         return False
+
+def savefig(output_folder, output_name, output_format="png"):
+    # check if output folder exists and create it if not
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+
+    # save the figure
+    plt.savefig(os.path.join(output_folder, output_name + "." + output_format),
+                bbox_inches='tight',
+                pad_inches=0,
+                format=output_format)
