@@ -65,17 +65,21 @@ Getting Started
    ```
    $ git clone -b develop https://bitbucket.org/6tisch/simulator.git
    ```
-2. Move down to `bin` directory:
+1. Install the Python dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+1. Move down to `bin` directory:
    ```
    $ cd simulator/bin
    ```
-3. Execute runSim.py:
+1. Execute runSim.py:
    ```
    $ python runSim.py
    ```
     * You'll have raw output data under `bin/simData` directory.
     * You can specify configuration parameters such as slot length and application packet interval if you want. `$ python runSim.py --help` shows available options.
-4. Execute plotStuff.py to see the results:
+1. Execute plotStuff.py to see the results:
    ```
    $ python plotStuff.py
    ```
