@@ -254,7 +254,7 @@ def parseCliOptions():
     parser.add_argument('--sixtopMessaging',
                       dest='sixtopMessaging',
                       type=int,
-                      default=0,
+                      default=1,
                       help='[6top] 1 to enable 6top messaging, 0 to enable 6top GOD mode.',
                       )
     parser.add_argument('--sixtopRemoveRandomCell',
