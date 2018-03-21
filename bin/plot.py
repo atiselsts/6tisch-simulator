@@ -24,12 +24,28 @@ def main(options):
     # read dataset
     dataset_list = dh.read_dataset_folder(options.inputfolder)
 
-    # plot
+    # plot each dataset
     for dataset in dataset_list:
-        plt.plot(dataset['stats'][options.xparam],
-                 dataset['stats'][options.yparam],
-                 '+',
-                 label=dataset['name']
+
+        # group dataset by bins
+        delta = dataset['stats'][options.xparam].max() - dataset['stats'][options.xparam].min()
+        bin_size = 10.0  # size of the bin in %
+        df_grouped = dataset['stats'].groupby(
+            dataset['stats'][options.xparam].apply(lambda x: (delta/bin_size) * round(x/(delta/bin_size)))
+        )
+
+        # calculate mean and std
+        mean_index = [name for name, group in df_grouped]
+        mean_param = [group[options.yparam].mean() for name, group in df_grouped]
+        std_param = [group[options.yparam].std() for name, group in df_grouped]
+
+        # plot errobar
+        plt.errorbar(
+            x = mean_index,
+            y = mean_param,
+            yerr = std_param,
+            label=dataset['name'],
+            capsize=3
         )
 
     plt.xlabel(options.xlabel if options.xlabel else options.xparam)
