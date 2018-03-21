@@ -25,12 +25,12 @@ This simulator allows you to measure the performance of those different mechanis
 What is simulated:
 
 * protocols
-    * IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
-    * RPL (https://tools.ietf.org/html/rfc6550) with downstream traffic using source routing
-    * 6top (https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09)
-    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-01)
-    * 6LoWPAN Fragmentation and Reassembly (RFC 4944)
-    * Fragment Forwarding (draft-watteyne-6lo-minimal-fragment-01)
+    * IEEE802.15.4e-2012 TSCH ([https://doi.org/10.1109/IEEESTD.2012.6185525](https://doi.org/10.1109/IEEESTD.2012.6185525))
+    * RPL ([RFC 6550](https://tools.ietf.org/html/rfc6550)) with downstream traffic using source routing
+    * 6top ([draft-ietf-6tisch-6top-protocol-09](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09))
+    * Minimal Scheduling Function ([draft-chang-6tisch-msf-01](https://tools.ietf.org/html/draft-chang-6tisch-msf-01))
+    * 6LoWPAN Fragmentation and Reassembly ([RFC 4944](https://tools.ietf.org/html/rfc4944))
+    * Fragment Forwarding ([draft-watteyne-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment-01))
 * join process with initial synchronization to the first received Enhanced Beacon.
 * the "Pister-hack" propagation model with collisions
 * the energy consumption model taken from
