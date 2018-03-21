@@ -441,7 +441,8 @@ def printProgress(cpuIDs):
 
 def main():
     # initialize logging
-    logging.config.fileConfig('logging.conf')
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    logging.config.fileConfig(os.path.join(dir_path, 'logging.conf'))
 
     options = parseCliOptions()
 
