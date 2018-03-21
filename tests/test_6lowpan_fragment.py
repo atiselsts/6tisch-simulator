@@ -19,6 +19,7 @@ class TestNumFragmentsVsTxQueue:
     ])
     def test_num_frag(self, sim, test_input, expected):
         m = sim(**{'numFragments': test_input,
+                   'disableMSF': True,
                    'numMotes': 2,
                    'topology': 'linear',
                    'linearTopologyStaticScheduling': True}).motes[1]
@@ -464,7 +465,8 @@ class TestPacketFowarding:
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
 
-        hop2.app_schedule_transmition(one_second)
+        hop2.pkPeriod = one_second
+        hop2._app_schedule_sendSinglePacket(firstPacket=True)
         assert len(sim.events) == 5
         assert sim.events[4][2] == hop2._app_action_sendSinglePacket
 
@@ -476,7 +478,8 @@ class TestPacketFowarding:
 
             if cb == hop2._app_action_sendSinglePacket:
                 # not let the mote schedule another transmission
-                hop2.app_schedule_transmition(0)
+                hop2.pkPeriod = 0
+                hop2._app_schedule_sendSinglePacket(firstPacket=True)
                 break
             else:
                 cb()

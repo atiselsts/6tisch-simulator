@@ -1106,6 +1106,13 @@ class Mote(object):
         return True if nextHop else False
 
 #===== msf
+    def _msf_is_enabled(self):
+        if not hasattr(self.settings, 'disableMSF'):
+            return True
+        if self.settings.disableMSF is False:
+            return True
+        return False
+
     def _msf_schedule_parent_change(self):
         """
           Schedule MSF parent change
@@ -2283,7 +2290,8 @@ class Mote(object):
             cell = self.schedule[ts]
 
             # Signal to MSF that a cell to a neighbor has been triggered
-            self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
+            if self._msf_is_enabled():
+                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
 
             if  cell['dir']==DIR_RX:
 
@@ -2311,7 +2319,8 @@ class Mote(object):
                 if self.pktToSend:
 
                     # Signal to MSF that a cell to a neighbor is used
-                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
+                    if self._msf_is_enabled():
+                        self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
 
                     cell['numTx'] += 1
 
@@ -2401,7 +2410,8 @@ class Mote(object):
                     cell['numTx'] += 1
 
                     # Signal to MSF that a cell to a neighbor is used
-                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
+                    if self._msf_is_enabled():
+                        self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
 
                     if pkt['type']==IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==IANA_6TOP_CMD_ADD:
@@ -2798,7 +2808,8 @@ class Mote(object):
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
 
-                self._msf_signal_cell_used(self.schedule[ts]['neighbor'], self.schedule[ts]['dir'], DIR_RX, type)
+                if self._msf_is_enabled():
+                    self._msf_signal_cell_used(self.schedule[ts]['neighbor'], self.schedule[ts]['dir'], DIR_RX, type)
 
                 if [self] == dmac: # unicast packet
                     self._logChargeConsumed(CHARGE_RxDataTxAck_uC)
@@ -3085,7 +3096,8 @@ class Mote(object):
                 self._tsch_resetBackoffPerNeigh(m)
 
         # MSF
-        self._msf_schedule_housekeeping()
+        if self._msf_is_enabled():
+            self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:

@@ -15,12 +15,13 @@ import SimEngine.Mote as Mote
 
 def test_app_schedule_transmit(sim):
 
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0, 'topology': 'linear'})
+    sim = sim(**{'numMotes': 2, 'pkPeriod': 0, 'topology': 'linear', 'disableMSF': True})
     node = sim.motes[1]
    # active TX cell event for node, active RX cell event for root, and
     # propagation event
     assert len(sim.events) == 3
-    node.app_schedule_transmition(100)
+    node.pkPeriod = 100
+    node._app_schedule_sendSinglePacket(firstPacket=True)
     assert len(sim.events) == 4
     print sim.events[3][2]
     assert sim.events[3][2] == node._app_action_sendSinglePacket

@@ -222,6 +222,12 @@ def parseCliOptions():
                       help='[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
                       )
     # msf
+    parser.add_argument('--disableMSF',
+                      dest='disableMSF',
+                      action='store_true',
+                      default=False,
+                      help='[msf] Disable MSF.',
+                      )
     parser.add_argument('--msfMaxNumCells',
                       dest='msfMaxNumCells',
                       nargs='+',
