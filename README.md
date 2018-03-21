@@ -28,7 +28,9 @@ What is simulated:
     * IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
     * RPL (https://tools.ietf.org/html/rfc6550) with downstream traffic using source routing
     * 6top (https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09)
-    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-00)
+    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-01)
+    * 6LoWPAN Fragmentation and Reassembly (RFC 4944)
+    * Fragment Forwarding (draft-watteyne-6lo-minimal-fragment-01)
 * join process with initial synchronization to the first received Enhanced Beacon.
 * the "Pister-hack" propagation model with collisions
 * the energy consumption model taken from
@@ -66,10 +68,8 @@ Getting Started
    $ git clone https://bitbucket.org/6tisch/simulator.git
    ```
 1. Install the Python dependencies:
-   ```
-   cd simulator
-   pip install -r requirements.txt
-   ```
+   `cd simulator` and `pip install -r requirements.txt`
+
 1. Move down to `bin` directory:
    ```
    $ cd bin
