@@ -12,13 +12,15 @@ import sys
 import argparse
 
 # third party
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
 # project
 import datasethelper as dh
 
-# =========================== imports =========================================
+# ============================ main ===========================================
 
 def main(options):
     # read dataset
@@ -55,7 +57,9 @@ def main(options):
 
     output_file = "_".join([options.yparam, options.xparam])
     dh.savefig(options.outputfolder, output_file)
-    plt.show()
+
+    if options.show:
+        plt.show()
 
 # =========================== plot stuff ======================================
 
@@ -96,7 +100,7 @@ def plot_pdr_hist(dataset, options):
     dh.savefig(options.outputfolder, 'pdr_hist')
     plt.close()
 
-if __name__ == '__main__':
+def parse_args():
     # parse options
     parser = argparse.ArgumentParser()
     parser.add_argument('--inputfolder',
@@ -123,7 +127,15 @@ if __name__ == '__main__':
                         help='The y-axis label',
                         type=str,
                         default=None)
-    options = parser.parse_args()
+    parser.add_argument('--show',
+                        help='Show the plots.',
+                        action='store_true',
+                        default=None)
+    return parser.parse_args()
+
+if __name__ == '__main__':
+
+    options = parse_args()
 
     if len(sys.argv) > 1:
         main(options)

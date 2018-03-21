@@ -15,7 +15,13 @@ import SimEngine.Mote as Mote
 
 def test_app_schedule_transmit(sim):
 
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0, 'topology': 'linear', 'disableMSF': True})
+    sim = sim(**{'numMotes': 2,
+                 'pkPeriod': 0,
+                 'beaconPeriod': 0,
+                 'dioPeriod': 0,
+                 'daoPeriod': 0,
+                 'topology': 'linear',
+                 'disableMSF': True})
     node = sim.motes[1]
    # active TX cell event for node, active RX cell event for root, and
     # propagation event
