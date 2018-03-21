@@ -185,7 +185,7 @@ class Mote(object):
         self.neighborDagRank           = {}                    # indexed by neighbor
         self.dagRootAddress            = None
         # MSF
-        self.numCellsPassed            = 0
+        self.numCellsElapsed           = 0
         self.numCellsUsed              = 0
         # 6top
         self.numCellsToNeighbors       = {}                    # indexed by neighbor, contains int
@@ -223,8 +223,6 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-        # msf
-        self.msfTimeoutExp             = {}
         # reassembly/fragmentation
         if not hasattr(self.settings, 'numReassQueue'):
             self.maxReassQueueNum = SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM
@@ -427,13 +425,6 @@ class Mote(object):
 
     def _app_action_sendSinglePacket(self):
         """ actual send data function. Evaluates queue length too """
-
-        # stop sending application packets during the last 10% of the simulation period
-        simEndTime = self.settings.slotframeLength * self.settings.numCyclesPerRun
-        guardTime = simEndTime * 0.9
-        if self.engine.getAsn() > guardTime:
-            # stop sending application packet
-            return
 
         # enqueue data
         self._app_action_enqueueData()
@@ -669,10 +660,6 @@ class Mote(object):
 
         return False
 
-    def app_schedule_transmition(self, pkPeriod):
-        self.pkPeriod = pkPeriod
-        self._app_schedule_sendSinglePacket(firstPacket=True)
-
     def _tsch_action_enqueueEB(self):
         """ enqueue EB packet into stack """
 
@@ -759,7 +746,6 @@ class Mote(object):
             self.isSync = True
             # set neighbors variables before starting request cells to the preferred parent
             for m in self._myNeighbors():
-                self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
             # add the minimal cell to the schedule
             self._tsch_add_minimal_cell()
@@ -1120,8 +1106,12 @@ class Mote(object):
         return True if nextHop else False
 
 #===== msf
-    def _is_msf_enabled(self):
-        return hasattr(self.settings, 'msfHousekeepingPeriod') and self.settings.msfHousekeepingPeriod > 0
+    def _msf_is_enabled(self):
+        if not hasattr(self.settings, 'disableMSF'):
+            return True
+        if self.settings.disableMSF is False:
+            return True
+        return False
 
     def _msf_schedule_parent_change(self):
         """
@@ -1146,17 +1136,32 @@ class Mote(object):
             armTimeout = False
 
             celloptions = DIR_TXRX_SHARED
+
             if self.numCellsToNeighbors.get(self.preferredParent, 0) == 0:
-                timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+
+                timeout = self._msf_get_sixtop_timeout(self.preferredParent)
+
+                self._log(INFO,
+                          "[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
+                          (self.settings.msfNumCellsToAddOrRemove, celloptions, self.preferredParent.id, timeout,))
+
                 self._sixtop_cell_reservation_request(self.preferredParent,
                                                       self.numCellsToNeighbors.get(self.oldPreferredParent, 1), # request at least one cell
                                                       celloptions,timeout)
+
                 armTimeout = True
 
             if self.numCellsToNeighbors.get(self.oldPreferredParent, 0) > 0 and self.numCellsToNeighbors.get(self.preferredParent, 0) > 0:
-                timeout = self._msf_get_sixtop_timeout(self.oldPreferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.oldPreferredParent.id) - 1))
+
+                timeout = self._msf_get_sixtop_timeout(self.oldPreferredParent)
+
+                self._log(INFO,
+                          "[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
+                          (self.settings.msfNumCellsToAddOrRemove, celloptions, self.oldPreferredParent.id, timeout,))
+
                 self._sixtop_removeCells(self.oldPreferredParent,
                                          self.numCellsToNeighbors.get(self.oldPreferredParent, 0),celloptions,timeout)
+
                 armTimeout = True
 
             if armTimeout:
@@ -1171,12 +1176,6 @@ class Mote(object):
                 # upon success, invalidate old parent
                 self.oldPreferredParent = None
 
-    def _msf_get_timeout_exponent(self,neighborId):
-        """
-          Get the current exponent according to MSF
-        """
-        return self.msfTimeoutExp[neighborId]
-
     def _msf_get_sixtop_timeout(self,neighbor):
         """
           calculate the timeout to a neighbor according to MSF
@@ -1184,60 +1183,54 @@ class Mote(object):
         cellPDR = []
         for (ts,cell) in self.schedule.iteritems():
             if (cell['neighbor']==neighbor and cell['dir']==DIR_TX) or (cell['dir']==DIR_TXRX_SHARED and cell['neighbor']==neighbor):
-                cellPDR.append((float(cell['numTxAck'])+(self.getPDR(neighbor)*NUM_SUFFICIENT_TX)/(cell['numTx']+NUM_SUFFICIENT_TX)))
+                cellPDR.append(self.getCellPDR(cell))
+
+        self._log(INFO, '[sixtop] timeout() cellPDR = {0}', (cellPDR,))
 
         if len(cellPDR) > 0:
-            meanPDR=sum(cellPDR) / float(len(cellPDR))
-            return math.ceil((1 / float(len(cellPDR))) * float(1 / meanPDR) * MSF_6PTIMEOUT_SEC_FACTOR)
+            meanPDR = sum(cellPDR) / float(len(cellPDR))
+            assert meanPDR <= 1.0
+            timeout = math.ceil((float(self.settings.slotframeLength * self.settings.slotDuration) / float(len(cellPDR))) * (float(1 / meanPDR)) * MSF_6PTIMEOUT_SEC_FACTOR)
+            return timeout
         else:
             return MSF_DEFAULT_SIXTOP_TIMEOUT
 
-    def _msf_signal_cell_used(self, neighbor, direction):
-        # cell direction is not used for now
-        assert direction in [DIR_TXRX_SHARED, DIR_TX, DIR_RX]
+    def _msf_signal_cell_used(self, neighbor, cellOptions,  direction=None, type=None):
+        assert cellOptions in [DIR_TXRX_SHARED, DIR_TX, DIR_RX]
+        assert direction in [DIR_TX, DIR_RX]
+        assert type is not None
 
-        # MSF: updating numCellsUsed
-        if neighbor == self.preferredParent:
-            self.numCellsUsed += 1
+        with self.dataLock:
+            # MSF: updating numCellsUsed
+            if cellOptions == DIR_TXRX_SHARED and neighbor == self.preferredParent:
+                self._log(INFO, '[msf] _msf_signal_cell_used: neighbor {0} direction {1} type {2} preferredParent = {3}',
+                          (neighbor.id, direction, type, self.preferredParent.id))
+                self.numCellsUsed += 1
 
     def _msf_signal_cell_elapsed(self, neighbor, direction):
-        # cell direction is not used for now
+
+        assert self.numCellsElapsed <= self.settings.msfMaxNumCells
         assert direction in [DIR_TXRX_SHARED, DIR_TX, DIR_RX]
 
-        # MSF: updating numCellsPassed
-        if neighbor == self.preferredParent:
-            self.numCellsPassed += 1
+        with self.dataLock:
+            # MSF: updating numCellsElapsed
+            if direction == DIR_TXRX_SHARED and neighbor == self.preferredParent:
+                self.numCellsElapsed += 1
+
+                if self.numCellsElapsed == self.settings.msfMaxNumCells:
+                    self._log(INFO, '[msf] _msf_signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}',
+                              (self.numCellsElapsed, self.numCellsUsed))
+
+                    if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
+                        self._msf_schedule_bandwidth_increment()
+                    elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
+                        self._msf_schedule_bandwidth_decrement()
+                    self._msf_reset_counters()
 
     def _msf_reset_counters(self):
-        self.numCellsPassed = 0
-        self.numCellsUsed = 0
-
-    def _msf_adapt_to_traffic(self):
-        # MSF algorithm to adapt to traffic
-        if self.numCellsPassed == self.settings.msfMaxNumCells:
-            if self.numCellsUsed > self.settings.msfLimNumCellsUsedHigh:
-                self._msf_schedule_bandwidth_increment()
-            elif self.numCellsUsed < self.settings.msfLimNumCellsUsedLow:
-                self._msf_schedule_bandwidth_decrement()
-            self._msf_reset_counters()
-
-    def _msf_reset_timeout_exponent(self,neighborId,firstTime):
-        """
-          reset current exponent according to MSF
-          it can be reset or doubled
-        """
-        if firstTime:
-            self.msfTimeoutExp[neighborId]=MSF_MAX_TIMEOUT_EXP-1
-        else:
-            self.msfTimeoutExp[neighborId]=MSF_DEFAULT_TIMEOUT_EXP
-
-    def _msf_increase_timeout_exponent(self,neighborId):
-        """
-          update current exponent according to MSF
-          it can be reset or doubled
-        """
-        if self.msfTimeoutExp[neighborId] < MSF_MAX_TIMEOUT_EXP:
-            self.msfTimeoutExp[neighborId] += 1
+        with self.dataLock:
+            self.numCellsElapsed = 0
+            self.numCellsUsed = 0
 
     def _msf_schedule_bandwidth_increment(self):
         """
@@ -1254,11 +1247,11 @@ class Mote(object):
         """
           Trigger 6P to add msfNumCellsToAddOrRemove cells to preferred parent
         """
-        self._log(INFO,
-                  "[msf] triggering 6P ADD of {0} cell to mote {1}",
-                  (self.settings.msfNumCellsToAddOrRemove, self.preferredParent.id))
-        timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+        timeout = self._msf_get_sixtop_timeout(self.preferredParent)
         celloptions=DIR_TXRX_SHARED
+        self._log(INFO,
+                  "[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
+                  (self.settings.msfNumCellsToAddOrRemove, DIR_TXRX_SHARED, self.preferredParent.id, timeout,))
         self._sixtop_cell_reservation_request(self.preferredParent,
                                               self.settings.msfNumCellsToAddOrRemove,
                                               celloptions,timeout)
@@ -1281,21 +1274,17 @@ class Mote(object):
         # ensure at least one dedicated cell is kept with preferred parent
         if self.numCellsToNeighbors.get(self.preferredParent, 0) > 1:
 
-            self._log(INFO,
-                      "[msf] triggering 6P REMOVE of {0} cell to mote {1}",
-                      (self.settings.msfNumCellsToAddOrRemove,
-                       self.preferredParent.id))
-            timeout = self._msf_get_sixtop_timeout(self.preferredParent) * (2 ** ( self._msf_get_timeout_exponent(self.preferredParent.id) - 1))
+            timeout = self._msf_get_sixtop_timeout(self.preferredParent)
             celloptions=DIR_TXRX_SHARED
+            self._log(INFO,
+                      "[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
+                      (self.settings.msfNumCellsToAddOrRemove, DIR_TXRX_SHARED, self.preferredParent.id, timeout,))
+
             # trigger 6p to remove msfNumCellsToAddOrRemove cells
             self._sixtop_removeCells(self.preferredParent,
-                                     self.settings.msfNumCellsToAddOrRemove,celloptions,timeout)
+                                     self.settings.msfNumCellsToAddOrRemove, celloptions, timeout)
 
     def _msf_schedule_housekeeping(self):
-
-        if not self._is_msf_enabled():
-            # disable MSF
-            return
 
         self.engine.scheduleIn(
             delay       = self.settings.msfHousekeepingPeriod*(0.9+0.2*random.random()),
@@ -1328,7 +1317,6 @@ class Mote(object):
                 self.sixtopStates[n]['tx']['state'] = SIX_STATE_IDLE # put back to IDLE
                 self.sixtopStates[n]['tx']['blockedCells' ] = [] # transaction gets aborted, so also delete the blocked cells
                 del self.sixtopStates[n]['tx']['timer']
-                self._msf_increase_timeout_exponent(n)
                 found = True
                 # log
                 self._log(
@@ -1393,6 +1381,7 @@ class Mote(object):
 
             else:
                 cells = neighbor._sixtop_cell_reservation_response(self, numCells, dir)
+
                 cellList = []
                 for (ts, ch) in cells.iteritems():
                     # log
@@ -1425,8 +1414,8 @@ class Mote(object):
                     # log
                     self._log(
                         ERROR,
-                        '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}',
-                        (len(cells), numCells, self.id, neighbor.id),
+                        '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}. cells={4}',
+                        (len(cells), numCells, self.id, neighbor.id, cells),
                     )
 
     def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, dir, seq):
@@ -1681,7 +1670,6 @@ class Mote(object):
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
                 self.sixtopStates[smac.id]['tx']['seqNum'] += 1
-                self._msf_reset_timeout_exponent(smac.id, firstTime=False)
 
                 # if the request was successfull and there were enough resources
                 if code == IANA_6TOP_RC_SUCCESS:
@@ -1816,7 +1804,6 @@ class Mote(object):
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
                 self.sixtopStates[smac.id]['tx']['seqNum'] += 1
-                self._msf_reset_timeout_exponent(smac.id, firstTime=False)
 
                 # if the request was successfull and there were enough resources
                 if code == IANA_6TOP_RC_SUCCESS:
@@ -2055,14 +2042,13 @@ class Mote(object):
         for (ts, cell) in self.schedule.iteritems():
             if (cell['neighbor'] == neighbor and cell['dir'] == DIR_TX) or (
                     cell['dir'] == DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
-                cellPDR = (float(cell['numTxAck']) + (self.getPDR(neighbor) * NUM_SUFFICIENT_TX)) / (
-                            cell['numTx'] + NUM_SUFFICIENT_TX)
+                cellPDR = self.getCellPDR(cell)
                 scheduleList += [(ts, cell['numTxAck'], cell['numTx'], cellPDR)]
 
-        # introduce randomness in the cell list order
-        random.shuffle(scheduleList)
-
-        if not self.settings.sixtopNoRemoveWorstCell:
+        if self.settings.sixtopRemoveRandomCell:
+            # introduce randomness in the cell list order
+            random.shuffle(scheduleList)
+        else:
             # triggered only when worst cell selection is due
             # (cell list is sorted according to worst cell selection)
             scheduleListByPDR = {}
@@ -2089,6 +2075,8 @@ class Mote(object):
                 (tscell[0], neighbor.id, tscell[3]),
             )
             tsList += [tscell[0]]
+
+        assert len(tsList) == numCellsToRemove
 
         # remove cells
         self._sixtop_cell_deletion_sender(neighbor, tsList, dir, timeout)
@@ -2301,6 +2289,10 @@ class Mote(object):
 
             cell = self.schedule[ts]
 
+            # Signal to MSF that a cell to a neighbor has been triggered
+            if self._msf_is_enabled():
+                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
+
             if  cell['dir']==DIR_RX:
 
                 # start listening
@@ -2323,14 +2315,12 @@ class Mote(object):
                             self.pktToSend = pkt
                             break
 
-                # Signal to MSF that a cell to a neighbor has been triggered
-                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
-
                 # send packet
                 if self.pktToSend:
 
                     # Signal to MSF that a cell to a neighbor is used
-                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'])
+                    if self._msf_is_enabled():
+                        self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
 
                     cell['numTx'] += 1
 
@@ -2373,13 +2363,7 @@ class Mote(object):
                     # indicate that we're waiting for the TX operation to finish
                     self.waitingFor   = DIR_TX
 
-                if self._is_msf_enabled():
-                    # Invoke MSF to monitor utilization
-                    self._msf_adapt_to_traffic()
-
             elif cell['dir']==DIR_TXRX_SHARED:
-                # Signal to MSF that a cell has been triggered
-                self._msf_signal_cell_elapsed(cell['neighbor'], cell['dir'])
 
                 if cell['neighbor'] == self._myNeighbors():
                     self.pktToSend = None
@@ -2426,7 +2410,8 @@ class Mote(object):
                     cell['numTx'] += 1
 
                     # Signal to MSF that a cell to a neighbor is used
-                    self._msf_signal_cell_used(cell['neighbor'], cell['dir'])
+                    if self._msf_is_enabled():
+                        self._msf_signal_cell_used(cell['neighbor'], cell['dir'], DIR_TX, pkt['type'])
 
                     if pkt['type']==IANA_6TOP_TYPE_REQUEST:
                         if pkt['code']==IANA_6TOP_CMD_ADD:
@@ -2474,10 +2459,6 @@ class Mote(object):
                      )
                     # indicate that we're waiting for the RX operation to finish
                     self.waitingFor = DIR_RX
-
-                if self._is_msf_enabled():
-                    # Invoke MSF to monitor utilization
-                    self._msf_adapt_to_traffic()
 
             # schedule next active cell
             self._tsch_schedule_activeCell()
@@ -2663,8 +2644,8 @@ class Mote(object):
 
                 # save it in a tmp variable
                 # because it is possible that self.schedule[ts] does not exist anymore after receiving an ACK for a DELETE RESPONSE
-                tmpNeighbor = self.schedule[ts]['dir']
-                tmpDir = self.schedule[ts]['neighbor']
+                tmpNeighbor = self.schedule[ts]['neighbor']
+                tmpDir = self.schedule[ts]['dir']
 
                 if self.pktToSend['type'] == IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
                     self._sixtop_receive_RESPONSE_ACK(self.pktToSend)
@@ -2827,6 +2808,9 @@ class Mote(object):
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
 
+                if self._msf_is_enabled():
+                    self._msf_signal_cell_used(self.schedule[ts]['neighbor'], self.schedule[ts]['dir'], DIR_RX, type)
+
                 if [self] == dmac: # unicast packet
                     self._logChargeConsumed(CHARGE_RxDataTxAck_uC)
                 else: # broadcast
@@ -2986,6 +2970,17 @@ class Mote(object):
 
     #===== wireless
 
+    def getCellPDR(self, cell):
+        """ returns the pdr of the cell """
+
+        assert cell['neighbor'] is not type(list)
+
+        with self.dataLock:
+            if cell['numTx'] < NUM_SUFFICIENT_TX:
+                return self.getPDR(cell['neighbor'])
+            else:
+                return float(cell['numTxAck']) / float(cell['numTx'])
+
     def setPDR(self,neighbor,pdr):
         """ sets the pdr to that neighbor"""
         with self.dataLock:
@@ -3098,11 +3093,11 @@ class Mote(object):
         #if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
         if not self.settings.withJoin or self.dagRoot:
             for m in self._myNeighbors():
-                self._msf_reset_timeout_exponent(m.id,firstTime=True)
                 self._tsch_resetBackoffPerNeigh(m)
 
         # MSF
-        self._msf_schedule_housekeeping()
+        if self._msf_is_enabled():
+            self._msf_schedule_housekeeping()
 
         # app
         if not self.dagRoot:
