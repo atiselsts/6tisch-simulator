@@ -1662,6 +1662,7 @@ class Mote(object):
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeEvent((self.id, '_msf_action_parent_change_retransmission')) # remove the pending retransmission event for MSF
                 self._log(
                     INFO,
                     "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
@@ -1796,6 +1797,7 @@ class Mote(object):
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeEvent((self.id, '_msf_action_parent_change_retransmission')) # remove the pending retransmission event for MSF
                 self._log(
                     INFO,
                     "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
@@ -2808,7 +2810,7 @@ class Mote(object):
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
 
-                if self._msf_is_enabled():
+                if self._msf_is_enabled() and self.isSync:
                     self._msf_signal_cell_used(self.schedule[ts]['neighbor'], self.schedule[ts]['dir'], DIR_RX, type)
 
                 if [self] == dmac: # unicast packet

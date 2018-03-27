@@ -207,26 +207,18 @@ def parseCliOptions():
                       default=60.0,
                       help='[rpl] DAO period (s).',
                       )
-    # otf
-    parser.add_argument('--otfThreshold',
-                      dest='otfThreshold',
-                      nargs='+',
-                      type=int,
-                      default=1,
-                      help='[otf] OTF threshold (cells).',
-                      )
-    parser.add_argument('--msfHousekeepingPeriod',
-                      dest='msfHousekeepingPeriod',
-                      type=float,
-                      default=60.0,
-                      help='[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
-                      )
     # msf
     parser.add_argument('--disableMSF',
                       dest='disableMSF',
                       action='store_true',
                       default=False,
                       help='[msf] Disable MSF.',
+                      )
+    parser.add_argument('--msfHousekeepingPeriod',
+                      dest='msfHousekeepingPeriod',
+                      type=float,
+                      default=60.0,
+                      help='[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
                       )
     parser.add_argument('--msfMaxNumCells',
                       dest='msfMaxNumCells',
