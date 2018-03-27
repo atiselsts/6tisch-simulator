@@ -2810,7 +2810,7 @@ class Mote(object):
             if smac and self in dmac: # layer 2 addressing
                 # I received a packet
 
-                if self._msf_is_enabled():
+                if self._msf_is_enabled() and self.isSync:
                     self._msf_signal_cell_used(self.schedule[ts]['neighbor'], self.schedule[ts]['dir'], DIR_RX, type)
 
                 if [self] == dmac: # unicast packet
