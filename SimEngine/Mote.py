@@ -1662,6 +1662,7 @@ class Mote(object):
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeEvent((self.id, '_msf_action_parent_change_retransmission')) # remove the pending retransmission event for MSF
                 self._log(
                     INFO,
                     "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
@@ -1796,6 +1797,7 @@ class Mote(object):
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.id, uniqueTag)
                 self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeEvent((self.id, '_msf_action_parent_change_retransmission')) # remove the pending retransmission event for MSF
                 self._log(
                     INFO,
                     "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
