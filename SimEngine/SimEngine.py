@@ -22,7 +22,7 @@ log.addHandler(NullHandler())
 
 import threading
 
-import Propagation
+from Propagation import Propagation
 import Topology
 import Mote
 import SimSettings
@@ -68,7 +68,7 @@ class SimEngine(threading.Thread):
         self.endCb                          = []
         self.events                         = []
         self.settings                       = SimSettings.SimSettings()
-        self.propagation                    = Propagation.Propagation()
+        self.propagation                    = Propagation()
         self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
