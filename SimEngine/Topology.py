@@ -12,10 +12,11 @@ import logging
 import math
 import random
 
+from k7 import k7
 
 import SimSettings
+import Propagation
 import Mote
-
 
 class NullHandler(logging.Handler):
     def emit(self, record):
@@ -36,6 +37,8 @@ class Topology(object):
                 return LinearTopology(motes)
             elif settings.topology == 'twoBranch':
                 return TwoBranchTopology(motes)
+            elif settings.topology == 'trace':
+                return TraceTopology(motes, settings.trace)
         if not hasattr(settings, 'topology') or settings.topology == 'random':
             return RandomTopology(motes)
 
@@ -196,7 +199,7 @@ class RandomTopology(TopologyCreator):
             for m in self.motes:
                 if mote == m:
                     continue
-                if mote.getRSSI(m) > mote.minRssi:
+                if mote.getRSSI(m) > mote.propagation.minRssi:
                     pdr = self._computePDR(mote, m)
                     mote.setPDR(m, pdr)
                     m.setPDR(mote, pdr)
@@ -204,8 +207,13 @@ class RandomTopology(TopologyCreator):
     @classmethod
     def rssiToPdr(cls, rssi):
         """
+
         rssi and pdr relationship obtained by experiment below
         http://wsn.eecs.berkeley.edu/connectivity/?dataset=dust
+
+        :param rssi:
+        :return:
+        :rtype: float
         """
 
         rssiPdrTable = {
@@ -485,6 +493,13 @@ class TwoBranchTopology(TopologyCreator):
             return -100
 
     def _computePDR(self, mote, neighbor):
+        """
+
+        :param Mote mote:
+        :param Mote neighbor:
+        :return:
+        :rtype: float
+        """
         return self.rssiToPdr(self._computeRSSI(mote, neighbor))
 
     def _build_rpl_tree(self):
@@ -584,3 +599,65 @@ class TwoBranchTopology(TopologyCreator):
                                  alloc_pointer,
                                  0)
                 child = child.preferredParent
+
+class TraceTopology(TopologyCreator):
+
+    def __init__(self, motes, trace):
+        log.debug("Init Topology from trace file.")
+        self.trace = trace
+        self.motes = motes
+        self.settings = SimSettings.SimSettings()
+        self.propagation = Propagation.Propagation()
+
+    def createTopology(self):
+        # read first transaction from trace
+        header, trace = k7.read(self.trace)
+        first_transaction = trace[(trace.transaction_id == trace.transaction_id.min()) &
+                                  (trace.channel == "11-26") &
+                                  (trace.pdr > 0)]
+
+        # build graph
+        nodes = list(set().union(first_transaction.src.unique(),
+                                 first_transaction.dst.unique()))
+        log.debug("Selected nodes: {0}".format(nodes))
+
+        # set motes ids
+        for i, mote in enumerate(self.motes):
+            mote.id = nodes[i]  # replace mote id by trace id
+
+        # select first mote as DagRoot
+        self.motes[0].role_setDagRoot()
+        log.debug("DagRoot selected, id: {0}".format(self.motes[0].id))
+
+        # for each mote, compute PDR and RSSI to each neighbors
+        for source in self.motes:
+            # clear RSSI and PDR table; we may need clearRSSI and clear PDR
+            # methods
+            mote.RSSI = {}
+            mote.PDR = {}
+
+            for destination in self.motes:
+                if source == destination:
+                    continue
+                # source -> destination
+                pdr = self._computePDR(source, destination)
+                source.setPDR(destination, pdr)
+                rssi = self._computeRSSI(source, destination)
+                source.setRSSI(destination, rssi)
+
+        # randomly place motes
+        for mote in self.motes:
+            # pick a random location
+            mote.setLocation(x=self.settings.squareSide * random.random(),
+                             y=self.settings.squareSide * random.random())
+
+        log.debug("Topology Created.")
+
+    def _computePDR(self, source, destination):
+        return self.propagation.get_pdr(source, destination)
+
+    def _computeRSSI(self, source, destination):
+        return self.propagation.get_rssi(source, destination)
+
+    def rssiToPdr(cls, rssi):
+        raise NotImplementedError

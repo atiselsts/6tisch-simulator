@@ -214,7 +214,6 @@ class Mote(object):
         # radio
         self.txPower                   = 0                     # dBm
         self.antennaGain               = 0                     # dBi
-        self.minRssi                   = self.settings.minRssi # dBm
         self.noisepower                = -105                  # dBm
         self.drift                     = random.uniform(-RADIO_MAXDRIFT, RADIO_MAXDRIFT)
         # wireless

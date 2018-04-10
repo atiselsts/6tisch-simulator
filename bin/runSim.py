@@ -38,7 +38,6 @@ import argparse
 from SimEngine     import SimEngine,   \
                           SimSettings, \
                           SimStats
-from SimGui        import SimGui
 
 #============================ helpers =========================================
 
@@ -104,6 +103,20 @@ def parseCliOptions():
                       type=int,
                       default=0,
                       help=' [topology] 1 to enable fully meshed network.',
+                      )
+    # propagation
+    parser.add_argument('--propagation',
+                      dest='propagation',
+                      type=str,
+                      choices=['pisterhack'],
+                      default='pisterhack',
+                      help='[propagation] Specify a propagation type to be used',
+                      )
+    parser.add_argument('--trace',
+                      dest='trace',
+                      type=str,
+                      default=None,
+                      help='[scenario] Specify a trace to be used',
                       )
     # join process
     parser.add_argument('--withJoin',
@@ -448,7 +461,14 @@ def main():
 
     assert num_cores_to_use <= max_num_cores, "NUMCORES to use is larger than the maximum available number of cores found on the system."
 
+    if options['trace'] is not None:
+        log.warn("Using --trace argument, --propagation and --topology will be ignored.")
+        options['propagation'] = "trace"
+        options['topology'] = "trace"
+
     if options['gui']:
+        from SimGui import SimGui
+
         # create the GUI, single core
         gui        = SimGui.SimGui()
 

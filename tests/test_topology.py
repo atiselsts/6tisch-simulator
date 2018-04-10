@@ -21,3 +21,7 @@ def test_create_random_topology_2(settings):
 def test_create_linear_topology(settings):
     settings(**{'topology': 'linear'})
     assert isinstance(Topology.Topology([]), Topology.LinearTopology)
+
+def test_create_trace_topology(settings):
+    settings(**{'topology': 'trace'})
+    assert isinstance(Topology.Topology([]), Topology.TraceTopology)
