@@ -2505,7 +2505,7 @@ class Mote(object):
                 self._log(
                     INFO,
                     "[tsch] remove cell=({0}) with {1}",
-                    (cell, neighbor.id if not type(neighbor) == list else self.BROADCAST_ADDRESS),
+                    (cell, neighbor.id if not type(neighbor) == list else BROADCAST_ADDRESS),
                 )
 
                 assert cell in self.schedule.keys()
