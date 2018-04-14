@@ -6,13 +6,13 @@
     },
     "settings": {
         "combination": {
+            "numMotes":                     [50]
         },
         "regular": {
             "simDataDir":                   "simData",
             "numCyclesPerRun":              101,
             
             "topology":                     "random",
-            "numMotes":                     50,
             "squareSide":                   2.000,
             "fullyMeshed":                  0,
             
