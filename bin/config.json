@@ -1,0 +1,69 @@
+{
+    "version":                              0,
+    "execution": {
+        "numCores":                         1,
+        "numRuns":                          2
+    },
+    "settings": {
+        "combination": {
+            "numMotes":                     [50]
+        },
+        "regular": {
+            "simDataDir":                   "simData",
+            "numCyclesPerRun":              101,
+            
+            "topology":                     "random",
+            "squareSide":                   2.000,
+            "fullyMeshed":                  0,
+            
+            "propagation":                  "pisterhack",
+            "trace":                        null,
+            
+            "pkPeriod":                     10,
+            "pkPeriodVar":                  0.05,
+            "burstTimestamp":               null,
+            "numPacketsBurst":              null,
+            "downwardAcks":                 0,
+            "numFragments":                 null,
+            "enableFragmentForwarding":     false,
+            "optFragmentForwarding":        null,
+            "maxVRBEntryNum":               8,
+            "numReassQueue":                1,
+            
+            "dioPeriod":                    10,
+            "daoPeriod":                    60,
+            
+            "msfHousekeepingPeriod":        60.0,
+            "msfMaxNumCells":               16,
+            "msfLimNumCellsUsedHigh":       12,
+            "msfLimNumCellsUsedLow":        4,
+            "msfNumCellsToAddOrRemove":     1,
+            
+            "scheduling_function":          "MSF",
+            "ssfInitMethod":                "first",
+            
+            "sixtopMessaging":              1,
+            "sixtopRemoveRandomCell":       0,
+            
+            "withJoin":                     0,
+            "joinNumExchanges":             2,
+            "joinAttemptTimeout":           60,
+            
+            "slotDuration":                 0.010,
+            "slotframeLength":              101,
+            "beaconPeriod":                 2,
+            "bayesianBroadcast":            1,
+            "beaconProbability":            0.33,
+            "dioProbability":               0.33,
+            
+            "numChans":                     16,
+            "minRssi":                      -97,
+            "noInterference":               0
+        }
+    },
+    "logging": [
+    ],
+    "post": [
+        "python plot.py"
+    ]
+}

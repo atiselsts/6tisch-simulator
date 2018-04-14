@@ -63,14 +63,8 @@ Simulated protocol stack
    ```
    $ python runSim.py
    ```
-    * You'll have raw output data under `bin/simData` directory.
-    * You can specify configuration parameters such as slot length and application packet interval if you want. `$ python runSim.py --help` shows available options.
-1. Execute plot.py to see the results:
-   ```
-   $ python plot.py
-   ```
-    * You’ll have charts derived from the data under `bin/simPlots` directory.
-    * You need to define your simulation scenarios and identify necessary parameter sets in order to have meaningful results or charts.
+    * raw output data is in `bin/simData/`.
+    * raw charts is in `bin/simPlots/`.
 
 ## Code Organization
 
