@@ -256,7 +256,7 @@ def main():
             print 'calling "{0}"'.format(c)
             subprocess.call(c)
         
-        raw_input("Done. Press Enter to exit.")
+        #raw_input("Done. Press Enter to exit.")
         
 if __name__ == '__main__':
     main()
