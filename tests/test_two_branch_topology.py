@@ -4,9 +4,14 @@
 \author Yasuyuki Tanaka <yasuyuki.tanaka@inria.fr>
 """
 
+import pytest
+
 import SimEngine.SimEngine as SimEngine
 import SimEngine.SimSettings as SimSettings
 import SimEngine.Mote as Mote
+
+pytestmark = pytest.mark.skip('tests fail randomly; need to fix (issue #74)')
+
 
 def test_two_branch_topology_with_6_motes(motes):
     motes = motes(6, **{'topology': 'twoBranch'})
