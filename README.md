@@ -23,19 +23,20 @@ This simulator allows you to measure the performance of those different mechanis
 What is simulated:
 
 * protocol stack
-    * [RFC6550](https://tools.ietf.org/html/rfc6550) RPL, non-storing mode
-    * Fragment Forwarding (draft-watteyne-6lo-minimal-fragment-01)
-    * 6LoWPAN Fragmentation and Reassembly (RFC 4944)
-    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-01)
-    * [draft-ietf-6tisch-6top-protocol](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09) 6top
-    * IEEE802.15.4-2015 TSCH (https://ieeexplore.ieee.org/document/7460875/)
-* join process with initial synchronization to the first received Enhanced Beacon.
-* the "Pister-hack" propagation model with collisions
-* the energy consumption model taken from
-    * [A Realistic Energy Consumption Model for TSCH Networks](http://ieeexplore.ieee.org/xpl/login.jsp?tp=&arnumber=6627960&url=http%3A%2F%2Fieeexplore.ieee.org%2Fiel7%2F7361%2F4427201%2F06627960.pdf%3Farnumber%3D6627960). Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
+    * [RFC6550](https://tools.ietf.org/html/rfc6550), RPL, non-storing mode
+    * [draft-watteyne-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment-01), 6LoWPAN Fragment Forwarding
+    * [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944), 6LoWPAN
+    * [draft-chang-6tisch-msf-01](https://tools.ietf.org/html/draft-chang-6tisch-msf-01), 6TiSCH Minimal Scheduling Function
+    * [draft-ietf-6tisch-minimal-security-05](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-05), 6TiSCH Minimal Security (join process)
+    * [draft-ietf-6tisch-6top-protocol-11](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-11) 6TiSCH 6top Protocol
+    * [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/), TSCH mode
+* propagation models
+    * Pister-hack
+    * k7: trace-based propagation
+* miscellaneous
+    * Energy Consumption model taken from [A Realistic Energy Consumption Model for TSCH Networks](http://ieeexplore.ieee.org/xpl/login.jsp?tp=&arnumber=6627960&url=http%3A%2F%2Fieeexplore.ieee.org%2Fiel7%2F7361%2F4427201%2F06627960.pdf%3Farnumber%3D6627960). Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
 
-
-More about 6TiSCH:
+About 6TiSCH:
 
 | what             | where                                                               |
 |------------------|---------------------------------------------------------------------|
