@@ -7,6 +7,8 @@
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
 
+# =========================== imports =========================================
+
 from abc import ABCMeta, abstractmethod
 import logging
 import math
@@ -17,16 +19,24 @@ from k7 import k7
 import SimSettings
 import Propagation
 import Mote
+import sf
 
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
 
+# =========================== logging =========================================
 
 log = logging.getLogger('Topology')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+# =========================== defines =========================================
+
+TOPOLOGY_SHAPES = ['linear', 'twoBranch', 'random']
+DEFAULT_TOPOLOGY = 'random'
+
+# =========================== body ============================================
 
 class Topology(object):
 
@@ -128,6 +138,7 @@ class RandomTopology(TopologyCreator):
     def __init__(self, motes):
         # store params
         self.motes = motes
+        self.shape = 'random'
 
         # local variables
         self.settings = SimSettings.SimSettings()
@@ -266,6 +277,7 @@ class LinearTopology(TopologyCreator):
     def __init__(self, motes):
 
         self.motes = motes
+        self.shape = 'linear'
         self.settings = SimSettings.SimSettings()
 
     def createTopology(self):
@@ -294,20 +306,8 @@ class LinearTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (hasattr(self.settings, 'linearTopologyStaticScheduling') and
-           self.settings.linearTopologyStaticScheduling is True):
-            assert ((not hasattr(self.settings, 'withJoin')) or
-                    (self.settings.withJoin is False))
+        if not hasattr(self.settings, 'withJoin') or (self.settings.withJoin is False):
             self._build_rpl_tree()
-
-            if (not hasattr(self.settings, 'cascadingScheduling')) or (self.settings.cascadingScheduling == False):
-                self._install_symmetric_schedule()
-            else:
-                self._install_cascading_schedule()
-
-            # make all the motes synchronized
-            for mote in self.motes:
-                mote.timeCorrectedSlot = 0
 
     @classmethod
     def rssiToPdr(cls, rssi):
@@ -362,54 +362,13 @@ class LinearTopology(TopologyCreator):
 
             mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
 
-    def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
-        # cell structure: (slot_offset, channel_offset, direction)
-        transmitter._tsch_addCells(receiver,
-                                   [(slot_offset,
-                                     channel_offset,
-                                     Mote.DIR_TX)])
-        if receiver not in transmitter.numCellsToNeighbors:
-            transmitter.numCellsToNeighbors[receiver] = 1
-        else:
-            transmitter.numCellsToNeighbors[receiver] += 1
-
-        receiver._tsch_addCells(transmitter,
-                                [(slot_offset,
-                                  channel_offset,
-                                  Mote.DIR_RX)])
-        if transmitter not in receiver.numCellsFromNeighbors:
-            receiver.numCellsFromNeighbors[transmitter] = 1
-        else:
-            receiver.numCellsFromNeighbors[transmitter] += 1
-
-    def _install_symmetric_schedule(self):
-        # find the edge node in the given linear topology
-        depth = len(self.motes)
-        for mote in self.motes:
-            if mote.preferredParent:
-                self._alloc_cell(mote,
-                                 mote.preferredParent,
-                                 depth - mote.id,
-                                 0)
-
-    def _install_cascading_schedule(self):
-        alloc_pointer = 1 # start allocating with slot-1
-
-        for mote in self.motes[::-1]: # loop in the reverse order
-            child = mote
-            while child and child.preferredParent:
-                self._alloc_cell(child, child.preferredParent,
-                                 alloc_pointer, 0)
-                alloc_pointer += 1
-                child = child.preferredParent
-
-
 class TwoBranchTopology(TopologyCreator):
 
     COMM_RANGE_RADIUS = 50
 
     def __init__(self, motes):
         self.motes = motes
+        self.shape = 'twoBranch'
         self.settings = SimSettings.SimSettings()
         self.depth = int(math.ceil((float(len(self.motes)) - 2) / 2) + 1)
         if len(self.motes) < 2:
@@ -451,16 +410,8 @@ class TwoBranchTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin == False):
+        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin is False):
             self._build_rpl_tree()
-            if (not hasattr(self.settings, 'cascadingScheduling') or
-               not self.settings.cascadingScheduling):
-                self._install_symmetric_schedule()
-            else:
-                self._install_cascading_schedule()
-            # make all the motes synchronized
-            for mote in self.motes:
-                mote.timeCorrectedSlot = 0
 
     @classmethod
     def rssiToPdr(cls, rssi):
@@ -524,22 +475,6 @@ class TwoBranchTopology(TopologyCreator):
                              mote.preferredParent.rank)
             mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
 
-    def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
-        # cell structure: (slot_offset, channel_offset, direction)
-        transmitter._tsch_addCells(receiver, [(slot_offset, channel_offset,
-                                               Mote.DIR_TX)])
-        if receiver not in transmitter.numCellsToNeighbors:
-            transmitter.numCellsToNeighbors[receiver] = 1
-        else:
-            transmitter.numCellsToNeighbors[receiver] += 1
-
-        receiver._tsch_addCells(transmitter, [(slot_offset, channel_offset,
-                                               Mote.DIR_RX)])
-        if transmitter not in receiver.numCellsFromNeighbors:
-            receiver.numCellsFromNeighbors[transmitter] = 1
-        else:
-            receiver.numCellsFromNeighbors[transmitter] += 1
-
     def _install_symmetric_schedule(self):
         # allocate TX cells for each node to its parent, which has the same
         # channel offset, 0.
@@ -560,9 +495,10 @@ class TwoBranchTopology(TopologyCreator):
                                    self.switch_to_right_branch - 1 -
                                    mote.id) * 2
 
-                self._alloc_cell(mote,
-                                 mote.preferredParent,
-                                 int(slot_offset), 0)
+                sf.alloc_cell(mote,
+                              mote.preferredParent,
+                              int(slot_offset),
+                              0)
 
     def _install_cascading_schedule(self):
         # allocate TX cells and RX cells in a cascading bandwidth manner.
@@ -594,10 +530,10 @@ class TwoBranchTopology(TopologyCreator):
                     if alloc_pointer > self.settings.slotframeLength:
                         raise ValueError('slotframe is too small')
 
-                self._alloc_cell(child,
-                                 child.preferredParent,
-                                 alloc_pointer,
-                                 0)
+                sf.alloc_cell(child,
+                              child.preferredParent,
+                              alloc_pointer,
+                              0)
                 child = child.preferredParent
 
 class TraceTopology(TopologyCreator):
@@ -605,6 +541,7 @@ class TraceTopology(TopologyCreator):
     def __init__(self, motes, trace):
         log.debug("Init Topology from trace file.")
         self.trace = trace
+        self.shape = "trace"
         self.motes = motes
         self.settings = SimSettings.SimSettings()
         self.propagation = Propagation.Propagation()
@@ -613,7 +550,7 @@ class TraceTopology(TopologyCreator):
         # read first transaction from trace
         header, trace = k7.read(self.trace)
         first_transaction = trace[(trace.transaction_id == trace.transaction_id.min()) &
-                                  (trace.channel == "11-26") &
+                                  (trace.channels == "11-26") &
                                   (trace.pdr > 0)]
 
         # build graph

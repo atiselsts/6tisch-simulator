@@ -34,6 +34,8 @@ log.addHandler(NullHandler())
 
 #============================ defines =========================================
 
+
+
 #============================ functions =======================================
 
 def _dBmTomW(dBm):
@@ -106,6 +108,7 @@ class PropagationCreator(object):
     def destroy(self):
         self._instance                 = None
         self._init                     = False
+        del self.__dict__
 
     #======================== public ==========================================
 
@@ -392,6 +395,8 @@ class PropagationPisterHack(PropagationCreator):
         # ===== end singleton
         log.debug("Init Propagation using the Pister Hack model.")
 
+        self.type = "pister-hack"
+
     def get_pdr(self, source, destination, asn=0, interferers=None, channel=None):
         """
         Returns the PDR of a link at a given time.
@@ -490,7 +495,9 @@ class PropagationTrace(PropagationCreator):
         # ===== end singleton
         log.debug("Init Propagation using a trace.")
 
+        self.type = "trace"
         self.header, self.trace = k7.read(trace)
+        self.num_motes = self.header['node_count']
 
         # start date is when we have at least one value per source
         self.start_date = self.trace.groupby(["src"]).apply(lambda x: x.index[0]).max()

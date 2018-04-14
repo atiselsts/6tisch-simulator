@@ -19,10 +19,9 @@ class TestNumFragmentsVsTxQueue:
     ])
     def test_num_frag(self, sim, test_input, expected):
         m = sim(**{'numFragments': test_input,
-                   'disableMSF': True,
                    'numMotes': 2,
                    'topology': 'linear',
-                   'linearTopologyStaticScheduling': True}).motes[1]
+                   'scheduling_function': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
         m._app_action_enqueueData()
         assert len(m.txQueue) == expected
@@ -34,7 +33,7 @@ class TestFragmentation:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 2,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -88,7 +87,7 @@ class TestFragmentation:
         sim = sim(**{'numFragments': 3,
                      'numMotes': 3,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
 
         root = sim.motes[0]
         node = sim.motes[1]
@@ -161,7 +160,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 3,
                      'numMotes': 3,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -203,7 +202,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 3,
                      'numMotes': 3,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -245,7 +244,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 2,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf = sim.motes[1]
         packet = {
@@ -270,7 +269,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 4,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -305,7 +304,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 4,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True,
+                     'scheduling_function': 'SSF-symmetric',
                      'numReassQueue': 1})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -345,7 +344,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 4,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True,
+                     'scheduling_function': 'SSF-symmetric',
                      'numReassQueue': 2})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -385,7 +384,7 @@ class TestReassembly:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 3,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf1 = sim.motes[1]
         leaf2 = sim.motes[2]
@@ -419,9 +418,13 @@ class TestReassembly:
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'numFragments': 2, 'numMotes': 3,
-                  'topology': 'linear', 'linearTopologyStaticScheduling': True}
-        params.update({'pkPeriod': 0, 'pkPeriodVar': 0, 'downwardAcks': False})
+        params = {'numFragments': 2,
+                  'numMotes': 3,
+                  'topology': 'linear',
+                  'scheduling_function': 'SSF-symmetric',
+                  'pkPeriod': 0,
+                  'pkPeriodVar': 0,
+                  'downwardAcks': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -457,9 +460,13 @@ class TestPacketFowarding:
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {'numFragments': 2, 'numMotes': 3,
-                  'topology': 'linear', 'linearTopologyStaticScheduling': True}
-        params.update({'pkPeriod': 0, 'pkPeriodVar': 0, 'downwardAcks': False})
+        params = {'numFragments': 2,
+                  'numMotes': 3,
+                  'topology': 'linear',
+                  'scheduling_function': 'SSF-cascading',
+                  'pkPeriod': 0,
+                  'pkPeriodVar': 0,
+                  'downwardAcks': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -473,7 +480,7 @@ class TestPacketFowarding:
         cb = None
         asn0 = sim.asn
         while (len(sim.events) > 0) or (asn > (asn0 + (one_second / sim.settings.slotDuration))):
-            (asn, priority, cb, tag) = sim.events.pop(0)
+            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             sim.asn = asn
 
             if cb == hop2._app_action_sendSinglePacket:
@@ -482,7 +489,7 @@ class TestPacketFowarding:
                 hop2._app_schedule_sendSinglePacket(firstPacket=True)
                 break
             else:
-                cb()
+                cb(**kwarg)
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.slotDuration))
@@ -497,13 +504,13 @@ class TestPacketFowarding:
         # two fragments should be sent within two timeslots. In each of them,
         # hop2 has one TX cell to hop2
         while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.slotDuration)):
-            (asn, priority, cb, tag) = sim.events.pop(0)
+            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 # sync all the motes
                 hop1.timeCorrectedSlot = sim.asn
                 hop2.timeCorrectedSlot = sim.asn
                 sim.asn = asn
-            cb()
+            cb(**kwarg)
             if(len(hop1.txQueue) == 2):
                 break
 
@@ -515,10 +522,10 @@ class TestPacketFowarding:
         asn0 = sim.asn
         # two fragments should be sent to the final destination within the next two timeslots.
         while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.slotDuration))):
-            (asn, priority, cb, tag) = sim.events.pop(0)
+            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
-            cb()
+            cb(**kwarg)
         assert root.motestats['appReachesDagroot'] == 1
 
 
@@ -527,7 +534,7 @@ class TestDatagramTag:
         sim = sim(**{'numFragments': 2,
                      'numMotes': 2,
                      'topology': 'linear',
-                     'linearTopologyStaticScheduling': True})
+                     'scheduling_function': 'SSF-cascading'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
