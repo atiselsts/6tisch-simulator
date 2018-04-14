@@ -5,10 +5,10 @@ Core Developers:
 * Mališa Vučinić (malisa.vucinic@inria.fr)
 * Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr) - Sensei
 * Keoma Brun-Laguna (keoma.brun@inria.fr)
+* Thomas Watteyne (thomas.watteyne@inria.fr)
 
 Contributers:
 
-* Thomas Watteyne (thomas.watteyne@inria.fr)
 * Kazushi Muraoka (k-muraoka@eecs.berkeley.edu)
 * Nicola Accettura (nicola.accettura@eecs.berkeley.edu)
 * Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
@@ -22,13 +22,13 @@ This simulator allows you to measure the performance of those different mechanis
 
 What is simulated:
 
-* protocols
-    * IEEE802.15.4e-2012 TSCH (http://standards.ieee.org/getieee802/download/802.15.4e-2012.pdf)
-    * RPL (https://tools.ietf.org/html/rfc6550) with downstream traffic using source routing
-    * 6top (https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09)
-    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-01)
-    * 6LoWPAN Fragmentation and Reassembly (RFC 4944)
+* protocol stack
+    * [RFC6550](https://tools.ietf.org/html/rfc6550) RPL, non-storing mode
     * Fragment Forwarding (draft-watteyne-6lo-minimal-fragment-01)
+    * 6LoWPAN Fragmentation and Reassembly (RFC 4944)
+    * Minimal Scheduling Function (https://tools.ietf.org/html/draft-chang-6tisch-msf-01)
+    * [draft-ietf-6tisch-6top-protocol](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-09) 6top
+    * IEEE802.15.4-2015 TSCH (https://ieeexplore.ieee.org/document/7460875/)
 * join process with initial synchronization to the first received Enhanced Beacon.
 * the "Pister-hack" propagation model with collisions
 * the energy consumption model taken from
