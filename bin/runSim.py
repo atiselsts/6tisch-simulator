@@ -254,7 +254,7 @@ def main():
         
         for c in simconfig.post:
             print 'calling "{0}"'.format(c)
-            subprocess.call(c)
+            subprocess.call(c,shell=True)
         
         #raw_input("Done. Press Enter to exit.")
         
