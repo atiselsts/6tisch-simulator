@@ -23,5 +23,7 @@ def test_create_linear_topology(settings):
     assert isinstance(Topology.Topology([]), Topology.LinearTopology)
 
 def test_create_trace_topology(settings):
-    settings(**{'topology': 'trace'})
+    settings(**{'topology': 'trace',
+                'propagation': 'propagation',
+                'trace': 'traces/grenoble.k7'})
     assert isinstance(Topology.Topology([]), Topology.TraceTopology)
