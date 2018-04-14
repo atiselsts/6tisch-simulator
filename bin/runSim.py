@@ -35,9 +35,11 @@ import math
 import multiprocessing
 import argparse
 
-from SimEngine     import SimEngine,   \
-                          SimSettings, \
-                          SimStats
+from SimEngine import SimEngine,   \
+                      SimSettings, \
+                      SimStats, \
+                      Topology, \
+                      sf
 
 #============================ helpers =========================================
 
@@ -80,8 +82,8 @@ def parseCliOptions():
     parser.add_argument('--topology',
                       dest='topology',
                       type=str,
-                      choices=['random', 'linear'],
-                      default='random',
+                      choices=Topology.TOPOLOGY_SHAPES,
+                      default=Topology.DEFAULT_TOPOLOGY,
                       help='[topology] Specify a topology creator to be used',
                       )
     parser.add_argument('--numMotes',
@@ -221,25 +223,19 @@ def parseCliOptions():
                       help='[rpl] DAO period (s).',
                       )
     # msf
-    parser.add_argument('--disableMSF',
-                      dest='disableMSF',
-                      action='store_true',
-                      default=False,
-                      help='[msf] Disable MSF.',
-                      )
     parser.add_argument('--msfHousekeepingPeriod',
-                      dest='msfHousekeepingPeriod',
-                      type=float,
-                      default=60.0,
-                      help='[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
-                      )
+                        dest='msfHousekeepingPeriod',
+                        type=float,
+                        default=sf.MSF.MSFHOUSEKEEPINGPERIOD,
+                        help='[msf] MSF HOUSEKEEPINGCOLLISION_PERIOD parameter (s).',
+                        )
     parser.add_argument('--msfMaxNumCells',
-                      dest='msfMaxNumCells',
-                      nargs='+',
-                      type=int,
-                      default=16,
-                      help='[msf] MSF MAX_NUMCELLS parameter.',
-                      )
+                        dest='msfMaxNumCells',
+                        nargs='+',
+                        type=int,
+                        default=sf.MSF.MSFMAXNUMCELLS,
+                        help='[msf] MSF MAX_NUMCELLS parameter.',
+                        )
     parser.add_argument('--msfLimNumCellsUsedHIGH',
                       dest='msfLimNumCellsUsedHigh',
                       nargs='+',
@@ -317,6 +313,19 @@ def parseCliOptions():
                       default=0.33,
                       help='[tsch] DIO probability with Bayesian broadcast algorithm.',
                       )
+    # schedule
+    parser.add_argument('--schedulingFunction',
+                        dest='scheduling_function',
+                        choices=sf.SCHEDULING_FUNCTIONS,
+                        default=sf.DEFAULT_SCHEDULING_FUNCTION,
+                        help='[schedule] Scheduling function to use.',
+                        )
+    parser.add_argument('--ssfInitMethod',
+                        dest='ssf_init_method',
+                        choices=['first', 'random-pick'],
+                        default='first',
+                        help='[schedule] Init method for Static Scheduling Functions',
+                        )
     # phy
     parser.add_argument('--numChans',
                       dest='numChans',
@@ -336,20 +345,6 @@ def parseCliOptions():
                       type=int,
                       default=0,
                       help='[phy] Disable interference model.',
-                      )
-    # linear-topology specific
-    parser.add_argument('--linearTopologyStaticScheduling',
-                      dest='linearTopologyStaticScheduling',
-                      type=bool,
-                      default=False,
-                      help='[topology] Enable a static scheduling in LinearTopology',
-                      )
-    parser.add_argument('--schedulingMode',
-                      dest='schedulingMode',
-                      type=str,
-                      choices=['static', 'random-pick'],
-                      default=None,
-                      help='[topology] Specify scheduling mode',
                       )
 
     options        = parser.parse_args()

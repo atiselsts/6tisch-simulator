@@ -6,12 +6,7 @@
 
 import types
 
-import pytest
-
-import SimEngine.SimEngine as SimEngine
-import SimEngine.SimSettings as SimSettings
 import SimEngine.Mote as Mote
-
 
 def test_app_schedule_transmit(sim):
 
@@ -21,9 +16,9 @@ def test_app_schedule_transmit(sim):
                  'dioPeriod': 0,
                  'daoPeriod': 0,
                  'topology': 'linear',
-                 'disableMSF': True})
+                 'scheduling_function': "SSF-cascading"})
     node = sim.motes[1]
-   # active TX cell event for node, active RX cell event for root, and
+    # active TX cell event for node, active RX cell event for root, and
     # propagation event
     assert len(sim.events) == 3
     node.pkPeriod = 100
@@ -33,25 +28,9 @@ def test_app_schedule_transmit(sim):
     assert sim.events[3][2] == node._app_action_sendSinglePacket
 
 
-@pytest.fixture(scope="function")
-def params(request):
-    params = {}
-    params['numMotes'] = 10
-    params['pkPeriod'] = 60
-    params['pkPeriodVar'] = 0.1
-    params['minRssi'] = 0
-    params['withJoin'] = False
-    params['slotframeLength'] = 101
-    params['slotDuration'] = 0.010
-    params['bayesianBroadcast'] = False
-    params['numCyclesPerRun'] = 101
-    params['topology'] = 'linear'
-    return params
-
-
 def test_drop_join_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'joinAttemptTimeout': 0})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -83,7 +62,7 @@ def test_drop_join_packet_tx_queue_full(sim):
 
 def test_drop_data_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -114,7 +93,7 @@ def test_drop_data_packet_tx_queue_full(sim):
 
 def test_drop_frag_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -144,7 +123,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
 
 def test_drop_app_ack_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'downwardAcks': True})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -174,7 +153,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
 
 def test_drop_eb_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -205,7 +184,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
 def test_drop_dio_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -236,7 +215,7 @@ def test_drop_dio_packet_tx_queue_full(sim):
 
 def test_drop_dao_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -267,7 +246,7 @@ def test_drop_dao_packet_tx_queue_full(sim):
 
 def test_drop_sixtop_request_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -303,7 +282,7 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
 def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -334,7 +313,7 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
 
 def test_drop_forwarding_frag_tx_queue_full(sim):
     sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numFragments': 2, 'enableFragmentForwarding': True,})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -369,7 +348,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
 
 def test_drop_forwarding_frag_vrb_table_full(sim):
     sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numFragments': 2, 'enableFragmentForwarding': True})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -400,7 +379,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
 
 def test_drop_forwarding_frag_no_vrb_entry(sim):
     sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numFragments': 2, 'enableFragmentForwarding': True})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -426,7 +405,7 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
 
 def test_drop_forwarding_data_tx_queue_full(sim):
     sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading'})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -459,7 +438,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
 def test_drop_frag_reassembly_queue_full(sim):
     sim = sim(**{'numMotes': 4, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numReassQueue': 1, 'numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
@@ -495,7 +474,7 @@ def test_drop_frag_reassembly_queue_full(sim):
 
 def test_drop_frag_too_big_for_reassembly_queue(sim):
     sim = sim(**{'numMotes': 4, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
+                 'topology': 'linear', 'scheduling_function': 'SSF-cascading',
                  'numReassQueue': 1, 'numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
