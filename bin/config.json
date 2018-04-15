@@ -45,7 +45,7 @@
             "tsch_slotframeLength":         101,
             "tsch_ebPeriod_sec":            2,
             "tsch_probBcast_enabled":       1,
-            "beaconProbability":            0.33,
+            "tsch_probBcast_ebProb":        0.33,
             "dioProbability":               0.33,
             
             "top_type":                     "random",

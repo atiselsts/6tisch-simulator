@@ -708,7 +708,7 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.tsch_probBcast_enabled:
-                beaconProb = float(self.settings.beaconProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.beaconProbability)
+                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_ebProb)
                 sendBeacon = True if random.random() < beaconProb else False
             else:
                 sendBeacon = True
