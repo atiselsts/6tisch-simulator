@@ -3,7 +3,7 @@ import SimEngine.Mote as Mote
 def test_linear_symmetric_schedule_1(sim):
 
     sim = sim(**{'numMotes':3,
-                 'scheduling_function': 'SSF-symmetric',
+                 'sf_type': 'SSF-symmetric',
                  'top_type': 'linear'})
     motes = sim.motes
 
@@ -45,7 +45,7 @@ def test_linear_symmetric_schedule_1(sim):
 def test_linear_symmetric_schedule_2(sim):
 
     sim = sim(**{'numMotes':8,
-                 'scheduling_function': 'SSF-symmetric',
+                 'sf_type': 'SSF-symmetric',
                  'top_type': 'linear'})
     motes = sim.motes
 
@@ -103,7 +103,7 @@ def test_linear_symmetric_schedule_2(sim):
 def test_linear_cascading_schedule_installation(sim):
     sim = sim(**{'numMotes': 8,
                  'top_type': 'linear',
-                 'scheduling_function': 'SSF-cascading'})
+                 'sf_type': 'SSF-cascading'})
     motes = sim.motes
 
     assert motes[7].schedule[1]['ch'] == 0
@@ -312,7 +312,7 @@ def test_linear_cascading_schedule_installation(sim):
 def test_two_branch_symmetric_schedule_installation(sim):
     sim = sim(**{'numMotes':7,
                  'top_type': 'twoBranch',
-                 'scheduling_function': 'SSF-symmetric'})
+                 'sf_type': 'SSF-symmetric'})
     motes = sim.motes
 
     assert motes[4].schedule[1]['ch'] == 0
@@ -363,7 +363,7 @@ def test_two_branch_cascading_schedule_installation_1(sim):
     # un-event tree
     sim = sim(**{'numMotes':7,
                  'top_type': 'twoBranch',
-                 'scheduling_function': 'SSF-cascading'})
+                 'sf_type': 'SSF-cascading'})
     motes = sim.motes
 
     assert motes[6].schedule[1]['ch'] == 0
@@ -482,7 +482,7 @@ def test_two_branch_cascading_schedule_installation_2(sim):
     # even tree
     sim = sim(**{'numMotes':8,
                  'top_type': 'twoBranch',
-                 'scheduling_function': 'SSF-cascading'})
+                 'sf_type': 'SSF-cascading'})
     motes = sim.motes
 
     assert motes[7].schedule[1]['ch'] == 0
@@ -629,14 +629,14 @@ def test_two_branch_cascading_schedule_installation(sim):
     # even tree *without* random pick
     sim1 = sim(**{
         'top_type': 'twoBranch',
-        'scheduling_function': 'SSF-cascading'})
+        'sf_type': 'SSF-cascading'})
 
     motes1 = sim1.motes
     sim1.destroy()
 
     sim2 = sim(**{
         'top_type': 'twoBranch',
-        'scheduling_function': 'SSF-cascading'})
+        'sf_type': 'SSF-cascading'})
     motes2 = sim2.motes
 
     assert len(motes1) == len(motes2)
@@ -665,13 +665,13 @@ def test_two_branch_cascading_schedule_installation(sim):
 def test_two_branch_cascading_schedule_installation_4(sim):
     # even tree with random pick
     sim1 = sim(**{'top_type': 'twoBranch',
-                  'scheduling_function': 'SSF-cascading',
+                  'sf_type': 'SSF-cascading',
                   'ssf_init_method': 'random-pick'})
     motes1 = sim1.motes
     sim1.destroy()
 
     sim2 = sim(**{'top_type': 'twoBranch',
-                  'scheduling_function': 'SSF-cascading',
+                  'sf_type': 'SSF-cascading',
                   'ssf_init_method': 'random-pick'})
     motes2 = sim2.motes
 

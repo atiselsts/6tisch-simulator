@@ -21,7 +21,7 @@ class TestNumFragmentsVsTxQueue:
         m = sim(**{'frag_numFragments': test_input,
                    'numMotes': 2,
                    'top_type': 'linear',
-                   'scheduling_function': 'SSF-symmetric'}).motes[1]
+                   'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
         m._app_action_enqueueData()
         assert len(m.txQueue) == expected
@@ -33,7 +33,7 @@ class TestFragmentation:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 2,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -87,7 +87,7 @@ class TestFragmentation:
         sim = sim(**{'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
 
         root = sim.motes[0]
         node = sim.motes[1]
@@ -160,7 +160,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -202,7 +202,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -244,7 +244,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 2,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf = sim.motes[1]
         packet = {
@@ -269,7 +269,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 4,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -304,7 +304,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 4,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric',
+                     'sf_type': 'SSF-symmetric',
                      'frag_ph_numReassBuffs': 1})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -344,7 +344,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 4,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric',
+                     'sf_type': 'SSF-symmetric',
                      'frag_ph_numReassBuffs': 2})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -384,7 +384,7 @@ class TestReassembly:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf1 = sim.motes[1]
         leaf2 = sim.motes[2]
@@ -421,7 +421,7 @@ class TestPacketFowarding:
         params = {'frag_numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
+                  'sf_type': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
                   'app_e2eAck': False}
@@ -463,7 +463,7 @@ class TestPacketFowarding:
         params = {'frag_numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'scheduling_function': 'SSF-cascading',
+                  'sf_type': 'SSF-cascading',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
                   'app_e2eAck': False}
@@ -534,7 +534,7 @@ class TestDatagramTag:
         sim = sim(**{'frag_numFragments': 2,
                      'numMotes': 2,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-cascading'})
+                     'sf_type': 'SSF-cascading'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {

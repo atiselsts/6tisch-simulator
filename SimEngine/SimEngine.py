@@ -83,7 +83,7 @@ class SimEngine(threading.Thread):
         self.topology.createTopology()
 
         # init schedule
-        sf.init(self.topology, self.settings.scheduling_function)
+        sf.init(self.topology, self.settings.sf_type)
 
         # boot all motes
         for i in range(len(self.motes)):

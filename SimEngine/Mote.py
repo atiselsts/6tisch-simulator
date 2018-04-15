@@ -156,7 +156,7 @@ class Mote(object):
         self.engine                    = SimEngine.SimEngine()
         self.settings                  = SimSettings.SimSettings()
         self.propagation               = Propagation.Propagation()
-        self.sf                        = Sf.get_sf(self.settings.scheduling_function)
+        self.sf                        = Sf.get_sf(self.settings.sf_type)
 
         # join process
         self.isJoined                  = False

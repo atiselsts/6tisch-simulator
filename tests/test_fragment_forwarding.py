@@ -26,7 +26,7 @@ class TestNumFragmentsVsTxQueue:
                    'frag_numFragments': test_input,
                    'numMotes': 2,
                    'top_type': 'linear',
-                   'scheduling_function': 'SSF-symmetric'}).motes[1]
+                   'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
         m._app_action_enqueueData()
         assert len(m.txQueue) == expected
@@ -38,7 +38,7 @@ class TestFragmentForwarding:
                      'frag_numFragments': 2,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -68,7 +68,7 @@ class TestFragmentForwarding:
                      'frag_numFragments': 2,
                      'numMotes': 5,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -107,7 +107,7 @@ class TestFragmentForwarding:
                      'frag_numFragments': 2,
                      'numMotes': 2,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf = sim.motes[1]
         packet = {
@@ -146,7 +146,7 @@ class TestFragmentation:
                      'frag_numFragments': 2,
                      'numMotes': 2,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -273,7 +273,7 @@ class TestReassembly:
                      'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -316,7 +316,7 @@ class TestReassembly:
                      'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -402,7 +402,7 @@ class TestPacketFowarding:
                   'frag_numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
+                  'sf_type': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
                   'app_e2eAck': False}
@@ -602,7 +602,7 @@ class TestDatagramTag:
                   'frag_numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
+                  'sf_type': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
                   'app_e2eAck': False}
@@ -661,7 +661,7 @@ class TestDatagramTag:
                   'frag_numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
+                  'sf_type': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
                   'app_e2eAck': False}

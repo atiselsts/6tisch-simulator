@@ -24,7 +24,7 @@ def sim(request):
             'top_type': Topology.DEFAULT_TOPOLOGY,
 
             # prerequisite parameters for Schedule
-            'scheduling_function': sf.DEFAULT_SCHEDULING_FUNCTION,
+            'sf_type': sf.DFLT_SF,
             'msfHousekeepingPeriod': 60,
             'msfMaxNumCells': 16,
             'msfLimNumCellsUsedHigh': 12,
