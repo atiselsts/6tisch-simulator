@@ -28,7 +28,7 @@ class TestNumFragmentsVsTxQueue:
                    'top_type': 'linear',
                    'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
-        m._app_action_enqueueData()
+        m._app_action_mote_enqueueDataForDAGroot()
         assert len(m.txQueue) == expected
 
 
@@ -412,9 +412,9 @@ class TestPacketFowarding:
         hop2 = sim.motes[2]
 
         hop2.pkPeriod = one_second
-        hop2._app_schedule_sendSinglePacket(firstPacket=True)
+        hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
         assert len(sim.events) == 5
-        assert sim.events[4][2] == hop2._app_action_sendSinglePacket
+        assert sim.events[4][2] == hop2._app_action_mote_sendSinglePacketToDAGroot
 
         cb = None
         asn0 = sim.asn
@@ -422,10 +422,10 @@ class TestPacketFowarding:
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             sim.asn = asn
 
-            if cb == hop2._app_action_sendSinglePacket:
+            if cb == hop2._app_action_mote_sendSinglePacketToDAGroot:
                 # not let the mote schedule another transmission
                 hop2.pkPeriod = 0
-                hop2._app_schedule_sendSinglePacket(firstPacket=True)
+                hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
                 break
             else:
                 cb(**kwargs)
@@ -433,9 +433,9 @@ class TestPacketFowarding:
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
-        # make sure there are two fragments added by _app_action_sendSinglePacket
+        # make sure there are two fragments added by _app_action_mote_sendSinglePacketToDAGroot
         assert len(hop2.txQueue) == 0
-        hop2._app_action_sendSinglePacket()
+        hop2._app_action_mote_sendSinglePacketToDAGroot()
         assert len(hop2.txQueue) == 2
 
         asn0 = sim.asn
