@@ -54,7 +54,6 @@ Simulated protocol stack
    ```
 1. Install the Python dependencies:
    `cd simulator` and `pip install -r requirements.txt`
-
 1. Move down to `bin` directory:
    ```
    $ cd bin
@@ -65,7 +64,7 @@ Simulated protocol stack
    ```
     * raw output data is in `bin/simData/`.
     * raw charts is in `bin/simPlots/`.
-* Take a look at `bin/config.json` to see the configuration of the simulations you just ran.
+1. Take a look at `bin/config.json` to see the configuration of the simulations you just ran.
 
 ## Code Organization
 
