@@ -14,7 +14,7 @@ def test_app_schedule_transmit(sim):
         **{
             'numMotes':                2,
             'app_pkPeriod':            0,
-            'beaconPeriod':            0,
+            'tsch_ebPeriod_sec':       0,
             'rpl_dioPeriod':           0,
             'rpl_daoPeriod':           0,
             'top_type':                'linear',
