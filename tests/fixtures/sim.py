@@ -28,7 +28,7 @@ def sim(request):
             'sf_msf_housekeepingPeriod': 60,
             'sf_msf_maxNumCells': 16,
             'sf_msf_highUsageThres': 12,
-            'msfLimNumCellsUsedLow': 4,
+            'sf_msf_lowUsageThres': 4,
             'msfNumCellsToAddOrRemove': 1,
 
             # prerequisite parameters for Propagation

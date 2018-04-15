@@ -228,7 +228,7 @@ class MSF(SchedulingFunction):
         else:
             self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
         self.highUsageThres = self.settings.sf_msf_highUsageThres
-        self.msfLimNumCellsUsedLow = self.settings.msfLimNumCellsUsedLow
+        self.lowUsageThres = self.settings.sf_msf_lowUsageThres
         self.msfNumCellsToAddOrRemove = self.settings.msfNumCellsToAddOrRemove
 
     def schedule_parent_change(self, mote):
@@ -353,7 +353,7 @@ class MSF(SchedulingFunction):
 
                 if mote.numCellsUsed > self.highUsageThres:
                     self.schedule_bandwidth_increment(mote)
-                elif mote.numCellsUsed < self.msfLimNumCellsUsedLow:
+                elif mote.numCellsUsed < self.lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
                 self.reset_counters(mote)
 
