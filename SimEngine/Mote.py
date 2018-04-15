@@ -803,7 +803,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDIO(self, firstDIO=False):
 
-        if (not hasattr(self.settings, 'dioPeriod')) or self.settings.dioPeriod == 0:
+        if (not hasattr(self.settings, 'rpl_dioPeriod')) or self.settings.rpl_dioPeriod == 0:
             # disable DIO
             return
 
@@ -815,7 +815,7 @@ class Mote(object):
                 futureAsn = int(self.settings.slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / self.settings.slotDuration))
+                    random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(

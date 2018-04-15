@@ -12,27 +12,20 @@
             "exec_simDataDir":              "simData",
             "exec_numSlotframesPerRun":     101,
             
-            "top_type":                     "random",
-            "top_squareSide":               2.000,
-            "top_fullyMeshed":              0,
-            
-            "prop_type":                    "pisterhack",
-            "prop_trace":                   null,
-            
             "app_pkPeriod":                 10,
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
             "app_burstNumPackets":          null,
             "app_e2eAck":                   0,
             
+            "rpl_dioPeriod":                10,
+            "daoPeriod":                    60,
+            
             "numFragments":                 null,
             "enableFragmentForwarding":     false,
             "optFragmentForwarding":        null,
             "maxVRBEntryNum":               8,
             "numReassQueue":                1,
-            
-            "dioPeriod":                    10,
-            "daoPeriod":                    60,
             
             "msfHousekeepingPeriod":        60.0,
             "msfMaxNumCells":               16,
@@ -56,6 +49,12 @@
             "bayesianBroadcast":            1,
             "beaconProbability":            0.33,
             "dioProbability":               0.33,
+            
+            "top_type":                     "random",
+            "top_squareSide":               2.000,
+            "top_fullyMeshed":              0,
+            "prop_type":                    "pisterhack",
+            "prop_trace":                   null,
             
             "numChans":                     16,
             "minRssi":                      -97,

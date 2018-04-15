@@ -13,9 +13,9 @@ def test_app_schedule_transmit(sim):
     sim = sim(
         **{
             'numMotes':                2,
-            'app_pkPeriod':                0,
+            'app_pkPeriod':            0,
             'beaconPeriod':            0,
-            'dioPeriod':               0,
+            'rpl_dioPeriod':           0,
             'daoPeriod':               0,
             'top_type':                'linear',
             'scheduling_function':     "SSF-cascading"
