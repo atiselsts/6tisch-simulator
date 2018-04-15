@@ -69,14 +69,20 @@ Simulated protocol stack
 ## Code Organization
 
 * `bin/`: the scripts for you to run
+* `example/`: example plots, shown in the documentation
 * `SimEngine/`: the simulator
     * `Mote.py`: Models a 6TiSCH mote running the different standards listed above.
     * `Propagation.py`: Wireless propagation model.
+    * `sf.py`: The scheduling function.
+    * `SimConfig.py`: The overall configuration of running a simulation campaign.
     * `SimEngine.py`: Event-driven simulation engine at the core of this simulator.
-    * `SimSettings.py`: Data store for all simulation settings.
+    * `SimSettings.py`: The settings of a single simulation, part of a simulation campaign.
     * `SimStats.py`: Periodically collects statistics and writes those to a file.
     * `Topology.py`: creates a topology of the motes in the network.
 * `SimGui/`: the graphical user interface to the simulator
+* `tests/`: the unit tests, run using `pytest`
+* `traces/`: example `k7` connectivity traces
+
 
 ## About 6TiSCH
 
