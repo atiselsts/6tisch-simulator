@@ -17,6 +17,7 @@ def sim(request):
             'exec_numMotes':                15,
             
             'app_pkPeriod':                 0,
+            'app_burstNumPackets':          0,
             
             'rpl_dioPeriod':                0,
             'rpl_daoPeriod':                0,
@@ -33,6 +34,7 @@ def sim(request):
             'sf_msf_highUsageThres':        12,
             'sf_msf_lowUsageThres':         4,
             'sf_msf_numCellsToAddRemove':   1,
+            'sf_ssf_initMethod':            None,
             
             'secjoin_enabled':              False,
             

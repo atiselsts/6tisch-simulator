@@ -666,13 +666,13 @@ def test_two_branch_cascading_schedule_installation_4(sim):
     # even tree with random pick
     sim1 = sim(**{'top_type': 'twoBranch',
                   'sf_type': 'SSF-cascading',
-                  'ssf_init_method': 'random-pick'})
+                  'sf_ssf_initMethod': 'random-pick'})
     motes1 = sim1.motes
     sim1.destroy()
 
     sim2 = sim(**{'top_type': 'twoBranch',
                   'sf_type': 'SSF-cascading',
-                  'ssf_init_method': 'random-pick'})
+                  'sf_ssf_initMethod': 'random-pick'})
     motes2 = sim2.motes
 
     assert len(motes1) == len(motes2)

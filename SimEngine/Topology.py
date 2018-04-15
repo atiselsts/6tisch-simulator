@@ -41,26 +41,28 @@ class Topology(object):
 
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'top_type'):
-            if   settings.top_type == 'linear':
-                return LinearTopology(motes)
-            elif settings.top_type == 'twoBranch':
-                return TwoBranchTopology(motes)
-            elif settings.top_type == 'trace':
-                return TraceTopology(motes, settings.prop_trace)
-        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
+        if   settings.top_type == 'linear':
+            return LinearTopology(motes)
+        elif settings.top_type == 'twoBranch':
+            return TwoBranchTopology(motes)
+        elif settings.top_type == 'trace':
+            return TraceTopology(motes, settings.prop_trace)
+        elif settings.top_type == 'random':
             return RandomTopology(motes)
+        else:
+            raise SystemError()
 
     @classmethod
     def rssiToPdr(cls, rssi):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'top_type'):
-            if settings.top_type == 'linear':
-                return LinearTopology.rssiToPdr(rssi)
-            elif settings.top_type == 'twoBranch':
-                return TwoBranchTopology.rssiToPdr(rssi)
-        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
+        if   settings.top_type   == 'linear':
+            return LinearTopology.rssiToPdr(rssi)
+        elif settings.top_type == 'twoBranch':
+            return TwoBranchTopology.rssiToPdr(rssi)
+        elif settings.top_type == 'random':
             return RandomTopology.rssiToPdr(rssi)
+        else:
+            raise SystemError()
 
 
 class TopologyCreator:
@@ -252,22 +254,21 @@ class RandomTopology(TopologyCreator):
         minRssi = min(rssiPdrTable.keys())
         maxRssi = max(rssiPdrTable.keys())
 
-        if rssi < minRssi:
+        if  rssi < minRssi:
             pdr = 0.0
         elif rssi > maxRssi:
             pdr = 1.0
         else:
             floorRssi = int(math.floor(rssi))
-            pdrLow = rssiPdrTable[floorRssi]
-            pdrHigh = rssiPdrTable[floorRssi+1]
+            pdrLow    = rssiPdrTable[floorRssi]
+            pdrHigh   = rssiPdrTable[floorRssi+1]
             # linear interpolation
-            pdr = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
+            pdr       = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
 
         assert pdr >= 0.0
         assert pdr <= 1.0
 
         return pdr
-
 
 class LinearTopology(TopologyCreator):
 
@@ -505,8 +506,7 @@ class TwoBranchTopology(TopologyCreator):
         for mote in self.motes[::-1]: # loop in the reverse order
             child = mote
             while child and child.preferredParent:
-                if (hasattr(self.settings, 'schedulingMode') and
-                   self.settings.schedulingMode == 'random-pick'):
+                if self.settings.top_schedulingMode == 'random-pick':
                     if 'alloc_table' not in locals():
                         alloc_table = set()
 
