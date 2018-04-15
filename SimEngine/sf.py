@@ -216,7 +216,6 @@ class MSF(SchedulingFunction):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
         
-        self.highUsageThres = self.settings.sf_msf_highUsageThres
         self.lowUsageThres = self.settings.sf_msf_lowUsageThres
         self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
 
@@ -340,7 +339,7 @@ class MSF(SchedulingFunction):
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
-                if mote.numCellsUsed > self.highUsageThres:
+                if   mote.numCellsUsed > self.settings.sf_msf_highUsageThres:
                     self.schedule_bandwidth_increment(mote)
                 elif mote.numCellsUsed < self.lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
