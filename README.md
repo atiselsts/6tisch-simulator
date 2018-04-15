@@ -63,7 +63,7 @@ Simulated protocol stack
    $ python runSim.py
    ```
     * raw output data is in `bin/simData/`.
-    * raw charts is in `bin/simPlots/`.
+    * raw charts are in `bin/simPlots/`.
 1. Take a look at `bin/config.json` to see the configuration of the simulations you just ran.
 
 ## Code Organization
