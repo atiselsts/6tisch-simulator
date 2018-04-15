@@ -28,12 +28,12 @@ class TestNumFragmentsVsTxQueue:
                    'top_type': 'linear',
                    'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
-        m._app_action_enqueueData()
+        m._app_action_mote_enqueueDataForDAGroot()
         assert len(m.txQueue) == expected
 
 
 class TestFragmentForwarding:
-    def test_app_is_frag_to_forward_frag_order(self, sim):
+    def test_app_frag_ff_forward_fragment_frag_order(self, sim):
         sim = sim(**{'frag_ff_enable': True,
                      'frag_numFragments': 2,
                      'exec_numMotes': 3,
@@ -59,10 +59,10 @@ class TestFragmentForwarding:
         frag0 = leaf.txQueue[0]
         frag1 = leaf.txQueue[1]
 
-        assert node._app_is_frag_to_forward(frag1) is False
-        assert node._app_is_frag_to_forward(frag0) is True
+        assert node._app_frag_ff_forward_fragment(frag1) is False
+        assert node._app_frag_ff_forward_fragment(frag0) is True
 
-    def test_app_is_frag_to_forward_vrbtable_len(self, sim):
+    def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim):
         # no size limit for vrbtable
         sim = sim(**{'frag_ff_enable': True,
                      'frag_numFragments': 2,
@@ -96,13 +96,13 @@ class TestFragmentForwarding:
         packet['smac'] = leaf3
         leaf3._app_frag_packet(packet)
 
-        assert node._app_is_frag_to_forward(leaf1.txQueue[0]) is True
-        assert node._app_is_frag_to_forward(leaf2.txQueue[0]) is True
-        assert node._app_is_frag_to_forward(leaf3.txQueue[0]) is True
+        assert node._app_frag_ff_forward_fragment(leaf1.txQueue[0]) is True
+        assert node._app_frag_ff_forward_fragment(leaf2.txQueue[0]) is True
+        assert node._app_frag_ff_forward_fragment(leaf3.txQueue[0]) is True
         leaf1.txQueue[0]['payload'][3]['datagram_tag'] += 1
-        assert node._app_is_frag_to_forward(leaf1.txQueue[0]) is True
+        assert node._app_frag_ff_forward_fragment(leaf1.txQueue[0]) is True
 
-    def test_app_is_frag_to_forward_vrbtable_expiration(self, sim):
+    def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim):
         sim = sim(**{'frag_ff_enable': True,
                      'frag_numFragments': 2,
                      'exec_numMotes': 2,
@@ -128,15 +128,15 @@ class TestFragmentForwarding:
         itag = frag0['payload'][3]['datagram_tag']
 
         sim.asn = 100
-        root._app_is_frag_to_forward(frag0)
+        root._app_frag_ff_forward_fragment(frag0)
         assert root.vrbTable[leaf][itag]['ts'] == 100
 
         sim.asn += (60 / sim.settings.tsch_slotDuration)
-        root._app_is_frag_to_forward(frag0) # duplicate
+        root._app_frag_ff_forward_fragment(frag0) # duplicate
         assert itag in root.vrbTable[leaf]
 
         sim.asn += 1
-        root._app_is_frag_to_forward(frag1)
+        root._app_frag_ff_forward_fragment(frag1)
         assert leaf not in root.vrbTable
 
 
@@ -296,19 +296,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
-        assert root._app_reass_packet(node, frag2['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is True
         assert node not in root.reassQueue
 
     def test_app_reass_packet_out_of_order(self, sim):
@@ -338,19 +338,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag2['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2]}
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is True
         assert node not in root.reassQueue
 
 
@@ -412,9 +412,9 @@ class TestPacketFowarding:
         hop2 = sim.motes[2]
 
         hop2.pkPeriod = one_second
-        hop2._app_schedule_sendSinglePacket(firstPacket=True)
+        hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
         assert len(sim.events) == 5
-        assert sim.events[4][2] == hop2._app_action_sendSinglePacket
+        assert sim.events[4][2] == hop2._app_action_mote_sendSinglePacketToDAGroot
 
         cb = None
         asn0 = sim.asn
@@ -422,10 +422,10 @@ class TestPacketFowarding:
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             sim.asn = asn
 
-            if cb == hop2._app_action_sendSinglePacket:
+            if cb == hop2._app_action_mote_sendSinglePacketToDAGroot:
                 # not let the mote schedule another transmission
                 hop2.pkPeriod = 0
-                hop2._app_schedule_sendSinglePacket(firstPacket=True)
+                hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
                 break
             else:
                 cb(**kwargs)
@@ -433,9 +433,9 @@ class TestPacketFowarding:
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
-        # make sure there are two fragments added by _app_action_sendSinglePacket
+        # make sure there are two fragments added by _app_action_mote_sendSinglePacketToDAGroot
         assert len(hop2.txQueue) == 0
-        hop2._app_action_sendSinglePacket()
+        hop2._app_action_mote_sendSinglePacketToDAGroot()
         assert len(hop2.txQueue) == 2
 
         asn0 = sim.asn
@@ -526,10 +526,10 @@ class TestPacketFowarding:
         for i in range(0, 10):
             frag['smac'] = i
             frag['payload'][3]['datagram_tag'] = i
-            assert hop1._app_is_frag_to_forward(frag) is True
+            assert hop1._app_frag_ff_forward_fragment(frag) is True
         frag['smac'] += 1
         frag['payload'][3]['datagram_tag'] += 1
-        assert hop1._app_is_frag_to_forward(frag) is False
+        assert hop1._app_frag_ff_forward_fragment(frag) is False
 
     def test_vrb_table_size_limit_2(self, sim):
         params = {'frag_ff_enable': True,
@@ -553,10 +553,10 @@ class TestPacketFowarding:
         for i in range(0, params['frag_ff_vrbtablesize']):
             frag['smac'] = i
             frag['payload'][3]['datagram_tag'] = i
-            assert hop1._app_is_frag_to_forward(frag) is True
+            assert hop1._app_frag_ff_forward_fragment(frag) is True
         frag['smac'] += 1
         frag['payload'][3]['datagram_tag'] += 1
-        assert hop1._app_is_frag_to_forward(frag) is False
+        assert hop1._app_frag_ff_forward_fragment(frag) is False
 
 class TestDatagramTag:
     def test_tag_on_its_fragments_1(self, sim):
@@ -743,13 +743,13 @@ class TestOptimization:
 
         assert len(node.vrbTable) == 0
 
-        assert node._app_is_frag_to_forward(frag0) is True
-        assert node._app_is_frag_to_forward(frag3) is True
+        assert node._app_frag_ff_forward_fragment(frag0) is True
+        assert node._app_frag_ff_forward_fragment(frag3) is True
         sim.asn += (60 / sim.settings.tsch_slotDuration)
-        assert node._app_is_frag_to_forward(frag1) is True
+        assert node._app_frag_ff_forward_fragment(frag1) is True
         sim.asn += 1
         # VRB Table entry expires
-        assert node._app_is_frag_to_forward(frag2) is False
+        assert node._app_frag_ff_forward_fragment(frag2) is False
 
     def test_remove_vrb_table_entry_on_last_frag(self, sim):
         sim = sim(**{'frag_ff_enable': True,
@@ -778,10 +778,10 @@ class TestOptimization:
 
         assert len(node.vrbTable) == 0
 
-        assert node._app_is_frag_to_forward(frag0) is True
-        assert node._app_is_frag_to_forward(frag2) is True
+        assert node._app_frag_ff_forward_fragment(frag0) is True
+        assert node._app_frag_ff_forward_fragment(frag2) is True
         # the VRB entry is removed by frag2 (last)
-        assert node._app_is_frag_to_forward(frag1) is False
+        assert node._app_frag_ff_forward_fragment(frag1) is False
 
     def test_remove_vrb_table_entry_on_missing_frag(self, sim):
         sim = sim(**{'frag_ff_enable': True,
@@ -811,11 +811,11 @@ class TestOptimization:
 
         assert len(node.vrbTable) == 0
 
-        assert node._app_is_frag_to_forward(frag0) is True
+        assert node._app_frag_ff_forward_fragment(frag0) is True
         # frag2 afterb frag0 indicates frag1 is missing
-        assert node._app_is_frag_to_forward(frag2) is False
-        assert node._app_is_frag_to_forward(frag1) is False
-        assert node._app_is_frag_to_forward(frag3) is False
+        assert node._app_frag_ff_forward_fragment(frag2) is False
+        assert node._app_frag_ff_forward_fragment(frag1) is False
+        assert node._app_frag_ff_forward_fragment(frag3) is False
 
     def test_remove_vrb_table_entry_on_last_and_missing(self, sim):
         sim = sim(**{'frag_ff_enable': True,
@@ -872,18 +872,18 @@ class TestOptimization:
 
         assert len(node.vrbTable) == 0
 
-        assert node._app_is_frag_to_forward(frag1_0) is True
-        assert node._app_is_frag_to_forward(frag1_1) is True
-        assert node._app_is_frag_to_forward(frag1_2) is True
-        assert node._app_is_frag_to_forward(frag1_3_1) is True
+        assert node._app_frag_ff_forward_fragment(frag1_0) is True
+        assert node._app_frag_ff_forward_fragment(frag1_1) is True
+        assert node._app_frag_ff_forward_fragment(frag1_2) is True
+        assert node._app_frag_ff_forward_fragment(frag1_3_1) is True
         # the VRB entry is removed by frag1_3_1 (last)
         frag1_3_2['smac'] = leaf
-        assert node._app_is_frag_to_forward(frag1_3_2) is False
+        assert node._app_frag_ff_forward_fragment(frag1_3_2) is False
         assert test_is_called['result'] is True
         node._radio_drop_packet = node.original_radio_drop_packet
 
-        assert node._app_is_frag_to_forward(frag2_0) is True
+        assert node._app_frag_ff_forward_fragment(frag2_0) is True
         # frag2 afterb frag0 indicates frag1 is missing
-        assert node._app_is_frag_to_forward(frag2_2) is False
-        assert node._app_is_frag_to_forward(frag2_1) is False
-        assert node._app_is_frag_to_forward(frag2_3) is False
+        assert node._app_frag_ff_forward_fragment(frag2_2) is False
+        assert node._app_frag_ff_forward_fragment(frag2_1) is False
+        assert node._app_frag_ff_forward_fragment(frag2_3) is False
