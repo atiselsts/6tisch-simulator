@@ -19,7 +19,7 @@
             "app_e2eAck":                   0,
             
             "rpl_dioPeriod":                10,
-            "daoPeriod":                    60,
+            "rpl_daoPeriod":                60,
             
             "numFragments":                 null,
             "enableFragmentForwarding":     false,

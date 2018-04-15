@@ -16,7 +16,7 @@ def test_app_schedule_transmit(sim):
             'app_pkPeriod':            0,
             'beaconPeriod':            0,
             'rpl_dioPeriod':           0,
-            'daoPeriod':               0,
+            'rpl_daoPeriod':           0,
             'top_type':                'linear',
             'scheduling_function':     "SSF-cascading"
         }
