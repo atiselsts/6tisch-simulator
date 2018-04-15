@@ -38,8 +38,8 @@
             "sixtop_removeRandomCell":      0,
             
             "secjoin_enabled":              0,
-            "joinNumExchanges":             2,
-            "joinAttemptTimeout":           60,
+            "secjoin_numExchanges":         2,
+            "secjoin_joinTimeout":          60,
             
             "slotDuration":                 0.010,
             "slotframeLength":              101,

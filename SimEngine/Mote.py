@@ -257,7 +257,7 @@ class Mote(object):
     # ===== join process
 
     def join_scheduleJoinProcess(self):
-        delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
+        delay = self.settings.slotDuration + self.settings.secjoin_joinTimeout * random.random()
 
         # schedule
         self.engine.scheduleIn(
@@ -302,7 +302,7 @@ class Mote(object):
         if not self.dagRoot:
             if self.preferredParent:
                 if not self.isJoined:
-                    self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+                    self.join_sendJoinPacket(token = self.settings.secjoin_numExchanges - 1, destination=self.dagRootAddress)
             else: # node doesn't have a parent yet, re-scheduling
                 self.join_scheduleJoinProcess()
 
@@ -342,7 +342,7 @@ class Mote(object):
             # schedule retransmission
             if not self.dagRoot:
                 self.engine.scheduleIn(
-                    delay=self.settings.slotDuration + self.settings.joinAttemptTimeout,
+                    delay=self.settings.slotDuration + self.settings.secjoin_joinTimeout,
                     cb=self.join_retransmitJoinPacket,
                     uniqueTag=(self.id, '_join_action_retransmission'),
                     priority=2,

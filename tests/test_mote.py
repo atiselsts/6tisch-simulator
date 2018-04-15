@@ -35,7 +35,7 @@ def test_app_schedule_transmit(sim):
 def test_drop_join_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'joinAttemptTimeout': 0})
+                 'secjoin_joinTimeout': 0})
     root = sim.motes[0]
     node = sim.motes[1]
 
