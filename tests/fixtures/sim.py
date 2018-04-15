@@ -29,7 +29,7 @@ def sim(request):
             'sf_msf_maxNumCells': 16,
             'sf_msf_highUsageThres': 12,
             'sf_msf_lowUsageThres': 4,
-            'msfNumCellsToAddOrRemove': 1,
+            'sf_msf_numCellsToAddRemove': 1,
 
             # prerequisite parameters for Propagation
             'prop_type': 'pisterhack',

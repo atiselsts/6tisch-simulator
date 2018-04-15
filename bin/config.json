@@ -32,7 +32,7 @@
             "sf_msf_maxNumCells":           16,
             "sf_msf_highUsageThres":        12,
             "sf_msf_lowUsageThres":         4,
-            "msfNumCellsToAddOrRemove":     1,
+            "sf_msf_numCellsToAddRemove":   1,
             
             "sixtopMessaging":              1,
             "sixtopRemoveRandomCell":       0,

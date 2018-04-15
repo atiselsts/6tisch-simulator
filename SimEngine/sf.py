@@ -229,7 +229,7 @@ class MSF(SchedulingFunction):
             self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
         self.highUsageThres = self.settings.sf_msf_highUsageThres
         self.lowUsageThres = self.settings.sf_msf_lowUsageThres
-        self.msfNumCellsToAddOrRemove = self.settings.msfNumCellsToAddOrRemove
+        self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
 
     def schedule_parent_change(self, mote):
         """
@@ -261,7 +261,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.msfNumCellsToAddOrRemove, celloptions,
+                        self.numCellsToAddRemove, celloptions,
                         mote.preferredParent.id, timeout))
 
             mote._sixtop_cell_reservation_request(
@@ -280,7 +280,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.oldPreferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.msfNumCellsToAddOrRemove, celloptions, mote.oldPreferredParent.id, timeout))
+                        self.numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
 
             mote._sixtop_removeCells(
                 mote.oldPreferredParent,
@@ -394,14 +394,14 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_increment(self, mote):
         """
-          Trigger 6P to add msfNumCellsToAddOrRemove cells to preferred parent
+          Trigger 6P to add numCellsToAddRemove cells to preferred parent
         """
         timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
         celloptions = Mote.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                 (self.msfNumCellsToAddOrRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
+                 (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
         mote._sixtop_cell_reservation_request(mote.preferredParent,
-                                              self.msfNumCellsToAddOrRemove,
+                                              self.numCellsToAddRemove,
                                               celloptions,
                                               timeout)
 
@@ -419,18 +419,18 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_decrement(self, mote):
         """
-          Trigger 6P to remove msfNumCellsToAddOrRemove cells from preferred parent
+          Trigger 6P to remove numCellsToAddRemove cells from preferred parent
         """
         # ensure at least one dedicated cell is kept with preferred parent
         if mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 1:
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
             celloptions = Mote.DIR_TXRX_SHARED
             log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                     (self.msfNumCellsToAddOrRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
+                     (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
 
-            # trigger 6p to remove msfNumCellsToAddOrRemove cells
+            # trigger 6p to remove numCellsToAddRemove cells
             mote._sixtop_removeCells(mote.preferredParent,
-                                     self.msfNumCellsToAddOrRemove,
+                                     self.numCellsToAddRemove,
                                      celloptions,
                                      timeout)
 
