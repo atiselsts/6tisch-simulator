@@ -212,7 +212,7 @@ class MSF(SchedulingFunction):
     MAX_TIMEOUT_EXP = 4
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
-    MSFMAXNUMCELLS = 16
+    DFLT_MSF_MAXNUMCELLS = 16
     DFLT_MSF_HOUSEKEEPINGPERIOD = 60.0
 
     def __init__(self):
@@ -223,10 +223,10 @@ class MSF(SchedulingFunction):
             self.housekeepingPeriod = self.settings.sf_msf_housekeepingPeriod
         else:
             self.housekeepingPeriod = self.DFLT_MSF_HOUSEKEEPINGPERIOD
-        if hasattr(self.settings, 'msfMaxNumCells'):
-            self.msfMaxNumCells = self.settings.msfMaxNumCells
+        if hasattr(self.settings, 'sf_msf_MaxNumCells'):
+            self.maxNumCells = self.settings.sf_msf_maxNumCells
         else:
-            self.msfMaxNumCells = self.MSFMAXNUMCELLS
+            self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
         self.msfLimNumCellsUsedHigh = self.settings.msfLimNumCellsUsedHigh
         self.msfLimNumCellsUsedLow = self.settings.msfLimNumCellsUsedLow
         self.msfNumCellsToAddOrRemove = self.settings.msfNumCellsToAddOrRemove
@@ -340,14 +340,14 @@ class MSF(SchedulingFunction):
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
 
-        assert mote.numCellsElapsed <= self.msfMaxNumCells
+        assert mote.numCellsElapsed <= self.maxNumCells
         assert direction in [Mote.DIR_TXRX_SHARED, Mote.DIR_TX, Mote.DIR_RX]
 
         # MSF: updating numCellsElapsed
         if direction == Mote.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
             mote.numCellsElapsed += 1
 
-            if mote.numCellsElapsed == self.msfMaxNumCells:
+            if mote.numCellsElapsed == self.maxNumCells:
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
