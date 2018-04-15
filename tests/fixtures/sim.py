@@ -27,7 +27,7 @@ def sim(request):
             'frag_ff_vrbtablesize':         50,
             'frag_ph_numReassBuffs':        1,
             
-            'sf_type':                      sf.DFLT_SF,
+            'sf_type':                      "MSF",
             'sf_msf_housekeepingPeriod':    60,
             'sf_msf_maxNumCells':           16,
             'sf_msf_highUsageThres':        12,

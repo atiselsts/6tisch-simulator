@@ -25,8 +25,7 @@ log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
-SCHEDULING_FUNCTIONS = ['MSF', 'SSF-symmetric', 'SSF-cascading']
-DFLT_SF              = 'MSF'
+SF_TYPE_ALL = ['MSF', 'SSF-symmetric', 'SSF-cascading']
 
 # =========================== helpers =========================================
 
