@@ -127,8 +127,7 @@ def _ssf_twobranch_cascading_schedule(self):
     for mote in self.motes[::-1]:  # loop in the reverse order
         child = mote
         while child and child.preferredParent:
-            if (hasattr(self.settings, 'ssf_init_method') and
-               self.settings.ssf_init_method == 'random-pick'):
+            if self.settings.sf_ssf_initMethod == 'random-pick':
                 if 'alloc_table' not in locals():
                     alloc_table = set()
 

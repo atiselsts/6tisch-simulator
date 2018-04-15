@@ -2893,7 +2893,7 @@ class Mote(object):
 
         # app
         if not self.dagRoot:
-            if hasattr(self.settings, 'app_burstNumPackets') and self.settings.app_burstNumPackets is not None and self.settings.app_burstTimestamp is not None:
+            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
                 self._app_schedule_sendPacketBurst()
             else:
                 self._app_schedule_sendSinglePacket(firstPacket=True)
