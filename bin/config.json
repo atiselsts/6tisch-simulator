@@ -16,7 +16,7 @@
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
             "app_burstNumPackets":          null,
-            "app_e2eAck":                   0,
+            "app_e2eAck":                   false,
             
             "rpl_dioPeriod":                10,
             "rpl_daoPeriod":                60,
@@ -37,7 +37,7 @@
             "sixtop_messaging":             1,
             "sixtop_removeRandomCell":      0,
             
-            "secjoin_enabled":              0,
+            "secjoin_enabled":              false,
             "secjoin_numExchanges":         2,
             "secjoin_joinTimeout":          60,
             
