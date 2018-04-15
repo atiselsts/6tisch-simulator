@@ -21,7 +21,7 @@
             "rpl_dioPeriod":                10,
             "rpl_daoPeriod":                60,
             
-            "frag_numFragments":            null,
+            "frag_numFragments":            1,
             "frag_ff_enable":               false,
             "frag_ff_options":              null,
             "frag_ff_vrbtablesize":         8,

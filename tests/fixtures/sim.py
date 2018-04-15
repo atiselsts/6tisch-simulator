@@ -21,6 +21,8 @@ def sim(request):
             'rpl_dioPeriod':                0,
             'rpl_daoPeriod':                0,
             
+            'frag_numFragments':            1,
+            
             'sf_type':                      sf.DFLT_SF,
             'sf_msf_housekeepingPeriod':    60,
             'sf_msf_maxNumCells':           16,

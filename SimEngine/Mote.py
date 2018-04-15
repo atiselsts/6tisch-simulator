@@ -491,7 +491,7 @@ class Mote(object):
             self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
-            if hasattr(self.settings, 'frag_numFragments') and self.settings.frag_numFragments > 1:
+            if self.settings.frag_numFragments > 1:
                 self._app_frag_packet(newPacket)
             else:
                 # send it as a single frame
@@ -2744,8 +2744,7 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'frag_numFragments') and
-                       self.settings.frag_numFragments > 1):
+                    if (type == APP_TYPE_DATA and self.settings.frag_numFragments > 1):
                         self._app_frag_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)
