@@ -429,9 +429,7 @@ class Mote(object):
         self._tsch_schedule_sendEB(firstEB=True)
 
         # RPL
-        self._rpl_schedule_sendDIO(firstDIO=True)
-        if not self.dagRoot:
-            self._rpl_schedule_sendDAO(firstDAO=True)
+        self._rpl_init()
 
         # if not join, set the neighbor variables when initializing stack.
         # with join this is done when the nodes become synced. If root, initialize here anyway
@@ -789,11 +787,81 @@ class Mote(object):
         return False
     
     #===== rpl
+    
+    # init
+    
+    def _rpl_init(self):
+        '''
+        Initialize the RPL layer
+        '''
+        
+        # all nodes send DIOs
+        self._rpl_schedule_sendDIO()
+        
+        # only non-root nodes send DAOs
+        if not self.dagRoot:
+            self._rpl_schedule_sendDAO(firstDAO=True)
+    
+    # DIO
+    
+    def _rpl_schedule_sendDIO(self):
+        '''
+        Send a DIO sometimes in the future.
+        '''
+        
+        # stop if DIOs disabled
+        if self.settings.rpl_dioPeriod==0:
+            return
+
+        with self.dataLock:
+
+            asnNow    = self.engine.getAsn()
+
+            if self.settings.tsch_probBcast_enabled:
+                asnDiff = int(self.settings.tsch_slotframeLength)
+            else:
+                asnDiff = int(math.ceil(
+                    random.uniform(
+                        0.8 * self.settings.rpl_dioPeriod,
+                        1.2 * self.settings.rpl_dioPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
+
+            # schedule at start of next cycle
+            self.engine.scheduleAtAsn(
+                asn         = asnNow + asnDiff,
+                cb          = self._rpl_action_sendDIO,
+                uniqueTag   = (self.id, '_rpl_action_sendDIO'),
+                priority    = 3,
+            )
+
+    def _rpl_action_sendDIO(self):
+        '''
+        decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
+        '''
+        
+        with self.dataLock:
+            
+            # decide whether to enqueue a DIO
+            if self.settings.tsch_probBcast_enabled:
+                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
+                sendDio = True if random.random() < dioProb else False
+            else:
+                sendDio = True
+            
+            # enqueue DIO
+            if sendDio:
+                self._rpl_action_enqueueDIO()
+            
+            # schedule next DIO
+            self._rpl_schedule_sendDIO()  
 
     def _rpl_action_enqueueDIO(self):
-        """ enqueue DIO packet into stack """
+        '''
+        enqueue DIO in TSCH queue
+        '''
 
-        # only start sending DIOs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        # only send DIOs if I'm a DAGroot, or I have a preferred parent and dedicated cells to it
         if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
 
             self._stats_incrementMoteStats('rplTxDIO')
@@ -804,7 +872,7 @@ class Mote(object):
                 'type':           RPL_TYPE_DIO,
                 'code':           None,
                 'payload':        [self.rank], # the payload is the rpl rank
-                'retriesLeft':    1, # do not retransmit broadcast
+                'retriesLeft':    1,           # do not retransmit (broadcast)
                 'srcIp':          self,
                 'dstIp':          BROADCAST_ADDRESS,
                 'sourceRoute':    []
@@ -812,103 +880,26 @@ class Mote(object):
 
             # enqueue packet in TSCH queue
             if not self._tsch_enqueue(newPacket):
-                # update mote stats
                 self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _rpl_action_enqueueDAO(self):
-        """ enqueue DAO packet into stack """
-
-        assert not self.dagRoot
-
-        # only start sending DAOs if: I have a preferred parent AND dedicated cells to that parent
-        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
-
-            self._stats_incrementMoteStats('rplTxDAO')
-
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': RPL_TYPE_DAO,
-                'code': None,
-                'payload': [self.id, self.preferredParent.id],
-                'retriesLeft': TSCH_MAXTXRETRIES,
-                'srcIp': self,
-                'dstIp': self.dagRootAddress,
-                'sourceRoute': []
-            }
-
-            # enqueue packet in TSCH queue
-            if not self._tsch_enqueue(newPacket):
-                # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _rpl_schedule_sendDIO(self, firstDIO=False):
-
-        if self.settings.rpl_dioPeriod==0:
-            # disable DIO
-            return
-
-        with self.dataLock:
-
-            asn    = self.engine.getAsn()
-
-            if self.settings.tsch_probBcast_enabled:
-                futureAsn = int(self.settings.tsch_slotframeLength)
-            else:
-                futureAsn = int(math.ceil(
-                    random.uniform(
-                        0.8 * self.settings.rpl_dioPeriod,
-                        1.2 * self.settings.rpl_dioPeriod
-                    ) / self.settings.tsch_slotDuration)
-                )
-
-            # schedule at start of next cycle
-            self.engine.scheduleAtAsn(
-                asn         = asn + futureAsn,
-                cb          = self._rpl_action_sendDIO,
-                uniqueTag   = (self.id, '_rpl_action_sendDIO'),
-                priority    = 3,
-            )
-
-    def _rpl_schedule_sendDAO(self, firstDAO=False):
-
-        if self.settings.rpl_daoPeriod==0:
-            # disable DAO
-            return
-
-        with self.dataLock:
-
-            asn = self.engine.getAsn()
-
-            if not firstDAO:
-                futureAsn = int(math.ceil(
-                    random.uniform(
-                        0.8 * self.settings.rpl_daoPeriod,
-                        1.2 * self.settings.rpl_daoPeriod
-                    ) / self.settings.tsch_slotDuration)
-                )
-            else:
-                futureAsn = 1
-
-            # schedule at start of next cycle
-            self.engine.scheduleAtAsn(
-                asn=asn + futureAsn,
-                cb=self._rpl_action_sendDAO,
-                uniqueTag=(self.id, '_rpl_action_sendDAO'),
-                priority=3,
-            )
 
     def _rpl_action_receiveDIO(self, type, smac, payload):
 
         with self.dataLock:
-
+            
+            # DAGroot doesn't use DIOs
             if self.dagRoot:
                 return
-
+            
+            # non sync'ed mote don't use DIO
             if not self.isSync:
                 return
-
-            self._log(INFO, "[rpl] Received DIO from mote {0}", (smac.id,))
+            
+            # log
+            self._log(
+                INFO,
+                "[rpl] Received DIO from mote {0}",
+                (smac.id,)
+            )
 
             # update my mote stats
             self._stats_incrementMoteStats('rplRxDIO')
@@ -927,10 +918,10 @@ class Mote(object):
 
             # update number of DIOs received from sender
             if sender not in self.rplRxDIO:
-                    self.rplRxDIO[sender]   = 0
+                self.rplRxDIO[sender]       = 0
             self.rplRxDIO[sender]          += 1
 
-            # housekeeping
+            # trigger RPL housekeeping
             self._rpl_housekeeping()
 
             # update time correction
@@ -938,48 +929,156 @@ class Mote(object):
                 asn                         = self.engine.getAsn()
                 self.timeCorrectedSlot      = asn
 
-    def _rpl_action_receiveDAO(self, type, smac, payload):
+    # DAO
+    
+    def _rpl_schedule_sendDAO(self, firstDAO=False):
+        '''
+        Schedule to send a DAO sometimes in the future.
+        '''
+        
+        # abort if DAO disabled
+        if self.settings.rpl_daoPeriod==0:
+            return
 
         with self.dataLock:
+            
+            asnNow = self.engine.getAsn()
 
-            assert self.dagRoot
-
-            self._stats_incrementMoteStats('rplRxDAO')
-
-            self.parents.update({tuple([payload[0]]): [[payload[1]]]})
-
-    def _rpl_action_sendDIO(self):
-
-        with self.dataLock:
-
-            if self.settings.tsch_probBcast_enabled:
-                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
-                sendDio = True if random.random() < dioProb else False
+            if firstDAO:
+                asnDiff = 1
             else:
-                sendDio = True
-
-            if sendDio:
-                self._rpl_action_enqueueDIO()
-
-            self._rpl_schedule_sendDIO()  # schedule next DIO
-
+                asnDiff = int(math.ceil(
+                    random.uniform(
+                        0.8 * self.settings.rpl_daoPeriod,
+                        1.2 * self.settings.rpl_daoPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
+            
+            # schedule sending a DAO
+            self.engine.scheduleAtAsn(
+                asn          = asnNow + asnDiff,
+                cb           = self._rpl_action_sendDAO,
+                uniqueTag    = (self.id, '_rpl_action_sendDAO'),
+                priority     = 3,
+            )
+    
     def _rpl_action_sendDAO(self):
-
+        '''
+        Enqueue a DAO and schedule next one.
+        '''
         with self.dataLock:
-
+            
+            # enqueue
             self._rpl_action_enqueueDAO()
-            self._rpl_schedule_sendDAO()  # schedule next DAO
+            
+            # schedule next DAO
+            self._rpl_schedule_sendDAO()
+    
+    def _rpl_action_enqueueDAO(self):
+        '''
+        enqueue a DAO into TSCH queue
+        '''
+        
+        assert not self.dagRoot
 
-    def _rpl_housekeeping(self):
+        # only send DAOs if I have a preferred parent to which I have dedicated cells
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
 
+            self._stats_incrementMoteStats('rplTxDAO')
+
+            # create new packet
+            newPacket = {
+                'asn':            self.engine.getAsn(),
+                'type':           RPL_TYPE_DAO,
+                'code':           None,
+                'payload':        [self.id, self.preferredParent.id],
+                'retriesLeft':    TSCH_MAXTXRETRIES,
+                'srcIp':          self,
+                'dstIp':          self.dagRootAddress,
+                'sourceRoute':    [],
+            }
+
+            # enqueue packet in TSCH queue
+            if not self._tsch_enqueue(newPacket):
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+
+    def _rpl_action_receiveDAO(self, type, smac, payload):
+        '''
+        DAGroot receives DAO, store parent/child relationship for source route calculation.
+        '''
+        
+        assert self.dagRoot
+        
         with self.dataLock:
+            
+            # increment stats
+            self._stats_incrementMoteStats('rplRxDAO')
+            
+            # store parent/child relationship for source route calculation
+            self.parents.update({tuple([payload[0]]): [[payload[1]]]})
+    
+    # source route
+    
+    def _rpl_getSourceRoute(self, destAddr):
+        '''
+        Compute the source route to a given mote.
 
-            #===
-            # refresh the following parameters:
-            # - self.preferredParent
-            # - self.rank
-            # - self.dagRank
-            # - self.parentSet
+        :param destAddr: [in] The EUI64 address of the final destination.
+
+        :returns: The source route, a list of EUI64 address, ordered from
+            destination to source.
+        '''
+
+        sourceRoute = []
+        with self.dataLock:
+            parents = self.parents
+            self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
+
+        if sourceRoute:
+            sourceRoute.pop()
+
+        return sourceRoute
+
+    def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
+        
+        # abort if no more parents
+        if not destAddr:
+            return
+        
+        # abort if I don't have a list of parents
+        if not parents.get(tuple(destAddr)):
+            return
+
+        # first time add destination address
+        if destAddr not in sourceRoute:
+            sourceRoute += [destAddr]
+
+        # pick a parent
+        parent = parents.get(tuple(destAddr))[0]
+
+        # avoid loops
+        if parent not in sourceRoute:
+            sourceRoute += [parent]
+
+            # add non empty parents recursively
+            nextparent = self._rpl_getSourceRoute_internal(parent, sourceRoute, parents)
+
+            if nextparent:
+                sourceRoute += [nextparent]
+    
+    # misc
+    
+    def _rpl_housekeeping(self):
+        '''
+        RPL housekeeping tasks.
+        
+        This routine refreshes
+        - self.preferredParent
+        - self.rank
+        - self.dagRank
+        - self.parentSet
+        '''
+        with self.dataLock:
 
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
@@ -1014,14 +1113,13 @@ class Mote(object):
                 # compare a current preferred parent with new one
                 if self.preferredParent and newPreferredParent != self.preferredParent:
                     for (mote, rank) in sorted_potentialRanks[:RPL_PARENT_SET_SIZE]:
-
                         if mote == self.preferredParent:
                             # switch preferred parent only when rank difference is large enough
                             if rank-newrank < RPL_PARENT_SWITCH_THRESHOLD:
                                 (newPreferredParent, newrank) = (mote, rank)
 
                 # update mote stats
-                if self.rank and newrank != self.rank:
+                if self.rank and newrank!=self.rank:
                     self._stats_incrementMoteStats('rplChurnRank')
                     # log
                     self._log(
@@ -1029,7 +1127,7 @@ class Mote(object):
                         "[rpl] churn: rank {0}->{1}",
                         (self.rank, newrank),
                     )
-                if self.preferredParent is None and newPreferredParent is not None:
+                if (self.preferredParent is None) and (newPreferredParent is not None):
                     if not self.settings.secjoin_enabled:
                         # if we selected a parent for the first time, add one cell to it
                         # upon successful join, the reservation request is scheduled explicitly
@@ -1051,7 +1149,7 @@ class Mote(object):
                 # store new preferred parent and rank
                 (self.preferredParent, self.rank) = (newPreferredParent, newrank)
 
-                # calculate DAGrank
+                # calculate my DAGrank
                 self.dagRank = int(self.rank/RPL_MIN_HOP_RANK_INCREASE)
 
                 # pick my parent set
@@ -1062,7 +1160,10 @@ class Mote(object):
                     self._stats_incrementMoteStats('rplChurnParentSet')
 
     def _rpl_calcRankIncrease(self, neighbor):
-
+        '''
+        calculate the RPL rank increase with a particular neighbor.
+        '''
+        
         with self.dataLock:
 
             # estimate the ETX to that neighbor
@@ -1075,74 +1176,34 @@ class Mote(object):
             # per draft-ietf-6tisch-minimal, rank increase is (3*ETX-2)*RPL_MIN_HOP_RANK_INCREASE
             return int(((3*etx) - 2)*RPL_MIN_HOP_RANK_INCREASE)
 
-    def _rpl_getSourceRoute(self, destAddr):
-        """
-        Retrieve the source route to a given mote.
-
-        :param destAddr: [in] The EUI64 address of the final destination.
-
-        :returns: The source route, a list of EUI64 address, ordered from
-            destination to source.
-        """
-
-        sourceRoute = []
-        with self.dataLock:
-                parents = self.parents
-                self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
-
-        if sourceRoute:
-            sourceRoute.pop()
-
-        return sourceRoute
-
-    def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
-
-        if not destAddr:
-            # no more parents
-            return
-
-        if not parents.get(tuple(destAddr)):
-            # this node does not have a list of parents
-            return
-
-        # first time add destination address
-        if destAddr not in sourceRoute:
-            sourceRoute += [destAddr]
-
-        # pick a parent
-        parent = parents.get(tuple(destAddr))[0]
-
-        # avoid loops
-        if parent not in sourceRoute:
-            sourceRoute += [parent]
-
-            # add non empty parents recursively
-            nextparent = self._rpl_getSourceRoute_internal(parent, sourceRoute, parents)
-
-            if nextparent:
-                sourceRoute += [nextparent]
-
-    def _rpl_addNextHop(self, packet):
+    def _rpl_findNextHop(self, packet):
+        '''
+        Determines the next hop and writes that in the packet's 'nextHop' field.
+        '''
+        
         assert self != packet['dstIp']
-
+        
+        # abort if no preferred parent, or root
         if not (self.preferredParent or self.dagRoot):
             return False
 
         nextHop = None
 
-        if packet['dstIp'] == BROADCAST_ADDRESS:
+        if   packet['dstIp'] == BROADCAST_ADDRESS:
             nextHop = self._myNeighbors()
-        # 6Top packet. don't send to the parent necessarily. Send it directly to your neighbor (1 hop)
         elif packet['type'] == IANA_6TOP_TYPE_REQUEST or packet['type'] == IANA_6TOP_TYPE_RESPONSE:
+            # 6P packet: send directly to neighbor
             nextHop = [packet['dstIp']]
-        elif packet['dstIp'] == self.dagRootAddress: # upward packet
+        elif packet['dstIp'] == self.dagRootAddress:
+            # upstream packet: send to preferred parent
             nextHop = [self.preferredParent]
-        elif packet['sourceRoute']:                  # downward packet with source route info filled correctly
+        elif packet['sourceRoute']:
+            # dowstream packet: next hop read from source route
             nextHopId = packet['sourceRoute'].pop()
             for nei in self._myNeighbors():
                 if [nei.id] == nextHopId:
                     nextHop = [nei]
-        elif packet['dstIp'] in self._myNeighbors(): # used for 1hop packets, such as 6top messages. This has to be the last one, since some neighbours can have very low PDR
+        elif packet['dstIp'] in self._myNeighbors():
             nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
@@ -2037,7 +2098,7 @@ class Mote(object):
 
     def _tsch_enqueue(self, packet):
 
-        if not self._rpl_addNextHop(packet):
+        if not self._rpl_findNextHop(packet):
             # I don't have a route
 
             # increment mote state
