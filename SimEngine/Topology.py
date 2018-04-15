@@ -306,7 +306,7 @@ class LinearTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if not hasattr(self.settings, 'withJoin') or (self.settings.withJoin is False):
+        if not hasattr(self.settings, 'secjoin_enabled') or (self.settings.secjoin_enabled is False):
             self._build_rpl_tree()
 
     @classmethod
@@ -410,7 +410,7 @@ class TwoBranchTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin is False):
+        if (not hasattr(self.settings, 'secjoin_enabled')) or (self.settings.secjoin_enabled is False):
             self._build_rpl_tree()
 
     @classmethod

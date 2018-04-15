@@ -284,7 +284,7 @@ class Mote(object):
             self.sf.schedule_parent_change(self)
 
             # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
-            if self.settings.withJoin and all(mote.isJoined is True for mote in self.engine.motes):
+            if self.settings.secjoin_enabled and all(mote.isJoined is True for mote in self.engine.motes):
                 if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
                     simTime = self.settings.exec_numSlotframesPerRun * self.settings.slotframeLength
@@ -713,7 +713,7 @@ class Mote(object):
             else:
                 sendBeacon = True
             if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.withJoin:
+                if self.isJoined or not self.settings.secjoin_enabled:
                     if sendBeacon:
                         self._tsch_action_enqueueEB()
                         self._stats_incrementMoteStats('tschTxEB')
@@ -728,7 +728,7 @@ class Mote(object):
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB and not self.isSync:
-            assert self.settings.withJoin
+            assert self.settings.secjoin_enabled
             # log
             self._log(
                 INFO,
@@ -982,7 +982,7 @@ class Mote(object):
                         (self.rank, newrank),
                     )
                 if self.preferredParent is None and newPreferredParent is not None:
-                    if not self.settings.withJoin:
+                    if not self.settings.secjoin_enabled:
                         # if we selected a parent for the first time, add one cell to it
                         # upon successful join, the reservation request is scheduled explicitly
                         self.sf.schedule_parent_change(self)
@@ -2869,7 +2869,7 @@ class Mote(object):
     #==== battery
 
     def boot(self):
-        if self.settings.withJoin:
+        if self.settings.secjoin_enabled:
             if self.dagRoot:
                 self._tsch_add_minimal_cell()
                 self._init_stack()  # initialize the stack and start sending beacons and DIOs
@@ -2893,7 +2893,7 @@ class Mote(object):
             self._rpl_schedule_sendDAO(firstDAO=True)
 
         #if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
-        if not self.settings.withJoin or self.dagRoot:
+        if not self.settings.secjoin_enabled or self.dagRoot:
             for m in self._myNeighbors():
                 self._tsch_resetBackoffPerNeigh(m)
 

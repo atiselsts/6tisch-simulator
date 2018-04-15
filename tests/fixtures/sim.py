@@ -16,7 +16,7 @@ def sim(request):
         params = {
             # prerequisite parameters for SimEngine
             'numMotes': 15,
-            'withJoin': False,
+            'secjoin_enabled': False,
 
             # prerequisite parameters for Topology
             'top_fullyMeshed': False,

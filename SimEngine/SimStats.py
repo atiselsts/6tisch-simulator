@@ -288,7 +288,7 @@ class SimStats(object):
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.numCycles) for mote in self.engine.motes])
             )
         ]
-        if self.settings.withJoin:
+        if self.settings.secjoin_enabled:
             output += [
                 '#join runNum={0} {1}'.format(
                     self.runNum,

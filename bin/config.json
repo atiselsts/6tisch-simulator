@@ -37,7 +37,7 @@
             "sixtop_messaging":             1,
             "sixtop_removeRandomCell":      0,
             
-            "withJoin":                     0,
+            "secjoin_enabled":              0,
             "joinNumExchanges":             2,
             "joinAttemptTimeout":           60,
             
