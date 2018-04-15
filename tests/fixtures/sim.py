@@ -27,7 +27,7 @@ def sim(request):
             'sf_type': sf.DFLT_SF,
             'sf_msf_housekeepingPeriod': 60,
             'sf_msf_maxNumCells': 16,
-            'msfLimNumCellsUsedHigh': 12,
+            'sf_msf_highUsageThres': 12,
             'msfLimNumCellsUsedLow': 4,
             'msfNumCellsToAddOrRemove': 1,
 

@@ -227,7 +227,7 @@ class MSF(SchedulingFunction):
             self.maxNumCells = self.settings.sf_msf_maxNumCells
         else:
             self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
-        self.msfLimNumCellsUsedHigh = self.settings.msfLimNumCellsUsedHigh
+        self.highUsageThres = self.settings.sf_msf_highUsageThres
         self.msfLimNumCellsUsedLow = self.settings.msfLimNumCellsUsedLow
         self.msfNumCellsToAddOrRemove = self.settings.msfNumCellsToAddOrRemove
 
@@ -351,7 +351,7 @@ class MSF(SchedulingFunction):
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
-                if mote.numCellsUsed > self.msfLimNumCellsUsedHigh:
+                if mote.numCellsUsed > self.highUsageThres:
                     self.schedule_bandwidth_increment(mote)
                 elif mote.numCellsUsed < self.msfLimNumCellsUsedLow:
                     self.schedule_bandwidth_decrement(mote)
