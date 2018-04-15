@@ -39,7 +39,7 @@ def sim(request):
             'minRssi': -97,
 
             # there are prerequisite parameters for Mote
-            'pkPeriod': 0,
+            'app_pkPeriod': 0,
         }
 
         if kwargs:

@@ -360,7 +360,7 @@ class TestPacketFowarding:
                   'numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -403,7 +403,7 @@ class TestPacketFowarding:
                   'numMotes': 3,
                   'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -459,7 +459,7 @@ class TestPacketFowarding:
                   'numFragments': 2,
                   'numMotes': 3,
                   'top_type': 'linear',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False
                   }
@@ -511,7 +511,7 @@ class TestPacketFowarding:
                   'numFragments': 2,
                   'numMotes': 2,
                   'top_type': 'linear',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -536,7 +536,7 @@ class TestPacketFowarding:
                   'numFragments': 2,
                   'numMotes': 2,
                   'top_type': 'linear',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -603,7 +603,7 @@ class TestDatagramTag:
                   'numMotes': 3,
                   'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -662,7 +662,7 @@ class TestDatagramTag:
                   'numMotes': 3,
                   'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)

@@ -164,7 +164,7 @@ class Mote(object):
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
         # app
-        self.pkPeriod                  = self.settings.pkPeriod
+        self.pkPeriod                  = self.settings.app_pkPeriod
         self.reassQueue                = {}
         self.vrbTable                  = {}
         self.next_datagram_tag         = random.randint(0, 2**16-1)

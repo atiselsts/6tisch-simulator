@@ -422,7 +422,7 @@ class TestPacketFowarding:
                   'numMotes': 3,
                   'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
@@ -464,7 +464,7 @@ class TestPacketFowarding:
                   'numMotes': 3,
                   'top_type': 'linear',
                   'scheduling_function': 'SSF-cascading',
-                  'pkPeriod': 0,
+                  'app_pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
         sim = sim(**params)
