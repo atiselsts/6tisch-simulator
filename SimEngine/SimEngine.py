@@ -72,13 +72,9 @@ class SimEngine(threading.Thread):
         # init singletons
         self.settings                       = SimSettings.SimSettings()
         self.propagation                    = Propagation()
-        if hasattr(self.settings, 'exec_numMotes'):
-            self.motes                      = [Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
-        elif self.propagation.type == 'trace':
-            self.motes                      = [Mote.Mote(id) for id in range(self.propagation.num_motes)]
-            # TODO load the trace earlier and fill the engine setting from the trace
-        else:
-            raise AttributeError(self.propagation.type)
+        
+        self.motes                          = [Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
+        
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
 

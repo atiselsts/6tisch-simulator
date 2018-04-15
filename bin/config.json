@@ -15,7 +15,7 @@
             "app_pkPeriod":                 10,
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
-            "app_burstNumPackets":          null,
+            "app_burstNumPackets":          0,
             "app_e2eAck":                   false,
             
             "rpl_dioPeriod":                10,
@@ -33,6 +33,7 @@
             "sf_msf_highUsageThres":        12,
             "sf_msf_lowUsageThres":         4,
             "sf_msf_numCellsToAddRemove":   1,
+            "sf_ssf_initMethod":            null,
             
             "sixtop_messaging":             1,
             "sixtop_removeRandomCell":      false,
@@ -51,6 +52,7 @@
             "top_type":                     "random",
             "top_squareSide":               2.000,
             "top_fullyMeshed":              false,
+            "top_schedulingMode":           "random-pick",
             "prop_type":                    "pisterhack",
             "prop_trace":                   null,
             
