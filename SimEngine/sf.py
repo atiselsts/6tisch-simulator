@@ -212,16 +212,11 @@ class MSF(SchedulingFunction):
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
     DFLT_MSF_MAXNUMCELLS = 16
-    DFLT_MSF_HOUSEKEEPINGPERIOD = 60.0
 
     def __init__(self):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
 
-        if hasattr(self.settings, 'sf_msf_housekeepingPeriod'):
-            self.housekeepingPeriod = self.settings.sf_msf_housekeepingPeriod
-        else:
-            self.housekeepingPeriod = self.DFLT_MSF_HOUSEKEEPINGPERIOD
         if hasattr(self.settings, 'sf_msf_MaxNumCells'):
             self.maxNumCells = self.settings.sf_msf_maxNumCells
         else:
@@ -436,7 +431,7 @@ class MSF(SchedulingFunction):
     def housekeeping(self, mote):
 
         self.engine.scheduleIn(
-            delay       = self.housekeepingPeriod*(0.9+0.2*random.random()),
+            delay       = self.settings.sf_msf_housekeepingPeriod*(0.9+0.2*random.random()),
             cb          = self.action_housekeeping,
             uniqueTag   = (mote.id, 'action_housekeeping'),
             priority    = 4,
