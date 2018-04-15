@@ -40,6 +40,8 @@ def sim(request):
 
             # there are prerequisite parameters for Mote
             'app_pkPeriod': 0,
+            
+            'rpl_dioPeriod': 0,
         }
 
         if kwargs:
