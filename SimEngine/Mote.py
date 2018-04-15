@@ -287,9 +287,9 @@ class Mote(object):
             if self.settings.secjoin_enabled and all(mote.isJoined is True for mote in self.engine.motes):
                 if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
-                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.slotframeLength
+                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
                     # offset until the end of the current cycle
-                    offset = self.settings.slotframeLength - (self.engine.asn % self.settings.slotframeLength)
+                    offset = self.settings.tsch_slotframeLength - (self.engine.asn % self.settings.tsch_slotframeLength)
                     # experiment time + offset
                     delay = simTime + offset
                 else:
@@ -689,7 +689,7 @@ class Mote(object):
             asn = self.engine.getAsn()
 
             if self.settings.bayesianBroadcast:
-                futureAsn = int(self.settings.slotframeLength)
+                futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.beaconPeriod,
@@ -812,7 +812,7 @@ class Mote(object):
             asn    = self.engine.getAsn()
 
             if self.settings.bayesianBroadcast:
-                futureAsn = int(self.settings.slotframeLength)
+                futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.tsch_slotDuration))
@@ -1156,7 +1156,7 @@ class Mote(object):
 
                     # randomly picking cells
                     availableTimeslots = list(
-                        set(range(self.settings.slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                        set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
                     random.shuffle(availableTimeslots)
                     cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in
                                   availableTimeslots[:numCells * self.sf.MIN_NUM_CELLS]])
@@ -1313,7 +1313,7 @@ class Mote(object):
 
             # available timeslots on this mote
             availableTimeslots = list(
-                set(range(self.settings.slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
             random.shuffle(cellList)
             for (ts, ch, dir) in cellList:
                 if len(newCellList) == numCells:
@@ -1347,7 +1347,7 @@ class Mote(object):
                 newDir = DIR_TXRX_SHARED
 
             availableTimeslots = list(
-                set(range(self.settings.slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
+                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
             cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in availableTimeslots[:numCells]])
             cellList = []
@@ -2037,7 +2037,7 @@ class Mote(object):
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
-        tsCurrent  = asn % self.settings.slotframeLength
+        tsCurrent  = asn % self.settings.tsch_slotframeLength
 
         # find closest active slot in schedule
         with self.dataLock:
@@ -2050,11 +2050,11 @@ class Mote(object):
 
             for (ts, cell) in self.schedule.items():
                 if   ts == tsCurrent:
-                    tsDiff        = self.settings.slotframeLength
+                    tsDiff        = self.settings.tsch_slotframeLength
                 elif ts > tsCurrent:
                     tsDiff        = ts-tsCurrent
                 elif ts < tsCurrent:
-                    tsDiff        = (ts+self.settings.slotframeLength)-tsCurrent
+                    tsDiff        = (ts+self.settings.tsch_slotframeLength)-tsCurrent
                 else:
                     raise SystemError()
 
@@ -2076,7 +2076,7 @@ class Mote(object):
         """
 
         asn = self.engine.getAsn()
-        ts  = asn % self.settings.slotframeLength
+        ts  = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
 
@@ -2357,7 +2357,7 @@ class Mote(object):
         """end of tx slot"""
 
         asn   = self.engine.getAsn()
-        ts    = asn % self.settings.slotframeLength
+        ts    = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
 
@@ -2597,7 +2597,7 @@ class Mote(object):
         """end of RX radio activity"""
 
         asn   = self.engine.getAsn()
-        ts    = asn % self.settings.slotframeLength
+        ts    = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
             if self.isSync:
@@ -3042,7 +3042,7 @@ class Mote(object):
 
     def stats_sharedCellCollisionSignal(self):
         asn = self.engine.getAsn()
-        ts = asn % self.settings.slotframeLength
+        ts = asn % self.settings.tsch_slotframeLength
 
         assert self.schedule[ts]['dir'] == DIR_TXRX_SHARED
 
@@ -3051,7 +3051,7 @@ class Mote(object):
 
     def stats_sharedCellSuccessSignal(self):
         asn = self.engine.getAsn()
-        ts = asn % self.settings.slotframeLength
+        ts = asn % self.settings.tsch_slotframeLength
 
         assert self.schedule[ts]['dir'] == DIR_TXRX_SHARED
 

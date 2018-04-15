@@ -511,13 +511,13 @@ class TwoBranchTopology(TopologyCreator):
                     if 'alloc_table' not in locals():
                         alloc_table = set()
 
-                    if len(alloc_table) >= self.settings.slotframeLength:
+                    if len(alloc_table) >= self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
                     while True:
                         # we don't use slot-0 since it's designated for a shared cell
                         alloc_pointer = random.randint(1,
-                                                       self.settings.slotframeLength - 1)
+                                                       self.settings.tsch_slotframeLength - 1)
                         if alloc_pointer not in alloc_table:
                             alloc_table.add(alloc_pointer)
                             break
@@ -527,7 +527,7 @@ class TwoBranchTopology(TopologyCreator):
                     else:
                         alloc_pointer += 1
 
-                    if alloc_pointer > self.settings.slotframeLength:
+                    if alloc_pointer > self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
                 sf.alloc_cell(child,

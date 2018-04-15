@@ -97,7 +97,7 @@ class PropagationCreator(object):
         self.dataLock                  = threading.Lock()
         self.receivers                 = [] # motes with radios currently listening
         self.transmissions             = [] # ongoing transmissions
-        self.slotframe_length          = self.settings.slotframeLength
+        self.slotframe_length          = self.settings.tsch_slotframeLength
         self.slot_duration             = self.settings.tsch_slotDuration
         self.with_interferences        = not self.settings.noInterference
         self.minRssi                   = self.settings.minRssi # dBm

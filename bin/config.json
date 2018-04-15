@@ -42,7 +42,7 @@
             "secjoin_joinTimeout":          60,
             
             "tsch_slotDuration":            0.010,
-            "slotframeLength":              101,
+            "tsch_slotframeLength":         101,
             "beaconPeriod":                 2,
             "bayesianBroadcast":            1,
             "beaconProbability":            0.33,

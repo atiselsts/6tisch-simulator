@@ -133,19 +133,19 @@ def _ssf_twobranch_cascading_schedule(self):
                 if 'alloc_table' not in locals():
                     alloc_table = set()
 
-                if len(alloc_table) >= self.settings.slotframeLength:
+                if len(alloc_table) >= self.settings.tsch_slotframeLength:
                     raise ValueError('slotframe is too small')
 
                 while True:
                     # we don't use slot-0 since it's designated for a shared cell
-                    alloc_pointer = random.randint(1, self.settings.slotframeLength - 1)
+                    alloc_pointer = random.randint(1, self.settings.tsch_slotframeLength - 1)
                     if alloc_pointer not in alloc_table:
                         alloc_table.add(alloc_pointer)
                         break
             else:
                 alloc_pointer += 1
 
-                if alloc_pointer > self.settings.slotframeLength:
+                if alloc_pointer > self.settings.tsch_slotframeLength:
                     raise ValueError('slotframe is too small')
 
             _alloc_cell(child, child.preferredParent, alloc_pointer, 0)
@@ -236,7 +236,7 @@ class MSF(SchedulingFunction):
           Schedule MSF parent change
         """
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + (1 + self.settings.slotframeLength * 16 * random.random())),
+            asn         = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
             cb          = self.action_parent_change,
             uniqueTag   = (mote.id, 'action_parent_change'),
             priority    = 4,
@@ -321,7 +321,7 @@ class MSF(SchedulingFunction):
             meanPDR = sum(cellPDR) / float(len(cellPDR))
             assert meanPDR <= 1.0
             timeout = math.ceil((
-                float(mote.settings.slotframeLength * mote.settings.tsch_slotDuration) /
+                float(mote.settings.tsch_slotframeLength * mote.settings.tsch_slotDuration) /
                 float(len(cellPDR))) * (float(1 / meanPDR)) * mote.SIXP_TIMEOUT_SEC_FACTOR)
             return timeout
         else:

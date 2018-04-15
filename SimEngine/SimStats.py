@@ -74,7 +74,7 @@ class SimStats(object):
             cb          = self._actionStart,
         )
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn()+self.settings.slotframeLength-1,
+            asn         = self.engine.getAsn()+self.settings.tsch_slotframeLength-1,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
             priority    = 10,
@@ -97,7 +97,7 @@ class SimStats(object):
     def _actionEndCycle(self):
         """Called at each end of cycle."""
 
-        cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
+        cycle = int(self.engine.getAsn()/self.settings.tsch_slotframeLength)
 
         # print
         if self.verbose:
@@ -117,7 +117,7 @@ class SimStats(object):
 
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn()+self.settings.slotframeLength,
+            asn         = self.engine.getAsn()+self.settings.tsch_slotframeLength,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
             priority    = 10,
@@ -125,7 +125,7 @@ class SimStats(object):
 
     def _actionEnd(self):
         """Called once at end of the simulation."""
-        self.numCycles = int(self.engine.getAsn()/self.settings.slotframeLength)
+        self.numCycles = int(self.engine.getAsn()/self.settings.tsch_slotframeLength)
         self._fileWriteTopology()
 
     #=== collecting statistics
