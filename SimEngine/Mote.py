@@ -138,8 +138,6 @@ CHARGE_IdleNotSync_uC              = 45.0
 
 # === 6LoWPAN Reassembly
 DFLT_NUMREASSBUFFS = 1
-# === Fragment Forwarding
-DFLT_VRBTABLESIZE = 50
 
 BROADCAST_ADDRESS                  = 0xffff
 
@@ -222,10 +220,6 @@ class Mote(object):
             self.maxReassQueueNum = DFLT_NUMREASSBUFFS
         else:
             self.maxReassQueueNum = self.settings.frag_ph_numReassBuffs
-        if hasattr(self.settings, 'frag_ff_vrbtablesize') and self.settings.frag_ff_vrbtablesize > 0:
-            self.vrbtablesize = self.settings.frag_ff_vrbtablesize
-        else:
-            self.vrbtablesize = DFLT_VRBTABLESIZE
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -523,7 +517,7 @@ class Mote(object):
             for i in self.vrbTable:
                 vrb_entry_num += len(self.vrbTable[i])
 
-            if (not self.dagRoot) and (vrb_entry_num == self.vrbtablesize):
+            if (not self.dagRoot) and (vrb_entry_num == self.settings.frag_ff_vrbtablesize):
                 # no room for a new entry
                 self._radio_drop_packet(frag, 'droppedFragVRBTableFull')
                 return False

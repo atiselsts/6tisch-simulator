@@ -24,6 +24,7 @@ def sim(request):
             'frag_numFragments':            1,
             'frag_ff_enable':               False,
             'frag_ff_options':              [],
+            'frag_ff_vrbtablesize':         50,
             
             'sf_type':                      sf.DFLT_SF,
             'sf_msf_housekeepingPeriod':    60,
@@ -51,7 +52,7 @@ def sim(request):
             params.update(kwargs)
 
         settings = SimSettings.SimSettings(**params)
-        engine = SimEngine.SimEngine(1)
+        engine   = SimEngine.SimEngine(1)
 
         def fin():
             # We check the _init value to make sure the singletons were not already
