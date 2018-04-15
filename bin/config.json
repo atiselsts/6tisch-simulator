@@ -46,7 +46,7 @@
             "tsch_ebPeriod_sec":            2,
             "tsch_probBcast_enabled":       1,
             "tsch_probBcast_ebProb":        0.33,
-            "dioProbability":               0.33,
+            "tsch_probBcast_dioProb":       0.33,
             
             "top_type":                     "random",
             "top_squareSide":               2.000,

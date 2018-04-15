@@ -905,7 +905,7 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.tsch_probBcast_enabled:
-                dioProb = float(self.settings.dioProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.dioProbability)
+                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_dioProb)
                 sendDio = True if random.random() < dioProb else False
             else:
                 sendDio = True
