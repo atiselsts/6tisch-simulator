@@ -15,31 +15,31 @@ def sim(request):
 
         params = {
             # prerequisite parameters for SimEngine
-            'numMotes': 15,
-            'withJoin': False,
+            'exec_numMotes': 15,
+            'secjoin_enabled': False,
 
             # prerequisite parameters for Topology
-            'fullyMeshed': False,
-            'squareSide': 2.000,
-            'topology': Topology.DEFAULT_TOPOLOGY,
+            'top_fullyMeshed': False,
+            'top_squareSide': 2.000,
+            'top_type': Topology.DEFAULT_TOPOLOGY,
 
             # prerequisite parameters for Schedule
-            'scheduling_function': sf.DEFAULT_SCHEDULING_FUNCTION,
-            'msfHousekeepingPeriod': 60,
-            'msfMaxNumCells': 16,
-            'msfLimNumCellsUsedHigh': 12,
-            'msfLimNumCellsUsedLow': 4,
-            'msfNumCellsToAddOrRemove': 1,
+            'sf_type': sf.DFLT_SF,
+            'sf_msf_housekeepingPeriod': 60,
+            'sf_msf_maxNumCells': 16,
+            'sf_msf_highUsageThres': 12,
+            'sf_msf_lowUsageThres': 4,
+            'sf_msf_numCellsToAddRemove': 1,
 
             # prerequisite parameters for Propagation
-            'propagation': 'pisterhack',
-            'slotDuration': 0.010,
-            'slotframeLength': 101,
-            'noInterference': True,
-            'minRssi': -97,
+            'prop_type': 'pisterhack',
+            'tsch_slotDuration': 0.010,
+            'tsch_slotframeLength': 101,
+            'phy_noInterference': True,
+            'phy_minRssi': -97,
 
             # there are prerequisite parameters for Mote
-            'pkPeriod': 0,
+            'app_pkPeriod': 0,
         }
 
         if kwargs:

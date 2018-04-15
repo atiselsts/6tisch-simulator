@@ -97,9 +97,9 @@ class ScheduleFrame(Tkinter.Frame):
 
         # initialize grid
         if not self.cells:
-            for ts in range(self.settings.slotframeLength):
+            for ts in range(self.settings.tsch_slotframeLength):
                 self.cells.append([])
-                for ch in range(self.settings.numChans):
+                for ch in range(self.settings.phy_numChans):
                     newCell = self.schedule.create_rectangle(self._cellCoordinates(ts,ch))
                     self.schedule.tag_bind(newCell, '<ButtonPress-1>', self._cellClicked)
                     self.cells[ts] += [newCell]
@@ -161,8 +161,8 @@ class ScheduleFrame(Tkinter.Frame):
     def _cellCoordinates(self,ts,ch):
 
         step  = min(
-            (self.WIDTH-4)/self.settings.slotframeLength,
-            (self.HEIGHT-4)/self.settings.numChans
+            (self.WIDTH-4)/self.settings.tsch_slotframeLength,
+            (self.HEIGHT-4)/self.settings.phy_numChans
         )
 
         return (

@@ -22,11 +22,11 @@ class TestNumFragmentsVsTxQueue:
         (10, 10),
     ])
     def test_num_frag(self, sim, test_input, expected):
-        m = sim(**{'enableFragmentForwarding': True,
-                   'numFragments': test_input,
-                   'numMotes': 2,
-                   'topology': 'linear',
-                   'scheduling_function': 'SSF-symmetric'}).motes[1]
+        m = sim(**{'frag_ff_enable': True,
+                   'frag_numFragments': test_input,
+                   'exec_numMotes': 2,
+                   'top_type': 'linear',
+                   'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
         m._app_action_enqueueData()
         assert len(m.txQueue) == expected
@@ -34,11 +34,11 @@ class TestNumFragmentsVsTxQueue:
 
 class TestFragmentForwarding:
     def test_app_is_frag_to_forward_frag_order(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 2,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 2,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -64,11 +64,11 @@ class TestFragmentForwarding:
 
     def test_app_is_frag_to_forward_vrbtable_len(self, sim):
         # no size limit for vrbtable
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 2,
-                     'numMotes': 5,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 2,
+                     'exec_numMotes': 5,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -103,11 +103,11 @@ class TestFragmentForwarding:
         assert node._app_is_frag_to_forward(leaf1.txQueue[0]) is True
 
     def test_app_is_frag_to_forward_vrbtable_expiration(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 2,
-                     'numMotes': 2,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 2,
+                     'exec_numMotes': 2,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf = sim.motes[1]
         packet = {
@@ -131,7 +131,7 @@ class TestFragmentForwarding:
         root._app_is_frag_to_forward(frag0)
         assert root.vrbTable[leaf][itag]['ts'] == 100
 
-        sim.asn += (60 / sim.settings.slotDuration)
+        sim.asn += (60 / sim.settings.tsch_slotDuration)
         root._app_is_frag_to_forward(frag0) # duplicate
         assert itag in root.vrbTable[leaf]
 
@@ -142,11 +142,11 @@ class TestFragmentForwarding:
 
 class TestFragmentation:
     def test_app_frag_packet_2(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 2,
-                     'numMotes': 2,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 2,
+                     'exec_numMotes': 2,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -197,10 +197,10 @@ class TestFragmentation:
         assert frag1['sourceRoute'] == packet['sourceRoute']
 
     def test_app_frag_packet_3(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 3,
-                     'numMotes': 3,
-                     'topology': 'linear'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 3,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -269,11 +269,11 @@ class TestFragmentation:
 
 class TestReassembly:
     def test_app_reass_packet_in_order(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 3,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 3,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -312,11 +312,11 @@ class TestReassembly:
         assert node not in root.reassQueue
 
     def test_app_reass_packet_out_of_order(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 3,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'scheduling_function': 'SSF-symmetric'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 3,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -356,13 +356,13 @@ class TestReassembly:
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 3,
-                  'topology': 'linear',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 3,
+                  'top_type': 'linear',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -398,14 +398,14 @@ class TestPacketFowarding:
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 3,
-                  'topology': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 3,
+                  'top_type': 'linear',
+                  'sf_type': 'SSF-symmetric',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -418,7 +418,7 @@ class TestPacketFowarding:
 
         cb = None
         asn0 = sim.asn
-        while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.slotDuration)):
+        while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             sim.asn = asn
 
@@ -431,7 +431,7 @@ class TestPacketFowarding:
                 cb(**kwargs)
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
-        assert asn <= (asn0 + (one_second / sim.settings.slotDuration))
+        assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
         # make sure there are two fragments added by _app_action_sendSinglePacket
         assert len(hop2.txQueue) == 0
@@ -441,7 +441,7 @@ class TestPacketFowarding:
         asn0 = sim.asn
         assert root.motestats['appReachesDagroot'] == 0
         # two fragments should reach to the root within two timeslots.
-        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.slotDuration)):
+        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
@@ -455,13 +455,13 @@ class TestPacketFowarding:
         assert root.motestats['appReachesDagroot'] == 1
 
     def test_drop_fragment(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 3,
-                  'topology': 'linear',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 3,
+                  'top_type': 'linear',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False
                   }
         sim = sim(**params)
         root = sim.motes[0]
@@ -506,14 +506,14 @@ class TestPacketFowarding:
 
 
     def test_vrb_table_size_limit_1(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'maxVRBEntryNum': 10,
-                  'numFragments': 2,
-                  'numMotes': 2,
-                  'topology': 'linear',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_ff_vrbtablesize': 10,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 2,
+                  'top_type': 'linear',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -521,7 +521,7 @@ class TestPacketFowarding:
             'dstIp': root,
             'payload': [1, 0, 1, {}],
         }
-        frag['payload'][3]['datagram_size'] = params['numFragments']
+        frag['payload'][3]['datagram_size'] = params['frag_numFragments']
         frag['payload'][3]['datagram_offset'] = 0
         for i in range(0, 10):
             frag['smac'] = i
@@ -532,13 +532,13 @@ class TestPacketFowarding:
         assert hop1._app_is_frag_to_forward(frag) is False
 
     def test_vrb_table_size_limit_2(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 2,
-                  'topology': 'linear',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 2,
+                  'top_type': 'linear',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -546,9 +546,9 @@ class TestPacketFowarding:
             'dstIp': root,
             'payload': [1, 0, 1, {}],
         }
-        frag['payload'][3]['datagram_size'] = params['numFragments']
+        frag['payload'][3]['datagram_size'] = params['frag_numFragments']
         frag['payload'][3]['datagram_offset'] = 0
-        for i in range(0, Mote.FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM):
+        for i in range(0, Mote.DFLT_VRBTABLESIZE):
             frag['smac'] = i
             frag['payload'][3]['datagram_tag'] = i
             assert hop1._app_is_frag_to_forward(frag) is True
@@ -558,10 +558,10 @@ class TestPacketFowarding:
 
 class TestDatagramTag:
     def test_tag_on_its_fragments_1(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 2,
-                     'numMotes': 2,
-                     'topology': 'linear'})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 2,
+                     'exec_numMotes': 2,
+                     'top_type': 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -598,14 +598,14 @@ class TestDatagramTag:
         assert tag3 == 0
 
     def test_tag_on_its_fragments_2(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 3,
-                  'topology': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 3,
+                  'top_type': 'linear',
+                  'sf_type': 'SSF-symmetric',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -657,14 +657,14 @@ class TestDatagramTag:
         assert tag3 == 0
 
     def test_tag_on_its_fragments_3(self, sim):
-        params = {'enableFragmentForwarding': True,
-                  'numFragments': 2,
-                  'numMotes': 3,
-                  'topology': 'linear',
-                  'scheduling_function': 'SSF-symmetric',
-                  'pkPeriod': 0,
-                  'pkPeriodVar': 0,
-                  'downwardAcks': False}
+        params = {'frag_ff_enable': True,
+                  'frag_numFragments': 2,
+                  'exec_numMotes': 3,
+                  'top_type': 'linear',
+                  'sf_type': 'SSF-symmetric',
+                  'app_pkPeriod': 0,
+                  'app_pkPeriodVar': 0,
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -713,11 +713,11 @@ class TestDatagramTag:
 
 class TestOptimization:
     def test_remove_vrb_table_entry_by_expiration(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 4,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'optFragmentForwarding': []})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 4,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'frag_ff_options': []})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -743,18 +743,18 @@ class TestOptimization:
 
         assert node._app_is_frag_to_forward(frag0) is True
         assert node._app_is_frag_to_forward(frag3) is True
-        sim.asn += (60 / sim.settings.slotDuration)
+        sim.asn += (60 / sim.settings.tsch_slotDuration)
         assert node._app_is_frag_to_forward(frag1) is True
         sim.asn += 1
         # VRB Table entry expires
         assert node._app_is_frag_to_forward(frag2) is False
 
     def test_remove_vrb_table_entry_on_last_frag(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 3,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_last']})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 3,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'frag_ff_options': ['kill_entry_by_last']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -782,11 +782,11 @@ class TestOptimization:
         assert node._app_is_frag_to_forward(frag1) is False
 
     def test_remove_vrb_table_entry_on_missing_frag(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 4,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_missing']})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 4,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'frag_ff_options': ['kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -816,11 +816,11 @@ class TestOptimization:
         assert node._app_is_frag_to_forward(frag3) is False
 
     def test_remove_vrb_table_entry_on_last_and_missing(self, sim):
-        sim = sim(**{'enableFragmentForwarding': True,
-                     'numFragments': 4,
-                     'numMotes': 3,
-                     'topology': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_last', 'kill_entry_by_missing']})
+        sim = sim(**{'frag_ff_enable': True,
+                     'frag_numFragments': 4,
+                     'exec_numMotes': 3,
+                     'top_type': 'linear',
+                     'frag_ff_options': ['kill_entry_by_last', 'kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]

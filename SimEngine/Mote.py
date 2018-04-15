@@ -137,9 +137,9 @@ CHARGE_RxData_uC                   = 22.6
 CHARGE_IdleNotSync_uC              = 45.0
 
 # === 6LoWPAN Reassembly
-SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM = 1
+DFLT_NUMREASSBUFFS = 1
 # === Fragment Forwarding
-FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM = 50
+DFLT_VRBTABLESIZE = 50
 
 BROADCAST_ADDRESS                  = 0xffff
 
@@ -156,7 +156,7 @@ class Mote(object):
         self.engine                    = SimEngine.SimEngine()
         self.settings                  = SimSettings.SimSettings()
         self.propagation               = Propagation.Propagation()
-        self.sf                        = Sf.get_sf(self.settings.scheduling_function)
+        self.sf                        = Sf.get_sf(self.settings.sf_type)
 
         # join process
         self.isJoined                  = False
@@ -164,7 +164,7 @@ class Mote(object):
         self.joinAsn                   = 0                     # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
         # app
-        self.pkPeriod                  = self.settings.pkPeriod
+        self.pkPeriod                  = self.settings.app_pkPeriod
         self.reassQueue                = {}
         self.vrbTable                  = {}
         self.next_datagram_tag         = random.randint(0, 2**16-1)
@@ -218,14 +218,14 @@ class Mote(object):
         # battery
         self.chargeConsumed            = 0
         # reassembly/fragmentation
-        if not hasattr(self.settings, 'numReassQueue'):
-            self.maxReassQueueNum = SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM
+        if not hasattr(self.settings, 'frag_ph_numReassBuffs'):
+            self.maxReassQueueNum = DFLT_NUMREASSBUFFS
         else:
-            self.maxReassQueueNum = self.settings.numReassQueue
-        if hasattr(self.settings, 'maxVRBEntryNum') and self.settings.maxVRBEntryNum > 0:
-            self.maxVRBEntryNum = self.settings.maxVRBEntryNum
+            self.maxReassQueueNum = self.settings.frag_ph_numReassBuffs
+        if hasattr(self.settings, 'frag_ff_vrbtablesize') and self.settings.frag_ff_vrbtablesize > 0:
+            self.vrbtablesize = self.settings.frag_ff_vrbtablesize
         else:
-            self.maxVRBEntryNum = FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM
+            self.vrbtablesize = DFLT_VRBTABLESIZE
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -257,7 +257,7 @@ class Mote(object):
     # ===== join process
 
     def join_scheduleJoinProcess(self):
-        delay = self.settings.slotDuration + self.settings.joinAttemptTimeout * random.random()
+        delay = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random()
 
         # schedule
         self.engine.scheduleIn(
@@ -283,13 +283,13 @@ class Mote(object):
             # schedule bootstrap of the preferred parent
             self.sf.schedule_parent_change(self)
 
-            # check if all motes have joined, if so end the simulation after numCyclesPerRun
-            if self.settings.withJoin and all(mote.isJoined is True for mote in self.engine.motes):
-                if self.settings.numCyclesPerRun != 0:
+            # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
+            if self.settings.secjoin_enabled and all(mote.isJoined is True for mote in self.engine.motes):
+                if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
-                    simTime = self.settings.numCyclesPerRun * self.settings.slotframeLength
+                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
                     # offset until the end of the current cycle
-                    offset = self.settings.slotframeLength - (self.engine.asn % self.settings.slotframeLength)
+                    offset = self.settings.tsch_slotframeLength - (self.engine.asn % self.settings.tsch_slotframeLength)
                     # experiment time + offset
                     delay = simTime + offset
                 else:
@@ -302,7 +302,7 @@ class Mote(object):
         if not self.dagRoot:
             if self.preferredParent:
                 if not self.isJoined:
-                    self.join_sendJoinPacket(token = self.settings.joinNumExchanges - 1, destination=self.dagRootAddress)
+                    self.join_sendJoinPacket(token = self.settings.secjoin_numExchanges - 1, destination=self.dagRootAddress)
             else: # node doesn't have a parent yet, re-scheduling
                 self.join_scheduleJoinProcess()
 
@@ -342,7 +342,7 @@ class Mote(object):
             # schedule retransmission
             if not self.dagRoot:
                 self.engine.scheduleIn(
-                    delay=self.settings.slotDuration + self.settings.joinAttemptTimeout,
+                    delay=self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
                     cb=self.join_retransmitJoinPacket,
                     uniqueTag=(self.id, '_join_action_retransmission'),
                     priority=2,
@@ -385,10 +385,10 @@ class Mote(object):
 
         if not firstPacket:
             # compute random delay
-            delay            = self.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar, self.settings.pkPeriodVar))
+            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         else:
             # compute initial time within the range of [next asn, next asn+pkPeriod]
-            delay            = self.settings.slotDuration + self.pkPeriod*random.random()
+            delay            = self.settings.tsch_slotDuration + self.pkPeriod*random.random()
 
         assert delay > 0
 
@@ -403,16 +403,16 @@ class Mote(object):
     def _app_schedule_sendPacketBurst(self):
         """ create an event that is inserted into the simulator engine to send a data burst"""
 
-        # schedule numPacketsBurst packets at burstTimestamp
-        for i in xrange(self.settings.numPacketsBurst):
+        # schedule app_burstNumPackets packets at app_burstTimestamp
+        for i in xrange(self.settings.app_burstNumPackets):
             self.engine.scheduleIn(
-                delay        = self.settings.burstTimestamp,
+                delay        = self.settings.app_burstTimestamp,
                 cb           = self._app_action_enqueueData,
                 uniqueTag    = (self.id, '_app_action_enqueueData_burst1_{0}'.format(i)),
                 priority     = 2,
             )
             self.engine.scheduleIn(
-                delay        = 3*self.settings.burstTimestamp,
+                delay        = 3*self.settings.app_burstTimestamp,
                 cb           = self._app_action_enqueueData,
                 uniqueTag    = (self.id, '_app_action_enqueueData_burst2_{0}'.format(i)),
                 priority     = 2,
@@ -442,7 +442,7 @@ class Mote(object):
         # log the number of hops
         self._stats_logHopsStat(payload[2])
 
-        if self.settings.downwardAcks:  # Downward End-to-end ACKs
+        if self.settings.app_e2eAck:  # Downward End-to-end ACKs
             destination = srcIp
 
             sourceRoute = self._rpl_getSourceRoute([destination.id])
@@ -491,7 +491,7 @@ class Mote(object):
             self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
-            if hasattr(self.settings, 'numFragments') and self.settings.numFragments > 1:
+            if hasattr(self.settings, 'frag_numFragments') and self.settings.frag_numFragments > 1:
                 self._app_frag_packet(newPacket)
             else:
                 # send it as a single frame
@@ -509,7 +509,7 @@ class Mote(object):
         size = frag['payload'][3]['datagram_size']
         itag = frag['payload'][3]['datagram_tag']
         offset = frag['payload'][3]['datagram_offset']
-        entry_lifetime = 60 / self.settings.slotDuration
+        entry_lifetime = 60 / self.settings.tsch_slotDuration
 
         for mac in self.vrbTable.keys():
             for tag in self.vrbTable[mac].keys():
@@ -523,7 +523,7 @@ class Mote(object):
             for i in self.vrbTable:
                 vrb_entry_num += len(self.vrbTable[i])
 
-            if (not self.dagRoot) and (vrb_entry_num == self.maxVRBEntryNum):
+            if (not self.dagRoot) and (vrb_entry_num == self.vrbtablesize):
                 # no room for a new entry
                 self._radio_drop_packet(frag, 'droppedFragVRBTableFull')
                 return False
@@ -549,18 +549,18 @@ class Mote(object):
                 self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
             self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
 
-            if (hasattr(self.settings, 'optFragmentForwarding') and
-               (self.settings.optFragmentForwarding is not None) and
-               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+            if (hasattr(self.settings, 'frag_ff_options') and
+               (self.settings.frag_ff_options is not None) and
+               'kill_entry_by_missing' in self.settings.frag_ff_options):
                 self.vrbTable[smac][itag]['next_offset'] = 0
 
         if smac in self.vrbTable and itag in self.vrbTable[smac]:
             if self.vrbTable[smac][itag]['otag'] is None:
                 return False # this is for us, which needs to be reassembled
 
-            if (hasattr(self.settings, 'optFragmentForwarding') and
-               (self.settings.optFragmentForwarding is not None) and
-               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+            if (hasattr(self.settings, 'frag_ff_options') and
+               (self.settings.frag_ff_options is not None) and
+               'kill_entry_by_missing' in self.settings.frag_ff_options):
                 if offset == self.vrbTable[smac][itag]['next_offset']:
                     self.vrbTable[smac][itag]['next_offset'] += 1
                 else:
@@ -577,9 +577,9 @@ class Mote(object):
 
         # return True when the fragment is to be forwarded even if it cannot be
         # forwarded due to out-of-order or full of queue
-        if (hasattr(self.settings, 'optFragmentForwarding') and
-           'kill_entry_by_last' in self.settings.optFragmentForwarding and
-           offset == (self.settings.numFragments - 1)):
+        if (hasattr(self.settings, 'frag_ff_options') and
+           'kill_entry_by_last' in self.settings.frag_ff_options and
+           offset == (self.settings.frag_numFragments - 1)):
             # this fragment is the last one
             del self.vrbTable[smac][itag]
 
@@ -590,11 +590,11 @@ class Mote(object):
         # fragment packet into the specified number of pieces
         tag = self.next_datagram_tag
         self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
-        for i in range(0, self.settings.numFragments):
+        for i in range(0, self.settings.frag_numFragments):
             frag = copy.copy(packet)
             frag['type'] = APP_TYPE_FRAG
             frag['payload'] = copy.deepcopy(packet['payload'])
-            frag['payload'].append({'datagram_size': self.settings.numFragments,
+            frag['payload'].append({'datagram_size': self.settings.frag_numFragments,
                                     'datagram_tag': tag,
                                     'datagram_offset': i})
             frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
@@ -607,7 +607,7 @@ class Mote(object):
         size = payload[3]['datagram_size']
         tag = payload[3]['datagram_tag']
         offset = payload[3]['datagram_offset']
-        reass_queue_lifetime = 60 / self.settings.slotDuration
+        reass_queue_lifetime = 60 / self.settings.tsch_slotDuration
 
         if len(self.reassQueue) > 0:
             # remove expired entry
@@ -618,8 +618,8 @@ class Mote(object):
                     if len(self.reassQueue[s]) == 0:
                         del self.reassQueue[s]
 
-        if size > self.settings.numFragments:
-            # the size of reassQueue is the same number as self.settings.numFragments.
+        if size > self.settings.frag_numFragments:
+            # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
             self._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
             return False
@@ -680,7 +680,7 @@ class Mote(object):
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
-        if (not hasattr(self.settings, 'beaconPeriod')) or (self.settings.beaconPeriod == 0):
+        if (not hasattr(self.settings, 'tsch_ebPeriod_sec')) or (self.settings.tsch_ebPeriod_sec == 0):
             # disable periodic EB transmission
             return
 
@@ -688,12 +688,12 @@ class Mote(object):
 
             asn = self.engine.getAsn()
 
-            if self.settings.bayesianBroadcast:
-                futureAsn = int(self.settings.slotframeLength)
+            if self.settings.tsch_probBcast_enabled:
+                futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.beaconPeriod,
-                                   1.2 * self.settings.beaconPeriod) / self.settings.slotDuration))
+                    random.uniform(0.8 * self.settings.tsch_ebPeriod_sec,
+                                   1.2 * self.settings.tsch_ebPeriod_sec) / self.settings.tsch_slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -707,13 +707,13 @@ class Mote(object):
 
         with self.dataLock:
 
-            if self.settings.bayesianBroadcast:
-                beaconProb = float(self.settings.beaconProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.beaconProbability)
+            if self.settings.tsch_probBcast_enabled:
+                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_ebProb)
                 sendBeacon = True if random.random() < beaconProb else False
             else:
                 sendBeacon = True
             if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.withJoin:
+                if self.isJoined or not self.settings.secjoin_enabled:
                     if sendBeacon:
                         self._tsch_action_enqueueEB()
                         self._stats_incrementMoteStats('tschTxEB')
@@ -728,7 +728,7 @@ class Mote(object):
         # got an EB, increment stats
         self._stats_incrementMoteStats('tschRxEB')
         if self.firstEB and not self.isSync:
-            assert self.settings.withJoin
+            assert self.settings.secjoin_enabled
             # log
             self._log(
                 INFO,
@@ -803,7 +803,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDIO(self, firstDIO=False):
 
-        if (not hasattr(self.settings, 'dioPeriod')) or self.settings.dioPeriod == 0:
+        if (not hasattr(self.settings, 'rpl_dioPeriod')) or self.settings.rpl_dioPeriod == 0:
             # disable DIO
             return
 
@@ -811,11 +811,11 @@ class Mote(object):
 
             asn    = self.engine.getAsn()
 
-            if self.settings.bayesianBroadcast:
-                futureAsn = int(self.settings.slotframeLength)
+            if self.settings.tsch_probBcast_enabled:
+                futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.dioPeriod, 1.2 * self.settings.dioPeriod) / self.settings.slotDuration))
+                    random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.tsch_slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -827,7 +827,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDAO(self, firstDAO=False):
 
-        if (not hasattr(self.settings, 'daoPeriod')) or self.settings.daoPeriod == 0:
+        if (not hasattr(self.settings, 'rpl_daoPeriod')) or self.settings.rpl_daoPeriod == 0:
             # disable DAO
             return
 
@@ -837,8 +837,8 @@ class Mote(object):
 
             if not firstDAO:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.daoPeriod,
-                                   1.2 * self.settings.daoPeriod) / self.settings.slotDuration))
+                    random.uniform(0.8 * self.settings.rpl_daoPeriod,
+                                   1.2 * self.settings.rpl_daoPeriod) / self.settings.tsch_slotDuration))
             else:
                 futureAsn = 1
 
@@ -904,8 +904,8 @@ class Mote(object):
 
         with self.dataLock:
 
-            if self.settings.bayesianBroadcast:
-                dioProb = float(self.settings.dioProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.dioProbability)
+            if self.settings.tsch_probBcast_enabled:
+                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_dioProb)
                 sendDio = True if random.random() < dioProb else False
             else:
                 sendDio = True
@@ -982,7 +982,7 @@ class Mote(object):
                         (self.rank, newrank),
                     )
                 if self.preferredParent is None and newPreferredParent is not None:
-                    if not self.settings.withJoin:
+                    if not self.settings.secjoin_enabled:
                         # if we selected a parent for the first time, add one cell to it
                         # upon successful join, the reservation request is scheduled explicitly
                         self.sf.schedule_parent_change(self)
@@ -1124,7 +1124,7 @@ class Mote(object):
         """ tries to reserve numCells cells to a neighbor. """
 
         with self.dataLock:
-            if self.settings.sixtopMessaging:
+            if self.settings.sixtop_messaging:
                 if neighbor.id not in self.sixtopStates or (
                         neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and
                         self.sixtopStates[neighbor.id]['tx']['state'] == SIX_STATE_IDLE):
@@ -1156,9 +1156,9 @@ class Mote(object):
 
                     # randomly picking cells
                     availableTimeslots = list(
-                        set(range(self.settings.slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                        set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
                     random.shuffle(availableTimeslots)
-                    cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in
+                    cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in
                                   availableTimeslots[:numCells * self.sf.MIN_NUM_CELLS]])
                     cellList = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
@@ -1313,7 +1313,7 @@ class Mote(object):
 
             # available timeslots on this mote
             availableTimeslots = list(
-                set(range(self.settings.slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
             random.shuffle(cellList)
             for (ts, ch, dir) in cellList:
                 if len(newCellList) == numCells:
@@ -1347,9 +1347,9 @@ class Mote(object):
                 newDir = DIR_TXRX_SHARED
 
             availableTimeslots = list(
-                set(range(self.settings.slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
+                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
-            cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in availableTimeslots[:numCells]])
+            cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in availableTimeslots[:numCells]])
             cellList = []
 
             for ts, ch in cells.iteritems():
@@ -1755,7 +1755,7 @@ class Mote(object):
 
     def _sixtop_cell_deletion_sender(self, neighbor, tsList, dir, timeout):
         with self.dataLock:
-            if self.settings.sixtopMessaging:
+            if self.settings.sixtop_messaging:
                 if neighbor.id not in self.sixtopStates or (
                         neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and
                         self.sixtopStates[neighbor.id]['tx']['state'] == SIX_STATE_IDLE):
@@ -1842,7 +1842,7 @@ class Mote(object):
                 cellPDR = self.getCellPDR(cell)
                 scheduleList += [(ts, cell['numTxAck'], cell['numTx'], cellPDR)]
 
-        if self.settings.sixtopRemoveRandomCell:
+        if self.settings.sixtop_removeRandomCell:
             # introduce randomness in the cell list order
             random.shuffle(scheduleList)
         else:
@@ -2037,7 +2037,7 @@ class Mote(object):
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
-        tsCurrent  = asn % self.settings.slotframeLength
+        tsCurrent  = asn % self.settings.tsch_slotframeLength
 
         # find closest active slot in schedule
         with self.dataLock:
@@ -2050,11 +2050,11 @@ class Mote(object):
 
             for (ts, cell) in self.schedule.items():
                 if   ts == tsCurrent:
-                    tsDiff        = self.settings.slotframeLength
+                    tsDiff        = self.settings.tsch_slotframeLength
                 elif ts > tsCurrent:
                     tsDiff        = ts-tsCurrent
                 elif ts < tsCurrent:
-                    tsDiff        = (ts+self.settings.slotframeLength)-tsCurrent
+                    tsDiff        = (ts+self.settings.tsch_slotframeLength)-tsCurrent
                 else:
                     raise SystemError()
 
@@ -2076,7 +2076,7 @@ class Mote(object):
         """
 
         asn = self.engine.getAsn()
-        ts  = asn % self.settings.slotframeLength
+        ts  = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
 
@@ -2315,7 +2315,7 @@ class Mote(object):
     def _tsch_action_synchronize(self):
 
         if not self.isSync:
-            channel = random.randint(0, self.settings.numChans-1)
+            channel = random.randint(0, self.settings.phy_numChans-1)
             # start listening
             self.propagation.startRx(
                 mote=self,
@@ -2357,7 +2357,7 @@ class Mote(object):
         """end of tx slot"""
 
         asn   = self.engine.getAsn()
-        ts    = asn % self.settings.slotframeLength
+        ts    = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
 
@@ -2402,7 +2402,7 @@ class Mote(object):
 
                         # calculate the asn at which it should fire
                         fireASN = int(self.engine.getAsn() + (
-                                    float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                                    float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
@@ -2423,7 +2423,7 @@ class Mote(object):
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = SIX_STATE_WAIT_DELETERESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn() + (float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                        fireASN = int(self.engine.getAsn() + (float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
@@ -2597,7 +2597,7 @@ class Mote(object):
         """end of RX radio activity"""
 
         asn   = self.engine.getAsn()
-        ts    = asn % self.settings.slotframeLength
+        ts    = asn % self.settings.tsch_slotframeLength
 
         with self.dataLock:
             if self.isSync:
@@ -2632,8 +2632,8 @@ class Mote(object):
                         'sourceRoute': copy.deepcopy(srcRoute)
                     }
                     self.waitingFor = None
-                    if (hasattr(self.settings, 'enableFragmentForwarding') and
-                       self.settings.enableFragmentForwarding):
+                    if (hasattr(self.settings, 'frag_ff_enable') and
+                       self.settings.frag_ff_enable):
                         if self._app_is_frag_to_forward(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue
@@ -2737,8 +2737,8 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'numFragments') and
-                       self.settings.numFragments > 1):
+                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'frag_numFragments') and
+                       self.settings.frag_numFragments > 1):
                         self._app_frag_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)
@@ -2843,7 +2843,7 @@ class Mote(object):
         parent               = self.preferredParent
 
         while True:
-            secSinceSync     = (asn-child.timeCorrectedSlot)*self.settings.slotDuration  # sec
+            secSinceSync     = (asn-child.timeCorrectedSlot)*self.settings.tsch_slotDuration  # sec
             # FIXME: for ppm, should we not /10^6?
             relDrift         = child.drift - parent.drift                                # ppm
             offset          += relDrift * secSinceSync                                   # us
@@ -2869,7 +2869,7 @@ class Mote(object):
     #==== battery
 
     def boot(self):
-        if self.settings.withJoin:
+        if self.settings.secjoin_enabled:
             if self.dagRoot:
                 self._tsch_add_minimal_cell()
                 self._init_stack()  # initialize the stack and start sending beacons and DIOs
@@ -2893,7 +2893,7 @@ class Mote(object):
             self._rpl_schedule_sendDAO(firstDAO=True)
 
         #if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
-        if not self.settings.withJoin or self.dagRoot:
+        if not self.settings.secjoin_enabled or self.dagRoot:
             for m in self._myNeighbors():
                 self._tsch_resetBackoffPerNeigh(m)
 
@@ -2902,7 +2902,7 @@ class Mote(object):
 
         # app
         if not self.dagRoot:
-            if hasattr(self.settings, 'numPacketsBurst') and self.settings.numPacketsBurst is not None and self.settings.burstTimestamp is not None:
+            if hasattr(self.settings, 'app_burstNumPackets') and self.settings.app_burstNumPackets is not None and self.settings.app_burstTimestamp is not None:
                 self._app_schedule_sendPacketBurst()
             else:
                 self._app_schedule_sendSinglePacket(firstPacket=True)
@@ -3042,7 +3042,7 @@ class Mote(object):
 
     def stats_sharedCellCollisionSignal(self):
         asn = self.engine.getAsn()
-        ts = asn % self.settings.slotframeLength
+        ts = asn % self.settings.tsch_slotframeLength
 
         assert self.schedule[ts]['dir'] == DIR_TXRX_SHARED
 
@@ -3051,7 +3051,7 @@ class Mote(object):
 
     def stats_sharedCellSuccessSignal(self):
         asn = self.engine.getAsn()
-        ts = asn % self.settings.slotframeLength
+        ts = asn % self.settings.tsch_slotframeLength
 
         assert self.schedule[ts]['dir'] == DIR_TXRX_SHARED
 

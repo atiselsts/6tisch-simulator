@@ -98,7 +98,7 @@ class StatsFrame(Tkinter.Frame):
         output  = []
         output += ["info:"]
         output += ["ASN: {0}".format(asn)]
-        output += ["time: {0}".format(asn*self.settings.slotDuration)]
+        output += ["time: {0}".format(asn*self.settings.tsch_slotDuration)]
         output  = '\n'.join(output)
         self.info.configure(text=output)
 

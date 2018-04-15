@@ -94,7 +94,7 @@ class PlayPauseFrame(Tkinter.Frame):
         print 'nextCycle clicked'
         try:
             nowAsn           = self.engine.getAsn()
-            endCycleAsn      = nowAsn+self.settings.slotframeLength-(nowAsn%self.settings.slotframeLength)
+            endCycleAsn      = nowAsn+self.settings.tsch_slotframeLength-(nowAsn%self.settings.tsch_slotframeLength)
 
             self.engine.play()
             self.engine.pauseAtAsn(
