@@ -136,9 +136,6 @@ CHARGE_RxDataTxAck_uC              = 32.6
 CHARGE_RxData_uC                   = 22.6
 CHARGE_IdleNotSync_uC              = 45.0
 
-# === 6LoWPAN Reassembly
-DFLT_NUMREASSBUFFS = 1
-
 BROADCAST_ADDRESS                  = 0xffff
 
 # =========================== body ============================================
@@ -215,11 +212,6 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-        # reassembly/fragmentation
-        if not hasattr(self.settings, 'frag_ph_numReassBuffs'):
-            self.maxReassQueueNum = DFLT_NUMREASSBUFFS
-        else:
-            self.maxReassQueueNum = self.settings.frag_ph_numReassBuffs
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -620,7 +612,7 @@ class Mote(object):
                 reass_queue_num = 0
                 for i in self.reassQueue:
                     reass_queue_num += len(self.reassQueue[i])
-                if reass_queue_num == self.maxReassQueueNum:
+                if reass_queue_num == self.settings.frag_ph_numReassBuffs:
                     # no room for a new entry
                     self._radio_drop_packet({'payload': payload}, 'droppedFragReassQueueFull')
                     return False

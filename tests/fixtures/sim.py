@@ -25,6 +25,7 @@ def sim(request):
             'frag_ff_enable':               False,
             'frag_ff_options':              [],
             'frag_ff_vrbtablesize':         50,
+            'frag_ph_numReassBuffs':        1,
             
             'sf_type':                      sf.DFLT_SF,
             'sf_msf_housekeepingPeriod':    60,
