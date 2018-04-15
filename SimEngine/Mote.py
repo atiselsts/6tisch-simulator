@@ -663,7 +663,7 @@ class Mote(object):
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
-        if (not hasattr(self.settings, 'tsch_ebPeriod_sec')) or (self.settings.tsch_ebPeriod_sec == 0):
+        if self.settings.tsch_ebPeriod_sec==0:
             # disable periodic EB transmission
             return
 
@@ -675,8 +675,11 @@ class Mote(object):
                 futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.tsch_ebPeriod_sec,
-                                   1.2 * self.settings.tsch_ebPeriod_sec) / self.settings.tsch_slotDuration))
+                    random.uniform(
+                        0.8 * self.settings.tsch_ebPeriod_sec,
+                        1.2 * self.settings.tsch_ebPeriod_sec,
+                    ) / self.settings.tsch_slotDuration
+                ))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
