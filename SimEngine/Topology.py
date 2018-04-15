@@ -42,25 +42,25 @@ class Topology(object):
 
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
+        if hasattr(settings, 'top_type'):
+            if settings.top_type == 'linear':
                 return LinearTopology(motes)
-            elif settings.topology == 'twoBranch':
+            elif settings.top_type == 'twoBranch':
                 return TwoBranchTopology(motes)
-            elif settings.topology == 'trace':
-                return TraceTopology(motes, settings.trace)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+            elif settings.top_type == 'trace':
+                return TraceTopology(motes, settings.prop_trace)
+        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
             return RandomTopology(motes)
 
     @classmethod
     def rssiToPdr(cls, rssi):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
+        if hasattr(settings, 'top_type'):
+            if settings.top_type == 'linear':
                 return LinearTopology.rssiToPdr(rssi)
-            elif settings.topology == 'twoBranch':
+            elif settings.top_type == 'twoBranch':
                 return TwoBranchTopology.rssiToPdr(rssi)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
             return RandomTopology.rssiToPdr(rssi)
 
 
@@ -143,14 +143,14 @@ class RandomTopology(TopologyCreator):
         # local variables
         self.settings = SimSettings.SimSettings()
 
-        # if fullyMeshed is enabled, create a topology where each node has N-1
+        # if top_fullyMeshed is enabled, create a topology where each node has N-1
         # stable neighbors
-        if self.settings.fullyMeshed:
+        if self.settings.top_fullyMeshed:
             self.stable_neighbors = len(self.motes) - 1
             self.squareSide = self.FULLY_MESHED_SQUARE_SIDE
         else:
             self.stable_neighbors = self.STABLE_NEIGHBORS
-            self.squareSide = self.settings.squareSide
+            self.squareSide = self.settings.top_squareSide
 
     def createTopology(self):
         """
@@ -306,7 +306,7 @@ class LinearTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if not hasattr(self.settings, 'withJoin') or (self.settings.withJoin is False):
+        if not hasattr(self.settings, 'secjoin_enabled') or (self.settings.secjoin_enabled is False):
             self._build_rpl_tree()
 
     @classmethod
@@ -410,7 +410,7 @@ class TwoBranchTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin is False):
+        if (not hasattr(self.settings, 'secjoin_enabled')) or (self.settings.secjoin_enabled is False):
             self._build_rpl_tree()
 
     @classmethod
@@ -511,13 +511,13 @@ class TwoBranchTopology(TopologyCreator):
                     if 'alloc_table' not in locals():
                         alloc_table = set()
 
-                    if len(alloc_table) >= self.settings.slotframeLength:
+                    if len(alloc_table) >= self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
                     while True:
                         # we don't use slot-0 since it's designated for a shared cell
                         alloc_pointer = random.randint(1,
-                                                       self.settings.slotframeLength - 1)
+                                                       self.settings.tsch_slotframeLength - 1)
                         if alloc_pointer not in alloc_table:
                             alloc_table.add(alloc_pointer)
                             break
@@ -527,7 +527,7 @@ class TwoBranchTopology(TopologyCreator):
                     else:
                         alloc_pointer += 1
 
-                    if alloc_pointer > self.settings.slotframeLength:
+                    if alloc_pointer > self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
                 sf.alloc_cell(child,
@@ -585,8 +585,8 @@ class TraceTopology(TopologyCreator):
         # randomly place motes
         for mote in self.motes:
             # pick a random location
-            mote.setLocation(x=self.settings.squareSide * random.random(),
-                             y=self.settings.squareSide * random.random())
+            mote.setLocation(x=self.settings.top_squareSide * random.random(),
+                             y=self.settings.top_squareSide * random.random())
 
         log.debug("Topology Created.")
 

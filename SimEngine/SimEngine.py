@@ -72,8 +72,8 @@ class SimEngine(threading.Thread):
         # init singletons
         self.settings                       = SimSettings.SimSettings()
         self.propagation                    = Propagation()
-        if hasattr(self.settings, 'numMotes'):
-            self.motes                      = [Mote.Mote(id) for id in range(self.settings.numMotes)]
+        if hasattr(self.settings, 'exec_numMotes'):
+            self.motes                      = [Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
         elif self.propagation.type == 'trace':
             self.motes                      = [Mote.Mote(id) for id in range(self.propagation.num_motes)]
             # TODO load the trace earlier and fill the engine setting from the trace
@@ -83,7 +83,7 @@ class SimEngine(threading.Thread):
         self.topology.createTopology()
 
         # init schedule
-        sf.init(self.topology, self.settings.scheduling_function)
+        sf.init(self.topology, self.settings.sf_type)
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -111,9 +111,9 @@ class SimEngine(threading.Thread):
         log.info("thread {0} starting".format(self.name))
 
         # schedule the endOfSimulation event if we are not simulating the join process
-        if not self.settings.withJoin:
+        if not self.settings.secjoin_enabled:
             self.scheduleAtAsn(
-                asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
+                asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
                 cb          = self._actionEndSim,
                 uniqueTag   = (None,'_actionEndSim'),
             )
@@ -166,7 +166,7 @@ class SimEngine(threading.Thread):
         """ used to generate events. Puts an event to the queue """
 
         with self.dataLock:
-            asn = int(self.asn + (float(delay) / float(self.settings.slotDuration)))
+            asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
 
             self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN, kwargs)
 

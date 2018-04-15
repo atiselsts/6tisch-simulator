@@ -26,7 +26,7 @@ log.addHandler(NullHandler())
 # =========================== defines =========================================
 
 SCHEDULING_FUNCTIONS = ['MSF', 'SSF-symmetric', 'SSF-cascading']
-DEFAULT_SCHEDULING_FUNCTION = 'MSF'
+DFLT_SF              = 'MSF'
 
 # =========================== helpers =========================================
 
@@ -133,19 +133,19 @@ def _ssf_twobranch_cascading_schedule(self):
                 if 'alloc_table' not in locals():
                     alloc_table = set()
 
-                if len(alloc_table) >= self.settings.slotframeLength:
+                if len(alloc_table) >= self.settings.tsch_slotframeLength:
                     raise ValueError('slotframe is too small')
 
                 while True:
                     # we don't use slot-0 since it's designated for a shared cell
-                    alloc_pointer = random.randint(1, self.settings.slotframeLength - 1)
+                    alloc_pointer = random.randint(1, self.settings.tsch_slotframeLength - 1)
                     if alloc_pointer not in alloc_table:
                         alloc_table.add(alloc_pointer)
                         break
             else:
                 alloc_pointer += 1
 
-                if alloc_pointer > self.settings.slotframeLength:
+                if alloc_pointer > self.settings.tsch_slotframeLength:
                     raise ValueError('slotframe is too small')
 
             _alloc_cell(child, child.preferredParent, alloc_pointer, 0)
@@ -212,31 +212,31 @@ class MSF(SchedulingFunction):
     MAX_TIMEOUT_EXP = 4
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
-    MSFMAXNUMCELLS = 16
-    MSFHOUSEKEEPINGPERIOD = 60.0
+    DFLT_MSF_MAXNUMCELLS = 16
+    DFLT_MSF_HOUSEKEEPINGPERIOD = 60.0
 
     def __init__(self):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
 
-        if hasattr(self.settings, 'msfHousekeepingPeriod'):
-            self.housekeepingPeriod = self.settings.msfHousekeepingPeriod
+        if hasattr(self.settings, 'sf_msf_housekeepingPeriod'):
+            self.housekeepingPeriod = self.settings.sf_msf_housekeepingPeriod
         else:
-            self.housekeepingPeriod = self.MSFHOUSEKEEPINGPERIOD
-        if hasattr(self.settings, 'msfMaxNumCells'):
-            self.msfMaxNumCells = self.settings.msfMaxNumCells
+            self.housekeepingPeriod = self.DFLT_MSF_HOUSEKEEPINGPERIOD
+        if hasattr(self.settings, 'sf_msf_MaxNumCells'):
+            self.maxNumCells = self.settings.sf_msf_maxNumCells
         else:
-            self.msfMaxNumCells = self.MSFMAXNUMCELLS
-        self.msfLimNumCellsUsedHigh = self.settings.msfLimNumCellsUsedHigh
-        self.msfLimNumCellsUsedLow = self.settings.msfLimNumCellsUsedLow
-        self.msfNumCellsToAddOrRemove = self.settings.msfNumCellsToAddOrRemove
+            self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
+        self.highUsageThres = self.settings.sf_msf_highUsageThres
+        self.lowUsageThres = self.settings.sf_msf_lowUsageThres
+        self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
 
     def schedule_parent_change(self, mote):
         """
           Schedule MSF parent change
         """
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + (1 + self.settings.slotframeLength * 16 * random.random())),
+            asn         = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
             cb          = self.action_parent_change,
             uniqueTag   = (mote.id, 'action_parent_change'),
             priority    = 4,
@@ -261,7 +261,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.msfNumCellsToAddOrRemove, celloptions,
+                        self.numCellsToAddRemove, celloptions,
                         mote.preferredParent.id, timeout))
 
             mote._sixtop_cell_reservation_request(
@@ -280,7 +280,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.oldPreferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.msfNumCellsToAddOrRemove, celloptions, mote.oldPreferredParent.id, timeout))
+                        self.numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
 
             mote._sixtop_removeCells(
                 mote.oldPreferredParent,
@@ -321,7 +321,7 @@ class MSF(SchedulingFunction):
             meanPDR = sum(cellPDR) / float(len(cellPDR))
             assert meanPDR <= 1.0
             timeout = math.ceil((
-                float(mote.settings.slotframeLength * mote.settings.slotDuration) /
+                float(mote.settings.tsch_slotframeLength * mote.settings.tsch_slotDuration) /
                 float(len(cellPDR))) * (float(1 / meanPDR)) * mote.SIXP_TIMEOUT_SEC_FACTOR)
             return timeout
         else:
@@ -340,20 +340,20 @@ class MSF(SchedulingFunction):
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
 
-        assert mote.numCellsElapsed <= self.msfMaxNumCells
+        assert mote.numCellsElapsed <= self.maxNumCells
         assert direction in [Mote.DIR_TXRX_SHARED, Mote.DIR_TX, Mote.DIR_RX]
 
         # MSF: updating numCellsElapsed
         if direction == Mote.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
             mote.numCellsElapsed += 1
 
-            if mote.numCellsElapsed == self.msfMaxNumCells:
+            if mote.numCellsElapsed == self.maxNumCells:
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
-                if mote.numCellsUsed > self.msfLimNumCellsUsedHigh:
+                if mote.numCellsUsed > self.highUsageThres:
                     self.schedule_bandwidth_increment(mote)
-                elif mote.numCellsUsed < self.msfLimNumCellsUsedLow:
+                elif mote.numCellsUsed < self.lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
                 self.reset_counters(mote)
 
@@ -394,14 +394,14 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_increment(self, mote):
         """
-          Trigger 6P to add msfNumCellsToAddOrRemove cells to preferred parent
+          Trigger 6P to add numCellsToAddRemove cells to preferred parent
         """
         timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
         celloptions = Mote.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                 (self.msfNumCellsToAddOrRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
+                 (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
         mote._sixtop_cell_reservation_request(mote.preferredParent,
-                                              self.msfNumCellsToAddOrRemove,
+                                              self.numCellsToAddRemove,
                                               celloptions,
                                               timeout)
 
@@ -419,18 +419,18 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_decrement(self, mote):
         """
-          Trigger 6P to remove msfNumCellsToAddOrRemove cells from preferred parent
+          Trigger 6P to remove numCellsToAddRemove cells from preferred parent
         """
         # ensure at least one dedicated cell is kept with preferred parent
         if mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 1:
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
             celloptions = Mote.DIR_TXRX_SHARED
             log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                     (self.msfNumCellsToAddOrRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
+                     (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
 
-            # trigger 6p to remove msfNumCellsToAddOrRemove cells
+            # trigger 6p to remove numCellsToAddRemove cells
             mote._sixtop_removeCells(mote.preferredParent,
-                                     self.msfNumCellsToAddOrRemove,
+                                     self.numCellsToAddRemove,
                                      celloptions,
                                      timeout)
 

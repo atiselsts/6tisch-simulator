@@ -6,59 +6,57 @@
     },
     "settings": {
         "combination": {
-            "numMotes":                     [50]
+            "exec_numMotes":                [50]
         },
         "regular": {
-            "simDataDir":                   "simData",
-            "numCyclesPerRun":              101,
+            "exec_simDataDir":              "simData",
+            "exec_numSlotframesPerRun":     101,
             
-            "topology":                     "random",
-            "squareSide":                   2.000,
-            "fullyMeshed":                  0,
+            "app_pkPeriod":                 10,
+            "app_pkPeriodVar":              0.05,
+            "app_burstTimestamp":           null,
+            "app_burstNumPackets":          null,
+            "app_e2eAck":                   0,
             
-            "propagation":                  "pisterhack",
-            "trace":                        null,
+            "rpl_dioPeriod":                10,
+            "rpl_daoPeriod":                60,
             
-            "pkPeriod":                     10,
-            "pkPeriodVar":                  0.05,
-            "burstTimestamp":               null,
-            "numPacketsBurst":              null,
-            "downwardAcks":                 0,
-            "numFragments":                 null,
-            "enableFragmentForwarding":     false,
-            "optFragmentForwarding":        null,
-            "maxVRBEntryNum":               8,
-            "numReassQueue":                1,
+            "frag_numFragments":            null,
+            "frag_ff_enable":               false,
+            "frag_ff_options":              null,
+            "frag_ff_vrbtablesize":         8,
+            "frag_ph_numReassBuffs":        1,
             
-            "dioPeriod":                    10,
-            "daoPeriod":                    60,
+            "sf_type":                      "MSF",
+            "sf_msf_housekeepingPeriod":    60.0,
+            "sf_msf_maxNumCells":           16,
+            "sf_msf_highUsageThres":        12,
+            "sf_msf_lowUsageThres":         4,
+            "sf_msf_numCellsToAddRemove":   1,
             
-            "msfHousekeepingPeriod":        60.0,
-            "msfMaxNumCells":               16,
-            "msfLimNumCellsUsedHigh":       12,
-            "msfLimNumCellsUsedLow":        4,
-            "msfNumCellsToAddOrRemove":     1,
+            "sixtop_messaging":             1,
+            "sixtop_removeRandomCell":      0,
             
-            "scheduling_function":          "MSF",
-            "ssfInitMethod":                "first",
+            "secjoin_enabled":              0,
+            "secjoin_numExchanges":         2,
+            "secjoin_joinTimeout":          60,
             
-            "sixtopMessaging":              1,
-            "sixtopRemoveRandomCell":       0,
+            "tsch_slotDuration":            0.010,
+            "tsch_slotframeLength":         101,
+            "tsch_ebPeriod_sec":            2,
+            "tsch_probBcast_enabled":       1,
+            "tsch_probBcast_ebProb":        0.33,
+            "tsch_probBcast_dioProb":       0.33,
             
-            "withJoin":                     0,
-            "joinNumExchanges":             2,
-            "joinAttemptTimeout":           60,
+            "top_type":                     "random",
+            "top_squareSide":               2.000,
+            "top_fullyMeshed":              0,
+            "prop_type":                    "pisterhack",
+            "prop_trace":                   null,
             
-            "slotDuration":                 0.010,
-            "slotframeLength":              101,
-            "beaconPeriod":                 2,
-            "bayesianBroadcast":            1,
-            "beaconProbability":            0.33,
-            "dioProbability":               0.33,
-            
-            "numChans":                     16,
-            "minRssi":                      -97,
-            "noInterference":               0
+            "phy_numChans":                 16,
+            "phy_minRssi":                  -97,
+            "phy_noInterference":           0
         }
     },
     "logging": [

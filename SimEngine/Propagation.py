@@ -58,10 +58,10 @@ class Propagation(object):
         :rtype: PropagationFromModel | PropagationFormTrace
         """
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'propagation'):
-            if settings.propagation == 'trace':
-                return PropagationTrace(settings.trace)
-            elif settings.propagation == 'pisterhack':
+        if hasattr(settings, 'prop_type'):
+            if settings.prop_type == 'trace':
+                return PropagationTrace(settings.prop_trace)
+            elif settings.prop_type == 'pisterhack':
                 return PropagationPisterHack()
         else:
             return PropagationPisterHack()
@@ -97,10 +97,10 @@ class PropagationCreator(object):
         self.dataLock                  = threading.Lock()
         self.receivers                 = [] # motes with radios currently listening
         self.transmissions             = [] # ongoing transmissions
-        self.slotframe_length          = self.settings.slotframeLength
-        self.slot_duration             = self.settings.slotDuration
-        self.with_interferences        = not self.settings.noInterference
-        self.minRssi                   = self.settings.minRssi # dBm
+        self.slotframe_length          = self.settings.tsch_slotframeLength
+        self.slot_duration             = self.settings.tsch_slotDuration
+        self.with_interferences        = not self.settings.phy_noInterference
+        self.minRssi                   = self.settings.phy_minRssi # dBm
 
         # schedule propagation task
         self._schedule_propagate()
