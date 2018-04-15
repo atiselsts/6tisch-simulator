@@ -40,7 +40,7 @@ def sim(request):
             'tsch_slotframeLength':         101,
             'tsch_ebPeriod_sec':            0,
             
-            'top_type':                     Topology.DEFAULT_TOPOLOGY,
+            'top_type':                     'random',
             'top_squareSide':               2.000,
             'top_fullyMeshed':              False,
             
