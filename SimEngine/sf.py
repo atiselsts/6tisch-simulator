@@ -216,7 +216,6 @@ class MSF(SchedulingFunction):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
         
-        self.lowUsageThres = self.settings.sf_msf_lowUsageThres
         self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
 
     def schedule_parent_change(self, mote):
@@ -341,7 +340,7 @@ class MSF(SchedulingFunction):
 
                 if   mote.numCellsUsed > self.settings.sf_msf_highUsageThres:
                     self.schedule_bandwidth_increment(mote)
-                elif mote.numCellsUsed < self.lowUsageThres:
+                elif mote.numCellsUsed < self.settings.sf_msf_lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
                 self.reset_counters(mote)
 
