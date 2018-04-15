@@ -33,8 +33,7 @@ log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
-TOPOLOGY_SHAPES = ['linear', 'twoBranch', 'random']
-DEFAULT_TOPOLOGY = 'random'
+TOP_TYPE_ALL = ['linear', 'twoBranch', 'random']
 
 # =========================== body ============================================
 
@@ -43,7 +42,7 @@ class Topology(object):
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
         if hasattr(settings, 'top_type'):
-            if settings.top_type == 'linear':
+            if   settings.top_type == 'linear':
                 return LinearTopology(motes)
             elif settings.top_type == 'twoBranch':
                 return TwoBranchTopology(motes)
@@ -306,7 +305,7 @@ class LinearTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if not hasattr(self.settings, 'secjoin_enabled') or (self.settings.secjoin_enabled is False):
+        if not self.settings.secjoin_enabled:
             self._build_rpl_tree()
 
     @classmethod
@@ -410,7 +409,7 @@ class TwoBranchTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (not hasattr(self.settings, 'secjoin_enabled')) or (self.settings.secjoin_enabled is False):
+        if not self.settings.secjoin_enabled:
             self._build_rpl_tree()
 
     @classmethod

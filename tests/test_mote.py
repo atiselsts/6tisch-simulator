@@ -7,21 +7,23 @@
 import types
 
 import SimEngine.Mote as Mote
+from   SimEngine import SimSettings
 
 def test_app_schedule_transmit(sim):
-
     sim = sim(
         **{
-            'exec_numMotes':                2,
+            'exec_numMotes':           2,
             'app_pkPeriod':            0,
             'tsch_ebPeriod_sec':       0,
             'rpl_dioPeriod':           0,
             'rpl_daoPeriod':           0,
             'top_type':                'linear',
-            'sf_type':     "SSF-cascading"
+            'sf_type':                 'SSF-cascading'
         }
     )
+    
     node = sim.motes[1]
+    
     # active TX cell event for node, active RX cell event for root, and
     # propagation event
     assert len(sim.events) == 3
@@ -33,9 +35,16 @@ def test_app_schedule_transmit(sim):
 
 
 def test_drop_join_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'secjoin_joinTimeout': 0})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'secjoin_joinTimeout':     0,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -65,8 +74,15 @@ def test_drop_join_packet_tx_queue_full(sim):
 
 
 def test_drop_data_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -96,9 +112,16 @@ def test_drop_data_packet_tx_queue_full(sim):
 
 
 def test_drop_frag_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_numFragments': 2})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -126,9 +149,16 @@ def test_drop_frag_packet_tx_queue_full(sim):
 
 
 def test_drop_app_ack_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'app_e2eAck': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'app_e2eAck':              True,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -156,8 +186,15 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
 
 
 def test_drop_eb_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -187,8 +224,15 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
 
 def test_drop_dio_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -218,8 +262,15 @@ def test_drop_dio_packet_tx_queue_full(sim):
 
 
 def test_drop_dao_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -249,8 +300,15 @@ def test_drop_dao_packet_tx_queue_full(sim):
 
 
 def test_drop_sixtop_request_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -285,8 +343,15 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
 
 def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 2, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -316,9 +381,16 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
 
 
 def test_drop_forwarding_frag_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 3, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_numFragments': 2, 'frag_ff_enable': True,})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+        }
+    )
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -351,9 +423,17 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
 
 
 def test_drop_forwarding_frag_vrb_table_full(sim):
-    sim = sim(**{'exec_numMotes': 3, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_numFragments': 2, 'frag_ff_enable': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+            'frag_ff_vrbtablesize':    50,
+        }
+    )
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -362,7 +442,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     frag['payload'].append({'datagram_tag': 1, 'datagram_size': 2, 'datagram_offset': 0})
 
     node.vrbTable[leaf] = {}
-    for i in range(0, Mote.DFLT_VRBTABLESIZE):
+    for i in range(0, SimSettings.SimSettings().frag_ff_vrbtablesize):
         # fill VRB Table
         node.vrbTable[leaf][i] = {'otag': 0, 'ts': 0}
 
@@ -380,11 +460,18 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     node._app_is_frag_to_forward(frag)
     assert test_is_called['result'] is True
 
-
 def test_drop_forwarding_frag_no_vrb_entry(sim):
-    sim = sim(**{'exec_numMotes': 3, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_numFragments': 2, 'frag_ff_enable': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -408,8 +495,15 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
 
 
 def test_drop_forwarding_data_tx_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 3, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -441,11 +535,19 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
 
 def test_drop_frag_reassembly_queue_full(sim):
-    sim = sim(**{'exec_numMotes': 4, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_ph_numReassBuffs': 1, 'frag_numFragments': 2})
-    root = sim.motes[0]
-    node = sim.motes[1]
+    sim = sim(
+        **{ 
+            'exec_numMotes':           4,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_ph_numReassBuffs':   1,
+            'frag_numFragments':       2,
+        }
+    )
+    
+    root  = sim.motes[0]
+    node  = sim.motes[1]
     leaf1 = sim.motes[2]
     leaf2 = sim.motes[3]
 
@@ -477,16 +579,24 @@ def test_drop_frag_reassembly_queue_full(sim):
 
 
 def test_drop_frag_too_big_for_reassembly_queue(sim):
-    sim = sim(**{'exec_numMotes': 4, 'app_pkPeriod': 0,
-                 'top_type': 'linear', 'sf_type': 'SSF-cascading',
-                 'frag_ph_numReassBuffs': 1, 'frag_numFragments': 2})
-    root = sim.motes[0]
-    node = sim.motes[1]
+    sim = sim(
+        **{
+            'exec_numMotes':           4,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_ph_numReassBuffs':   1,
+            'frag_numFragments':       2,
+        }
+    )
+    
+    root  = sim.motes[0]
+    node  = sim.motes[1]
     leaf1 = sim.motes[2]
     leaf2 = sim.motes[3]
 
-    payload = [2, 0, 1]
     # fragment can be enqueued even if datagram_offset is not 0
+    payload = [2, 0, 1]
     payload.append({'datagram_tag': 12345, 'datagram_size': 3, 'datagram_offset': 1})
 
     node.original_radio_drop_packet = node._radio_drop_packet

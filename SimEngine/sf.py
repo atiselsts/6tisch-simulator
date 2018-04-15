@@ -25,8 +25,7 @@ log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
-SCHEDULING_FUNCTIONS = ['MSF', 'SSF-symmetric', 'SSF-cascading']
-DFLT_SF              = 'MSF'
+SF_TYPE_ALL = ['MSF', 'SSF-symmetric', 'SSF-cascading']
 
 # =========================== helpers =========================================
 
@@ -212,24 +211,10 @@ class MSF(SchedulingFunction):
     MAX_TIMEOUT_EXP = 4
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
-    DFLT_MSF_MAXNUMCELLS = 16
-    DFLT_MSF_HOUSEKEEPINGPERIOD = 60.0
 
     def __init__(self):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
-
-        if hasattr(self.settings, 'sf_msf_housekeepingPeriod'):
-            self.housekeepingPeriod = self.settings.sf_msf_housekeepingPeriod
-        else:
-            self.housekeepingPeriod = self.DFLT_MSF_HOUSEKEEPINGPERIOD
-        if hasattr(self.settings, 'sf_msf_MaxNumCells'):
-            self.maxNumCells = self.settings.sf_msf_maxNumCells
-        else:
-            self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
-        self.highUsageThres = self.settings.sf_msf_highUsageThres
-        self.lowUsageThres = self.settings.sf_msf_lowUsageThres
-        self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
 
     def schedule_parent_change(self, mote):
         """
@@ -261,7 +246,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.numCellsToAddRemove, celloptions,
+                        self.settings.sf_msf_numCellsToAddRemove, celloptions,
                         mote.preferredParent.id, timeout))
 
             mote._sixtop_cell_reservation_request(
@@ -280,7 +265,7 @@ class MSF(SchedulingFunction):
             timeout = self.get_sixtop_timeout(mote, mote.oldPreferredParent)
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
+                        self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
 
             mote._sixtop_removeCells(
                 mote.oldPreferredParent,
@@ -340,20 +325,20 @@ class MSF(SchedulingFunction):
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
 
-        assert mote.numCellsElapsed <= self.maxNumCells
+        assert mote.numCellsElapsed <= self.settings.sf_msf_maxNumCells
         assert direction in [Mote.DIR_TXRX_SHARED, Mote.DIR_TX, Mote.DIR_RX]
 
         # MSF: updating numCellsElapsed
         if direction == Mote.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
             mote.numCellsElapsed += 1
 
-            if mote.numCellsElapsed == self.maxNumCells:
+            if mote.numCellsElapsed == self.settings.sf_msf_maxNumCells:
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
-                if mote.numCellsUsed > self.highUsageThres:
+                if   mote.numCellsUsed > self.settings.sf_msf_highUsageThres:
                     self.schedule_bandwidth_increment(mote)
-                elif mote.numCellsUsed < self.lowUsageThres:
+                elif mote.numCellsUsed < self.settings.sf_msf_lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
                 self.reset_counters(mote)
 
@@ -394,14 +379,14 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_increment(self, mote):
         """
-          Trigger 6P to add numCellsToAddRemove cells to preferred parent
+          Trigger 6P to add self.settings.sf_msf_numCellsToAddRemove cells to preferred parent
         """
         timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
         celloptions = Mote.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                 (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
+                 (self.settings.sf_msf_numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
         mote._sixtop_cell_reservation_request(mote.preferredParent,
-                                              self.numCellsToAddRemove,
+                                              self.settings.sf_msf_numCellsToAddRemove,
                                               celloptions,
                                               timeout)
 
@@ -419,25 +404,25 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_decrement(self, mote):
         """
-          Trigger 6P to remove numCellsToAddRemove cells from preferred parent
+          Trigger 6P to remove self.settings.sf_msf_numCellsToAddRemove cells from preferred parent
         """
         # ensure at least one dedicated cell is kept with preferred parent
         if mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 1:
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
             celloptions = Mote.DIR_TXRX_SHARED
             log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                     (self.numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
+                     (self.settings.sf_msf_numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
 
-            # trigger 6p to remove numCellsToAddRemove cells
+            # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
             mote._sixtop_removeCells(mote.preferredParent,
-                                     self.numCellsToAddRemove,
+                                     self.settings.sf_msf_numCellsToAddRemove,
                                      celloptions,
                                      timeout)
 
     def housekeeping(self, mote):
 
         self.engine.scheduleIn(
-            delay       = self.housekeepingPeriod*(0.9+0.2*random.random()),
+            delay       = self.settings.sf_msf_housekeepingPeriod*(0.9+0.2*random.random()),
             cb          = self.action_housekeeping,
             uniqueTag   = (mote.id, 'action_housekeeping'),
             priority    = 4,
