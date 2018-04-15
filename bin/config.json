@@ -24,7 +24,7 @@
             "frag_numFragments":            null,
             "frag_ff_enable":               false,
             "frag_ff_options":              null,
-            "maxVRBEntryNum":               8,
+            "frag_ff_vrbtablesize":         8,
             "numReassQueue":                1,
             
             "msfHousekeepingPeriod":        60.0,

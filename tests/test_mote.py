@@ -362,7 +362,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     frag['payload'].append({'datagram_tag': 1, 'datagram_size': 2, 'datagram_offset': 0})
 
     node.vrbTable[leaf] = {}
-    for i in range(0, Mote.FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM):
+    for i in range(0, Mote.DFLT_VRBTABLESIZE):
         # fill VRB Table
         node.vrbTable[leaf][i] = {'otag': 0, 'ts': 0}
 

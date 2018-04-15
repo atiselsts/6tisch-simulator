@@ -507,7 +507,7 @@ class TestPacketFowarding:
 
     def test_vrb_table_size_limit_1(self, sim):
         params = {'frag_ff_enable': True,
-                  'maxVRBEntryNum': 10,
+                  'frag_ff_vrbtablesize': 10,
                   'frag_numFragments': 2,
                   'numMotes': 2,
                   'top_type': 'linear',
@@ -548,7 +548,7 @@ class TestPacketFowarding:
         }
         frag['payload'][3]['datagram_size'] = params['frag_numFragments']
         frag['payload'][3]['datagram_offset'] = 0
-        for i in range(0, Mote.FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM):
+        for i in range(0, Mote.DFLT_VRBTABLESIZE):
             frag['smac'] = i
             frag['payload'][3]['datagram_tag'] = i
             assert hop1._app_is_frag_to_forward(frag) is True
