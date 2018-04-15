@@ -35,7 +35,7 @@ def sim(request):
             'prop_type': 'pisterhack',
             'tsch_slotDuration': 0.010,
             'tsch_slotframeLength': 101,
-            'noInterference': True,
+            'phy_noInterference': True,
             'phy_minRssi': -97,
 
             # there are prerequisite parameters for Mote

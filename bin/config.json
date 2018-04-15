@@ -56,7 +56,7 @@
             
             "phy_numChans":                 16,
             "phy_minRssi":                  -97,
-            "noInterference":               0
+            "phy_noInterference":           0
         }
     },
     "logging": [

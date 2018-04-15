@@ -99,7 +99,7 @@ class PropagationCreator(object):
         self.transmissions             = [] # ongoing transmissions
         self.slotframe_length          = self.settings.tsch_slotframeLength
         self.slot_duration             = self.settings.tsch_slotDuration
-        self.with_interferences        = not self.settings.noInterference
+        self.with_interferences        = not self.settings.phy_noInterference
         self.minRssi                   = self.settings.phy_minRssi # dBm
 
         # schedule propagation task
