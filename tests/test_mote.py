@@ -68,7 +68,7 @@ def test_drop_join_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node.secjoin_sendJoinPacket('token', root)
+    node._secjoin_sendJoinPacket('token', root)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 

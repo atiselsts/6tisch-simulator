@@ -246,35 +246,35 @@ class Mote(object):
     # ===== join process
     '''
     secjoin starts after having received the first EB.
-    When secjoin done, stack_init_synced() is called.
+    When secjoin done, _stack_init_synced() is called.
     '''
     
-    def secjoin_scheduleJoinProcess(self):
+    def _secjoin_scheduleJoinProcess(self):
         '''
         Schedule to start the join process sometimes in the future
         '''
         self.engine.scheduleIn(
             delay       = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
-            cb          = self.secjoin_initiateJoinProcess,
+            cb          = self._secjoin_initiateJoinProcess,
             uniqueTag   = (self.id, '_join_action_initiateJoinProcess'),
             priority    = 2,
         )
     
-    def secjoin_initiateJoinProcess(self):
+    def _secjoin_initiateJoinProcess(self):
         '''
         Start the join process.
         '''
         if not self.dagRoot:
             if self.preferredParent:
                 if not self.isJoined:
-                    self.secjoin_sendJoinPacket(
+                    self._secjoin_sendJoinPacket(
                         token          = self.settings.secjoin_numExchanges - 1,
                         destination    = self.dagRootAddress,
                     )
             else: # node doesn't have a parent yet, re-scheduling
-                self.secjoin_scheduleJoinProcess()
+                self._secjoin_scheduleJoinProcess()
     
-    def secjoin_sendJoinPacket(self, token, destination):
+    def _secjoin_sendJoinPacket(self, token, destination):
         '''
         Send join packet (same function for join request and response).
         
@@ -325,12 +325,12 @@ class Mote(object):
             if not self.dagRoot:
                 self.engine.scheduleIn(
                     delay         = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
-                    cb            = self.secjoin_retransmitJoinPacket,
+                    cb            = self._secjoin_retransmitJoinPacket,
                     uniqueTag     = (self.id, '_join_action_retransmission'),
                     priority      = 2,
                 )
     
-    def secjoin_receiveJoinPacket(self, srcIp, payload, timestamp):
+    def _secjoin_receiveJoinPacket(self, srcIp, payload, timestamp):
         '''
         Receiving a join packet (same function for join request and response).
         
@@ -357,7 +357,7 @@ class Mote(object):
             # FIXME: document
             
             newToken = payload[0] - 1
-            self.secjoin_sendJoinPacket(
+            self._secjoin_sendJoinPacket(
                 token        = newToken,
                 destination  = srcIp,
             )
@@ -365,12 +365,12 @@ class Mote(object):
             # FIXME: document
             
             # record that I'm joined
-            self.secjoin_setJoined()
+            self._secjoin_setJoined()
             
             # initialize the rest of the stack
-            self.stack_init_synced()
+            self._stack_init_synced()
     
-    def secjoin_setJoined(self):
+    def _secjoin_setJoined(self):
         '''
         Record that I'm now joined.
         '''
@@ -404,17 +404,17 @@ class Mote(object):
                 # end the simulation
                 self.engine.terminateSimulation(delay)
     
-    def secjoin_retransmitJoinPacket(self):
+    def _secjoin_retransmitJoinPacket(self):
         '''
         Send join packet again.
         '''
         if not self.dagRoot and not self.isJoined:
-            self.secjoin_sendJoinPacket(
+            self._secjoin_sendJoinPacket(
                 self.joinRetransmissionPayload,
                 self.dagRootAddress,
             )
 
-    def secjoin_areAllNeighborsJoined(self):
+    def _secjoin_areAllNeighborsJoined(self):
         '''
         Are all my neighbors joined?
         '''
@@ -422,7 +422,7 @@ class Mote(object):
 
     #===== stack
     
-    def stack_init_synced(self):
+    def _stack_init_synced(self):
         # start the stack layer by layer, we are sync'ed and joined
 
         # TSCH
@@ -953,7 +953,7 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.tsch_probBcast_enabled:
-                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self.secjoin_areAllNeighborsJoined())) if len(self.secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
+                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
                 sendDio = True if random.random() < dioProb else False
             else:
                 sendDio = True
@@ -2138,7 +2138,7 @@ class Mote(object):
         with self.dataLock:
 
             if self.settings.tsch_probBcast_enabled:
-                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.secjoin_areAllNeighborsJoined())) if len(self.secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
+                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
                 sendBeacon = True if random.random() < beaconProb else False
             else:
                 sendBeacon = True
@@ -2183,7 +2183,7 @@ class Mote(object):
             self._tsch_add_minimal_cell()
             
             # trigger join process
-            self.secjoin_scheduleJoinProcess()  # trigger the join process
+            self._secjoin_scheduleJoinProcess()  # trigger the join process
     
     def _tsch_schedule_activeCell(self):
 
@@ -2853,7 +2853,7 @@ class Mote(object):
                         self._app_action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_JOIN:
-                        self.secjoin_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        self._secjoin_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_FRAG:
                         # never comes here; but just in case
@@ -3021,14 +3021,14 @@ class Mote(object):
         if self.settings.secjoin_enabled:
             if self.dagRoot:
                 self._tsch_add_minimal_cell()
-                self.stack_init_synced()  # initialize the stack and start sending beacons and DIOs
+                self._stack_init_synced()  # initialize the stack and start sending beacons and DIOs
             else:
                 self._tsch_schedule_synchronize()  # permanent rx until node hears an enhanced beacon to sync
         else:
             self.isSync      = True  # without join we skip the always-on listening for EBs
             self.isJoined    = True  # we consider all nodes have joined
             self._tsch_add_minimal_cell()
-            self.stack_init_synced()
+            self._stack_init_synced()
 
     def _logChargeConsumed(self, charge):
         with self.dataLock:
