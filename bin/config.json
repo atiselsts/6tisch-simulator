@@ -6,7 +6,7 @@
     },
     "settings": {
         "combination": {
-            "numMotes":                     [50]
+            "exec_numMotes":                [50]
         },
         "regular": {
             "exec_simDataDir":              "simData",

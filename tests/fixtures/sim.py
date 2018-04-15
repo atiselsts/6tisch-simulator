@@ -15,7 +15,7 @@ def sim(request):
 
         params = {
             # prerequisite parameters for SimEngine
-            'numMotes': 15,
+            'exec_numMotes': 15,
             'secjoin_enabled': False,
 
             # prerequisite parameters for Topology

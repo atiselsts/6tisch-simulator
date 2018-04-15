@@ -28,7 +28,7 @@ def test_create_trace_topology(sim):
     assert isinstance(Topology.Topology([]), Topology.TraceTopology)
 
 def test_linear_topology_with_3_motes(sim):
-    sim = sim(**{'numMotes': 3, 'top_type': 'linear'})
+    sim = sim(**{'exec_numMotes': 3, 'top_type': 'linear'})
     motes = sim.motes
 
     assert len(motes) == 3
@@ -47,7 +47,7 @@ def test_linear_topology_with_3_motes(sim):
 
 
 def test_linear_topology_4_motes(sim):
-    sim = sim(**{'numMotes': 4, 'top_type': 'linear'})
+    sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})
     motes = sim.motes
 
     assert len(motes) == 4
@@ -73,7 +73,7 @@ def test_linear_topology_4_motes(sim):
 
 
 def test_linear_rpl_tree_builder(sim):
-    sim = sim(**{'numMotes': 4, 'top_type': 'linear'})
+    sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})
     motes = sim.motes
 
     assert motes[0].dagRoot is True
@@ -100,7 +100,7 @@ def test_linear_rpl_tree_builder(sim):
     assert motes[3].dagRank == 22
 
 def test_two_branch_topology_with_6_motes(sim):
-    sim = sim(**{'numMotes': 6, 'top_type': 'twoBranch'})
+    sim = sim(**{'exec_numMotes': 6, 'top_type': 'twoBranch'})
     motes = sim.motes
 
     assert len(motes) == 6
@@ -149,7 +149,7 @@ def test_two_branch_topology_with_6_motes(sim):
 
 
 def test_two_branch_topology_with_9_motes(sim):
-    sim = sim(**{'numMotes': 9, 'top_type': 'twoBranch'})
+    sim = sim(**{'exec_numMotes': 9, 'top_type': 'twoBranch'})
     motes = sim.motes
 
     assert len(motes) == 9
@@ -174,7 +174,7 @@ def test_two_branch_topology_with_9_motes(sim):
 
 
 def test_two_branch_rpl_tree_builder(sim):
-    sim = sim(**{'numMotes': 6, 'top_type': 'twoBranch'})
+    sim = sim(**{'exec_numMotes': 6, 'top_type': 'twoBranch'})
     motes = sim.motes
 
     assert motes[0].dagRoot == True

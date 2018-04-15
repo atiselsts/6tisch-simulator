@@ -19,7 +19,7 @@ class TestNumFragmentsVsTxQueue:
     ])
     def test_num_frag(self, sim, test_input, expected):
         m = sim(**{'frag_numFragments': test_input,
-                   'numMotes': 2,
+                   'exec_numMotes': 2,
                    'top_type': 'linear',
                    'sf_type': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
@@ -31,7 +31,7 @@ class TestFragmentation:
 
     def test_app_frag_packet_2(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 2,
+                     'exec_numMotes': 2,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -85,7 +85,7 @@ class TestFragmentation:
 
     def test_app_frag_packet_3(self, sim):
         sim = sim(**{'frag_numFragments': 3,
-                     'numMotes': 3,
+                     'exec_numMotes': 3,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
 
@@ -158,7 +158,7 @@ class TestFragmentation:
 class TestReassembly:
     def test_app_reass_packet_in_order(self, sim):
         sim = sim(**{'frag_numFragments': 3,
-                     'numMotes': 3,
+                     'exec_numMotes': 3,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -200,7 +200,7 @@ class TestReassembly:
 
     def test_app_reass_packet_out_of_order(self, sim):
         sim = sim(**{'frag_numFragments': 3,
-                     'numMotes': 3,
+                     'exec_numMotes': 3,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -242,7 +242,7 @@ class TestReassembly:
 
     def test_app_reass_packet_queue_len(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 2,
+                     'exec_numMotes': 2,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -267,7 +267,7 @@ class TestReassembly:
 
     def test_app_reass_packet_node_queue_num_1(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 4,
+                     'exec_numMotes': 4,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -302,7 +302,7 @@ class TestReassembly:
 
     def test_app_reass_packet_node_queue_num_2(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 4,
+                     'exec_numMotes': 4,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric',
                      'frag_ph_numReassBuffs': 1})
@@ -342,7 +342,7 @@ class TestReassembly:
 
     def test_app_reass_packet_node_queue_num_3(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 4,
+                     'exec_numMotes': 4,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric',
                      'frag_ph_numReassBuffs': 2})
@@ -382,7 +382,7 @@ class TestReassembly:
 
     def test_app_reass_packet_root_queue_num(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 3,
+                     'exec_numMotes': 3,
                      'top_type': 'linear',
                      'sf_type': 'SSF-symmetric'})
         root = sim.motes[0]
@@ -419,7 +419,7 @@ class TestReassembly:
 class TestPacketFowarding:
     def test_forwarder(self, sim):
         params = {'frag_numFragments': 2,
-                  'numMotes': 3,
+                  'exec_numMotes': 3,
                   'top_type': 'linear',
                   'sf_type': 'SSF-symmetric',
                   'app_pkPeriod': 0,
@@ -461,7 +461,7 @@ class TestPacketFowarding:
     def test_e2e(self, sim):
         one_second = 1
         params = {'frag_numFragments': 2,
-                  'numMotes': 3,
+                  'exec_numMotes': 3,
                   'top_type': 'linear',
                   'sf_type': 'SSF-cascading',
                   'app_pkPeriod': 0,
@@ -532,7 +532,7 @@ class TestPacketFowarding:
 class TestDatagramTag:
     def test_tag_on_its_fragments_1(self, sim):
         sim = sim(**{'frag_numFragments': 2,
-                     'numMotes': 2,
+                     'exec_numMotes': 2,
                      'top_type': 'linear',
                      'sf_type': 'SSF-cascading'})
         root = sim.motes[0]
