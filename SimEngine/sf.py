@@ -213,16 +213,16 @@ class MSF(SchedulingFunction):
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
     MSFMAXNUMCELLS = 16
-    MSFHOUSEKEEPINGPERIOD = 60.0
+    DFLT_MSF_HOUSEKEEPINGPERIOD = 60.0
 
     def __init__(self):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
 
-        if hasattr(self.settings, 'msfHousekeepingPeriod'):
-            self.housekeepingPeriod = self.settings.msfHousekeepingPeriod
+        if hasattr(self.settings, 'sf_msf_housekeepingPeriod'):
+            self.housekeepingPeriod = self.settings.sf_msf_housekeepingPeriod
         else:
-            self.housekeepingPeriod = self.MSFHOUSEKEEPINGPERIOD
+            self.housekeepingPeriod = self.DFLT_MSF_HOUSEKEEPINGPERIOD
         if hasattr(self.settings, 'msfMaxNumCells'):
             self.msfMaxNumCells = self.settings.msfMaxNumCells
         else:

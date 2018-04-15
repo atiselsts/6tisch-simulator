@@ -25,7 +25,7 @@ def sim(request):
 
             # prerequisite parameters for Schedule
             'sf_type': sf.DFLT_SF,
-            'msfHousekeepingPeriod': 60,
+            'sf_msf_housekeepingPeriod': 60,
             'msfMaxNumCells': 16,
             'msfLimNumCellsUsedHigh': 12,
             'msfLimNumCellsUsedLow': 4,

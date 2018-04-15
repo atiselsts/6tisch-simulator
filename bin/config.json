@@ -28,7 +28,7 @@
             "frag_ph_numReassBuffs":        1,
             
             "sf_type":                      "MSF",
-            "msfHousekeepingPeriod":        60.0,
+            "sf_msf_housekeepingPeriod":    60.0,
             "msfMaxNumCells":               16,
             "msfLimNumCellsUsedHigh":       12,
             "msfLimNumCellsUsedLow":        4,
