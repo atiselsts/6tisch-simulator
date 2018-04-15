@@ -55,7 +55,7 @@
             "prop_trace":                   null,
             
             "phy_numChans":                 16,
-            "minRssi":                      -97,
+            "phy_minRssi":                  -97,
             "noInterference":               0
         }
     },
