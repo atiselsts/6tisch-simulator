@@ -2639,8 +2639,7 @@ class Mote(object):
                         'sourceRoute': copy.deepcopy(srcRoute)
                     }
                     self.waitingFor = None
-                    if (hasattr(self.settings, 'frag_ff_enable') and
-                       self.settings.frag_ff_enable):
+                    if self.settings.frag_ff_enable:
                         if self._app_is_frag_to_forward(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue

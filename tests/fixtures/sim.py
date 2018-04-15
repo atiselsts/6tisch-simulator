@@ -22,6 +22,7 @@ def sim(request):
             'rpl_daoPeriod':                0,
             
             'frag_numFragments':            1,
+            'frag_ff_enable':               False,
             
             'sf_type':                      sf.DFLT_SF,
             'sf_msf_housekeepingPeriod':    60,
