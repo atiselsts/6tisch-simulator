@@ -37,42 +37,42 @@ log.addHandler(NullHandler())
 # =========================== defines =========================================
 
 # sufficient num. of tx to estimate pdr by ACK
-NUM_SUFFICIENT_TX                  = 10
+NUM_SUFFICIENT_TX                           = 10
 # maximum number of tx for history
-NUM_MAX_HISTORY                    = 32
+NUM_MAX_HISTORY                             = 32
 
-DIR_TX                             = 'TX'
-DIR_RX                             = 'RX'
-DIR_TXRX_SHARED                    = 'SHARED'
+DIR_TX                                      = 'TX'
+DIR_RX                                      = 'RX'
+DIR_TXRX_SHARED                             = 'SHARED'
 
-DEBUG                              = 'DEBUG'
-INFO                               = 'INFO'
-WARNING                            = 'WARNING'
-ERROR                              = 'ERROR'
+DEBUG                                       = 'DEBUG'
+INFO                                        = 'INFO'
+WARNING                                     = 'WARNING'
+ERROR                                       = 'ERROR'
 
 # === app
-APP_TYPE_DATA                      = 'DATA'
-APP_TYPE_ACK                       = 'ACK'  # end to end ACK
-APP_TYPE_JOIN                      = 'JOIN' # join traffic
-APP_TYPE_FRAG                      = 'FRAG'
-RPL_TYPE_DIO                       = 'DIO'
-RPL_TYPE_DAO                       = 'DAO'
-TSCH_TYPE_EB                       = 'EB'
+APP_TYPE_DATA                               = 'DATA'
+APP_TYPE_ACK                                = 'ACK'  # end to end ACK
+APP_TYPE_JOIN                               = 'JOIN' # join traffic
+APP_TYPE_FRAG                               = 'FRAG'
+RPL_TYPE_DIO                                = 'DIO'
+RPL_TYPE_DAO                                = 'DAO'
+TSCH_TYPE_EB                                = 'EB'
 # === 6top message types
-IANA_6TOP_TYPE_REQUEST              = '6TOP_REQUEST'
-IANA_6TOP_TYPE_RESPONSE             = '6TOP_RESPONSE'
-IANA_6TOP_TYPE_CONFIRMATION         = '6TOP_CONFIRMATION'
+IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'
+IANA_6TOP_TYPE_RESPONSE                     = '6TOP_RESPONSE'
+IANA_6TOP_TYPE_CONFIRMATION                 = '6TOP_CONFIRMATION'
 
 # === rpl
-RPL_PARENT_SWITCH_THRESHOLD        = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
-RPL_MIN_HOP_RANK_INCREASE          = 256
-RPL_MAX_ETX                        = 4
-RPL_MAX_RANK_INCREASE              = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
-RPL_MAX_TOTAL_RANK                 = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
-RPL_PARENT_SET_SIZE                = 3
-DEFAULT_DIO_INTERVAL_MIN           = 3 # log2(DIO_INTERVAL_MIN), with DIO_INTERVAL_MIN expressed in ms
-DEFAULT_DIO_INTERVAL_DOUBLINGS     = 20 # maximum number of doublings of DIO_INTERVAL_MIN (DIO_INTERVAL_MAX = 2^(DEFAULT_DIO_INTERVAL_MIN+DEFAULT_DIO_INTERVAL_DOUBLINGS) ms)
-DEFAULT_DIO_REDUNDANCY_CONSTANT    = 10 # number of hearings to suppress next transmission in the current interval
+RPL_PARENT_SWITCH_THRESHOLD                 = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.
+RPL_MIN_HOP_RANK_INCREASE                   = 256
+RPL_MAX_ETX                                 = 4
+RPL_MAX_RANK_INCREASE                       = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
+RPL_MAX_TOTAL_RANK                          = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
+RPL_PARENT_SET_SIZE                         = 3
+DEFAULT_DIO_INTERVAL_MIN                    = 3  # log2(DIO_INTERVAL_MIN), with DIO_INTERVAL_MIN expressed in ms
+DEFAULT_DIO_INTERVAL_DOUBLINGS              = 20 # maximum number of doublings of DIO_INTERVAL_MIN (DIO_INTERVAL_MAX = 2^(DEFAULT_DIO_INTERVAL_MIN+DEFAULT_DIO_INTERVAL_DOUBLINGS) ms)
+DEFAULT_DIO_REDUNDANCY_CONSTANT             = 10 # number of hearings to suppress next transmission in the current interval
 
 # === 6top states
 SIX_STATE_IDLE                              = 0x00
@@ -119,44 +119,45 @@ IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
 IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
 
 # === tsch
-TSCH_QUEUE_SIZE                    = 10
-TSCH_MAXTXRETRIES                  = 5
-TSCH_MIN_BACKOFF_EXPONENT          = 2
-TSCH_MAX_BACKOFF_EXPONENT          = 4
+TSCH_QUEUE_SIZE                             = 10
+TSCH_MAXTXRETRIES                           = 5
+TSCH_MIN_BACKOFF_EXPONENT                   = 2
+TSCH_MAX_BACKOFF_EXPONENT                   = 4
 # === radio
-RADIO_MAXDRIFT                     = 30 # in ppm
+RADIO_MAXDRIFT                              = 30 # in ppm
 # === battery
 # see A Realistic Energy Consumption Model for TSCH Networks.
 # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei
 # Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
-CHARGE_Idle_uC                     = 6.4
-CHARGE_TxDataRxAck_uC              = 54.5
-CHARGE_TxData_uC                   = 49.5
-CHARGE_RxDataTxAck_uC              = 32.6
-CHARGE_RxData_uC                   = 22.6
-CHARGE_IdleNotSync_uC              = 45.0
+CHARGE_Idle_uC                              = 6.4
+CHARGE_TxDataRxAck_uC                       = 54.5
+CHARGE_TxData_uC                            = 49.5
+CHARGE_RxDataTxAck_uC                       = 32.6
+CHARGE_RxData_uC                            = 22.6
+CHARGE_IdleNotSync_uC                       = 45.0
 
-BROADCAST_ADDRESS                  = 0xffff
+BROADCAST_ADDRESS                           = 0xffff
 
 # =========================== body ============================================
 
 class Mote(object):
 
     def __init__(self, id):
+        
         # store params
         self.id                        = id
         # local variables
         self.dataLock                  = threading.RLock()
-
+        
+        # singletons (to access quicker than recreate every time)
         self.engine                    = SimEngine.SimEngine()
         self.settings                  = SimSettings.SimSettings()
         self.propagation               = Propagation.Propagation()
-        self.sf                        = Sf.get_sf(self.settings.sf_type)
 
-        # join process
+        # secjoin
         self.isJoined                  = False
         self.joinRetransmissionPayload = 0
-        self.joinAsn                   = 0                     # ASN at the time node successfully joined
+        self.joinAsn                   = 0       # ASN at the time node successfully joined
         self.firstBeaconAsn            = 0
         # app
         self.pkPeriod                  = self.settings.app_pkPeriod
@@ -167,48 +168,52 @@ class Mote(object):
         self.rank                      = None
         self.dagRank                   = None
         self.parentSet                 = []
-        self.parents                   = {} # dictionary containing parents of each node from whom DAG root received a DAO
-        self.oldPreferredParent        = None                  # preserve old preferred parent upon a change
+        self.parents                   = {}      # dictionary containing parents of each node from whom DAG root received a DAO
+        self.oldPreferredParent        = None    # preserve old preferred parent upon a change
         self.preferredParent           = None
-        self.rplRxDIO                  = {}                    # indexed by neighbor, contains int
-        self.neighborRank              = {}                    # indexed by neighbor
-        self.neighborDagRank           = {}                    # indexed by neighbor
+        self.rplRxDIO                  = {}      # indexed by neighbor, contains int
+        self.neighborRank              = {}      # indexed by neighbor
+        self.neighborDagRank           = {}      # indexed by neighbor
         self.dagRootAddress            = None
-        self.packetLatencies           = [] # in slots
+        self.packetLatencies           = []      # in slots
         self.packetHops                = []
         self.dagRoot                   = False
+        # sf
+        self.sf                        = Sf.get_sf(self.settings.sf_type)
         # 6top protocol
-        self.sixtopStates              = {}
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id
         # the values are:
         #                 'state', used for tracking the transaction state for each neighbor
         #                 'responseCode', used in the receiver node to act differently when a responseACK is received
         #                 'blockedCells', candidates cell pending for an operation
+        self.sixtopStates              = {}
+        self.tsSixTopReqRecv           = {}      # for every neighbor, it tracks the 6top transaction latency
+        self.avgsixtopLatency          = []      # it tracks the average 6P transaction latency in a given frame
         # tsch
-        self.schedule                  = {} # indexed by ts, contains cell
+        self.schedule                  = {}      # indexed by ts, contains cell
         self.numCellsElapsed           = 0
         self.numCellsUsed              = 0
-        self.numCellsToNeighbors       = {} # indexed by neighbor, contains int
-        self.numCellsFromNeighbors     = {} # indexed by neighbor, contains int
+        self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
+        self.numCellsFromNeighbors     = {}      # indexed by neighbor, contains int
         self.txQueue                   = []
         self.pktToSend                 = None
         self.waitingFor                = None
         self.timeCorrectedSlot         = None
         self.isSync                    = False
-        self.firstEB                   = True                  # flag to indicate first received enhanced beacon
+        self.firstEB                   = True    # flag to indicate first received enhanced beacon
         self._tsch_resetBroadcastBackoff()
         self.backoffPerNeigh           = {}
         self.backoffExponentPerNeigh   = {}
         # radio
-        self.txPower                   = 0                     # dBm
-        self.antennaGain               = 0                     # dBi
-        self.noisepower                = -105                  # dBm
+        self.txPower                   = 0       # dBm
+        self.antennaGain               = 0       # dBi
+        self.noisepower                = -105    # dBm
         self.drift                     = random.uniform(-RADIO_MAXDRIFT, RADIO_MAXDRIFT)
         self.backoffBroadcast          = 0
         # wireless
-        self.RSSI                      = {}                    # indexed by neighbor
-        self.PDR                       = {}                    # indexed by neighbor
+        self.RSSI                      = {}      # indexed by neighbor
+        self.PDR                       = {}      # indexed by neighbor
         # location
         # battery
         self.chargeConsumed            = 0
@@ -218,9 +223,7 @@ class Mote(object):
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
-
-        self.tsSixTopReqRecv           = {}                # for every neighbor, it tracks the 6top transaction latency
-        self.avgsixtopLatency          = []                # it tracks the average 6P transaction latency in a given frame
+    
     # ======================= stack ===========================================
 
     # ===== role
@@ -241,25 +244,142 @@ class Mote(object):
             mote.dagRootAddress = self
 
     # ===== join process
-
-    def join_scheduleJoinProcess(self):
-        delay = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random()
-
-        # schedule
+    '''
+    secjoin starts after having received the first EB.
+    When secjoin done, _stack_init_synced() is called.
+    '''
+    
+    def _secjoin_scheduleJoinProcess(self):
+        '''
+        Schedule to start the join process sometimes in the future
+        '''
         self.engine.scheduleIn(
-            delay=delay,
-            cb=self.join_initiateJoinProcess,
-            uniqueTag=(self.id, '_join_action_initiateJoinProcess'),
-            priority=2,
+            delay       = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
+            cb          = self._secjoin_initiateJoinProcess,
+            uniqueTag   = (self.id, '_join_action_initiateJoinProcess'),
+            priority    = 2,
+        )
+    
+    def _secjoin_initiateJoinProcess(self):
+        '''
+        Start the join process.
+        '''
+        if not self.dagRoot:
+            if self.preferredParent:
+                if not self.isJoined:
+                    self._secjoin_sendJoinPacket(
+                        token          = self.settings.secjoin_numExchanges - 1,
+                        destination    = self.dagRootAddress,
+                    )
+            else: # node doesn't have a parent yet, re-scheduling
+                self._secjoin_scheduleJoinProcess()
+    
+    def _secjoin_sendJoinPacket(self, token, destination):
+        '''
+        Send join packet (same function for join request and response).
+        
+        Payload contains number of exchanges.
+        
+        FIXME: different functions for join request and response.
+        '''
+        
+        sourceRoute = []
+        if self.dagRoot:
+            sourceRoute = self._rpl_getSourceRoute([destination.id])
+
+        if sourceRoute or not self.dagRoot:
+            # create new packet
+            newPacket = {
+                'asn':            self.engine.getAsn(),
+                'type':           APP_TYPE_JOIN,
+                'code':           None,
+                'payload':        [
+                    token,
+                    self.id if not self.dagRoot else None,
+                    self.preferredParent.id if not self.dagRoot else None,
+                ],
+                'retriesLeft':    TSCH_MAXTXRETRIES,
+                'srcIp':          self, # DAG root
+                'dstIp':          destination,
+                'sourceRoute':    sourceRoute
+            }
+
+            # enqueue packet in TSCH queue
+            isEnqueued = self._tsch_enqueue(newPacket)
+
+            if isEnqueued:
+                # increment traffic
+                self._log(
+                    INFO,
+                    "[join] Enqueued join packet for mote {0} with token = {1}",
+                    (destination.id, token),
+                )
+            else:
+                # update mote stats
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+
+            # save last token sent
+            self.joinRetransmissionPayload = token
+
+            # schedule retransmission (will be canceled if response received)
+            if not self.dagRoot:
+                self.engine.scheduleIn(
+                    delay         = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
+                    cb            = self._secjoin_retransmitJoinPacket,
+                    uniqueTag     = (self.id, '_join_action_retransmission'),
+                    priority      = 2,
+                )
+    
+    def _secjoin_receiveJoinPacket(self, srcIp, payload, timestamp):
+        '''
+        Receiving a join packet (same function for join request and response).
+        
+        FIXME: different functions for join request and response.
+        '''
+        
+        # remove pending retransmission event
+        self.engine.removeEvent(
+            (self.id, '_join_action_retransmission')
+        ) 
+        
+        # log
+        self._log(
+            INFO,
+            "[join] Received join packet from {0} with token {1}",
+            (srcIp.id, payload[0])
         )
 
-    def join_setJoined(self):
+        # this is a hack to allow downward routing of join packets before node has sent a DAO
+        if self.dagRoot:
+            self.parents.update({tuple([payload[1]]): [[payload[2]]]})
 
+        if payload[0] != 0:
+            # FIXME: document
+            
+            newToken = payload[0] - 1
+            self._secjoin_sendJoinPacket(
+                token        = newToken,
+                destination  = srcIp,
+            )
+        else:
+            # FIXME: document
+            
+            # record that I'm joined
+            self._secjoin_setJoined()
+            
+            # initialize the rest of the stack
+            self._stack_init_synced()
+    
+    def _secjoin_setJoined(self):
+        '''
+        Record that I'm now joined.
+        '''
         assert not self.dagRoot
 
         if not self.isJoined:
             self.isJoined = True
             self.joinAsn  = self.engine.getAsn()
+            
             # log
             self._log(
                 INFO,
@@ -283,227 +403,261 @@ class Mote(object):
                     delay = 1
                 # end the simulation
                 self.engine.terminateSimulation(delay)
-
-    def join_initiateJoinProcess(self):
-        if not self.dagRoot:
-            if self.preferredParent:
-                if not self.isJoined:
-                    self.join_sendJoinPacket(token = self.settings.secjoin_numExchanges - 1, destination=self.dagRootAddress)
-            else: # node doesn't have a parent yet, re-scheduling
-                self.join_scheduleJoinProcess()
-
-    def join_sendJoinPacket(self, token, destination):
-        # send join packet with payload equal to the number of exchanges
-        # create new packet
-        sourceRoute = []
-        if self.dagRoot:
-            sourceRoute = self._rpl_getSourceRoute([destination.id])
-
-        if sourceRoute or not self.dagRoot:
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': APP_TYPE_JOIN,
-                'code': None,
-                'payload': [token, self.id if not self.dagRoot else None, self.preferredParent.id if not self.dagRoot else None],
-                'retriesLeft': TSCH_MAXTXRETRIES,
-                'srcIp': self, # DAG root
-                'dstIp': destination,
-                'sourceRoute': sourceRoute
-            }
-
-            # enqueue packet in TSCH queue
-            isEnqueued = self._tsch_enqueue(newPacket)
-
-            if isEnqueued:
-                # increment traffic
-                self._log(INFO, "[join] Enqueued join packet for mote {0} with token = {1}", (destination.id, token))
-            else:
-                # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-            # save last token sent
-            self.joinRetransmissionPayload = token
-
-            # schedule retransmission
-            if not self.dagRoot:
-                self.engine.scheduleIn(
-                    delay=self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
-                    cb=self.join_retransmitJoinPacket,
-                    uniqueTag=(self.id, '_join_action_retransmission'),
-                    priority=2,
-                )
-
-    def join_retransmitJoinPacket(self):
+    
+    def _secjoin_retransmitJoinPacket(self):
+        '''
+        Send join packet again.
+        '''
         if not self.dagRoot and not self.isJoined:
-            self.join_sendJoinPacket(self.joinRetransmissionPayload, self.dagRootAddress)
+            self._secjoin_sendJoinPacket(
+                self.joinRetransmissionPayload,
+                self.dagRootAddress,
+            )
 
-    def join_receiveJoinPacket(self, srcIp, payload, timestamp):
-        self.engine.removeEvent((self.id, '_join_action_retransmission')) # remove the pending retransmission event
-
-        self._log(INFO, "[join] Received join packet from {0} with token {1}", (srcIp.id, payload[0]))
-
-        # this is a hack to allow downward routing of join packets before node has sent a DAO
-        if self.dagRoot:
-            self.parents.update({tuple([payload[1]]): [[payload[2]]]})
-
-        if payload[0] != 0:
-            newToken = payload[0] - 1
-            self.join_sendJoinPacket(token=newToken, destination=srcIp)
-        else:
-            self.join_setJoined()
-            # Trigger sending EBs and DIOs, and the rest of the stack
-            self._init_stack()
-
-    def join_joinedNeighbors(self):
+    def _secjoin_areAllNeighborsJoined(self):
+        '''
+        Are all my neighbors joined?
+        '''
         return [nei for nei in self._myNeighbors() if nei.isJoined is True]
 
+    #===== stack
+    
+    def _stack_init_synced(self):
+        # start the stack layer by layer, we are sync'ed and joined
+
+        # TSCH
+        self._tsch_schedule_sendEB(firstEB=True)
+
+        # RPL
+        self._rpl_init()
+
+        # if not join, set the neighbor variables when initializing stack.
+        # with join this is done when the nodes become synced. If root, initialize here anyway
+        if (not self.settings.secjoin_enabled) or self.dagRoot:
+            for m in self._myNeighbors():
+                self._tsch_resetBackoffPerNeigh(m)
+
+        # scheduling function
+        self.sf.housekeeping(self)
+
+        # app
+        if not self.dagRoot:
+            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
+                self._app_schedule_mote_sendPacketBurstToDAGroot()
+            else:
+                self._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
+
     #===== application
+    
+    '''
+    An application lives on each node, except the root.
+    It sends (data) packets to the root
+    '''
+    
+    # app that periodically sends a single packet
+    
+    def _app_schedule_mote_sendSinglePacketToDAGroot(self, firstPacket=False):
+        '''
+        schedule an event to send a single packet
+        '''
 
-    def _app_schedule_sendSinglePacket(self, firstPacket=False):
-        """
-        create an event that is inserted into the simulator engine to send the data according to the traffic
-        """
-
+        # disable app pkPeriod is zero
         if self.pkPeriod == 0:
-            # disable sending packet
             return
-
-        if not firstPacket:
-            # compute random delay
-            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
-        else:
+        
+        # compute how long before transmission
+        if firstPacket:
             # compute initial time within the range of [next asn, next asn+pkPeriod]
             delay            = self.settings.tsch_slotDuration + self.pkPeriod*random.random()
-
+        else:
+            # compute random delay
+            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         assert delay > 0
 
         # schedule
         self.engine.scheduleIn(
             delay            = delay,
-            cb               = self._app_action_sendSinglePacket,
-            uniqueTag        = (self.id, '_app_action_sendSinglePacket'),
+            cb               = self._app_action_mote_sendSinglePacketToDAGroot,
+            uniqueTag        = (self.id, '_app_action_mote_sendSinglePacketToDAGroot'),
             priority         = 2,
         )
+    
+    def _app_action_mote_sendSinglePacketToDAGroot(self):
+        '''
+        send a single packet, and reschedule next one
+        '''
 
-    def _app_schedule_sendPacketBurst(self):
-        """ create an event that is inserted into the simulator engine to send a data burst"""
+        # enqueue data
+        self._app_action_mote_enqueueDataForDAGroot()
+
+        # schedule sending next packet
+        self._app_schedule_mote_sendSinglePacketToDAGroot()
+
+    def _app_schedule_mote_sendPacketBurstToDAGroot(self):
+        '''
+        schedule an event to send a single burst of data (NOT periodic)
+        '''
 
         # schedule app_burstNumPackets packets at app_burstTimestamp
         for i in xrange(self.settings.app_burstNumPackets):
             self.engine.scheduleIn(
                 delay        = self.settings.app_burstTimestamp,
-                cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst1_{0}'.format(i)),
+                cb           = self._app_action_mote_enqueueDataForDAGroot,
+                uniqueTag    = (self.id, '_app_action_enqueueData_burst_{0}'.format(i)),
                 priority     = 2,
             )
-            self.engine.scheduleIn(
-                delay        = 3*self.settings.app_burstTimestamp,
-                cb           = self._app_action_enqueueData,
-                uniqueTag    = (self.id, '_app_action_enqueueData_burst2_{0}'.format(i)),
-                priority     = 2,
-            )
-
-    def _app_action_sendSinglePacket(self):
-        """ actual send data function. Evaluates queue length too """
-
-        # enqueue data
-        self._app_action_enqueueData()
-
-        # schedule next _app_action_sendSinglePacket
-        self._app_schedule_sendSinglePacket()
-
-    def _app_action_receiveAck(self, srcIp, payload, timestamp):
-        assert not self.dagRoot
-
-    def _app_action_receivePacket(self, srcIp, payload, timestamp):
+    
+    def _app_action_dagroot_receivePacketFromMote(self, srcIp, payload, timestamp):
+        '''
+        dagroot received data packet
+        '''
+        
         assert self.dagRoot
 
         # update mote stats
         self._stats_incrementMoteStats('appReachesDagroot')
 
-        # calculate end-to-end latency
+        # log end-to-end latency
         self._stats_logLatencyStat(timestamp - payload[1])
 
         # log the number of hops
         self._stats_logHopsStat(payload[2])
 
-        if self.settings.app_e2eAck:  # Downward End-to-end ACKs
+        # send end-to-end ACK back to mote, if applicable
+        if self.settings.app_e2eAck:
+            
             destination = srcIp
-
             sourceRoute = self._rpl_getSourceRoute([destination.id])
 
-            if sourceRoute: # if DAO was received from this node
-
-                # send an ACK
-                # create new packet
+            if sourceRoute:
+                
+                # create e2e ACK
                 newPacket = {
-                    'asn': self.engine.getAsn(),
-                    'type': APP_TYPE_ACK,
-                    'code': None,
-                    'payload': [],
-                    'retriesLeft': TSCH_MAXTXRETRIES,
-                    'srcIp': self,  # DAG root
-                    'dstIp': destination,
-                    'sourceRoute': sourceRoute
-
+                    'asn':             self.engine.getAsn(),
+                    'type':            APP_TYPE_ACK,
+                    'code':            None,
+                    'payload':         [],
+                    'retriesLeft':     TSCH_MAXTXRETRIES,
+                    'srcIp':           self,          # from DAGroot
+                    'dstIp':           destination,   # to mote
+                    'sourceRoute':     sourceRoute
                 }
 
                 # enqueue packet in TSCH queue
                 if not self._tsch_enqueue(newPacket):
                     self._radio_drop_packet(newPacket, 'droppedAppAckFailedEnqueue')
-
-    def _app_action_enqueueData(self):
-        """ enqueue data packet into stack """
-
+    
+    def _app_action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
+        '''
+        mote receives end-to-end ACK from the DAGroot
+        '''
+        
         assert not self.dagRoot
 
-        # only start sending DATA if: I have a preferred parent AND dedicated cells to that parent
-        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
+    def _app_action_mote_enqueueDataForDAGroot(self):
+        '''
+        enqueue data packet to the DAGroot
+        '''
 
-            # create new packet
+        assert not self.dagRoot
+        
+        # only send data if I have a preferred parent and dedicated cells to that parent
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent,0)>0:
+            
+            # create new data packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
                 'type':           APP_TYPE_DATA,
                 'code':           None,
-                'payload':        [self.id, self.engine.getAsn(), 1], # the payload is used for latency and number of hops calculation
+                'payload':        [ # the payload is used for latency and number of hops calculation
+                    self.id,                # id of the sender
+                    self.engine.getAsn(),   # ASN when packet is sent (used for latency calculation)
+                    1,                      # number of hops (used to calculate total number of hops)
+                ], 
                 'retriesLeft':    TSCH_MAXTXRETRIES,
-                'srcIp':          self,
-                'dstIp':          self.dagRootAddress,
+                'srcIp':          self,               # from mote
+                'dstIp':          self.dagRootAddress,# to DAGroot
                 'sourceRoute':    [],
             }
 
             # update mote stats
             self._stats_incrementMoteStats('appGenerated')
-
-            # enqueue packet in TSCH queue
-            if self.settings.frag_numFragments > 1:
-                self._app_frag_packet(newPacket)
+            
+            print self.settings.frag_numFragments
+            
+            # enqueue packet (or fragments) into TSCH queue
+            if self.settings.frag_numFragments>1:
+                # multiple frames (fragmentation)
+                
+                self._app_fragment_and_enqueue_packet(newPacket)
             else:
-                # send it as a single frame
+                # single frame
+                
                 isEnqueued = self._tsch_enqueue(newPacket)
-                if isEnqueued:
-                    pass
-                else:
+                if not isEnqueued:
                     # update mote stats
                     self._radio_drop_packet(newPacket, 'droppedDataFailedEnqueue')
 
-    def _app_is_frag_to_forward(self, frag):
-
-        smac = frag['smac']
-        dstIp = frag['dstIp']
-        size = frag['payload'][3]['datagram_size']
-        itag = frag['payload'][3]['datagram_tag']
-        offset = frag['payload'][3]['datagram_offset']
-        entry_lifetime = 60 / self.settings.tsch_slotDuration
-
+    def _app_fragment_and_enqueue_packet(self, packet):
+        '''
+        fragment packet into fragments, and put in TSCH queue
+        '''
+        
+        # choose tag (same for all fragments)
+        tag                       = self.next_datagram_tag
+        self.next_datagram_tag    = (self.next_datagram_tag + 1) % 65536
+        
+        # create and put fragmets in TSCH queue
+        for i in range(0, self.settings.frag_numFragments):
+            
+            # copy (fake) contents of the packets in fragment
+            frag = copy.copy(packet)
+            
+            # change fields so looks like fragment
+            frag['type']     = APP_TYPE_FRAG
+            frag['payload']  = copy.deepcopy(packet['payload'])
+            frag['payload'].append(
+                {
+                    'datagram_size':   self.settings.frag_numFragments,
+                    'datagram_tag':    tag,
+                    'datagram_offset': i,
+                }
+            )
+            frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
+            
+            # put in TSCH queue
+            if not self._tsch_enqueue(frag):
+                self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
+                # OPTIMIZATION: we could remove all fragments from queue if one is refused
+    
+    def _app_frag_ff_forward_fragment(self, frag):
+        '''
+        handle a fragment, and decide whether should be forwarded.
+        
+        return True if should be forwarded
+        '''
+        
+        assert self.settings.frag_ff_enable
+        
+        smac            = frag['smac']
+        dstIp           = frag['dstIp']
+        size            = frag['payload'][3]['datagram_size']
+        itag            = frag['payload'][3]['datagram_tag']
+        offset          = frag['payload'][3]['datagram_offset']
+        entry_lifetime  = 60 / self.settings.tsch_slotDuration
+        
+        # cleanup VRB table entries
         for mac in self.vrbTable.keys():
+            # too old
             for tag in self.vrbTable[mac].keys():
                 if (self.engine.getAsn() - self.vrbTable[mac][tag]['ts']) > entry_lifetime:
                     del self.vrbTable[mac][tag]
+            # 0-length MAC address
+            # FIXME: document
             if len(self.vrbTable[mac]) == 0:
                 del self.vrbTable[mac]
-
+        
+        # handle first fragments
         if offset == 0:
             vrb_entry_num = 0
             for i in self.vrbTable:
@@ -517,8 +671,8 @@ class Mote(object):
             if smac not in self.vrbTable:
                 self.vrbTable[smac] = {}
 
-            # In our design, vrbTable has (in-smac, in-tag, nexthop,
-            # out-tag). However, it doesn't have nexthop mac address since
+            # In our design, vrbTable has (in-smac, in-tag, nexthop, out-tag).
+            # However, it doesn't have nexthop mac address since
             # nexthop is determined at TSCH layer in this simulation.
             if itag in self.vrbTable[smac]:
                 # duplicate first fragment
@@ -537,10 +691,16 @@ class Mote(object):
 
             if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 self.vrbTable[smac][itag]['next_offset'] = 0
-
-        if smac in self.vrbTable and itag in self.vrbTable[smac]:
+        
+        # find entry in VRB table and forward fragment
+        if (smac in self.vrbTable) and (itag in self.vrbTable[smac]):
+            # VRB entry found!
+            
             if self.vrbTable[smac][itag]['otag'] is None:
-                return False # this is for us, which needs to be reassembled
+                # fragment for me
+                
+                # do no forward (but reassemble)
+                return False
 
             if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 if offset == self.vrbTable[smac][itag]['next_offset']:
@@ -554,11 +714,13 @@ class Mote(object):
             frag['payload'][2] += 1 # update the number of hops
             frag['payload'][3]['datagram_tag'] = self.vrbTable[smac][itag]['otag']
         else:
+            # no VRB entry found!
+            
             self._radio_drop_packet(frag, 'droppedFragNoVRBEntry')
             return False
 
         # return True when the fragment is to be forwarded even if it cannot be
-        # forwarded due to out-of-order or full of queue
+        # forwarded due to out-of-order or queue full
         if  (
                 ('kill_entry_by_last' in self.settings.frag_ff_options) and
                 (offset == (self.settings.frag_numFragments - 1))
@@ -568,45 +730,31 @@ class Mote(object):
 
         return True
 
-    def _app_frag_packet(self, packet):
-
-        # fragment packet into the specified number of pieces
-        tag = self.next_datagram_tag
-        self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
-        for i in range(0, self.settings.frag_numFragments):
-            frag = copy.copy(packet)
-            frag['type'] = APP_TYPE_FRAG
-            frag['payload'] = copy.deepcopy(packet['payload'])
-            frag['payload'].append({'datagram_size': self.settings.frag_numFragments,
-                                    'datagram_tag': tag,
-                                    'datagram_offset': i})
-            frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
-            if not self._tsch_enqueue(frag):
-                # we may want to stop fragmentation here. but just continue it
-                # for simplicity
-                self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
-
-    def _app_reass_packet(self, smac, payload):
-        size = payload[3]['datagram_size']
-        tag = payload[3]['datagram_tag']
-        offset = payload[3]['datagram_offset']
+    def _app_frag_reassemble_packet(self, smac, payload):
+        size                 = payload[3]['datagram_size']
+        tag                  = payload[3]['datagram_tag']
+        offset               = payload[3]['datagram_offset']
         reass_queue_lifetime = 60 / self.settings.tsch_slotDuration
 
+        # remove reassQueue elements
         if len(self.reassQueue) > 0:
-            # remove expired entry
             for s in list(self.reassQueue):
                 for t in list(self.reassQueue[s]):
+                    # to old
                     if (self.engine.getAsn() - self.reassQueue[s][t]['ts']) > reass_queue_lifetime:
                         del self.reassQueue[s][t]
+                    # empty
                     if len(self.reassQueue[s]) == 0:
                         del self.reassQueue[s]
-
+        
+        # drop packet longer than reassembly queue elements
         if size > self.settings.frag_numFragments:
             # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
             self._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
             return False
 
+        # create reassembly queue entry for new packet
         if (smac not in self.reassQueue) or (tag not in self.reassQueue[smac]):
             if not self.dagRoot:
                 reass_queue_num = 0
@@ -637,108 +785,83 @@ class Mote(object):
             return True
 
         return False
-
-    def _tsch_action_enqueueEB(self):
-        """ enqueue EB packet into stack """
-
-        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
-        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
-
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': TSCH_TYPE_EB,
-                'code': None,
-                'payload': [self.dagRank],  # the payload is the rpl rank
-                'retriesLeft': 1,  # do not retransmit broadcast
-                'srcIp': self,
-                'dstIp': BROADCAST_ADDRESS,
-                'sourceRoute': []
-            }
-
-            # enqueue packet in TSCH queue
-            if not self._tsch_enqueue(newPacket):
-                # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _tsch_schedule_sendEB(self, firstEB=False):
-
-        if self.settings.tsch_ebPeriod_sec==0:
-            # disable periodic EB transmission
+    
+    #===== rpl
+    
+    # init
+    
+    def _rpl_init(self):
+        '''
+        Initialize the RPL layer
+        '''
+        
+        # all nodes send DIOs
+        self._rpl_schedule_sendDIO()
+        
+        # only non-root nodes send DAOs
+        if not self.dagRoot:
+            self._rpl_schedule_sendDAO(firstDAO=True)
+    
+    # DIO
+    
+    def _rpl_schedule_sendDIO(self):
+        '''
+        Send a DIO sometimes in the future.
+        '''
+        
+        # stop if DIOs disabled
+        if self.settings.rpl_dioPeriod==0:
             return
 
         with self.dataLock:
 
-            asn = self.engine.getAsn()
+            asnNow    = self.engine.getAsn()
 
             if self.settings.tsch_probBcast_enabled:
-                futureAsn = int(self.settings.tsch_slotframeLength)
+                asnDiff = int(self.settings.tsch_slotframeLength)
             else:
-                futureAsn = int(math.ceil(
+                asnDiff = int(math.ceil(
                     random.uniform(
-                        0.8 * self.settings.tsch_ebPeriod_sec,
-                        1.2 * self.settings.tsch_ebPeriod_sec,
-                    ) / self.settings.tsch_slotDuration
-                ))
+                        0.8 * self.settings.rpl_dioPeriod,
+                        1.2 * self.settings.rpl_dioPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
-                asn=asn + futureAsn,
-                cb=self._tsch_action_sendEB,
-                uniqueTag=(self.id, '_tsch_action_sendEB'),
-                priority=3,
+                asn         = asnNow + asnDiff,
+                cb          = self._rpl_action_sendDIO,
+                uniqueTag   = (self.id, '_rpl_action_sendDIO'),
+                priority    = 3,
             )
 
-    def _tsch_action_sendEB(self):
-
+    def _rpl_action_sendDIO(self):
+        '''
+        decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
+        '''
+        
         with self.dataLock:
-
+            
+            # decide whether to enqueue a DIO
             if self.settings.tsch_probBcast_enabled:
-                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_ebProb)
-                sendBeacon = True if random.random() < beaconProb else False
+                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
+                sendDio = True if random.random() < dioProb else False
             else:
-                sendBeacon = True
-            if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.secjoin_enabled:
-                    if sendBeacon:
-                        self._tsch_action_enqueueEB()
-                        self._stats_incrementMoteStats('tschTxEB')
-
-            self._tsch_schedule_sendEB()  # schedule next EB
-
-    def _tsch_action_receiveEB(self, type, smac, payload):
-
-        if self.dagRoot:
-            return
-
-        # got an EB, increment stats
-        self._stats_incrementMoteStats('tschRxEB')
-        if self.firstEB and not self.isSync:
-            assert self.settings.secjoin_enabled
-            # log
-            self._log(
-                INFO,
-                "[tsch] synced on EB received from mote {0}.",
-                (smac.id,),
-            )
-            self.firstBeaconAsn = self.engine.getAsn()
-            self.firstEB = False
-            # declare as synced to the network
-            self.isSync = True
-            # set neighbors variables before starting request cells to the preferred parent
-            for m in self._myNeighbors():
-                self._tsch_resetBackoffPerNeigh(m)
-            # add the minimal cell to the schedule
-            self._tsch_add_minimal_cell()
-            # trigger join process
-            self.join_scheduleJoinProcess()  # trigger the join process
-
-    #===== rpl
+                sendDio = True
+            
+            # enqueue DIO
+            if sendDio:
+                self._rpl_action_enqueueDIO()
+            
+            # schedule next DIO
+            self._rpl_schedule_sendDIO()  
 
     def _rpl_action_enqueueDIO(self):
-        """ enqueue DIO packet into stack """
+        '''
+        enqueue DIO in TSCH queue
+        '''
 
-        # only start sending DIOs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        # only send DIOs if I'm a DAGroot, or I have a preferred parent and dedicated cells to it
         if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
 
             self._stats_incrementMoteStats('rplTxDIO')
@@ -749,7 +872,7 @@ class Mote(object):
                 'type':           RPL_TYPE_DIO,
                 'code':           None,
                 'payload':        [self.rank], # the payload is the rpl rank
-                'retriesLeft':    1, # do not retransmit broadcast
+                'retriesLeft':    1,           # do not retransmit (broadcast)
                 'srcIp':          self,
                 'dstIp':          BROADCAST_ADDRESS,
                 'sourceRoute':    []
@@ -757,103 +880,26 @@ class Mote(object):
 
             # enqueue packet in TSCH queue
             if not self._tsch_enqueue(newPacket):
-                # update mote stats
                 self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _rpl_action_enqueueDAO(self):
-        """ enqueue DAO packet into stack """
-
-        assert not self.dagRoot
-
-        # only start sending DAOs if: I have a preferred parent AND dedicated cells to that parent
-        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
-
-            self._stats_incrementMoteStats('rplTxDAO')
-
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': RPL_TYPE_DAO,
-                'code': None,
-                'payload': [self.id, self.preferredParent.id],
-                'retriesLeft': TSCH_MAXTXRETRIES,
-                'srcIp': self,
-                'dstIp': self.dagRootAddress,
-                'sourceRoute': []
-            }
-
-            # enqueue packet in TSCH queue
-            if not self._tsch_enqueue(newPacket):
-                # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _rpl_schedule_sendDIO(self, firstDIO=False):
-
-        if self.settings.rpl_dioPeriod==0:
-            # disable DIO
-            return
-
-        with self.dataLock:
-
-            asn    = self.engine.getAsn()
-
-            if self.settings.tsch_probBcast_enabled:
-                futureAsn = int(self.settings.tsch_slotframeLength)
-            else:
-                futureAsn = int(math.ceil(
-                    random.uniform(
-                        0.8 * self.settings.rpl_dioPeriod,
-                        1.2 * self.settings.rpl_dioPeriod
-                    ) / self.settings.tsch_slotDuration)
-                )
-
-            # schedule at start of next cycle
-            self.engine.scheduleAtAsn(
-                asn         = asn + futureAsn,
-                cb          = self._rpl_action_sendDIO,
-                uniqueTag   = (self.id, '_rpl_action_sendDIO'),
-                priority    = 3,
-            )
-
-    def _rpl_schedule_sendDAO(self, firstDAO=False):
-
-        if self.settings.rpl_daoPeriod==0:
-            # disable DAO
-            return
-
-        with self.dataLock:
-
-            asn = self.engine.getAsn()
-
-            if not firstDAO:
-                futureAsn = int(math.ceil(
-                    random.uniform(
-                        0.8 * self.settings.rpl_daoPeriod,
-                        1.2 * self.settings.rpl_daoPeriod
-                    ) / self.settings.tsch_slotDuration)
-                )
-            else:
-                futureAsn = 1
-
-            # schedule at start of next cycle
-            self.engine.scheduleAtAsn(
-                asn=asn + futureAsn,
-                cb=self._rpl_action_sendDAO,
-                uniqueTag=(self.id, '_rpl_action_sendDAO'),
-                priority=3,
-            )
 
     def _rpl_action_receiveDIO(self, type, smac, payload):
 
         with self.dataLock:
-
+            
+            # DAGroot doesn't use DIOs
             if self.dagRoot:
                 return
-
+            
+            # non sync'ed mote don't use DIO
             if not self.isSync:
                 return
-
-            self._log(INFO, "[rpl] Received DIO from mote {0}", (smac.id,))
+            
+            # log
+            self._log(
+                INFO,
+                "[rpl] Received DIO from mote {0}",
+                (smac.id,)
+            )
 
             # update my mote stats
             self._stats_incrementMoteStats('rplRxDIO')
@@ -872,10 +918,10 @@ class Mote(object):
 
             # update number of DIOs received from sender
             if sender not in self.rplRxDIO:
-                    self.rplRxDIO[sender]   = 0
+                self.rplRxDIO[sender]       = 0
             self.rplRxDIO[sender]          += 1
 
-            # housekeeping
+            # trigger RPL housekeeping
             self._rpl_housekeeping()
 
             # update time correction
@@ -883,48 +929,156 @@ class Mote(object):
                 asn                         = self.engine.getAsn()
                 self.timeCorrectedSlot      = asn
 
-    def _rpl_action_receiveDAO(self, type, smac, payload):
+    # DAO
+    
+    def _rpl_schedule_sendDAO(self, firstDAO=False):
+        '''
+        Schedule to send a DAO sometimes in the future.
+        '''
+        
+        # abort if DAO disabled
+        if self.settings.rpl_daoPeriod==0:
+            return
 
         with self.dataLock:
+            
+            asnNow = self.engine.getAsn()
 
-            assert self.dagRoot
-
-            self._stats_incrementMoteStats('rplRxDAO')
-
-            self.parents.update({tuple([payload[0]]): [[payload[1]]]})
-
-    def _rpl_action_sendDIO(self):
-
-        with self.dataLock:
-
-            if self.settings.tsch_probBcast_enabled:
-                dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.tsch_probBcast_dioProb)
-                sendDio = True if random.random() < dioProb else False
+            if firstDAO:
+                asnDiff = 1
             else:
-                sendDio = True
-
-            if sendDio:
-                self._rpl_action_enqueueDIO()
-
-            self._rpl_schedule_sendDIO()  # schedule next DIO
-
+                asnDiff = int(math.ceil(
+                    random.uniform(
+                        0.8 * self.settings.rpl_daoPeriod,
+                        1.2 * self.settings.rpl_daoPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
+            
+            # schedule sending a DAO
+            self.engine.scheduleAtAsn(
+                asn          = asnNow + asnDiff,
+                cb           = self._rpl_action_sendDAO,
+                uniqueTag    = (self.id, '_rpl_action_sendDAO'),
+                priority     = 3,
+            )
+    
     def _rpl_action_sendDAO(self):
-
+        '''
+        Enqueue a DAO and schedule next one.
+        '''
         with self.dataLock:
-
+            
+            # enqueue
             self._rpl_action_enqueueDAO()
-            self._rpl_schedule_sendDAO()  # schedule next DAO
+            
+            # schedule next DAO
+            self._rpl_schedule_sendDAO()
+    
+    def _rpl_action_enqueueDAO(self):
+        '''
+        enqueue a DAO into TSCH queue
+        '''
+        
+        assert not self.dagRoot
 
-    def _rpl_housekeeping(self):
+        # only send DAOs if I have a preferred parent to which I have dedicated cells
+        if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
 
+            self._stats_incrementMoteStats('rplTxDAO')
+
+            # create new packet
+            newPacket = {
+                'asn':            self.engine.getAsn(),
+                'type':           RPL_TYPE_DAO,
+                'code':           None,
+                'payload':        [self.id, self.preferredParent.id],
+                'retriesLeft':    TSCH_MAXTXRETRIES,
+                'srcIp':          self,
+                'dstIp':          self.dagRootAddress,
+                'sourceRoute':    [],
+            }
+
+            # enqueue packet in TSCH queue
+            if not self._tsch_enqueue(newPacket):
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+
+    def _rpl_action_receiveDAO(self, type, smac, payload):
+        '''
+        DAGroot receives DAO, store parent/child relationship for source route calculation.
+        '''
+        
+        assert self.dagRoot
+        
         with self.dataLock:
+            
+            # increment stats
+            self._stats_incrementMoteStats('rplRxDAO')
+            
+            # store parent/child relationship for source route calculation
+            self.parents.update({tuple([payload[0]]): [[payload[1]]]})
+    
+    # source route
+    
+    def _rpl_getSourceRoute(self, destAddr):
+        '''
+        Compute the source route to a given mote.
 
-            #===
-            # refresh the following parameters:
-            # - self.preferredParent
-            # - self.rank
-            # - self.dagRank
-            # - self.parentSet
+        :param destAddr: [in] The EUI64 address of the final destination.
+
+        :returns: The source route, a list of EUI64 address, ordered from
+            destination to source.
+        '''
+
+        sourceRoute = []
+        with self.dataLock:
+            parents = self.parents
+            self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
+
+        if sourceRoute:
+            sourceRoute.pop()
+
+        return sourceRoute
+
+    def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
+        
+        # abort if no more parents
+        if not destAddr:
+            return
+        
+        # abort if I don't have a list of parents
+        if not parents.get(tuple(destAddr)):
+            return
+
+        # first time add destination address
+        if destAddr not in sourceRoute:
+            sourceRoute += [destAddr]
+
+        # pick a parent
+        parent = parents.get(tuple(destAddr))[0]
+
+        # avoid loops
+        if parent not in sourceRoute:
+            sourceRoute += [parent]
+
+            # add non empty parents recursively
+            nextparent = self._rpl_getSourceRoute_internal(parent, sourceRoute, parents)
+
+            if nextparent:
+                sourceRoute += [nextparent]
+    
+    # misc
+    
+    def _rpl_housekeeping(self):
+        '''
+        RPL housekeeping tasks.
+        
+        This routine refreshes
+        - self.preferredParent
+        - self.rank
+        - self.dagRank
+        - self.parentSet
+        '''
+        with self.dataLock:
 
             # calculate my potential rank with each of the motes I have heard a DIO from
             potentialRanks = {}
@@ -959,14 +1113,13 @@ class Mote(object):
                 # compare a current preferred parent with new one
                 if self.preferredParent and newPreferredParent != self.preferredParent:
                     for (mote, rank) in sorted_potentialRanks[:RPL_PARENT_SET_SIZE]:
-
                         if mote == self.preferredParent:
                             # switch preferred parent only when rank difference is large enough
                             if rank-newrank < RPL_PARENT_SWITCH_THRESHOLD:
                                 (newPreferredParent, newrank) = (mote, rank)
 
                 # update mote stats
-                if self.rank and newrank != self.rank:
+                if self.rank and newrank!=self.rank:
                     self._stats_incrementMoteStats('rplChurnRank')
                     # log
                     self._log(
@@ -974,7 +1127,7 @@ class Mote(object):
                         "[rpl] churn: rank {0}->{1}",
                         (self.rank, newrank),
                     )
-                if self.preferredParent is None and newPreferredParent is not None:
+                if (self.preferredParent is None) and (newPreferredParent is not None):
                     if not self.settings.secjoin_enabled:
                         # if we selected a parent for the first time, add one cell to it
                         # upon successful join, the reservation request is scheduled explicitly
@@ -996,7 +1149,7 @@ class Mote(object):
                 # store new preferred parent and rank
                 (self.preferredParent, self.rank) = (newPreferredParent, newrank)
 
-                # calculate DAGrank
+                # calculate my DAGrank
                 self.dagRank = int(self.rank/RPL_MIN_HOP_RANK_INCREASE)
 
                 # pick my parent set
@@ -1007,7 +1160,10 @@ class Mote(object):
                     self._stats_incrementMoteStats('rplChurnParentSet')
 
     def _rpl_calcRankIncrease(self, neighbor):
-
+        '''
+        calculate the RPL rank increase with a particular neighbor.
+        '''
+        
         with self.dataLock:
 
             # estimate the ETX to that neighbor
@@ -1020,74 +1176,34 @@ class Mote(object):
             # per draft-ietf-6tisch-minimal, rank increase is (3*ETX-2)*RPL_MIN_HOP_RANK_INCREASE
             return int(((3*etx) - 2)*RPL_MIN_HOP_RANK_INCREASE)
 
-    def _rpl_getSourceRoute(self, destAddr):
-        """
-        Retrieve the source route to a given mote.
-
-        :param destAddr: [in] The EUI64 address of the final destination.
-
-        :returns: The source route, a list of EUI64 address, ordered from
-            destination to source.
-        """
-
-        sourceRoute = []
-        with self.dataLock:
-                parents = self.parents
-                self._rpl_getSourceRoute_internal(destAddr, sourceRoute, parents)
-
-        if sourceRoute:
-            sourceRoute.pop()
-
-        return sourceRoute
-
-    def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
-
-        if not destAddr:
-            # no more parents
-            return
-
-        if not parents.get(tuple(destAddr)):
-            # this node does not have a list of parents
-            return
-
-        # first time add destination address
-        if destAddr not in sourceRoute:
-            sourceRoute += [destAddr]
-
-        # pick a parent
-        parent = parents.get(tuple(destAddr))[0]
-
-        # avoid loops
-        if parent not in sourceRoute:
-            sourceRoute += [parent]
-
-            # add non empty parents recursively
-            nextparent = self._rpl_getSourceRoute_internal(parent, sourceRoute, parents)
-
-            if nextparent:
-                sourceRoute += [nextparent]
-
-    def _rpl_addNextHop(self, packet):
+    def _rpl_findNextHop(self, packet):
+        '''
+        Determines the next hop and writes that in the packet's 'nextHop' field.
+        '''
+        
         assert self != packet['dstIp']
-
+        
+        # abort if no preferred parent, or root
         if not (self.preferredParent or self.dagRoot):
             return False
 
         nextHop = None
 
-        if packet['dstIp'] == BROADCAST_ADDRESS:
+        if   packet['dstIp'] == BROADCAST_ADDRESS:
             nextHop = self._myNeighbors()
-        # 6Top packet. don't send to the parent necessarily. Send it directly to your neighbor (1 hop)
         elif packet['type'] == IANA_6TOP_TYPE_REQUEST or packet['type'] == IANA_6TOP_TYPE_RESPONSE:
+            # 6P packet: send directly to neighbor
             nextHop = [packet['dstIp']]
-        elif packet['dstIp'] == self.dagRootAddress: # upward packet
+        elif packet['dstIp'] == self.dagRootAddress:
+            # upstream packet: send to preferred parent
             nextHop = [self.preferredParent]
-        elif packet['sourceRoute']:                  # downward packet with source route info filled correctly
+        elif packet['sourceRoute']:
+            # dowstream packet: next hop read from source route
             nextHopId = packet['sourceRoute'].pop()
             for nei in self._myNeighbors():
                 if [nei.id] == nextHopId:
                     nextHop = [nei]
-        elif packet['dstIp'] in self._myNeighbors(): # used for 1hop packets, such as 6top messages. This has to be the last one, since some neighbours can have very low PDR
+        elif packet['dstIp'] in self._myNeighbors():
             nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
@@ -1982,7 +2098,7 @@ class Mote(object):
 
     def _tsch_enqueue(self, packet):
 
-        if not self._rpl_addNextHop(packet):
+        if not self._rpl_findNextHop(packet):
             # I don't have a route
 
             # increment mote state
@@ -2027,6 +2143,109 @@ class Mote(object):
 
             return True
 
+    def _tsch_action_enqueueEB(self):
+        """ enqueue EB packet into stack """
+
+        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
+
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': TSCH_TYPE_EB,
+                'code': None,
+                'payload': [self.dagRank],  # the payload is the rpl rank
+                'retriesLeft': 1,  # do not retransmit broadcast
+                'srcIp': self,
+                'dstIp': BROADCAST_ADDRESS,
+                'sourceRoute': []
+            }
+
+            # enqueue packet in TSCH queue
+            if not self._tsch_enqueue(newPacket):
+                # update mote stats
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+
+    def _tsch_schedule_sendEB(self, firstEB=False):
+
+        if self.settings.tsch_ebPeriod_sec==0:
+            # disable periodic EB transmission
+            return
+
+        with self.dataLock:
+
+            asn = self.engine.getAsn()
+
+            if self.settings.tsch_probBcast_enabled:
+                futureAsn = int(self.settings.tsch_slotframeLength)
+            else:
+                futureAsn = int(math.ceil(
+                    random.uniform(
+                        0.8 * self.settings.tsch_ebPeriod_sec,
+                        1.2 * self.settings.tsch_ebPeriod_sec,
+                    ) / self.settings.tsch_slotDuration
+                ))
+
+            # schedule at start of next cycle
+            self.engine.scheduleAtAsn(
+                asn=asn + futureAsn,
+                cb=self._tsch_action_sendEB,
+                uniqueTag=(self.id, '_tsch_action_sendEB'),
+                priority=3,
+            )
+
+    def _tsch_action_sendEB(self):
+
+        with self.dataLock:
+
+            if self.settings.tsch_probBcast_enabled:
+                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self._secjoin_areAllNeighborsJoined())) if len(self._secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
+                sendBeacon = True if random.random() < beaconProb else False
+            else:
+                sendBeacon = True
+            if self.preferredParent or self.dagRoot:
+                if self.isJoined or not self.settings.secjoin_enabled:
+                    if sendBeacon:
+                        self._tsch_action_enqueueEB()
+                        self._stats_incrementMoteStats('tschTxEB')
+
+            self._tsch_schedule_sendEB()  # schedule next EB
+
+    def _tsch_action_receiveEB(self, type, smac, payload):
+        
+        # abort if I'm the root
+        if self.dagRoot:
+            return
+
+        # got an EB, increment stats
+        self._stats_incrementMoteStats('tschRxEB')
+        
+        if self.firstEB and not self.isSync:
+            # this is the first EB I'm receiving while joining: sync!
+            
+            assert self.settings.secjoin_enabled
+            
+            # log
+            self._log(
+                INFO,
+                "[tsch] synced on EB received from mote {0}.",
+                (smac.id,),
+            )
+            
+            self.firstBeaconAsn = self.engine.getAsn()
+            self.firstEB        = False
+            self.isSync         = True
+            
+            # set neighbors variables before starting request cells to the preferred parent
+            for m in self._myNeighbors():
+                self._tsch_resetBackoffPerNeigh(m)
+            
+            # add the minimal cell to the schedule (read from EB)
+            self._tsch_add_minimal_cell()
+            
+            # trigger join process
+            self._secjoin_scheduleJoinProcess()  # trigger the join process
+    
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
@@ -2626,7 +2845,7 @@ class Mote(object):
                     }
                     self.waitingFor = None
                     if self.settings.frag_ff_enable:
-                        if self._app_is_frag_to_forward(frag) is True:
+                        if self._app_frag_ff_forward_fragment(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue
                                 return True, False
@@ -2635,7 +2854,7 @@ class Mote(object):
                                 self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
                                 return True, False
                         elif dstIp == self:
-                            if self._app_reass_packet(smac, payload) is True:
+                            if self._app_frag_reassemble_packet(smac, payload) is True:
                                 payload.pop()
                                 type = APP_TYPE_DATA
                             else:
@@ -2645,7 +2864,7 @@ class Mote(object):
                             # frag is out-of-order; ACK anyway since it's received successfully
                             return True, False
                     else:
-                        if self._app_reass_packet(smac, payload) is True:
+                        if self._app_frag_reassemble_packet(smac, payload) is True:
                             # remove fragment information out of payload
                             # XXX: assuming the last element has the fragment information
                             payload.pop()
@@ -2689,13 +2908,13 @@ class Mote(object):
                         else:
                             (isACKed, isNACKed) = (False, False)
                     elif type == APP_TYPE_DATA:  # application packet
-                        self._app_action_receivePacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        self._app_action_dagroot_receivePacketFromMote(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_ACK:
-                        self._app_action_receiveAck(srcIp=srcIp, payload=payload, timestamp=asn)
+                        self._app_action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_JOIN:
-                        self.join_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        self._secjoin_receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                         (isACKed, isNACKed) = (True, False)
                     elif type == APP_TYPE_FRAG:
                         # never comes here; but just in case
@@ -2730,7 +2949,7 @@ class Mote(object):
 
                     # enqueue packet in TSCH queue
                     if (type == APP_TYPE_DATA and self.settings.frag_numFragments > 1):
-                        self._app_frag_packet(relayPacket)
+                        self._app_fragment_and_enqueue_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)
                     else:
@@ -2863,40 +3082,14 @@ class Mote(object):
         if self.settings.secjoin_enabled:
             if self.dagRoot:
                 self._tsch_add_minimal_cell()
-                self._init_stack()  # initialize the stack and start sending beacons and DIOs
+                self._stack_init_synced()  # initialize the stack and start sending beacons and DIOs
             else:
                 self._tsch_schedule_synchronize()  # permanent rx until node hears an enhanced beacon to sync
         else:
-            self.isSync = True  # without join we skip the always-on listening for EBs
-            self.isJoined = True  # we consider all nodes have joined
+            self.isSync      = True  # without join we skip the always-on listening for EBs
+            self.isJoined    = True  # we consider all nodes have joined
             self._tsch_add_minimal_cell()
-            self._init_stack()
-
-    def _init_stack(self):
-        # start the stack layer by layer
-
-        # TSCH
-        self._tsch_schedule_sendEB(firstEB=True)
-
-        # RPL
-        self._rpl_schedule_sendDIO(firstDIO=True)
-        if not self.dagRoot:
-            self._rpl_schedule_sendDAO(firstDAO=True)
-
-        #if not join, set the neighbor variables when initializing stack. With join this is done when the nodes become synced. If root, initialize here anyway
-        if not self.settings.secjoin_enabled or self.dagRoot:
-            for m in self._myNeighbors():
-                self._tsch_resetBackoffPerNeigh(m)
-
-        # Scheduling Function
-        self.sf.housekeeping(self)
-
-        # app
-        if not self.dagRoot:
-            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
-                self._app_schedule_sendPacketBurst()
-            else:
-                self._app_schedule_sendSinglePacket(firstPacket=True)
+            self._stack_init_synced()
 
     def _logChargeConsumed(self, charge):
         with self.dataLock:

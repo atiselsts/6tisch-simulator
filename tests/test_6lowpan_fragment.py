@@ -8,7 +8,6 @@ import pytest
 
 import SimEngine.Mote as Mote
 
-
 class TestNumFragmentsVsTxQueue:
     @pytest.mark.parametrize('test_input, expected', [
         (0, 1),
@@ -18,14 +17,17 @@ class TestNumFragmentsVsTxQueue:
         (10, 10),
     ])
     def test_num_frag(self, sim, test_input, expected):
-        m = sim(**{'frag_numFragments': test_input,
-                   'exec_numMotes': 2,
-                   'top_type': 'linear',
-                   'sf_type': 'SSF-symmetric'}).motes[1]
+        m = sim(
+            **{
+                'exec_numMotes':       2,
+                'top_type':            'linear',
+                'sf_type':             'SSF-symmetric',
+                'frag_numFragments':   test_input,
+            }
+        ).motes[1]
         assert len(m.txQueue) == 0
-        m._app_action_enqueueData()
+        m._app_action_mote_enqueueDataForDAGroot()
         assert len(m.txQueue) == expected
-
 
 class TestFragmentation:
 
@@ -47,7 +49,7 @@ class TestFragmentation:
             'sourceRoute': []
         }
         assert len(node.txQueue) == 0
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 2
 
         frag0 = node.txQueue[0]
@@ -102,7 +104,7 @@ class TestFragmentation:
             'sourceRoute': []
         }
         assert len(node.txQueue) == 0
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 3
 
         frag0 = node.txQueue[0]
@@ -154,7 +156,6 @@ class TestFragmentation:
         assert frag2['dstIp'] == packet['dstIp']
         assert frag2['sourceRoute'] == packet['sourceRoute']
 
-
 class TestReassembly:
     def test_app_reass_packet_in_order(self, sim):
         sim = sim(**{'frag_numFragments': 3,
@@ -173,7 +174,7 @@ class TestReassembly:
             'dstIp': root,
             'sourceRoute': []
         }
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
         frag0 = node.txQueue[0]
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
@@ -183,19 +184,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
-        assert root._app_reass_packet(node, frag2['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is True
         assert node not in root.reassQueue
 
     def test_app_reass_packet_out_of_order(self, sim):
@@ -215,7 +216,7 @@ class TestReassembly:
             'dstIp': root,
             'sourceRoute': []
         }
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
         frag0 = node.txQueue[0]
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
@@ -225,19 +226,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag2['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2]}
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is True
         assert node not in root.reassQueue
 
     def test_app_reass_packet_queue_len(self, sim):
@@ -257,12 +258,12 @@ class TestReassembly:
             'dstIp': root,
             'sourceRoute': []
         }
-        leaf._app_frag_packet(packet)
+        leaf._app_fragment_and_enqueue_packet(packet)
         frag0 = leaf.txQueue[0]
         frag0['payload'][3]['datagram_size'] = 3
 
         assert len(root.reassQueue) == 0
-        assert root._app_reass_packet(leaf, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf, frag0['payload']) is False
         assert len(root.reassQueue) == 0
 
     def test_app_reass_packet_node_queue_num_1(self, sim):
@@ -286,18 +287,18 @@ class TestReassembly:
             'dmac': node,
             'sourceRoute': []
         }
-        leaf1._app_frag_packet(packet)
+        leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2._app_frag_packet(packet)
+        leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         assert len(node.reassQueue) == 1
 
     def test_app_reass_packet_node_queue_num_2(self, sim):
@@ -322,18 +323,18 @@ class TestReassembly:
             'dmac': node,
             'sourceRoute': []
         }
-        leaf1._app_frag_packet(packet)
+        leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2._app_frag_packet(packet)
+        leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         reass_queue_num = 0
         for i in node.reassQueue:
             reass_queue_num += len(node.reassQueue[i])
@@ -362,18 +363,18 @@ class TestReassembly:
             'dmac': node,
             'sourceRoute': []
         }
-        leaf1._app_frag_packet(packet)
+        leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2._app_frag_packet(packet)
+        leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         reass_queue_num = 0
         for i in node.reassQueue:
             reass_queue_num += len(node.reassQueue[i])
@@ -400,18 +401,18 @@ class TestReassembly:
             'dmac': root,
             'sourceRoute': []
         }
-        leaf1._app_frag_packet(packet)
+        leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(root.reassQueue) == 0
-        assert root._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(root.reassQueue) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2._app_frag_packet(packet)
+        leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(root.reassQueue) == 1
-        assert root._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         # root doesn't have reassQueue size limitation
         assert len(root.reassQueue) == 2
 
@@ -439,7 +440,7 @@ class TestPacketFowarding:
             'dstIp': root,
             'sourceRoute': []
         }
-        hop2._app_frag_packet(packet)
+        hop2._app_fragment_and_enqueue_packet(packet)
         frag0 = hop2.txQueue[0]
         frag1 = hop2.txQueue[1]
 
@@ -473,9 +474,9 @@ class TestPacketFowarding:
         hop2 = sim.motes[2]
 
         hop2.pkPeriod = one_second
-        hop2._app_schedule_sendSinglePacket(firstPacket=True)
+        hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
         assert len(sim.events) == 5
-        assert sim.events[4][2] == hop2._app_action_sendSinglePacket
+        assert sim.events[4][2] == hop2._app_action_mote_sendSinglePacketToDAGroot
 
         cb = None
         asn0 = sim.asn
@@ -483,10 +484,10 @@ class TestPacketFowarding:
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             sim.asn = asn
 
-            if cb == hop2._app_action_sendSinglePacket:
+            if cb == hop2._app_action_mote_sendSinglePacketToDAGroot:
                 # not let the mote schedule another transmission
                 hop2.pkPeriod = 0
-                hop2._app_schedule_sendSinglePacket(firstPacket=True)
+                hop2._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
                 break
             else:
                 cb(**kwarg)
@@ -494,9 +495,9 @@ class TestPacketFowarding:
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
-        # make sure there are two fragments added by _app_action_sendSinglePacket
+        # make sure there are two fragments added by _app_action_mote_sendSinglePacketToDAGroot
         assert len(hop2.txQueue) == 0
-        hop2._app_action_sendSinglePacket()
+        hop2._app_action_mote_sendSinglePacketToDAGroot()
         assert len(hop2.txQueue) == 2
 
         asn0 = sim.asn
@@ -552,15 +553,15 @@ class TestDatagramTag:
         tag_init = node.next_datagram_tag
 
         # enqueue two packets
-        node._app_frag_packet(packet)
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
 
         tag0 = node.txQueue[0]['payload'][3]['datagram_tag']
         tag1 = node.txQueue[2]['payload'][3]['datagram_tag']
 
         node.next_datagram_tag = 65535
-        node._app_frag_packet(packet)
-        node._app_frag_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
+        node._app_fragment_and_enqueue_packet(packet)
 
         tag2 = node.txQueue[4]['payload'][3]['datagram_tag']
         tag3 = node.txQueue[6]['payload'][3]['datagram_tag']
