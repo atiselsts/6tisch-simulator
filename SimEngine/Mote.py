@@ -688,7 +688,7 @@ class Mote(object):
 
             asn = self.engine.getAsn()
 
-            if self.settings.bayesianBroadcast:
+            if self.settings.tsch_probBcast_enabled:
                 futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
@@ -707,7 +707,7 @@ class Mote(object):
 
         with self.dataLock:
 
-            if self.settings.bayesianBroadcast:
+            if self.settings.tsch_probBcast_enabled:
                 beaconProb = float(self.settings.beaconProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.beaconProbability)
                 sendBeacon = True if random.random() < beaconProb else False
             else:
@@ -811,7 +811,7 @@ class Mote(object):
 
             asn    = self.engine.getAsn()
 
-            if self.settings.bayesianBroadcast:
+            if self.settings.tsch_probBcast_enabled:
                 futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
@@ -904,7 +904,7 @@ class Mote(object):
 
         with self.dataLock:
 
-            if self.settings.bayesianBroadcast:
+            if self.settings.tsch_probBcast_enabled:
                 dioProb = float(self.settings.dioProbability) / float(len(self.join_joinedNeighbors())) if len(self.join_joinedNeighbors()) else float(self.settings.dioProbability)
                 sendDio = True if random.random() < dioProb else False
             else:

@@ -44,7 +44,7 @@
             "tsch_slotDuration":            0.010,
             "tsch_slotframeLength":         101,
             "tsch_ebPeriod_sec":            2,
-            "bayesianBroadcast":            1,
+            "tsch_probBcast_enabled":       1,
             "beaconProbability":            0.33,
             "dioProbability":               0.33,
             
