@@ -58,13 +58,12 @@ class Propagation(object):
         :rtype: PropagationFromModel | PropagationFormTrace
         """
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'prop_type'):
-            if settings.prop_type == 'trace':
-                return PropagationTrace(settings.prop_trace)
-            elif settings.prop_type == 'pisterhack':
-                return PropagationPisterHack()
-        else:
+        if   settings.prop_type == 'trace':
+            return PropagationTrace(settings.prop_trace)
+        elif settings.prop_type == 'pisterhack':
             return PropagationPisterHack()
+        else:
+            raise SystemError()
 
 class PropagationCreator(object):
     """

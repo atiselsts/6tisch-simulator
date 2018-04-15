@@ -538,7 +538,9 @@ class TestPacketFowarding:
                   'top_type': 'linear',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
+                  'app_e2eAck': False,
+                  'frag_ff_vrbtablesize': 50,
+                  }
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -548,7 +550,7 @@ class TestPacketFowarding:
         }
         frag['payload'][3]['datagram_size'] = params['frag_numFragments']
         frag['payload'][3]['datagram_offset'] = 0
-        for i in range(0, Mote.DFLT_VRBTABLESIZE):
+        for i in range(0, params['frag_ff_vrbtablesize']):
             frag['smac'] = i
             frag['payload'][3]['datagram_tag'] = i
             assert hop1._app_is_frag_to_forward(frag) is True

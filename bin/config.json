@@ -16,14 +16,14 @@
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
             "app_burstNumPackets":          null,
-            "app_e2eAck":                   0,
+            "app_e2eAck":                   false,
             
             "rpl_dioPeriod":                10,
             "rpl_daoPeriod":                60,
             
-            "frag_numFragments":            null,
+            "frag_numFragments":            1,
             "frag_ff_enable":               false,
-            "frag_ff_options":              null,
+            "frag_ff_options":              [],
             "frag_ff_vrbtablesize":         8,
             "frag_ph_numReassBuffs":        1,
             
@@ -37,7 +37,7 @@
             "sixtop_messaging":             1,
             "sixtop_removeRandomCell":      0,
             
-            "secjoin_enabled":              0,
+            "secjoin_enabled":              false,
             "secjoin_numExchanges":         2,
             "secjoin_joinTimeout":          60,
             

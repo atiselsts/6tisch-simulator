@@ -136,11 +136,6 @@ CHARGE_RxDataTxAck_uC              = 32.6
 CHARGE_RxData_uC                   = 22.6
 CHARGE_IdleNotSync_uC              = 45.0
 
-# === 6LoWPAN Reassembly
-DFLT_NUMREASSBUFFS = 1
-# === Fragment Forwarding
-DFLT_VRBTABLESIZE = 50
-
 BROADCAST_ADDRESS                  = 0xffff
 
 # =========================== body ============================================
@@ -217,15 +212,6 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-        # reassembly/fragmentation
-        if not hasattr(self.settings, 'frag_ph_numReassBuffs'):
-            self.maxReassQueueNum = DFLT_NUMREASSBUFFS
-        else:
-            self.maxReassQueueNum = self.settings.frag_ph_numReassBuffs
-        if hasattr(self.settings, 'frag_ff_vrbtablesize') and self.settings.frag_ff_vrbtablesize > 0:
-            self.vrbtablesize = self.settings.frag_ff_vrbtablesize
-        else:
-            self.vrbtablesize = DFLT_VRBTABLESIZE
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
@@ -491,7 +477,7 @@ class Mote(object):
             self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
-            if hasattr(self.settings, 'frag_numFragments') and self.settings.frag_numFragments > 1:
+            if self.settings.frag_numFragments > 1:
                 self._app_frag_packet(newPacket)
             else:
                 # send it as a single frame
@@ -523,7 +509,7 @@ class Mote(object):
             for i in self.vrbTable:
                 vrb_entry_num += len(self.vrbTable[i])
 
-            if (not self.dagRoot) and (vrb_entry_num == self.vrbtablesize):
+            if (not self.dagRoot) and (vrb_entry_num == self.settings.frag_ff_vrbtablesize):
                 # no room for a new entry
                 self._radio_drop_packet(frag, 'droppedFragVRBTableFull')
                 return False
@@ -549,18 +535,14 @@ class Mote(object):
                 self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
             self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
 
-            if (hasattr(self.settings, 'frag_ff_options') and
-               (self.settings.frag_ff_options is not None) and
-               'kill_entry_by_missing' in self.settings.frag_ff_options):
+            if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 self.vrbTable[smac][itag]['next_offset'] = 0
 
         if smac in self.vrbTable and itag in self.vrbTable[smac]:
             if self.vrbTable[smac][itag]['otag'] is None:
                 return False # this is for us, which needs to be reassembled
 
-            if (hasattr(self.settings, 'frag_ff_options') and
-               (self.settings.frag_ff_options is not None) and
-               'kill_entry_by_missing' in self.settings.frag_ff_options):
+            if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 if offset == self.vrbTable[smac][itag]['next_offset']:
                     self.vrbTable[smac][itag]['next_offset'] += 1
                 else:
@@ -577,9 +559,10 @@ class Mote(object):
 
         # return True when the fragment is to be forwarded even if it cannot be
         # forwarded due to out-of-order or full of queue
-        if (hasattr(self.settings, 'frag_ff_options') and
-           'kill_entry_by_last' in self.settings.frag_ff_options and
-           offset == (self.settings.frag_numFragments - 1)):
+        if  (
+                ('kill_entry_by_last' in self.settings.frag_ff_options) and
+                (offset == (self.settings.frag_numFragments - 1))
+            ):
             # this fragment is the last one
             del self.vrbTable[smac][itag]
 
@@ -629,7 +612,7 @@ class Mote(object):
                 reass_queue_num = 0
                 for i in self.reassQueue:
                     reass_queue_num += len(self.reassQueue[i])
-                if reass_queue_num == self.maxReassQueueNum:
+                if reass_queue_num == self.settings.frag_ph_numReassBuffs:
                     # no room for a new entry
                     self._radio_drop_packet({'payload': payload}, 'droppedFragReassQueueFull')
                     return False
@@ -680,7 +663,7 @@ class Mote(object):
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
-        if (not hasattr(self.settings, 'tsch_ebPeriod_sec')) or (self.settings.tsch_ebPeriod_sec == 0):
+        if self.settings.tsch_ebPeriod_sec==0:
             # disable periodic EB transmission
             return
 
@@ -692,8 +675,11 @@ class Mote(object):
                 futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.tsch_ebPeriod_sec,
-                                   1.2 * self.settings.tsch_ebPeriod_sec) / self.settings.tsch_slotDuration))
+                    random.uniform(
+                        0.8 * self.settings.tsch_ebPeriod_sec,
+                        1.2 * self.settings.tsch_ebPeriod_sec,
+                    ) / self.settings.tsch_slotDuration
+                ))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -803,7 +789,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDIO(self, firstDIO=False):
 
-        if (not hasattr(self.settings, 'rpl_dioPeriod')) or self.settings.rpl_dioPeriod == 0:
+        if self.settings.rpl_dioPeriod==0:
             # disable DIO
             return
 
@@ -815,7 +801,11 @@ class Mote(object):
                 futureAsn = int(self.settings.tsch_slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.tsch_slotDuration))
+                    random.uniform(
+                        0.8 * self.settings.rpl_dioPeriod,
+                        1.2 * self.settings.rpl_dioPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -827,7 +817,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDAO(self, firstDAO=False):
 
-        if (not hasattr(self.settings, 'rpl_daoPeriod')) or self.settings.rpl_daoPeriod == 0:
+        if self.settings.rpl_daoPeriod==0:
             # disable DAO
             return
 
@@ -837,8 +827,11 @@ class Mote(object):
 
             if not firstDAO:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.rpl_daoPeriod,
-                                   1.2 * self.settings.rpl_daoPeriod) / self.settings.tsch_slotDuration))
+                    random.uniform(
+                        0.8 * self.settings.rpl_daoPeriod,
+                        1.2 * self.settings.rpl_daoPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
             else:
                 futureAsn = 1
 
@@ -2632,8 +2625,7 @@ class Mote(object):
                         'sourceRoute': copy.deepcopy(srcRoute)
                     }
                     self.waitingFor = None
-                    if (hasattr(self.settings, 'frag_ff_enable') and
-                       self.settings.frag_ff_enable):
+                    if self.settings.frag_ff_enable:
                         if self._app_is_frag_to_forward(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue
@@ -2737,8 +2729,7 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'frag_numFragments') and
-                       self.settings.frag_numFragments > 1):
+                    if (type == APP_TYPE_DATA and self.settings.frag_numFragments > 1):
                         self._app_frag_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)
