@@ -211,16 +211,11 @@ class MSF(SchedulingFunction):
     MAX_TIMEOUT_EXP = 4
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
-    DFLT_MSF_MAXNUMCELLS = 16
 
     def __init__(self):
         super(MSF, self).__init__()
         self.msfTimeoutExp = {}
-
-        if hasattr(self.settings, 'sf_msf_MaxNumCells'):
-            self.maxNumCells = self.settings.sf_msf_maxNumCells
-        else:
-            self.maxNumCells = self.DFLT_MSF_MAXNUMCELLS
+        
         self.highUsageThres = self.settings.sf_msf_highUsageThres
         self.lowUsageThres = self.settings.sf_msf_lowUsageThres
         self.numCellsToAddRemove = self.settings.sf_msf_numCellsToAddRemove
@@ -334,14 +329,14 @@ class MSF(SchedulingFunction):
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
 
-        assert mote.numCellsElapsed <= self.maxNumCells
+        assert mote.numCellsElapsed <= self.settings.sf_msf_maxNumCells
         assert direction in [Mote.DIR_TXRX_SHARED, Mote.DIR_TX, Mote.DIR_RX]
 
         # MSF: updating numCellsElapsed
         if direction == Mote.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
             mote.numCellsElapsed += 1
 
-            if mote.numCellsElapsed == self.maxNumCells:
+            if mote.numCellsElapsed == self.settings.sf_msf_maxNumCells:
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
                              mote.numCellsElapsed, mote.numCellsUsed))
 
