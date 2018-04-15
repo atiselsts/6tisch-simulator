@@ -21,8 +21,8 @@
             "rpl_dioPeriod":                10,
             "rpl_daoPeriod":                60,
             
-            "numFragments":                 null,
-            "enableFragmentForwarding":     false,
+            "frag_numFragments":            null,
+            "frag_ff_enable":               false,
             "optFragmentForwarding":        null,
             "maxVRBEntryNum":               8,
             "numReassQueue":                1,

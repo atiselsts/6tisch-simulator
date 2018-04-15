@@ -491,7 +491,7 @@ class Mote(object):
             self._stats_incrementMoteStats('appGenerated')
 
             # enqueue packet in TSCH queue
-            if hasattr(self.settings, 'numFragments') and self.settings.numFragments > 1:
+            if hasattr(self.settings, 'frag_numFragments') and self.settings.frag_numFragments > 1:
                 self._app_frag_packet(newPacket)
             else:
                 # send it as a single frame
@@ -579,7 +579,7 @@ class Mote(object):
         # forwarded due to out-of-order or full of queue
         if (hasattr(self.settings, 'optFragmentForwarding') and
            'kill_entry_by_last' in self.settings.optFragmentForwarding and
-           offset == (self.settings.numFragments - 1)):
+           offset == (self.settings.frag_numFragments - 1)):
             # this fragment is the last one
             del self.vrbTable[smac][itag]
 
@@ -590,11 +590,11 @@ class Mote(object):
         # fragment packet into the specified number of pieces
         tag = self.next_datagram_tag
         self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
-        for i in range(0, self.settings.numFragments):
+        for i in range(0, self.settings.frag_numFragments):
             frag = copy.copy(packet)
             frag['type'] = APP_TYPE_FRAG
             frag['payload'] = copy.deepcopy(packet['payload'])
-            frag['payload'].append({'datagram_size': self.settings.numFragments,
+            frag['payload'].append({'datagram_size': self.settings.frag_numFragments,
                                     'datagram_tag': tag,
                                     'datagram_offset': i})
             frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
@@ -618,8 +618,8 @@ class Mote(object):
                     if len(self.reassQueue[s]) == 0:
                         del self.reassQueue[s]
 
-        if size > self.settings.numFragments:
-            # the size of reassQueue is the same number as self.settings.numFragments.
+        if size > self.settings.frag_numFragments:
+            # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
             self._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
             return False
@@ -2632,8 +2632,8 @@ class Mote(object):
                         'sourceRoute': copy.deepcopy(srcRoute)
                     }
                     self.waitingFor = None
-                    if (hasattr(self.settings, 'enableFragmentForwarding') and
-                       self.settings.enableFragmentForwarding):
+                    if (hasattr(self.settings, 'frag_ff_enable') and
+                       self.settings.frag_ff_enable):
                         if self._app_is_frag_to_forward(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue
@@ -2737,8 +2737,8 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'numFragments') and
-                       self.settings.numFragments > 1):
+                    if (type == APP_TYPE_DATA and hasattr(self.settings, 'frag_numFragments') and
+                       self.settings.frag_numFragments > 1):
                         self._app_frag_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)

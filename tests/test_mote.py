@@ -98,7 +98,7 @@ def test_drop_data_packet_tx_queue_full(sim):
 def test_drop_frag_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numFragments': 2})
+                 'frag_numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -318,7 +318,7 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
 def test_drop_forwarding_frag_tx_queue_full(sim):
     sim = sim(**{'numMotes': 3, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numFragments': 2, 'enableFragmentForwarding': True,})
+                 'frag_numFragments': 2, 'frag_ff_enable': True,})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -353,7 +353,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
 def test_drop_forwarding_frag_vrb_table_full(sim):
     sim = sim(**{'numMotes': 3, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numFragments': 2, 'enableFragmentForwarding': True})
+                 'frag_numFragments': 2, 'frag_ff_enable': True})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -384,7 +384,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
 def test_drop_forwarding_frag_no_vrb_entry(sim):
     sim = sim(**{'numMotes': 3, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numFragments': 2, 'enableFragmentForwarding': True})
+                 'frag_numFragments': 2, 'frag_ff_enable': True})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -443,7 +443,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 def test_drop_frag_reassembly_queue_full(sim):
     sim = sim(**{'numMotes': 4, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numReassQueue': 1, 'numFragments': 2})
+                 'numReassQueue': 1, 'frag_numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf1 = sim.motes[2]
@@ -479,7 +479,7 @@ def test_drop_frag_reassembly_queue_full(sim):
 def test_drop_frag_too_big_for_reassembly_queue(sim):
     sim = sim(**{'numMotes': 4, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'numReassQueue': 1, 'numFragments': 2})
+                 'numReassQueue': 1, 'frag_numFragments': 2})
     root = sim.motes[0]
     node = sim.motes[1]
     leaf1 = sim.motes[2]
