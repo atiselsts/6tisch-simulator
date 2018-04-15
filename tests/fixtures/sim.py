@@ -23,6 +23,7 @@ def sim(request):
             
             'frag_numFragments':            1,
             'frag_ff_enable':               False,
+            'frag_ff_options':              [],
             
             'sf_type':                      sf.DFLT_SF,
             'sf_msf_housekeepingPeriod':    60,
