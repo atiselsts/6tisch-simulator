@@ -35,7 +35,7 @@
             "sf_msf_numCellsToAddRemove":   1,
             
             "sixtop_messaging":             1,
-            "sixtop_removeRandomCell":      0,
+            "sixtop_removeRandomCell":      false,
             
             "secjoin_enabled":              false,
             "secjoin_numExchanges":         2,
@@ -50,13 +50,13 @@
             
             "top_type":                     "random",
             "top_squareSide":               2.000,
-            "top_fullyMeshed":              0,
+            "top_fullyMeshed":              false,
             "prop_type":                    "pisterhack",
             "prop_trace":                   null,
             
             "phy_numChans":                 16,
             "phy_minRssi":                  -97,
-            "phy_noInterference":           0
+            "phy_noInterference":           false
         }
     },
     "logging": [
