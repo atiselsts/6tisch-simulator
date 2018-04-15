@@ -362,7 +362,7 @@ class TestPacketFowarding:
                   'top_type': 'linear',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -405,7 +405,7 @@ class TestPacketFowarding:
                   'scheduling_function': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -461,7 +461,7 @@ class TestPacketFowarding:
                   'top_type': 'linear',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False
+                  'app_e2eAck': False
                   }
         sim = sim(**params)
         root = sim.motes[0]
@@ -513,7 +513,7 @@ class TestPacketFowarding:
                   'top_type': 'linear',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -538,7 +538,7 @@ class TestPacketFowarding:
                   'top_type': 'linear',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -605,7 +605,7 @@ class TestDatagramTag:
                   'scheduling_function': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -664,7 +664,7 @@ class TestDatagramTag:
                   'scheduling_function': 'SSF-symmetric',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
-                  'downwardAcks': False}
+                  'app_e2eAck': False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]

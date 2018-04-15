@@ -442,7 +442,7 @@ class Mote(object):
         # log the number of hops
         self._stats_logHopsStat(payload[2])
 
-        if self.settings.downwardAcks:  # Downward End-to-end ACKs
+        if self.settings.app_e2eAck:  # Downward End-to-end ACKs
             destination = srcIp
 
             sourceRoute = self._rpl_getSourceRoute([destination.id])

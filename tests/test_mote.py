@@ -128,7 +128,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
 def test_drop_app_ack_packet_tx_queue_full(sim):
     sim = sim(**{'numMotes': 2, 'app_pkPeriod': 0,
                  'top_type': 'linear', 'scheduling_function': 'SSF-cascading',
-                 'downwardAcks': True})
+                 'app_e2eAck': True})
     root = sim.motes[0]
     node = sim.motes[1]
 

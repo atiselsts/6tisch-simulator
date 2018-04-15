@@ -23,7 +23,7 @@
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
             "app_burstNumPackets":          null,
-            "downwardAcks":                 0,
+            "app_e2eAck":                   0,
             
             "numFragments":                 null,
             "enableFragmentForwarding":     false,
