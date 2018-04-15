@@ -54,7 +54,7 @@
             "prop_type":                    "pisterhack",
             "prop_trace":                   null,
             
-            "numChans":                     16,
+            "phy_numChans":                 16,
             "minRssi":                      -97,
             "noInterference":               0
         }

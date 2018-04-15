@@ -1158,7 +1158,7 @@ class Mote(object):
                     availableTimeslots = list(
                         set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
                     random.shuffle(availableTimeslots)
-                    cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in
+                    cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in
                                   availableTimeslots[:numCells * self.sf.MIN_NUM_CELLS]])
                     cellList = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
@@ -1349,7 +1349,7 @@ class Mote(object):
             availableTimeslots = list(
                 set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
             random.shuffle(availableTimeslots)
-            cells = dict([(ts, random.randint(0, self.settings.numChans - 1)) for ts in availableTimeslots[:numCells]])
+            cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in availableTimeslots[:numCells]])
             cellList = []
 
             for ts, ch in cells.iteritems():
@@ -2315,7 +2315,7 @@ class Mote(object):
     def _tsch_action_synchronize(self):
 
         if not self.isSync:
-            channel = random.randint(0, self.settings.numChans-1)
+            channel = random.randint(0, self.settings.phy_numChans-1)
             # start listening
             self.propagation.startRx(
                 mote=self,
