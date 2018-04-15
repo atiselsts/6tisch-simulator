@@ -23,7 +23,7 @@
             
             "frag_numFragments":            null,
             "frag_ff_enable":               false,
-            "optFragmentForwarding":        null,
+            "frag_ff_options":              null,
             "maxVRBEntryNum":               8,
             "numReassQueue":                1,
             

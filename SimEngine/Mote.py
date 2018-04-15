@@ -549,18 +549,18 @@ class Mote(object):
                 self.next_datagram_tag = (self.next_datagram_tag + 1) % 65536
             self.vrbTable[smac][itag]['ts'] = self.engine.getAsn()
 
-            if (hasattr(self.settings, 'optFragmentForwarding') and
-               (self.settings.optFragmentForwarding is not None) and
-               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+            if (hasattr(self.settings, 'frag_ff_options') and
+               (self.settings.frag_ff_options is not None) and
+               'kill_entry_by_missing' in self.settings.frag_ff_options):
                 self.vrbTable[smac][itag]['next_offset'] = 0
 
         if smac in self.vrbTable and itag in self.vrbTable[smac]:
             if self.vrbTable[smac][itag]['otag'] is None:
                 return False # this is for us, which needs to be reassembled
 
-            if (hasattr(self.settings, 'optFragmentForwarding') and
-               (self.settings.optFragmentForwarding is not None) and
-               'kill_entry_by_missing' in self.settings.optFragmentForwarding):
+            if (hasattr(self.settings, 'frag_ff_options') and
+               (self.settings.frag_ff_options is not None) and
+               'kill_entry_by_missing' in self.settings.frag_ff_options):
                 if offset == self.vrbTable[smac][itag]['next_offset']:
                     self.vrbTable[smac][itag]['next_offset'] += 1
                 else:
@@ -577,8 +577,8 @@ class Mote(object):
 
         # return True when the fragment is to be forwarded even if it cannot be
         # forwarded due to out-of-order or full of queue
-        if (hasattr(self.settings, 'optFragmentForwarding') and
-           'kill_entry_by_last' in self.settings.optFragmentForwarding and
+        if (hasattr(self.settings, 'frag_ff_options') and
+           'kill_entry_by_last' in self.settings.frag_ff_options and
            offset == (self.settings.frag_numFragments - 1)):
             # this fragment is the last one
             del self.vrbTable[smac][itag]

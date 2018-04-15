@@ -717,7 +717,7 @@ class TestOptimization:
                      'frag_numFragments': 4,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'optFragmentForwarding': []})
+                     'frag_ff_options': []})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -754,7 +754,7 @@ class TestOptimization:
                      'frag_numFragments': 3,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_last']})
+                     'frag_ff_options': ['kill_entry_by_last']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -786,7 +786,7 @@ class TestOptimization:
                      'frag_numFragments': 4,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_missing']})
+                     'frag_ff_options': ['kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -820,7 +820,7 @@ class TestOptimization:
                      'frag_numFragments': 4,
                      'numMotes': 3,
                      'top_type': 'linear',
-                     'optFragmentForwarding': ['kill_entry_by_last', 'kill_entry_by_missing']})
+                     'frag_ff_options': ['kill_entry_by_last', 'kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
