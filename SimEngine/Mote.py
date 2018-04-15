@@ -831,7 +831,7 @@ class Mote(object):
 
     def _rpl_schedule_sendDAO(self, firstDAO=False):
 
-        if (not hasattr(self.settings, 'rpl_daoPeriod')) or self.settings.rpl_daoPeriod == 0:
+        if self.settings.rpl_daoPeriod==0:
             # disable DAO
             return
 
@@ -841,8 +841,11 @@ class Mote(object):
 
             if not firstDAO:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.rpl_daoPeriod,
-                                   1.2 * self.settings.rpl_daoPeriod) / self.settings.tsch_slotDuration))
+                    random.uniform(
+                        0.8 * self.settings.rpl_daoPeriod,
+                        1.2 * self.settings.rpl_daoPeriod
+                    ) / self.settings.tsch_slotDuration)
+                )
             else:
                 futureAsn = 1
 

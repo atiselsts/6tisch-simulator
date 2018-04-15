@@ -14,34 +14,33 @@ def sim(request):
     def create_sim(**kwargs):
 
         params = {
-            # prerequisite parameters for SimEngine
-            'exec_numMotes': 15,
-            'secjoin_enabled': False,
-
-            # prerequisite parameters for Topology
-            'top_fullyMeshed': False,
-            'top_squareSide': 2.000,
-            'top_type': Topology.DEFAULT_TOPOLOGY,
-
-            # prerequisite parameters for Schedule
-            'sf_type': sf.DFLT_SF,
-            'sf_msf_housekeepingPeriod': 60,
-            'sf_msf_maxNumCells': 16,
-            'sf_msf_highUsageThres': 12,
-            'sf_msf_lowUsageThres': 4,
-            'sf_msf_numCellsToAddRemove': 1,
-
-            # prerequisite parameters for Propagation
-            'prop_type': 'pisterhack',
-            'tsch_slotDuration': 0.010,
-            'tsch_slotframeLength': 101,
-            'phy_noInterference': True,
-            'phy_minRssi': -97,
-
-            # there are prerequisite parameters for Mote
-            'app_pkPeriod': 0,
+            'exec_numMotes':                15,
             
-            'rpl_dioPeriod': 0,
+            'app_pkPeriod':                 0,
+            
+            'rpl_dioPeriod':                0,
+            'rpl_daoPeriod':                0,
+            
+            'sf_type':                      sf.DFLT_SF,
+            'sf_msf_housekeepingPeriod':    60,
+            'sf_msf_maxNumCells':           16,
+            'sf_msf_highUsageThres':        12,
+            'sf_msf_lowUsageThres':         4,
+            'sf_msf_numCellsToAddRemove':   1,
+            
+            'secjoin_enabled':              False,
+            
+            'tsch_slotDuration':            0.010,
+            'tsch_slotframeLength':         101,
+            
+            'top_type':                     Topology.DEFAULT_TOPOLOGY,
+            'top_squareSide':               2.000,
+            'top_fullyMeshed':              False,
+            
+            'prop_type':                    'pisterhack',
+            
+            'phy_noInterference':           True,
+            'phy_minRssi':                  -97,
         }
 
         if kwargs:
