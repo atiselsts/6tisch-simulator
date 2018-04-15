@@ -632,22 +632,34 @@ class Mote(object):
                 self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
     
-    def _app_is_frag_to_forward(self, frag):
-
+    def _app_frag_ff_forward_fragment(self, frag):
+        '''
+        handle a fragment, and decide whether should be forwarded.
+        
+        return True if should be forwarded
+        '''
+        
+        assert self.settings.frag_ff_enable
+        
         smac            = frag['smac']
         dstIp           = frag['dstIp']
         size            = frag['payload'][3]['datagram_size']
         itag            = frag['payload'][3]['datagram_tag']
         offset          = frag['payload'][3]['datagram_offset']
         entry_lifetime  = 60 / self.settings.tsch_slotDuration
-
+        
+        # cleanup VRB table entries
         for mac in self.vrbTable.keys():
+            # too old
             for tag in self.vrbTable[mac].keys():
                 if (self.engine.getAsn() - self.vrbTable[mac][tag]['ts']) > entry_lifetime:
                     del self.vrbTable[mac][tag]
+            # 0-length MAC address
+            # FIXME: document
             if len(self.vrbTable[mac]) == 0:
                 del self.vrbTable[mac]
-
+        
+        # handle first fragments
         if offset == 0:
             vrb_entry_num = 0
             for i in self.vrbTable:
@@ -661,8 +673,8 @@ class Mote(object):
             if smac not in self.vrbTable:
                 self.vrbTable[smac] = {}
 
-            # In our design, vrbTable has (in-smac, in-tag, nexthop,
-            # out-tag). However, it doesn't have nexthop mac address since
+            # In our design, vrbTable has (in-smac, in-tag, nexthop, out-tag).
+            # However, it doesn't have nexthop mac address since
             # nexthop is determined at TSCH layer in this simulation.
             if itag in self.vrbTable[smac]:
                 # duplicate first fragment
@@ -681,10 +693,16 @@ class Mote(object):
 
             if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 self.vrbTable[smac][itag]['next_offset'] = 0
-
-        if smac in self.vrbTable and itag in self.vrbTable[smac]:
+        
+        # find entry in VRB table and forward fragment
+        if (smac in self.vrbTable) and (itag in self.vrbTable[smac]):
+            # VRB entry found!
+            
             if self.vrbTable[smac][itag]['otag'] is None:
-                return False # this is for us, which needs to be reassembled
+                # fragment for me
+                
+                # do no forward (but reassemble)
+                return False
 
             if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 if offset == self.vrbTable[smac][itag]['next_offset']:
@@ -698,11 +716,13 @@ class Mote(object):
             frag['payload'][2] += 1 # update the number of hops
             frag['payload'][3]['datagram_tag'] = self.vrbTable[smac][itag]['otag']
         else:
+            # no VRB entry found!
+            
             self._radio_drop_packet(frag, 'droppedFragNoVRBEntry')
             return False
 
         # return True when the fragment is to be forwarded even if it cannot be
-        # forwarded due to out-of-order or full of queue
+        # forwarded due to out-of-order or queue full
         if  (
                 ('kill_entry_by_last' in self.settings.frag_ff_options) and
                 (offset == (self.settings.frag_numFragments - 1))
@@ -712,27 +732,31 @@ class Mote(object):
 
         return True
 
-    def _app_reass_packet(self, smac, payload):
-        size = payload[3]['datagram_size']
-        tag = payload[3]['datagram_tag']
-        offset = payload[3]['datagram_offset']
+    def _app_frag_reassemble_packet(self, smac, payload):
+        size                 = payload[3]['datagram_size']
+        tag                  = payload[3]['datagram_tag']
+        offset               = payload[3]['datagram_offset']
         reass_queue_lifetime = 60 / self.settings.tsch_slotDuration
 
+        # remove reassQueue elements
         if len(self.reassQueue) > 0:
-            # remove expired entry
             for s in list(self.reassQueue):
                 for t in list(self.reassQueue[s]):
+                    # to old
                     if (self.engine.getAsn() - self.reassQueue[s][t]['ts']) > reass_queue_lifetime:
                         del self.reassQueue[s][t]
+                    # empty
                     if len(self.reassQueue[s]) == 0:
                         del self.reassQueue[s]
-
+        
+        # drop packet longer than reassembly queue elements
         if size > self.settings.frag_numFragments:
             # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
             self._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
             return False
 
+        # create reassembly queue entry for new packet
         if (smac not in self.reassQueue) or (tag not in self.reassQueue[smac]):
             if not self.dagRoot:
                 reass_queue_num = 0
@@ -763,109 +787,6 @@ class Mote(object):
             return True
 
         return False
-
-    def _tsch_action_enqueueEB(self):
-        """ enqueue EB packet into stack """
-
-        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
-        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
-
-            # create new packet
-            newPacket = {
-                'asn': self.engine.getAsn(),
-                'type': TSCH_TYPE_EB,
-                'code': None,
-                'payload': [self.dagRank],  # the payload is the rpl rank
-                'retriesLeft': 1,  # do not retransmit broadcast
-                'srcIp': self,
-                'dstIp': BROADCAST_ADDRESS,
-                'sourceRoute': []
-            }
-
-            # enqueue packet in TSCH queue
-            if not self._tsch_enqueue(newPacket):
-                # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
-
-    def _tsch_schedule_sendEB(self, firstEB=False):
-
-        if self.settings.tsch_ebPeriod_sec==0:
-            # disable periodic EB transmission
-            return
-
-        with self.dataLock:
-
-            asn = self.engine.getAsn()
-
-            if self.settings.tsch_probBcast_enabled:
-                futureAsn = int(self.settings.tsch_slotframeLength)
-            else:
-                futureAsn = int(math.ceil(
-                    random.uniform(
-                        0.8 * self.settings.tsch_ebPeriod_sec,
-                        1.2 * self.settings.tsch_ebPeriod_sec,
-                    ) / self.settings.tsch_slotDuration
-                ))
-
-            # schedule at start of next cycle
-            self.engine.scheduleAtAsn(
-                asn=asn + futureAsn,
-                cb=self._tsch_action_sendEB,
-                uniqueTag=(self.id, '_tsch_action_sendEB'),
-                priority=3,
-            )
-
-    def _tsch_action_sendEB(self):
-
-        with self.dataLock:
-
-            if self.settings.tsch_probBcast_enabled:
-                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.secjoin_areAllNeighborsJoined())) if len(self.secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
-                sendBeacon = True if random.random() < beaconProb else False
-            else:
-                sendBeacon = True
-            if self.preferredParent or self.dagRoot:
-                if self.isJoined or not self.settings.secjoin_enabled:
-                    if sendBeacon:
-                        self._tsch_action_enqueueEB()
-                        self._stats_incrementMoteStats('tschTxEB')
-
-            self._tsch_schedule_sendEB()  # schedule next EB
-
-    def _tsch_action_receiveEB(self, type, smac, payload):
-        
-        # abort if I'm the root
-        if self.dagRoot:
-            return
-
-        # got an EB, increment stats
-        self._stats_incrementMoteStats('tschRxEB')
-        
-        if self.firstEB and not self.isSync:
-            # this is the first EB I'm receiving while joining: sync!
-            
-            assert self.settings.secjoin_enabled
-            
-            # log
-            self._log(
-                INFO,
-                "[tsch] synced on EB received from mote {0}.",
-                (smac.id,),
-            )
-            
-            self.firstBeaconAsn = self.engine.getAsn()
-            self.firstEB        = False
-            self.isSync         = True
-            
-            # set neighbors variables before starting request cells to the preferred parent
-            for m in self._myNeighbors():
-                self._tsch_resetBackoffPerNeigh(m)
-            
-            # add the minimal cell to the schedule (read from EB)
-            self._tsch_add_minimal_cell()
-            
-            # trigger join process
-            self.secjoin_scheduleJoinProcess()  # trigger the join process
     
     #===== rpl
 
@@ -2161,6 +2082,109 @@ class Mote(object):
 
             return True
 
+    def _tsch_action_enqueueEB(self):
+        """ enqueue EB packet into stack """
+
+        # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+        if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
+
+            # create new packet
+            newPacket = {
+                'asn': self.engine.getAsn(),
+                'type': TSCH_TYPE_EB,
+                'code': None,
+                'payload': [self.dagRank],  # the payload is the rpl rank
+                'retriesLeft': 1,  # do not retransmit broadcast
+                'srcIp': self,
+                'dstIp': BROADCAST_ADDRESS,
+                'sourceRoute': []
+            }
+
+            # enqueue packet in TSCH queue
+            if not self._tsch_enqueue(newPacket):
+                # update mote stats
+                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+
+    def _tsch_schedule_sendEB(self, firstEB=False):
+
+        if self.settings.tsch_ebPeriod_sec==0:
+            # disable periodic EB transmission
+            return
+
+        with self.dataLock:
+
+            asn = self.engine.getAsn()
+
+            if self.settings.tsch_probBcast_enabled:
+                futureAsn = int(self.settings.tsch_slotframeLength)
+            else:
+                futureAsn = int(math.ceil(
+                    random.uniform(
+                        0.8 * self.settings.tsch_ebPeriod_sec,
+                        1.2 * self.settings.tsch_ebPeriod_sec,
+                    ) / self.settings.tsch_slotDuration
+                ))
+
+            # schedule at start of next cycle
+            self.engine.scheduleAtAsn(
+                asn=asn + futureAsn,
+                cb=self._tsch_action_sendEB,
+                uniqueTag=(self.id, '_tsch_action_sendEB'),
+                priority=3,
+            )
+
+    def _tsch_action_sendEB(self):
+
+        with self.dataLock:
+
+            if self.settings.tsch_probBcast_enabled:
+                beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.secjoin_areAllNeighborsJoined())) if len(self.secjoin_areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
+                sendBeacon = True if random.random() < beaconProb else False
+            else:
+                sendBeacon = True
+            if self.preferredParent or self.dagRoot:
+                if self.isJoined or not self.settings.secjoin_enabled:
+                    if sendBeacon:
+                        self._tsch_action_enqueueEB()
+                        self._stats_incrementMoteStats('tschTxEB')
+
+            self._tsch_schedule_sendEB()  # schedule next EB
+
+    def _tsch_action_receiveEB(self, type, smac, payload):
+        
+        # abort if I'm the root
+        if self.dagRoot:
+            return
+
+        # got an EB, increment stats
+        self._stats_incrementMoteStats('tschRxEB')
+        
+        if self.firstEB and not self.isSync:
+            # this is the first EB I'm receiving while joining: sync!
+            
+            assert self.settings.secjoin_enabled
+            
+            # log
+            self._log(
+                INFO,
+                "[tsch] synced on EB received from mote {0}.",
+                (smac.id,),
+            )
+            
+            self.firstBeaconAsn = self.engine.getAsn()
+            self.firstEB        = False
+            self.isSync         = True
+            
+            # set neighbors variables before starting request cells to the preferred parent
+            for m in self._myNeighbors():
+                self._tsch_resetBackoffPerNeigh(m)
+            
+            # add the minimal cell to the schedule (read from EB)
+            self._tsch_add_minimal_cell()
+            
+            # trigger join process
+            self.secjoin_scheduleJoinProcess()  # trigger the join process
+    
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
@@ -2760,7 +2784,7 @@ class Mote(object):
                     }
                     self.waitingFor = None
                     if self.settings.frag_ff_enable:
-                        if self._app_is_frag_to_forward(frag) is True:
+                        if self._app_frag_ff_forward_fragment(frag) is True:
                             if self._tsch_enqueue(frag):
                                 # ACK when succeeded to enqueue
                                 return True, False
@@ -2769,7 +2793,7 @@ class Mote(object):
                                 self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
                                 return True, False
                         elif dstIp == self:
-                            if self._app_reass_packet(smac, payload) is True:
+                            if self._app_frag_reassemble_packet(smac, payload) is True:
                                 payload.pop()
                                 type = APP_TYPE_DATA
                             else:
@@ -2779,7 +2803,7 @@ class Mote(object):
                             # frag is out-of-order; ACK anyway since it's received successfully
                             return True, False
                     else:
-                        if self._app_reass_packet(smac, payload) is True:
+                        if self._app_frag_reassemble_packet(smac, payload) is True:
                             # remove fragment information out of payload
                             # XXX: assuming the last element has the fragment information
                             payload.pop()

@@ -457,7 +457,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node._app_is_frag_to_forward(frag)
+    node._app_frag_ff_forward_fragment(frag)
     assert test_is_called['result'] is True
 
 def test_drop_forwarding_frag_no_vrb_entry(sim):
@@ -490,7 +490,7 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node._app_is_frag_to_forward(frag)
+    node._app_frag_ff_forward_fragment(frag)
     assert test_is_called['result'] is True
 
 
@@ -568,12 +568,12 @@ def test_drop_frag_reassembly_queue_full(sim):
     node._radio_drop_packet = types.MethodType(test, node)
 
     assert len(node.reassQueue) == 0
-    assert node._app_reass_packet(leaf1, payload) is False
+    assert node._app_frag_reassemble_packet(leaf1, payload) is False
     assert len(node.reassQueue) == 1
     assert leaf1 in node.reassQueue
     assert 12345 in node.reassQueue[leaf1]
 
-    assert node._app_reass_packet(leaf2, payload) is False
+    assert node._app_frag_reassemble_packet(leaf2, payload) is False
     assert test_is_called['result'] is True
     assert len(node.reassQueue) == 1
 
@@ -612,6 +612,6 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
     node._radio_drop_packet = types.MethodType(test, node)
 
     assert len(node.reassQueue) == 0
-    assert node._app_reass_packet(leaf1, payload) is False
+    assert node._app_frag_reassemble_packet(leaf1, payload) is False
     assert test_is_called['result'] is True
     assert len(node.reassQueue) == 0

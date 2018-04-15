@@ -184,19 +184,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag1['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
 
-        assert root._app_reass_packet(node, frag2['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is True
         assert node not in root.reassQueue
 
     def test_app_reass_packet_out_of_order(self, sim):
@@ -226,19 +226,19 @@ class TestReassembly:
 
         assert node not in root.reassQueue
 
-        assert root._app_reass_packet(node, frag2['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag2['payload']) is False
         assert len(root.reassQueue[node]) == 1
         assert tag in root.reassQueue[node]
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2]}
 
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
         # duplicate fragment should be ignored
-        assert root._app_reass_packet(node, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(node, frag0['payload']) is False
         assert root.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
 
-        assert root._app_reass_packet(node, frag1['payload']) is True
+        assert root._app_frag_reassemble_packet(node, frag1['payload']) is True
         assert node not in root.reassQueue
 
     def test_app_reass_packet_queue_len(self, sim):
@@ -263,7 +263,7 @@ class TestReassembly:
         frag0['payload'][3]['datagram_size'] = 3
 
         assert len(root.reassQueue) == 0
-        assert root._app_reass_packet(leaf, frag0['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf, frag0['payload']) is False
         assert len(root.reassQueue) == 0
 
     def test_app_reass_packet_node_queue_num_1(self, sim):
@@ -290,7 +290,7 @@ class TestReassembly:
         leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
@@ -298,7 +298,7 @@ class TestReassembly:
         leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         assert len(node.reassQueue) == 1
 
     def test_app_reass_packet_node_queue_num_2(self, sim):
@@ -326,7 +326,7 @@ class TestReassembly:
         leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
@@ -334,7 +334,7 @@ class TestReassembly:
         leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         reass_queue_num = 0
         for i in node.reassQueue:
             reass_queue_num += len(node.reassQueue[i])
@@ -366,7 +366,7 @@ class TestReassembly:
         leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.reassQueue) == 0
-        assert node._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(node.reassQueue) == 1
 
         packet['srcIp'] = leaf2
@@ -374,7 +374,7 @@ class TestReassembly:
         leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(node.reassQueue) == 1
-        assert node._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert node._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         reass_queue_num = 0
         for i in node.reassQueue:
             reass_queue_num += len(node.reassQueue[i])
@@ -404,7 +404,7 @@ class TestReassembly:
         leaf1._app_fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(root.reassQueue) == 0
-        assert root._app_reass_packet(leaf1, frag0_1['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf1, frag0_1['payload']) is False
         assert len(root.reassQueue) == 1
 
         packet['srcIp'] = leaf2
@@ -412,7 +412,7 @@ class TestReassembly:
         leaf2._app_fragment_and_enqueue_packet(packet)
         frag0_2 = leaf2.txQueue[0]
         assert len(root.reassQueue) == 1
-        assert root._app_reass_packet(leaf2, frag0_2['payload']) is False
+        assert root._app_frag_reassemble_packet(leaf2, frag0_2['payload']) is False
         # root doesn't have reassQueue size limitation
         assert len(root.reassQueue) == 2
 
