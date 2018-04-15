@@ -283,11 +283,11 @@ class Mote(object):
             # schedule bootstrap of the preferred parent
             self.sf.schedule_parent_change(self)
 
-            # check if all motes have joined, if so end the simulation after numCyclesPerRun
+            # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
             if self.settings.withJoin and all(mote.isJoined is True for mote in self.engine.motes):
-                if self.settings.numCyclesPerRun != 0:
+                if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
-                    simTime = self.settings.numCyclesPerRun * self.settings.slotframeLength
+                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.slotframeLength
                     # offset until the end of the current cycle
                     offset = self.settings.slotframeLength - (self.engine.asn % self.settings.slotframeLength)
                     # experiment time + offset

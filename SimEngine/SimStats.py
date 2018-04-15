@@ -101,7 +101,7 @@ class SimStats(object):
 
         # print
         if self.verbose:
-            print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
+            print('   cycle: {0}/{1}'.format(cycle,self.settings.exec_numSlotframesPerRun-1))
 
         # write statistics to output file
         self._fileWriteStats(

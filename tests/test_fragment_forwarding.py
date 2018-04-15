@@ -25,7 +25,7 @@ class TestNumFragmentsVsTxQueue:
         m = sim(**{'enableFragmentForwarding': True,
                    'numFragments': test_input,
                    'numMotes': 2,
-                   'topology': 'linear',
+                   'top_type': 'linear',
                    'scheduling_function': 'SSF-symmetric'}).motes[1]
         assert len(m.txQueue) == 0
         m._app_action_enqueueData()
@@ -37,7 +37,7 @@ class TestFragmentForwarding:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 2,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -67,7 +67,7 @@ class TestFragmentForwarding:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 2,
                      'numMotes': 5,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -106,7 +106,7 @@ class TestFragmentForwarding:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 2,
                      'numMotes': 2,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         leaf = sim.motes[1]
@@ -145,7 +145,7 @@ class TestFragmentation:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 2,
                      'numMotes': 2,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -200,7 +200,7 @@ class TestFragmentation:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 3,
                      'numMotes': 3,
-                     'topology': 'linear'})
+                     'top_type': 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -272,7 +272,7 @@ class TestReassembly:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 3,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -315,7 +315,7 @@ class TestReassembly:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 3,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -359,7 +359,7 @@ class TestPacketFowarding:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 3,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
@@ -401,7 +401,7 @@ class TestPacketFowarding:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 3,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
@@ -458,7 +458,7 @@ class TestPacketFowarding:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 3,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False
@@ -510,7 +510,7 @@ class TestPacketFowarding:
                   'maxVRBEntryNum': 10,
                   'numFragments': 2,
                   'numMotes': 2,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
@@ -535,7 +535,7 @@ class TestPacketFowarding:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 2,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
                   'downwardAcks': False}
@@ -561,7 +561,7 @@ class TestDatagramTag:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 2,
                      'numMotes': 2,
-                     'topology': 'linear'})
+                     'top_type': 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -601,7 +601,7 @@ class TestDatagramTag:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 3,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
@@ -660,7 +660,7 @@ class TestDatagramTag:
         params = {'enableFragmentForwarding': True,
                   'numFragments': 2,
                   'numMotes': 3,
-                  'topology': 'linear',
+                  'top_type': 'linear',
                   'scheduling_function': 'SSF-symmetric',
                   'pkPeriod': 0,
                   'pkPeriodVar': 0,
@@ -716,7 +716,7 @@ class TestOptimization:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 4,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'optFragmentForwarding': []})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -753,7 +753,7 @@ class TestOptimization:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 3,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'optFragmentForwarding': ['kill_entry_by_last']})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -785,7 +785,7 @@ class TestOptimization:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 4,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'optFragmentForwarding': ['kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -819,7 +819,7 @@ class TestOptimization:
         sim = sim(**{'enableFragmentForwarding': True,
                      'numFragments': 4,
                      'numMotes': 3,
-                     'topology': 'linear',
+                     'top_type': 'linear',
                      'optFragmentForwarding': ['kill_entry_by_last', 'kill_entry_by_missing']})
         root = sim.motes[0]
         node = sim.motes[1]

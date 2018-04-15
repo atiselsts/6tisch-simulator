@@ -113,7 +113,7 @@ class SimEngine(threading.Thread):
         # schedule the endOfSimulation event if we are not simulating the join process
         if not self.settings.withJoin:
             self.scheduleAtAsn(
-                asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
+                asn         = self.settings.slotframeLength*self.settings.exec_numSlotframesPerRun,
                 cb          = self._actionEndSim,
                 uniqueTag   = (None,'_actionEndSim'),
             )

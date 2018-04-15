@@ -9,21 +9,22 @@
             "numMotes":                     [50]
         },
         "regular": {
-            "simDataDir":                   "simData",
-            "numCyclesPerRun":              101,
+            "exec_simDataDir":              "simData",
+            "exec_numSlotframesPerRun":     101,
             
-            "topology":                     "random",
-            "squareSide":                   2.000,
-            "fullyMeshed":                  0,
+            "top_type":                     "random",
+            "top_squareSide":               2.000,
+            "top_fullyMeshed":              0,
             
-            "propagation":                  "pisterhack",
-            "trace":                        null,
+            "prop_type":                    "pisterhack",
+            "prop_trace":                   null,
             
             "pkPeriod":                     10,
             "pkPeriodVar":                  0.05,
             "burstTimestamp":               null,
             "numPacketsBurst":              null,
             "downwardAcks":                 0,
+            
             "numFragments":                 null,
             "enableFragmentForwarding":     false,
             "optFragmentForwarding":        null,

@@ -3,9 +3,9 @@ import pytest
 from SimEngine import Propagation, Mote
 
 def test_propagation_from_trace_get_pdr(sim):
-    sim(**{'trace': 'traces/grenoble.k7.gz',
-           'fullyMeshed': False,
-           'squareSide': 20})
+    sim(**{'prop_trace': 'traces/grenoble.k7.gz',
+           'top_fullyMeshed': False,
+           'top_squareSide': 20})
     asn = 10
     source = Mote.Mote(1)
     destination = Mote.Mote(2)

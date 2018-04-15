@@ -42,25 +42,25 @@ class Topology(object):
 
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
+        if hasattr(settings, 'top_type'):
+            if settings.top_type == 'linear':
                 return LinearTopology(motes)
-            elif settings.topology == 'twoBranch':
+            elif settings.top_type == 'twoBranch':
                 return TwoBranchTopology(motes)
-            elif settings.topology == 'trace':
-                return TraceTopology(motes, settings.trace)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+            elif settings.top_type == 'trace':
+                return TraceTopology(motes, settings.prop_trace)
+        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
             return RandomTopology(motes)
 
     @classmethod
     def rssiToPdr(cls, rssi):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
+        if hasattr(settings, 'top_type'):
+            if settings.top_type == 'linear':
                 return LinearTopology.rssiToPdr(rssi)
-            elif settings.topology == 'twoBranch':
+            elif settings.top_type == 'twoBranch':
                 return TwoBranchTopology.rssiToPdr(rssi)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+        if not hasattr(settings, 'top_type') or settings.top_type == 'random':
             return RandomTopology.rssiToPdr(rssi)
 
 
@@ -143,14 +143,14 @@ class RandomTopology(TopologyCreator):
         # local variables
         self.settings = SimSettings.SimSettings()
 
-        # if fullyMeshed is enabled, create a topology where each node has N-1
+        # if top_fullyMeshed is enabled, create a topology where each node has N-1
         # stable neighbors
-        if self.settings.fullyMeshed:
+        if self.settings.top_fullyMeshed:
             self.stable_neighbors = len(self.motes) - 1
             self.squareSide = self.FULLY_MESHED_SQUARE_SIDE
         else:
             self.stable_neighbors = self.STABLE_NEIGHBORS
-            self.squareSide = self.settings.squareSide
+            self.squareSide = self.settings.top_squareSide
 
     def createTopology(self):
         """
@@ -585,8 +585,8 @@ class TraceTopology(TopologyCreator):
         # randomly place motes
         for mote in self.motes:
             # pick a random location
-            mote.setLocation(x=self.settings.squareSide * random.random(),
-                             y=self.settings.squareSide * random.random())
+            mote.setLocation(x=self.settings.top_squareSide * random.random(),
+                             y=self.settings.top_squareSide * random.random())
 
         log.debug("Topology Created.")
 

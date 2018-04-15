@@ -19,9 +19,9 @@ def sim(request):
             'withJoin': False,
 
             # prerequisite parameters for Topology
-            'fullyMeshed': False,
-            'squareSide': 2.000,
-            'topology': Topology.DEFAULT_TOPOLOGY,
+            'top_fullyMeshed': False,
+            'top_squareSide': 2.000,
+            'top_type': Topology.DEFAULT_TOPOLOGY,
 
             # prerequisite parameters for Schedule
             'scheduling_function': sf.DEFAULT_SCHEDULING_FUNCTION,
@@ -32,7 +32,7 @@ def sim(request):
             'msfNumCellsToAddOrRemove': 1,
 
             # prerequisite parameters for Propagation
-            'propagation': 'pisterhack',
+            'prop_type': 'pisterhack',
             'slotDuration': 0.010,
             'slotframeLength': 101,
             'noInterference': True,

@@ -2,7 +2,7 @@
 """
 \brief Container for the settings of a simulation run.
 
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
+\author Thomas Watteyne <thomas.watteyne@inria.fr>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
@@ -64,7 +64,7 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            self.simDataDir,
+            self.exec_simDataDir,
             '_'.join(['{0}_{1}'.format(k,getattr(self,k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
