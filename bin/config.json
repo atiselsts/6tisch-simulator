@@ -25,7 +25,7 @@
             "frag_ff_enable":               false,
             "frag_ff_options":              null,
             "frag_ff_vrbtablesize":         8,
-            "numReassQueue":                1,
+            "frag_ph_numReassBuffs":        1,
             
             "msfHousekeepingPeriod":        60.0,
             "msfMaxNumCells":               16,

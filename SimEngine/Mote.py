@@ -137,7 +137,7 @@ CHARGE_RxData_uC                   = 22.6
 CHARGE_IdleNotSync_uC              = 45.0
 
 # === 6LoWPAN Reassembly
-SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM = 1
+DFLT_NUMREASSBUFFS = 1
 # === Fragment Forwarding
 DFLT_VRBTABLESIZE = 50
 
@@ -218,10 +218,10 @@ class Mote(object):
         # battery
         self.chargeConsumed            = 0
         # reassembly/fragmentation
-        if not hasattr(self.settings, 'numReassQueue'):
-            self.maxReassQueueNum = SIXLOWPAN_DEFAULT_MAX_REASS_QUEUE_NUM
+        if not hasattr(self.settings, 'frag_ph_numReassBuffs'):
+            self.maxReassQueueNum = DFLT_NUMREASSBUFFS
         else:
-            self.maxReassQueueNum = self.settings.numReassQueue
+            self.maxReassQueueNum = self.settings.frag_ph_numReassBuffs
         if hasattr(self.settings, 'frag_ff_vrbtablesize') and self.settings.frag_ff_vrbtablesize > 0:
             self.vrbtablesize = self.settings.frag_ff_vrbtablesize
         else:

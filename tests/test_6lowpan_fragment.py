@@ -305,7 +305,7 @@ class TestReassembly:
                      'numMotes': 4,
                      'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric',
-                     'numReassQueue': 1})
+                     'frag_ph_numReassBuffs': 1})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -345,7 +345,7 @@ class TestReassembly:
                      'numMotes': 4,
                      'top_type': 'linear',
                      'scheduling_function': 'SSF-symmetric',
-                     'numReassQueue': 2})
+                     'frag_ph_numReassBuffs': 2})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
