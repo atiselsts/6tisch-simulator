@@ -20,7 +20,7 @@
             "prop_trace":                   null,
             
             "app_pkPeriod":                 10,
-            "pkPeriodVar":                  0.05,
+            "app_pkPeriodVar":              0.05,
             "burstTimestamp":               null,
             "numPacketsBurst":              null,
             "downwardAcks":                 0,

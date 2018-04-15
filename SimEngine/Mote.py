@@ -385,7 +385,7 @@ class Mote(object):
 
         if not firstPacket:
             # compute random delay
-            delay            = self.pkPeriod*(1+random.uniform(-self.settings.pkPeriodVar, self.settings.pkPeriodVar))
+            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         else:
             # compute initial time within the range of [next asn, next asn+pkPeriod]
             delay            = self.settings.slotDuration + self.pkPeriod*random.random()
