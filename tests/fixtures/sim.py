@@ -33,7 +33,7 @@ def sim(request):
 
             # prerequisite parameters for Propagation
             'prop_type': 'pisterhack',
-            'slotDuration': 0.010,
+            'tsch_slotDuration': 0.010,
             'slotframeLength': 101,
             'noInterference': True,
             'minRssi': -97,

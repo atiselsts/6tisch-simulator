@@ -131,7 +131,7 @@ class TestFragmentForwarding:
         root._app_is_frag_to_forward(frag0)
         assert root.vrbTable[leaf][itag]['ts'] == 100
 
-        sim.asn += (60 / sim.settings.slotDuration)
+        sim.asn += (60 / sim.settings.tsch_slotDuration)
         root._app_is_frag_to_forward(frag0) # duplicate
         assert itag in root.vrbTable[leaf]
 
@@ -418,7 +418,7 @@ class TestPacketFowarding:
 
         cb = None
         asn0 = sim.asn
-        while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.slotDuration)):
+        while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             sim.asn = asn
 
@@ -431,7 +431,7 @@ class TestPacketFowarding:
                 cb(**kwargs)
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
-        assert asn <= (asn0 + (one_second / sim.settings.slotDuration))
+        assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
         # make sure there are two fragments added by _app_action_sendSinglePacket
         assert len(hop2.txQueue) == 0
@@ -441,7 +441,7 @@ class TestPacketFowarding:
         asn0 = sim.asn
         assert root.motestats['appReachesDagroot'] == 0
         # two fragments should reach to the root within two timeslots.
-        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.slotDuration)):
+        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
@@ -743,7 +743,7 @@ class TestOptimization:
 
         assert node._app_is_frag_to_forward(frag0) is True
         assert node._app_is_frag_to_forward(frag3) is True
-        sim.asn += (60 / sim.settings.slotDuration)
+        sim.asn += (60 / sim.settings.tsch_slotDuration)
         assert node._app_is_frag_to_forward(frag1) is True
         sim.asn += 1
         # VRB Table entry expires

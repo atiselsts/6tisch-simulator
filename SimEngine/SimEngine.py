@@ -166,7 +166,7 @@ class SimEngine(threading.Thread):
         """ used to generate events. Puts an event to the queue """
 
         with self.dataLock:
-            asn = int(self.asn + (float(delay) / float(self.settings.slotDuration)))
+            asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
 
             self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN, kwargs)
 

@@ -41,7 +41,7 @@
             "secjoin_numExchanges":         2,
             "secjoin_joinTimeout":          60,
             
-            "slotDuration":                 0.010,
+            "tsch_slotDuration":            0.010,
             "slotframeLength":              101,
             "beaconPeriod":                 2,
             "bayesianBroadcast":            1,

@@ -321,7 +321,7 @@ class MSF(SchedulingFunction):
             meanPDR = sum(cellPDR) / float(len(cellPDR))
             assert meanPDR <= 1.0
             timeout = math.ceil((
-                float(mote.settings.slotframeLength * mote.settings.slotDuration) /
+                float(mote.settings.slotframeLength * mote.settings.tsch_slotDuration) /
                 float(len(cellPDR))) * (float(1 / meanPDR)) * mote.SIXP_TIMEOUT_SEC_FACTOR)
             return timeout
         else:

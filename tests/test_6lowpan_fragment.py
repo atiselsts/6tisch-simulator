@@ -479,7 +479,7 @@ class TestPacketFowarding:
 
         cb = None
         asn0 = sim.asn
-        while (len(sim.events) > 0) or (asn > (asn0 + (one_second / sim.settings.slotDuration))):
+        while (len(sim.events) > 0) or (asn > (asn0 + (one_second / sim.settings.tsch_slotDuration))):
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             sim.asn = asn
 
@@ -492,7 +492,7 @@ class TestPacketFowarding:
                 cb(**kwarg)
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
-        assert asn <= (asn0 + (one_second / sim.settings.slotDuration))
+        assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
         # make sure there are two fragments added by _app_action_sendSinglePacket
         assert len(hop2.txQueue) == 0
@@ -503,7 +503,7 @@ class TestPacketFowarding:
 
         # two fragments should be sent within two timeslots. In each of them,
         # hop2 has one TX cell to hop2
-        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.slotDuration)):
+        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 # sync all the motes
@@ -521,7 +521,7 @@ class TestPacketFowarding:
         assert root.motestats['appReachesDagroot'] == 0
         asn0 = sim.asn
         # two fragments should be sent to the final destination within the next two timeslots.
-        while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.slotDuration))):
+        while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration))):
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn

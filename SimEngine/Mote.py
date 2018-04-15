@@ -257,7 +257,7 @@ class Mote(object):
     # ===== join process
 
     def join_scheduleJoinProcess(self):
-        delay = self.settings.slotDuration + self.settings.secjoin_joinTimeout * random.random()
+        delay = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random()
 
         # schedule
         self.engine.scheduleIn(
@@ -342,7 +342,7 @@ class Mote(object):
             # schedule retransmission
             if not self.dagRoot:
                 self.engine.scheduleIn(
-                    delay=self.settings.slotDuration + self.settings.secjoin_joinTimeout,
+                    delay=self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
                     cb=self.join_retransmitJoinPacket,
                     uniqueTag=(self.id, '_join_action_retransmission'),
                     priority=2,
@@ -388,7 +388,7 @@ class Mote(object):
             delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         else:
             # compute initial time within the range of [next asn, next asn+pkPeriod]
-            delay            = self.settings.slotDuration + self.pkPeriod*random.random()
+            delay            = self.settings.tsch_slotDuration + self.pkPeriod*random.random()
 
         assert delay > 0
 
@@ -509,7 +509,7 @@ class Mote(object):
         size = frag['payload'][3]['datagram_size']
         itag = frag['payload'][3]['datagram_tag']
         offset = frag['payload'][3]['datagram_offset']
-        entry_lifetime = 60 / self.settings.slotDuration
+        entry_lifetime = 60 / self.settings.tsch_slotDuration
 
         for mac in self.vrbTable.keys():
             for tag in self.vrbTable[mac].keys():
@@ -607,7 +607,7 @@ class Mote(object):
         size = payload[3]['datagram_size']
         tag = payload[3]['datagram_tag']
         offset = payload[3]['datagram_offset']
-        reass_queue_lifetime = 60 / self.settings.slotDuration
+        reass_queue_lifetime = 60 / self.settings.tsch_slotDuration
 
         if len(self.reassQueue) > 0:
             # remove expired entry
@@ -693,7 +693,7 @@ class Mote(object):
             else:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.beaconPeriod,
-                                   1.2 * self.settings.beaconPeriod) / self.settings.slotDuration))
+                                   1.2 * self.settings.beaconPeriod) / self.settings.tsch_slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -815,7 +815,7 @@ class Mote(object):
                 futureAsn = int(self.settings.slotframeLength)
             else:
                 futureAsn = int(math.ceil(
-                    random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.slotDuration))
+                    random.uniform(0.8 * self.settings.rpl_dioPeriod, 1.2 * self.settings.rpl_dioPeriod) / self.settings.tsch_slotDuration))
 
             # schedule at start of next cycle
             self.engine.scheduleAtAsn(
@@ -838,7 +838,7 @@ class Mote(object):
             if not firstDAO:
                 futureAsn = int(math.ceil(
                     random.uniform(0.8 * self.settings.rpl_daoPeriod,
-                                   1.2 * self.settings.rpl_daoPeriod) / self.settings.slotDuration))
+                                   1.2 * self.settings.rpl_daoPeriod) / self.settings.tsch_slotDuration))
             else:
                 futureAsn = 1
 
@@ -2402,7 +2402,7 @@ class Mote(object):
 
                         # calculate the asn at which it should fire
                         fireASN = int(self.engine.getAsn() + (
-                                    float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                                    float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
@@ -2423,7 +2423,7 @@ class Mote(object):
                         self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['state'] = SIX_STATE_WAIT_DELETERESPONSE
 
                         # calculate the asn at which it should fire
-                        fireASN = int(self.engine.getAsn() + (float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.slotDuration)))
+                        fireASN = int(self.engine.getAsn() + (float(self.sixtopStates[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
@@ -2843,7 +2843,7 @@ class Mote(object):
         parent               = self.preferredParent
 
         while True:
-            secSinceSync     = (asn-child.timeCorrectedSlot)*self.settings.slotDuration  # sec
+            secSinceSync     = (asn-child.timeCorrectedSlot)*self.settings.tsch_slotDuration  # sec
             # FIXME: for ppm, should we not /10^6?
             relDrift         = child.drift - parent.drift                                # ppm
             offset          += relDrift * secSinceSync                                   # us

@@ -98,7 +98,7 @@ class PropagationCreator(object):
         self.receivers                 = [] # motes with radios currently listening
         self.transmissions             = [] # ongoing transmissions
         self.slotframe_length          = self.settings.slotframeLength
-        self.slot_duration             = self.settings.slotDuration
+        self.slot_duration             = self.settings.tsch_slotDuration
         self.with_interferences        = not self.settings.noInterference
         self.minRssi                   = self.settings.minRssi # dBm
 
