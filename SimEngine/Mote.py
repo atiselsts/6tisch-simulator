@@ -403,8 +403,8 @@ class Mote(object):
     def _app_schedule_sendPacketBurst(self):
         """ create an event that is inserted into the simulator engine to send a data burst"""
 
-        # schedule numPacketsBurst packets at app_burstTimestamp
-        for i in xrange(self.settings.numPacketsBurst):
+        # schedule app_burstNumPackets packets at app_burstTimestamp
+        for i in xrange(self.settings.app_burstNumPackets):
             self.engine.scheduleIn(
                 delay        = self.settings.app_burstTimestamp,
                 cb           = self._app_action_enqueueData,
@@ -2902,7 +2902,7 @@ class Mote(object):
 
         # app
         if not self.dagRoot:
-            if hasattr(self.settings, 'numPacketsBurst') and self.settings.numPacketsBurst is not None and self.settings.app_burstTimestamp is not None:
+            if hasattr(self.settings, 'app_burstNumPackets') and self.settings.app_burstNumPackets is not None and self.settings.app_burstTimestamp is not None:
                 self._app_schedule_sendPacketBurst()
             else:
                 self._app_schedule_sendSinglePacket(firstPacket=True)

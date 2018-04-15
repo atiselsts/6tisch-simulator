@@ -22,7 +22,7 @@
             "app_pkPeriod":                 10,
             "app_pkPeriodVar":              0.05,
             "app_burstTimestamp":           null,
-            "numPacketsBurst":              null,
+            "app_burstNumPackets":          null,
             "downwardAcks":                 0,
             
             "numFragments":                 null,
