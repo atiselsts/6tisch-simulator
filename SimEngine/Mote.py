@@ -1124,7 +1124,7 @@ class Mote(object):
         """ tries to reserve numCells cells to a neighbor. """
 
         with self.dataLock:
-            if self.settings.sixtopMessaging:
+            if self.settings.sixtop_messaging:
                 if neighbor.id not in self.sixtopStates or (
                         neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and
                         self.sixtopStates[neighbor.id]['tx']['state'] == SIX_STATE_IDLE):
@@ -1755,7 +1755,7 @@ class Mote(object):
 
     def _sixtop_cell_deletion_sender(self, neighbor, tsList, dir, timeout):
         with self.dataLock:
-            if self.settings.sixtopMessaging:
+            if self.settings.sixtop_messaging:
                 if neighbor.id not in self.sixtopStates or (
                         neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and
                         self.sixtopStates[neighbor.id]['tx']['state'] == SIX_STATE_IDLE):
@@ -1842,7 +1842,7 @@ class Mote(object):
                 cellPDR = self.getCellPDR(cell)
                 scheduleList += [(ts, cell['numTxAck'], cell['numTx'], cellPDR)]
 
-        if self.settings.sixtopRemoveRandomCell:
+        if self.settings.sixtop_removeRandomCell:
             # introduce randomness in the cell list order
             random.shuffle(scheduleList)
         else:

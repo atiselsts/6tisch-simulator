@@ -34,8 +34,8 @@
             "sf_msf_lowUsageThres":         4,
             "sf_msf_numCellsToAddRemove":   1,
             
-            "sixtopMessaging":              1,
-            "sixtopRemoveRandomCell":       0,
+            "sixtop_messaging":             1,
+            "sixtop_removeRandomCell":      0,
             
             "withJoin":                     0,
             "joinNumExchanges":             2,
