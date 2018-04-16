@@ -8,9 +8,10 @@ import pytest
 
 import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.Mote as Mote
+import SimEngine
 
 class TestNumFragmentsVsTxQueue:
-    
+
     @pytest.mark.parametrize('test_input, expected', [
         (0, 1),
         (1, 1),
@@ -18,7 +19,7 @@ class TestNumFragmentsVsTxQueue:
         (3, 3),
         (10, 10),
     ])
-    
+
     def test_num_frag(self, sim, test_input, expected):
         m = sim(
             **{
@@ -61,7 +62,7 @@ class TestFragmentation:
         assert len(node.txQueue) == 0
         node.app.fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 2
-        
+
         fragTheory = {
             'asn':                packet['asn'],
             'type':               d.APP_TYPE_FRAG,
@@ -79,7 +80,7 @@ class TestFragmentation:
             'sourceRoute':        packet['sourceRoute'],
             'nextHop':            node.txQueue[0]['nextHop'],
         }
-        
+
         fragTheory['payload']['datagram_offset'] = 0
         assert node.txQueue[0] == fragTheory
         fragTheory['payload']['datagram_offset'] = 1
@@ -112,7 +113,7 @@ class TestFragmentation:
         assert len(node.txQueue) == 0
         node.app.fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 3
-        
+
         fragTheory = {
             'asn':                packet['asn'],
             'type':               d.APP_TYPE_FRAG,
@@ -130,7 +131,7 @@ class TestFragmentation:
             'sourceRoute':        packet['sourceRoute'],
             'nextHop':            node.txQueue[0]['nextHop'],
         }
-        
+
         fragTheory['payload']['datagram_offset'] = 0
         assert node.txQueue[0] == fragTheory
         fragTheory['payload']['datagram_offset'] = 1
@@ -139,7 +140,7 @@ class TestFragmentation:
         assert node.txQueue[2] == fragTheory
 
 class TestReassembly:
-    
+
     def test_app_reass_packet_in_order(self, sim):
         sim = sim(
             **{
@@ -149,10 +150,10 @@ class TestReassembly:
                 'sf_type':             'SSF-symmetric',
             }
         )
-        
+
         root = sim.motes[0]
         node = sim.motes[1]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -169,7 +170,7 @@ class TestReassembly:
         assert len(node.txQueue) == 0
         node.app.fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 3
-        
+
         frag0 = node.txQueue[0]
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
@@ -203,10 +204,10 @@ class TestReassembly:
                 'sf_type':             'SSF-symmetric',
             }
         )
-        
+
         root = sim.motes[0]
         node = sim.motes[1]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -223,11 +224,11 @@ class TestReassembly:
         assert len(node.txQueue) == 0
         node.app.fragment_and_enqueue_packet(packet)
         assert len(node.txQueue) == 3
-        
+
         frag0 = node.txQueue[0]
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
-        
+
         size = frag0['payload']['datagram_size']
         tag  = frag0['payload']['datagram_tag']
 
@@ -257,10 +258,10 @@ class TestReassembly:
                 'sf_type':             'SSF-symmetric',
             }
         )
-        
+
         root = sim.motes[0]
         leaf = sim.motes[1]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -274,9 +275,9 @@ class TestReassembly:
             'dstIp':              root,
             'sourceRoute':        [],
         }
-        
+
         leaf.app.fragment_and_enqueue_packet(packet)
-        
+
         frag0 = leaf.txQueue[0]
         frag0['payload']['datagram_size'] = 3
 
@@ -293,12 +294,12 @@ class TestReassembly:
                 'sf_type':             'SSF-symmetric',
             }
         )
-        
+
         root  = sim.motes[0]
         node  = sim.motes[1]
         leaf1 = sim.motes[2]
         leaf2 = sim.motes[3]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -336,12 +337,12 @@ class TestReassembly:
                 'frag_ph_numReassBuffs': 1,
             }
         )
-        
+
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
         leaf2 = sim.motes[3]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -383,7 +384,7 @@ class TestReassembly:
         node = sim.motes[1]
         leaf1 = sim.motes[2]
         leaf2 = sim.motes[3]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -399,7 +400,7 @@ class TestReassembly:
             'dmac': node,
             'sourceRoute':        [],
         }
-        
+
         leaf1.app.fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(node.app.reassQueue) == 0
@@ -416,7 +417,7 @@ class TestReassembly:
         for i in node.app.reassQueue:
             reass_queue_num += len(node.app.reassQueue[i])
         assert reass_queue_num == 2
-    
+
     def test_app_reass_packet_root_queue_num(self, sim):
         sim = sim(**{'frag_numFragments': 2,
                      'exec_numMotes': 3,
@@ -425,7 +426,7 @@ class TestReassembly:
         root = sim.motes[0]
         leaf1 = sim.motes[1]
         leaf2 = sim.motes[2]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -441,7 +442,7 @@ class TestReassembly:
             'dmac': root,
             'sourceRoute':        [],
         }
-        
+
         leaf1.app.fragment_and_enqueue_packet(packet)
         frag0_1 = leaf1.txQueue[0]
         assert len(root.app.reassQueue) == 0
@@ -470,7 +471,7 @@ class TestPacketFowarding:
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -484,7 +485,7 @@ class TestPacketFowarding:
             'dstIp': root,
             'sourceRoute':        [],
         }
-        
+
         hop2.app.fragment_and_enqueue_packet(packet)
         frag0 = hop2.txQueue[0]
         frag1 = hop2.txQueue[1]
@@ -589,7 +590,7 @@ class TestPacketFowarding:
         assert len(hop2.txQueue) == 0
         assert len(hop1.txQueue) == 2
 
-        assert root.motestats['appReachesDagroot'] == 0
+        assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
         asn0 = sim.asn
         # two fragments should be sent to the final destination within the next two timeslots.
         while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration))):
@@ -597,11 +598,11 @@ class TestPacketFowarding:
             if sim.asn != asn:
                 sim.asn = asn
             cb(**kwarg)
-        assert root.motestats['appReachesDagroot'] == 1
+        assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
 
 class TestDatagramTag:
-    
+
     def test_tag_on_its_fragments_1(self, sim):
         sim = sim(**{'frag_numFragments': 2,
                      'exec_numMotes': 2,
@@ -609,7 +610,7 @@ class TestDatagramTag:
                      'sf_type': 'SSF-cascading'})
         root = sim.motes[0]
         node = sim.motes[1]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,

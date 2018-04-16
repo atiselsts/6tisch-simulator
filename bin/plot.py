@@ -8,97 +8,61 @@ Example:
 # =========================== imports =========================================
 
 # standard
-import sys
+import os
 import argparse
+import json
+import glob
 
 # third party
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import pandas as pd
-
-# project
-import datasethelper as dh
 
 # ============================ main ===========================================
 
 def main(options):
-    # read dataset
-    dataset_list = dh.read_dataset_folder(options.inputfolder)
 
-    # plot each dataset
-    for dataset in dataset_list:
+    # init
+    data = {}
+    yparam, key = options.yparam.split(';')
 
-        # group dataset by bins
-        delta = dataset['stats'][options.xparam].max() - dataset['stats'][options.xparam].min()
-        bin_size = 10.0  # size of the bin in %
-        df_grouped = dataset['stats'].groupby(
-            dataset['stats'][options.xparam].apply(lambda x: (delta/bin_size) * round(x/(delta/bin_size)))
-        )
+    # chose lastest results
+    subfolder = sorted(os.listdir(options.inputfolder))[-1]
 
-        # calculate mean and std
-        mean_index = [name for name, group in df_grouped]
-        mean_param = [group[options.yparam].mean() for name, group in df_grouped]
-        std_param = [group[options.yparam].std() for name, group in df_grouped]
+    # read config file
+    config_path = os.path.join(options.inputfolder, subfolder, 'config.json')
+    with open(config_path, 'r') as config_file:
+        config = json.load(config_file)
 
-        # plot errobar
-        plt.errorbar(
-            x = mean_index,
-            y = mean_param,
-            yerr = std_param,
-            label=dataset['name'],
-            capsize=3
-        )
+    # load data
+    for file_path in glob.glob(os.path.join(options.inputfolder, subfolder, '*.dat')):
+        first_combination = config["settings"]["combination"].keys()[0]
+        with open(file_path, 'r') as f:
+            file_settings = json.loads(f.readline())
+            curr_combination = file_settings[first_combination]
+            data[curr_combination] = []
+            for line in f:
+                log = json.loads(line)
+                if log['type'] == yparam:
+                    data[curr_combination].append(log[key])
 
-    plt.xlabel(options.xlabel if options.xlabel else options.xparam)
-    plt.ylabel(options.ylabel if options.ylabel else options.yparam)
-    plt.grid(True)
-    plt.legend()
+    plt.boxplot(data.values())
+    plt.xticks(range(1, len(data) + 1), data.keys())
+    savefig(options.outputfolder, yparam)
+    print "Plots are saved in the {0} folder.".format(options.outputfolder)
 
-    output_file = "_".join([options.yparam, options.xparam])
-    dh.savefig(options.outputfolder, output_file)
+# =========================== helpers =========================================
 
-    if options.show:
-        plt.show()
+def savefig(output_folder, output_name, output_format="png"):
+    # check if output folder exists and create it if not
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
 
-# =========================== plot stuff ======================================
-
-def plot_stuff(options):
-    dataset = dh.read_dataset_folder(options.inputfolder)[0]
-
-    plot_allstats_vs_cycle(dataset, options)
-    plot_pdr_hist(dataset, options)
-
-    print "Plots are saved in {0} folder.".format(options.outputfolder)
-
-def plot_allstats_vs_cycle(dataset, options):
-    # create subplots
-    fig, ax = plt.subplots(nrows=len(dataset["stats"].keys()),
-                           sharex=True,
-                           figsize=(10, 50))
-
-    # plot
-    df = dataset["stats"]
-    stat_mean = df.groupby(["cycle"]).mean().reset_index()
-    for i, stat in enumerate(dataset["stats"]):
-        ax[i].plot(stat_mean.cycle, stat_mean[stat])
-        ax[i].set_xlabel(stat)
-    plt.tight_layout()
-    dh.savefig(options.outputfolder, 'allstats_vs_cycle')
-    plt.close()
-
-def plot_pdr_hist(dataset, options):
-    # filter data
-    df = dataset["stats"][dataset["stats"]["appGenerated"] > 0]
-
-    # calculate PDR
-    df = df.assign(pdr=pd.Series(df["appReachesDagroot"] / df["appGenerated"]))
-
-    # plot
-    plt.hist(df.pdr, bins=[i*0.1 for i in range(0, 11)])
-    plt.title("PDR Distribution")
-    dh.savefig(options.outputfolder, 'pdr_hist')
-    plt.close()
+    # save the figure
+    plt.savefig(os.path.join(output_folder, output_name + "." + output_format),
+                bbox_inches='tight',
+                pad_inches=0,
+                format=output_format)
 
 def parse_args():
     # parse options
@@ -118,7 +82,7 @@ def parse_args():
                         '--yparam',
                         help='The y-axis parameter',
                         type=str,
-                        default='numDedicatedCells')
+                        default='charge_consumed;charge')
     parser.add_argument('--xlabel',
                         help='The x-axis label',
                         type=str,
@@ -137,7 +101,4 @@ if __name__ == '__main__':
 
     options = parse_args()
 
-    if len(sys.argv) > 1:
-        main(options)
-    else:
-        plot_stuff(options)
+    main(options)

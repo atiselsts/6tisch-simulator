@@ -44,22 +44,22 @@ log.addHandler(NullHandler())
 class Mote(object):
 
     def __init__(self, id):
-        
+
         # store params
         self.id                        = id
-        
+
         # admin
         self.dataLock                  = threading.RLock()
         # identifiers
         self.dagRoot                   = False
         # stats
         self.firstBeaconAsn            = 0
-        
+
         # singletons (to access quicker than recreate every time)
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
         self.propagation               = SimEngine.Propagation.Propagation()
-        
+
         # stack
         # app
         self.app                       = app.App(self)
@@ -119,14 +119,15 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
-        
+
         # stats
+        self.motestats                 = {}
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
         self._stats_resetLatencyStats()
         self._stats_resetHopsStats()
         self._stats_resetRadioStats()
-    
+
     # ======================= stack ===========================================
 
     # ===== role
@@ -147,7 +148,7 @@ class Mote(object):
             mote.dagRootAddress = self
 
     #===== stack
-    
+
     def _stack_init_synced(self):
         # start the stack layer by layer, we are sync'ed and joined
 
@@ -172,30 +173,30 @@ class Mote(object):
                 self.app.schedule_mote_sendPacketBurstToDAGroot()
             else:
                 self.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-    
+
     #===== rpl
-    
+
     # init
-    
+
     def _rpl_init(self):
         '''
         Initialize the RPL layer
         '''
-        
+
         # all nodes send DIOs
         self._rpl_schedule_sendDIO()
-        
+
         # only non-root nodes send DAOs
         if not self.dagRoot:
             self._rpl_schedule_sendDAO(firstDAO=True)
-    
+
     # DIO
-    
+
     def _rpl_schedule_sendDIO(self):
         '''
         Send a DIO sometimes in the future.
         '''
-        
+
         # stop if DIOs disabled
         if self.settings.rpl_dioPeriod==0:
             return
@@ -226,22 +227,22 @@ class Mote(object):
         '''
         decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
         '''
-        
+
         with self.dataLock:
-            
+
             # decide whether to enqueue a DIO
             if self.settings.tsch_probBcast_enabled:
                 dioProb = float(self.settings.tsch_probBcast_dioProb) / float(len(self.secjoin.areAllNeighborsJoined())) if len(self.secjoin.areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_dioProb)
                 sendDio = True if random.random() < dioProb else False
             else:
                 sendDio = True
-            
+
             # enqueue DIO
             if sendDio:
                 self._rpl_action_enqueueDIO()
-            
+
             # schedule next DIO
-            self._rpl_schedule_sendDIO()  
+            self._rpl_schedule_sendDIO()
 
     def _rpl_action_enqueueDIO(self):
         '''
@@ -251,7 +252,7 @@ class Mote(object):
         # only send DIOs if I'm a DAGroot, or I have a preferred parent and dedicated cells to it
         if self.dagRoot or (self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
 
-            self._stats_incrementMoteStats('rplTxDIO')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_TX_DIO['type'])
 
             # create new packet
             newPacket = {
@@ -267,20 +268,20 @@ class Mote(object):
 
             # enqueue packet in TSCH queue
             if not self._tsch_enqueue(newPacket):
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     def _rpl_action_receiveDIO(self, type, smac, payload):
 
         with self.dataLock:
-            
+
             # DAGroot doesn't use DIOs
             if self.dagRoot:
                 return
-            
+
             # non sync'ed mote don't use DIO
             if not self.isSync:
                 return
-            
+
             # log
             self._log(
                 d.INFO,
@@ -289,7 +290,7 @@ class Mote(object):
             )
 
             # update my mote stats
-            self._stats_incrementMoteStats('rplRxDIO')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_RX_DIO['type'])
 
             sender = smac
 
@@ -317,18 +318,18 @@ class Mote(object):
                 self.timeCorrectedSlot      = asn
 
     # DAO
-    
+
     def _rpl_schedule_sendDAO(self, firstDAO=False):
         '''
         Schedule to send a DAO sometimes in the future.
         '''
-        
+
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod==0:
             return
 
         with self.dataLock:
-            
+
             asnNow = self.engine.getAsn()
 
             if firstDAO:
@@ -340,7 +341,7 @@ class Mote(object):
                         1.2 * self.settings.rpl_daoPeriod
                     ) / self.settings.tsch_slotDuration)
                 )
-            
+
             # schedule sending a DAO
             self.engine.scheduleAtAsn(
                 asn          = asnNow + asnDiff,
@@ -348,30 +349,30 @@ class Mote(object):
                 uniqueTag    = (self.id, '_rpl_action_sendDAO'),
                 priority     = 3,
             )
-    
+
     def _rpl_action_sendDAO(self):
         '''
         Enqueue a DAO and schedule next one.
         '''
         with self.dataLock:
-            
+
             # enqueue
             self._rpl_action_enqueueDAO()
-            
+
             # schedule next DAO
             self._rpl_schedule_sendDAO()
-    
+
     def _rpl_action_enqueueDAO(self):
         '''
         enqueue a DAO into TSCH queue
         '''
-        
+
         assert not self.dagRoot
 
         # only send DAOs if I have a preferred parent to which I have dedicated cells
         if self.preferredParent and self.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
 
-            self._stats_incrementMoteStats('rplTxDAO')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_TX_DAO['type'])
 
             # create new packet
             newPacket = {
@@ -390,25 +391,25 @@ class Mote(object):
 
             # enqueue packet in TSCH queue
             if not self._tsch_enqueue(newPacket):
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     def _rpl_action_receiveDAO(self, type, smac, payload):
         '''
         DAGroot receives DAO, store parent/child relationship for source route calculation.
         '''
-        
+
         assert self.dagRoot
-        
+
         with self.dataLock:
-            
+
             # increment stats
-            self._stats_incrementMoteStats('rplRxDAO')
-            
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_RX_DAO['type'])
+
             # store parent/child relationship for source route calculation
             self.parents.update({tuple([payload[0]]): [[payload[1]]]})
-    
+
     # source route
-    
+
     def _rpl_getSourceRoute(self, destAddr):
         '''
         Compute the source route to a given mote.
@@ -430,11 +431,11 @@ class Mote(object):
         return sourceRoute
 
     def _rpl_getSourceRoute_internal(self, destAddr, sourceRoute, parents):
-        
+
         # abort if no more parents
         if not destAddr:
             return
-        
+
         # abort if I don't have a list of parents
         if not parents.get(tuple(destAddr)):
             return
@@ -455,13 +456,13 @@ class Mote(object):
 
             if nextparent:
                 sourceRoute += [nextparent]
-    
+
     # misc
-    
+
     def _rpl_housekeeping(self):
         '''
         RPL housekeeping tasks.
-        
+
         This routine refreshes
         - self.preferredParent
         - self.rank
@@ -510,12 +511,10 @@ class Mote(object):
 
                 # update mote stats
                 if self.rank and newrank!=self.rank:
-                    self._stats_incrementMoteStats('rplChurnRank')
                     # log
-                    self._log(
-                        d.INFO,
-                        "[rpl] churn: rank {0}->{1}",
-                        (self.rank, newrank),
+                    self.engine.log(
+                        SimEngine.SimLog.LOG_RPL_CHURN_RANK,
+                        {"old_rank": self.rank, "new_rank": newrank}
                     )
                 if (self.preferredParent is None) and (newPreferredParent is not None):
                     if not self.settings.secjoin_enabled:
@@ -524,13 +523,13 @@ class Mote(object):
                         self.sf.schedule_parent_change(self)
                 elif self.preferredParent != newPreferredParent:
                     # update mote stats
-                    self._stats_incrementMoteStats('rplChurnPrefParent')
+                    self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_CHURN_PREF_PARENT['type'])
 
                     # log
-                    self._log(
-                        d.INFO,
-                        "[rpl] churn: preferredParent {0}->{1}",
-                        (self.preferredParent.id, newPreferredParent.id),
+                    self.engine.log(
+                        SimEngine.SimLog.LOG_RPL_CHURN_PREF_PARENT,
+                        {"old_pref_parent": self.preferredParent.id,
+                         "new_pref_parent": newPreferredParent.id}
                     )
                     # trigger 6P add to the new parent
                     self.oldPreferredParent = self.preferredParent
@@ -547,13 +546,13 @@ class Mote(object):
                 assert self.preferredParent in self.parentSet
 
                 if oldParentSet != set([parent.id for parent in self.parentSet]):
-                    self._stats_incrementMoteStats('rplChurnParentSet')
+                    self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_CHURN_PARENT_SET['type'])
 
     def _rpl_calcRankIncrease(self, neighbor):
         '''
         calculate the RPL rank increase with a particular neighbor.
         '''
-        
+
         with self.dataLock:
 
             # estimate the ETX to that neighbor
@@ -570,9 +569,9 @@ class Mote(object):
         '''
         Determines the next hop and writes that in the packet's 'nextHop' field.
         '''
-        
+
         assert self != packet['dstIp']
-        
+
         # abort if no preferred parent, or root
         if not (self.preferredParent or self.dagRoot):
             return False
@@ -600,17 +599,17 @@ class Mote(object):
         return True if nextHop else False
 
     #===== 6top
-    
+
     # ADD
-    
+
     def sixtop_ADD_REQUEST(self, neighbor, numCells, dir, timeout):
         '''
         Receives a request to add a cell from the SF.
         '''
-        
+
         with self.dataLock:
             if self.settings.sixtop_messaging:
-                
+
                 if neighbor.id not in self.sixtopStates or (
                         neighbor.id in self.sixtopStates and 'tx' in self.sixtopStates[neighbor.id] and
                         self.sixtopStates[neighbor.id]['tx']['state'] == d.SIX_STATE_IDLE):
@@ -663,10 +662,9 @@ class Mote(object):
                 cellList = []
                 for (ts, ch) in cells.iteritems():
                     # log
-                    self._log(
-                        d.INFO,
-                        '[6top] add TX cell ts={0},ch={1} from {2} to {3}',
-                        (ts, ch, self.id, neighbor.id),
+                    self.engine.log(SimEngine.SimLog.LOG_6TOP_ADD_CELL,
+                                    {"ts": ts, "channel": ch, "direction": dir,
+                                     "mote_id": self.id, "neighbor_id": neighbor.id}
                     )
                     cellList += [(ts, ch, dir)]
                 self._tsch_addCells(neighbor, cellList)
@@ -695,7 +693,7 @@ class Mote(object):
                         '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}. cells={4}',
                         (len(cells), numCells, self.id, neighbor.id, cells),
                     )
-    
+
     def _sixtop_enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, dir, seq):
         """ enqueue a new 6P ADD request """
 
@@ -722,7 +720,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+            self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -738,7 +736,7 @@ class Mote(object):
 
             # has the asn of when the req packet was enqueued in the neighbor
             self.tsSixTopReqRecv[neighbor] = payload[4]
-            self._stats_incrementMoteStats('6topRxAddReq')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_ADD_REQ['type'])
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and \
                self.sixtopStates[smac.id]['rx']['state'] != d.SIX_STATE_IDLE:
@@ -818,9 +816,9 @@ class Mote(object):
 
             # enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir, seq)
-    
+
     # DELETE
-    
+
     def sixtop_DELETE_REQUEST(self, neighbor, numCellsToRemove, dir, timeout):
         """
         Finds cells to neighbor, and remove it.
@@ -898,7 +896,7 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+            self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -913,7 +911,7 @@ class Mote(object):
             receivedDir = payload[2]
             seq = payload[3]
 
-            self._stats_incrementMoteStats('6topRxDelReq')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_DEL_REQ['type'])
             # has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
             self.tsSixTopReqRecv[neighbor] = payload[4]
 
@@ -968,9 +966,9 @@ class Mote(object):
 
             # enqueue response
             self._sixtop_enqueue_RESPONSE(neighbor, cellList, returnCode, newDir, seq)
-    
+
     # misc
-    
+
     def _sixtop_timer_fired(self):
         found = False
         for n in self.sixtopStates.keys():
@@ -1062,17 +1060,21 @@ class Mote(object):
 
         if not isEnqueued:
             # update mote stats
-            self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+            self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     def _sixtop_receive_RESPONSE(self, type, code, smac, payload):
         """ receive a 6P response messages """
+
+        self.engine.log(SimEngine.SimLog.LOG_6TOP_RX_RESP,
+                        {"mote_id": self.id, "rc": code,
+                         "type": type, "neighbor_id": smac.id})
 
         with self.dataLock:
             if self.sixtopStates[smac.id]['tx']['state'] == d.SIX_STATE_WAIT_ADDRESPONSE:
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET  # RC_BUSY not implemented yet
 
-                self._stats_incrementMoteStats('6topRxAddResp')
+                self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -1141,6 +1143,9 @@ class Mote(object):
                             '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
                             (ts, ch, self.id, neighbor.id, newDir),
                         )
+                        self.engine.log(SimEngine.SimLog.LOG_6TOP_ADD_CELL,
+                                        {"ts": ts, "channel": ch, "direction": cellDir,
+                                         "neighbor_id": neighbor.id, "mote_id": self.id})
                         cellList += [(ts, ch, newDir)]
                     self._tsch_addCells(neighbor, cellList)
 
@@ -1176,7 +1181,6 @@ class Mote(object):
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
-                    # TODO: increase stats of RC_NORES
                 # only when devices are not powerfull enough. Not used in the simulator
                 elif code == d.IANA_6TOP_RC_BUSY:
                     # log
@@ -1209,7 +1213,7 @@ class Mote(object):
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET
 
-                self._stats_incrementMoteStats('6topRxDelResp')
+                self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -1352,6 +1356,10 @@ class Mote(object):
                             '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
                             (ts, ch, self.id, neighbor.id, cellDir),
                         )
+                        self.engine.log(SimEngine.SimLog.LOG_6TOP_RX_ACK,
+                                        {"source_id": neighbor.id, "destination_id": self.id,
+                                         "ts": ts, "channel": ch, "direction": cellDir,
+                                         "rc": code})
                     self._tsch_addCells(neighbor, confirmedCellList)
 
                     # update counters
@@ -1482,7 +1490,7 @@ class Mote(object):
                 self.numCellsToNeighbors[neighbor] -= len(tsList)
                 self.numCellsFromNeighbors[neighbor] -= len(tsList)
             assert self.numCellsFromNeighbors[neighbor] >= 0
-    
+
     #===== tsch
 
     #BROADCAST cells
@@ -1501,7 +1509,7 @@ class Mote(object):
             # I don't have a route
 
             # increment mote state
-            self._stats_incrementMoteStats('droppedNoRoute')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type'])
 
             return False
 
@@ -1509,7 +1517,7 @@ class Mote(object):
             # I don't have any transmit cells
 
             # increment mote state
-            self._stats_incrementMoteStats('droppedNoTxCells')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type'])
 
             return False
 
@@ -1524,13 +1532,13 @@ class Mote(object):
                 for p in self.txQueue:
                     if packet['type'] == p['type']:
                         #There is already a DAO, JOIN or 6P in que queue, don't add more
-                        self._stats_incrementMoteStats('droppedQueueFull')
+                        self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type'])
                         return False
                 self.txQueue    += [packet]
                 return True
 
             # update mote stats
-            self._stats_incrementMoteStats('droppedQueueFull')
+            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type'])
 
             return False
 
@@ -1563,7 +1571,7 @@ class Mote(object):
             # enqueue packet in TSCH queue
             if not self._tsch_enqueue(newPacket):
                 # update mote stats
-                self._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+                self._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
@@ -1606,45 +1614,45 @@ class Mote(object):
                 if self.secjoin.isJoined() or not self.settings.secjoin_enabled:
                     if sendBeacon:
                         self._tsch_action_enqueueEB()
-                        self._stats_incrementMoteStats('tschTxEB')
+                        self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
 
             self._tsch_schedule_sendEB()  # schedule next EB
 
     def _tsch_action_receiveEB(self, type, smac, payload):
-        
+
         # abort if I'm the root
         if self.dagRoot:
             return
 
         # got an EB, increment stats
-        self._stats_incrementMoteStats('tschRxEB')
-        
+        self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_RX_EB['type'])
+
         if self.firstEB and not self.isSync:
             # this is the first EB I'm receiving while joining: sync!
-            
+
             assert self.settings.secjoin_enabled
-            
+
             # log
             self._log(
                 d.INFO,
                 "[tsch] synced on EB received from mote {0}.",
                 (smac.id,),
             )
-            
+
             self.firstBeaconAsn = self.engine.getAsn()
             self.firstEB        = False
             self.isSync         = True
-            
+
             # set neighbors variables before starting request cells to the preferred parent
             for m in self._myNeighbors():
                 self._tsch_resetBackoffPerNeigh(m)
-            
+
             # add the minimal cell to the schedule (read from EB)
             self._tsch_add_minimal_cell()
-            
+
             # trigger join process
             self.secjoin.scheduleJoinProcess()  # trigger the join process
-    
+
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
@@ -1733,20 +1741,20 @@ class Mote(object):
 
                     if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('6topTxAddReq')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('6topTxDelReq')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_REQ['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('6topTxAddResp')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('6topTxDelResp')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -1821,20 +1829,20 @@ class Mote(object):
 
                     if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                         if pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                            self._stats_incrementMoteStats('6topTxAddReq')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                         elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                            self._stats_incrementMoteStats('6topTxDelReq')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_REQ['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                         else:
                             assert False
 
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                         if self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                            self._stats_incrementMoteStats('6topTxAddResp')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                            self._stats_incrementMoteStats('6topTxDelResp')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
                             self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                         elif self.sixtopStates[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                             pass
@@ -1897,10 +1905,14 @@ class Mote(object):
                     'debug_cellCreatedAsn':      self.engine.getAsn(),    # [debug]
                 }
                 # log
-                self._log(
-                    d.INFO,
-                    "[tsch] add cell ts={0} ch={1} dir={2} with {3}",
-                    (cell[0], cell[1], cell[2], neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS),
+                self.engine.log(
+                    SimEngine.SimLog.LOG_TSCH_ADD_CELL,
+                    {"ts": cell[0],
+                     "channel": cell[1],
+                     "direction": cell[2],
+                     "source_id": self.id,
+                     "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                    }
                 )
             self._tsch_schedule_activeCell()
 
@@ -1916,6 +1928,12 @@ class Mote(object):
                     "[tsch] remove cell=({0}) with {1}",
                     (cell, neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS),
                 )
+                self.engine.log(SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
+                                {"ts": cell[0],
+                                 "channel": cell[1],
+                                 "direction": cell[2],
+                                 "source_id": self.id,
+                                 "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS})
 
                 assert cell in self.schedule.keys()
                 assert self.schedule[cell]['neighbor'] == neighbor
@@ -1957,8 +1975,9 @@ class Mote(object):
         # remove all the element of pkt so that it won't be processed further
         for k in pkt.keys():
             del pkt[k]
-        if reason in self.motestats:
-            self._stats_incrementMoteStats(reason)
+
+        # increment mote stat
+        self._stats_incrementMoteStats(reason)
 
     def radio_isSync(self):
         with self.dataLock:
@@ -2096,10 +2115,10 @@ class Mote(object):
 
                         # only count drops of DATA packets that are part of the experiment
                         if self.pktToSend['type'] == d.APP_TYPE_DATA:
-                            self._stats_incrementMoteStats('droppedDataMacRetries')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_DATA_MAX_RETRIES['type'])
 
                         # update mote stats
-                        self._stats_incrementMoteStats('droppedMacRetries')
+                        self._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type'])
 
                         # remove packet from queue
                         self.txQueue.remove(self.pktToSend)
@@ -2250,7 +2269,7 @@ class Mote(object):
                                 return True, False
                             else:
                                 # ACK anyway
-                                self._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
+                                self._radio_drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
                                 return True, False
                         elif dstIp == self:
                             if self.app.frag_reassemble_packet(smac, payload) is True:
@@ -2359,12 +2378,13 @@ class Mote(object):
                         if isEnqueued:
 
                             # update mote stats
-                            self._stats_incrementMoteStats('appRelayed')
+                            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
 
                             (isACKed, isNACKed) = (True, False)
 
                         else:
-                            self._radio_drop_packet(relayPacket, 'droppedRelayFailedEnqueue')
+                            self._radio_drop_packet(relayPacket,
+                                                    SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'])
                             (isACKed, isNACKed) = (False, True)
 
             else:
@@ -2496,6 +2516,8 @@ class Mote(object):
     def _logChargeConsumed(self, charge):
         with self.dataLock:
             self.chargeConsumed  += charge
+            self.engine.log(SimEngine.SimLog.LOG_CHARGE_CONSUMED,
+                            {"mote_id": self.id, "charge": charge})
 
     #======================== private =========================================
 
@@ -2565,47 +2587,18 @@ class Mote(object):
 
     def _stats_resetMoteStats(self):
         with self.dataLock:
-            self.motestats = {
-                # app
-                'appGenerated':               0,   # number of packets app layer generated
-                'appRelayed':                 0,   # number of packets relayed
-                'appReachesDagroot':          0,   # number of packets received at the DAGroot
-                'droppedFailedEnqueue':       0,   # dropped packets because failed enqueue them
-                'droppedDataFailedEnqueue':   0,   # dropped DATA packets because app failed enqueue them
-                # queue
-                'droppedQueueFull':           0,   # dropped packets because queue is full
-                # rpl
-                'rplTxDIO':                   0,   # number of TX'ed DIOs
-                'rplRxDIO':                   0,   # number of RX'ed DIOs
-                'rplTxDAO':                   0,   # number of TX'ed DAOs
-                'rplRxDAO':                   0,   # number of RX'ed DAOs
-                'rplChurnPrefParent':         0,   # number of time the mote changes preferred parent
-                'rplChurnRank':               0,   # number of time the mote changes rank
-                'rplChurnParentSet':          0,   # number of time the mote changes parent set
-                'droppedNoRoute':             0,   # packets dropped because no route (no preferred parent)
-                'droppedNoTxCells':           0,   # packets dropped because no TX cells
-                # 6top
-                '6topTxRelocatedCells':       0,   # number of time tx-triggered 6top relocates a single cell
-                '6topTxRelocatedBundles':     0,   # number of time tx-triggered 6top relocates a bundle
-                '6topRxRelocatedCells':       0,   # number of time rx-triggered 6top relocates a single cell
-                '6topTxAddReq':               0,   # number of 6P Add request transmitted
-                '6topTxAddResp':              0,   # number of 6P Add responses transmitted
-                '6topTxDelReq':               0,   # number of 6P del request transmitted
-                '6topTxDelResp':              0,   # number of 6P del responses transmitted
-                '6topRxAddReq':               0,   # number of 6P Add request received
-                '6topRxAddResp':              0,   # number of 6P Add responses received
-                '6topRxDelReq':               0,   # number of 6P Del request received
-                '6topRxDelResp':              0,   # number of 6P Del responses received
-                # tsch
-                'droppedMacRetries':          0,   # packets dropped because more than d.TSCH_MAXTXRETRIES MAC retries
-                'droppedDataMacRetries':      0,   # packets dropped because more than d.TSCH_MAXTXRETRIES MAC retries in a DATA packet
-                'tschTxEB':                   0,   # number of TX'ed EBs
-                'tschRxEB':                   0,   # number of RX'ed EBs
-            }
+            self.motestats = {}
 
     def _stats_incrementMoteStats(self, name):
+        """
+        :param str name:
+        :return:
+        """
         with self.dataLock:
-            self.motestats[name] += 1
+            if name in self.motestats:  # increment stat
+                self.motestats[name] += 1
+            else:
+                self.motestats[name] = 1  # init stat
 
     # cell stats
 
@@ -2665,6 +2658,7 @@ class Mote(object):
     def _stats_logQueueDelay(self, delay):
         with self.dataLock:
             self.queuestats['delay'] += [delay]
+        self.engine.log(SimEngine.SimLog.LOG_QUEUE_DELAY, {"delay": delay})
 
     def _stats_getAveQueueDelay(self):
         d = self.queuestats['delay']

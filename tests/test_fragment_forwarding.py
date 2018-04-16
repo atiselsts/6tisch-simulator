@@ -11,6 +11,7 @@ import pytest
 
 import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
+import SimEngine
 
 class TestNumFragmentsVsTxQueue:
     @pytest.mark.parametrize('test_input, expected', [
@@ -41,7 +42,7 @@ class TestFragmentForwarding:
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -57,7 +58,7 @@ class TestFragmentForwarding:
             'dmac': node,
             'sourceRoute':        [],
         }
-        
+
         leaf.app.fragment_and_enqueue_packet(packet)
 
         frag0 = leaf.txQueue[0]
@@ -78,7 +79,7 @@ class TestFragmentForwarding:
         leaf1 = sim.motes[2]
         leaf2 = sim.motes[3]
         leaf3 = sim.motes[4]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -122,7 +123,7 @@ class TestFragmentForwarding:
         )
         root = sim.motes[0]
         leaf = sim.motes[1]
-        
+
         packet = {
             'asn':                0,
             'type':               d.APP_TYPE_DATA,
@@ -138,35 +139,35 @@ class TestFragmentForwarding:
             'dmac': root,
             'sourceRoute':        [],
         }
-        
+
         leaf.app.fragment_and_enqueue_packet(packet)
         frag0 = leaf.txQueue[0]
         frag1 = leaf.txQueue[1]
-        
+
         print frag0
         print frag1
-        
+
         itag  = frag0['payload']['datagram_tag']
-        
+
         print root.app.vrbTable
-        
+
         sim.asn = 100
         root.app.frag_ff_forward_fragment(frag0)
         assert root.app.vrbTable[leaf][itag]['ts'] == 100
 
         print root.app.vrbTable
-        
+
         sim.asn += int(60.0 / sim.settings.tsch_slotDuration)
         root.app.frag_ff_forward_fragment(frag0) # duplicate
         assert itag in root.app.vrbTable[leaf]
-        
+
         print root.app.vrbTable
-        
+
         sim.asn += 1
         root.app.frag_ff_forward_fragment(frag1)
-        
+
         print root.app.vrbTable
-        
+
         assert leaf not in root.app.vrbTable
 
 
@@ -464,7 +465,7 @@ class TestPacketFowarding:
         assert len(hop2.txQueue) == 2
 
         asn0 = sim.asn
-        assert root.motestats['appReachesDagroot'] == 0
+        assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
         # two fragments should reach to the root within two timeslots.
         while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
@@ -477,7 +478,7 @@ class TestPacketFowarding:
         # now hop1 has two fragments
         assert len(hop2.txQueue) == 0
         assert len(hop1.txQueue) == 0
-        assert root.motestats['appReachesDagroot'] == 1
+        assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
     def test_drop_fragment(self, sim):
         params = {'frag_ff_enable': True,
@@ -891,7 +892,7 @@ class TestOptimization:
 
         def test(self, pkt, reason):
             test_is_called['result'] = True
-            assert reason == 'droppedFragNoVRBEntry'
+            assert reason == 'frag_no_vrb_entry'
 
         node._radio_drop_packet = types.MethodType(test, node)
 

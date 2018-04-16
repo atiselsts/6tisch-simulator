@@ -297,7 +297,7 @@ class MSF(SchedulingFunction):
         for (ts, cell) in mote.schedule.iteritems():
             if (cell['neighbor'] == neighbor and cell['dir'] == d.DIR_TX) or\
                     (cell['dir'] == d.DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
-                cellPDR.append(mote.mote.propagation.getCellPDR(cell))
+                cellPDR.append(mote.getCellPDR(cell))
 
         log.info('[sixtop] timeout() cellPDR = {0}'.format(cellPDR))
 
@@ -306,7 +306,7 @@ class MSF(SchedulingFunction):
             assert meanPDR <= 1.0
             timeout = math.ceil((
                 float(mote.settings.tsch_slotframeLength * mote.settings.tsch_slotDuration) /
-                float(len(cellPDR))) * (float(1 / meanPDR)) * mote.SIXP_TIMEOUT_SEC_FACTOR)
+                float(len(cellPDR))) * (float(1 / meanPDR)) * self.SIXP_TIMEOUT_SEC_FACTOR)
             return timeout
         else:
             return self.DEFAULT_SIXTOP_TIMEOUT
@@ -382,8 +382,8 @@ class MSF(SchedulingFunction):
         """
         timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
         celloptions = d.DIR_TXRX_SHARED
-        log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                 (self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
+        log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
+                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
         mote.sixtop_ADD_REQUEST(mote.preferredParent,
                                               self.settings.sf_msf_numCellsToAddRemove,
                                               celloptions,
@@ -409,8 +409,9 @@ class MSF(SchedulingFunction):
         if mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 1:
             timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
             celloptions = d.DIR_TXRX_SHARED
-            log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
-                     (self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
+            log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
+                        self.settings.sf_msf_numCellsToAddRemove,
+                        d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
             mote.sixtop_DELETE_REQUEST(mote.preferredParent,
