@@ -248,7 +248,7 @@ class MSF(SchedulingFunction):
                         self.settings.sf_msf_numCellsToAddRemove, celloptions,
                         mote.preferredParent.id, timeout))
 
-            mote._sixtop_cell_reservation_request(
+            mote.sixtop_ADD_REQUEST(
                 mote.preferredParent,
                 mote.numCellsToNeighbors.get(
                     mote.oldPreferredParent,
@@ -266,7 +266,7 @@ class MSF(SchedulingFunction):
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                         self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
 
-            mote._sixtop_removeCells(
+            mote.sixtop_DELETE_REQUEST(
                 mote.oldPreferredParent,
                 mote.numCellsToNeighbors.get(
                     mote.oldPreferredParent,
@@ -384,7 +384,7 @@ class MSF(SchedulingFunction):
         celloptions = Mote.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}",
                  (self.settings.sf_msf_numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
-        mote._sixtop_cell_reservation_request(mote.preferredParent,
+        mote.sixtop_ADD_REQUEST(mote.preferredParent,
                                               self.settings.sf_msf_numCellsToAddRemove,
                                               celloptions,
                                               timeout)
@@ -413,7 +413,7 @@ class MSF(SchedulingFunction):
                      (self.settings.sf_msf_numCellsToAddRemove, Mote.DIR_TXRX_SHARED, mote.preferredParent.id, timeout,))
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
-            mote._sixtop_removeCells(mote.preferredParent,
+            mote.sixtop_DELETE_REQUEST(mote.preferredParent,
                                      self.settings.sf_msf_numCellsToAddRemove,
                                      celloptions,
                                      timeout)
