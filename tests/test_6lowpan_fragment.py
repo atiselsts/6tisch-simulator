@@ -480,7 +480,7 @@ class TestPacketFowarding:
 
         cb = None
         asn0 = sim.asn
-        while (len(sim.events) > 0) or (asn > (asn0 + (one_second / sim.settings.tsch_slotDuration))):
+        while len(sim.events) > 0:
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             sim.asn = asn
 
@@ -492,6 +492,10 @@ class TestPacketFowarding:
             else:
                 cb(**kwarg)
 
+            if asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
+                # timeout
+                break;
+
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
@@ -502,9 +506,9 @@ class TestPacketFowarding:
 
         asn0 = sim.asn
 
-        # two fragments should be sent within two timeslots. In each of them,
+        # two fragments should be sent within two slotframes. In each of them,
         # hop2 has one TX cell to hop2
-        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
+        while len(sim.events) > 0:
             (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 # sync all the motes
@@ -512,7 +516,12 @@ class TestPacketFowarding:
                 hop2.timeCorrectedSlot = sim.asn
                 sim.asn = asn
             cb(**kwarg)
-            if(len(hop1.txQueue) == 2):
+
+            if len(hop1.txQueue) == 2:
+                break
+
+            if asn > (asn0 + (2 * sim.settings.tsch_slotframeLength)):
+                # timeout
                 break
 
         # now hop1 has two fragments
