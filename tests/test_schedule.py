@@ -642,9 +642,8 @@ def test_two_branch_cascading_schedule_installation(sim):
     assert len(motes1) == len(motes2)
     for i, v in enumerate(motes1):
         assert len(motes1[i].schedule) == len(motes2[i].schedule)
-        for j, cell in enumerate(motes1[i].schedule):
-            if j not in motes1[i].schedule:
-                continue
+        for j in motes1[i].schedule.keys():
+            assert j in motes2[i].schedule
 
             cell1 = motes1[i].schedule[j]
             cell2 = motes2[i].schedule[j]
@@ -675,36 +674,16 @@ def test_two_branch_cascading_schedule_installation_4(sim):
                   'sf_ssf_initMethod': 'random-pick'})
     motes2 = sim2.motes
 
+    ret = False
     assert len(motes1) == len(motes2)
-    prev_ret = True
     for i, v in enumerate(motes1):
         assert len(motes1[i].schedule) == len(motes2[i].schedule)
-        for j, cell in enumerate(motes1[i].schedule):
-            if j not in motes1[i].schedule:
-                continue
 
-            try:
-                cell1 = motes1[i].schedule[j]
-                cell2 = motes2[i].schedule[j]
-            except KeyError:
-                ret = False
+        for j in motes1[i].schedule.keys():
+            # the motes in the first simulation should have different timeslot
+            # allocacations from the motes in the second simulation
+            if j not in motes2[i].schedule:
+                ret = True
                 break
 
-            if type(cell1['neighbor']) is list:
-                ret = (cell1['ch'] == cell2['ch'] and
-                       cell1['dir'] == Mote.DIR_TXRX_SHARED and
-                       cell1['dir'] == cell2['dir'] and
-                       (sorted(map(lambda x: x.id, cell1['neighbor'])) ==
-                        sorted(map(lambda x: x.id, cell2['neighbor']))))
-            else:
-                ret = (cell1['ch'] == cell2['ch'] and
-                       cell1['dir'] == cell2['dir'] and
-                       cell1['neighbor'].id == cell2['neighbor'].id)
-
-            ret = prev_ret and ret
-
-        if ret is False:
-            break
-
-    # all schedules must not be the same
-    assert ret is False
+    assert ret is True
