@@ -2254,7 +2254,9 @@ class Mote(object):
                                 return True, False
                         elif dstIp == self:
                             if self.app.frag_reassemble_packet(smac, payload) is True:
-                                payload.pop()
+                                del payload['datagram_size']
+                                del payload['datagram_offset']
+                                del payload['datagram_tag']
                                 type = d.APP_TYPE_DATA
                             else:
                                 # not fully reassembled yet

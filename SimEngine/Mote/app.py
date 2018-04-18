@@ -176,7 +176,7 @@ class App(object):
             else:
                 self.vrbTable[smac][itag] = {}
 
-            if dstIp == self:
+            if dstIp == self.mote:
                 # this is a special entry for fragments destined to the mote
                 self.vrbTable[smac][itag]['otag'] = None
             else:
