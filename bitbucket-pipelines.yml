@@ -1,8 +1,3 @@
-# This is a sample build configuration for Python.
-# Check our guides at https://confluence.atlassian.com/x/x4UWN for more examples.
-# Only use spaces to indent your .yml configuration.
-# -----
-# You can specify a custom docker image from Docker Hub as your build environment.
 image: python:2.7.14
 
 pipelines:
@@ -12,4 +7,4 @@ pipelines:
           - pip
         script:
           - pip install -r requirements.txt
-          - pytest
+          - pytest --junitxml=./test-reports/junit.xml

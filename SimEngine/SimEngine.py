@@ -22,7 +22,7 @@ log.addHandler(NullHandler())
 
 import threading
 
-import Propagation
+from Propagation import Propagation
 import Topology
 import Mote
 import SimSettings
@@ -67,11 +67,18 @@ class SimEngine(threading.Thread):
         self.startCb                        = []
         self.endCb                          = []
         self.events                         = []
+
+        # init singletons
         self.settings                       = SimSettings.SimSettings()
-        self.propagation                    = Propagation.Propagation()
-        self.motes                          = [Mote.Mote(id) for id in range(self.settings.numMotes)]
+        self.propagation                    = Propagation()
+        
+        self.motes                          = [Mote.Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
+        
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
+
+        # init schedule
+        Mote.sf.init(self.topology, self.settings.sf_type)
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -88,6 +95,7 @@ class SimEngine(threading.Thread):
         # destroy my own instance
         self._instance                      = None
         self._init                          = False
+        del self.__dict__
 
     #======================== thread ==========================================
 
@@ -98,9 +106,9 @@ class SimEngine(threading.Thread):
         log.info("thread {0} starting".format(self.name))
 
         # schedule the endOfSimulation event if we are not simulating the join process
-        if not self.settings.withJoin:
+        if not self.settings.secjoin_enabled:
             self.scheduleAtAsn(
-                asn         = self.settings.slotframeLength*self.settings.numCyclesPerRun,
+                asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
                 cb          = self._actionEndSim,
                 uniqueTag   = (None,'_actionEndSim'),
             )
@@ -120,7 +128,7 @@ class SimEngine(threading.Thread):
                     break
 
                 # make sure we are in the future
-                (a, b, cb, c) = self.events[0]
+                (a, b, cb, c, kwargs) = self.events[0]
                 if c[1] != '_actionPauseSim':
                     assert self.events[0][0] >= self.asn
 
@@ -129,10 +137,10 @@ class SimEngine(threading.Thread):
 
                 # call callbacks at this ASN
                 while True:
-                    if self.events[0][0]!=self.asn:
+                    if self.events[0][0] != self.asn:
                         break
-                    (_,_,cb,_) = self.events.pop(0)
-                    cb()
+                    (_, _, cb, _, kwargs) = self.events.pop(0)
+                    cb(**kwargs)
 
         # call the end callbacks
         for cb in self.endCb:
@@ -149,35 +157,35 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.startCb    += [cb]
 
-    def scheduleIn(self,delay,cb,uniqueTag=None,priority=0,exceptCurrentASN=True):
+    def scheduleIn(self, delay, cb, uniqueTag=None, priority=0, exceptCurrentASN=True, kwargs={}):
         """ used to generate events. Puts an event to the queue """
 
         with self.dataLock:
-            asn = int(self.asn+(float(delay)/float(self.settings.slotDuration)))
+            asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
 
-            self.scheduleAtAsn(asn,cb,uniqueTag,priority,exceptCurrentASN)
+            self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN, kwargs)
 
-    def scheduleAtAsn(self,asn,cb,uniqueTag=None,priority=0,exceptCurrentASN=True):
+    def scheduleAtAsn(self, asn, cb, uniqueTag=None, priority=0, exceptCurrentASN=True, kwargs={}):
         """ schedule an event at specific ASN """
 
         # make sure we are scheduling in the future
-        assert asn>self.asn
+        assert asn > self.asn
 
         # remove all events with same uniqueTag (the event will be rescheduled)
         if uniqueTag:
-            self.removeEvent(uniqueTag,exceptCurrentASN)
+            self.removeEvent(uniqueTag, exceptCurrentASN)
 
         with self.dataLock:
 
             # find correct index in schedule
             i = 0
-            while i<len(self.events) and (self.events[i][0]<asn or (self.events[i][0]==asn and self.events[i][1]<=priority)):
+            while i<len(self.events) and (self.events[i][0] < asn or (self.events[i][0] == asn and self.events[i][1] <= priority)):
                 i +=1
 
             # add to schedule
-            self.events.insert(i,(asn,priority,cb,uniqueTag))
+            self.events.insert(i, (asn, priority, cb, uniqueTag, kwargs))
 
-    def removeEvent(self,uniqueTag,exceptCurrentASN=True):
+    def removeEvent(self, uniqueTag, exceptCurrentASN=True):
         with self.dataLock:
             i = 0
             while i<len(self.events):

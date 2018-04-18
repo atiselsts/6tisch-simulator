@@ -208,6 +208,6 @@ class TopologyFrame(Tkinter.Frame):
     def _normalizeLocation(self,xy):
         (x,y) = xy
         return (
-            x/self.settings.squareSide,
-            y/self.settings.squareSide
+            x/self.settings.top_squareSide,
+            y/self.settings.top_squareSide
         )

@@ -22,7 +22,8 @@ log.addHandler(NullHandler())
 
 import SimEngine
 import SimSettings
-import Mote
+from Mote import Mote
+import Mote.MoteDefines as d
 
 #============================ defines =========================================
 
@@ -74,7 +75,7 @@ class SimStats(object):
             cb          = self._actionStart,
         )
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn()+self.settings.slotframeLength-1,
+            asn         = self.engine.getAsn()+self.settings.tsch_slotframeLength-1,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
             priority    = 10,
@@ -97,11 +98,11 @@ class SimStats(object):
     def _actionEndCycle(self):
         """Called at each end of cycle."""
 
-        cycle = int(self.engine.getAsn()/self.settings.slotframeLength)
+        cycle = int(self.engine.getAsn()/self.settings.tsch_slotframeLength)
 
         # print
         if self.verbose:
-            print('   cycle: {0}/{1}'.format(cycle,self.settings.numCyclesPerRun-1))
+            print('   cycle: {0}/{1}'.format(cycle,self.settings.exec_numSlotframesPerRun-1))
 
         # write statistics to output file
         self._fileWriteStats(
@@ -117,7 +118,7 @@ class SimStats(object):
 
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn()+self.settings.slotframeLength,
+            asn         = self.engine.getAsn()+self.settings.tsch_slotframeLength,
             cb          = self._actionEndCycle,
             uniqueTag   = (None,'_actionEndCycle'),
             priority    = 10,
@@ -125,7 +126,7 @@ class SimStats(object):
 
     def _actionEnd(self):
         """Called once at end of the simulation."""
-        self.numCycles = int(self.engine.getAsn()/self.settings.slotframeLength)
+        self.numCycles = int(self.engine.getAsn()/self.settings.tsch_slotframeLength)
         self._fileWriteTopology()
 
     #=== collecting statistics
@@ -169,7 +170,7 @@ class SimStats(object):
         for mote in self.engine.motes:
             for (ts,cell) in mote.schedule.items():
                 (ts,ch) = (ts,cell['ch'])
-                if cell['dir']==Mote.DIR_TX:
+                if cell['dir']==d.DIR_TX:
                     if (ts,ch) in txCells:
                         scheduleCollisions += 1
                     else:
@@ -179,7 +180,7 @@ class SimStats(object):
         txLinks = {}
         for mote in self.engine.motes:
             for (ts,cell) in mote.schedule.items():
-                if cell['dir']==Mote.DIR_TX:
+                if cell['dir']==d.DIR_TX:
                     (ts,ch) = (ts,cell['ch'])
                     (tx,rx) = (mote,cell['neighbor'])
                     if (ts,ch) in txLinks:
@@ -288,7 +289,7 @@ class SimStats(object):
                 ' '.join(['{0}@{1:.2f}'.format(mote.id,mote.getMoteStats()['chargeConsumed']/self.numCycles) for mote in self.engine.motes])
             )
         ]
-        if self.settings.withJoin:
+        if self.settings.secjoin_enabled:
             output += [
                 '#join runNum={0} {1}'.format(
                     self.runNum,

@@ -1,0 +1,69 @@
+{
+    "version":                              0,
+    "execution": {
+        "numCores":                         1,
+        "numRuns":                          2
+    },
+    "settings": {
+        "combination": {
+            "exec_numMotes":                [50]
+        },
+        "regular": {
+            "exec_simDataDir":              "simData",
+            "exec_numSlotframesPerRun":     101,
+            
+            "app_pkPeriod":                 10,
+            "app_pkPeriodVar":              0.05,
+            "app_burstTimestamp":           null,
+            "app_burstNumPackets":          0,
+            "app_e2eAck":                   false,
+            
+            "rpl_dioPeriod":                10,
+            "rpl_daoPeriod":                60,
+            
+            "frag_numFragments":            1,
+            "frag_ff_enable":               false,
+            "frag_ff_options":              [],
+            "frag_ff_vrbtablesize":         8,
+            "frag_ph_numReassBuffs":        1,
+            
+            "sf_type":                      "MSF",
+            "sf_msf_housekeepingPeriod":    60.0,
+            "sf_msf_maxNumCells":           16,
+            "sf_msf_highUsageThres":        12,
+            "sf_msf_lowUsageThres":         4,
+            "sf_msf_numCellsToAddRemove":   1,
+            "sf_ssf_initMethod":            null,
+            
+            "sixtop_messaging":             1,
+            "sixtop_removeRandomCell":      false,
+            
+            "secjoin_enabled":              false,
+            "secjoin_numExchanges":         2,
+            "secjoin_joinTimeout":          60,
+            
+            "tsch_slotDuration":            0.010,
+            "tsch_slotframeLength":         101,
+            "tsch_ebPeriod_sec":            2,
+            "tsch_probBcast_enabled":       1,
+            "tsch_probBcast_ebProb":        0.33,
+            "tsch_probBcast_dioProb":       0.33,
+            
+            "top_type":                     "random",
+            "top_squareSide":               2.000,
+            "top_fullyMeshed":              false,
+            "top_schedulingMode":           "random-pick",
+            "prop_type":                    "pisterhack",
+            "prop_trace":                   null,
+            
+            "phy_numChans":                 16,
+            "phy_minRssi":                  -97,
+            "phy_noInterference":           false
+        }
+    },
+    "logging": [
+    ],
+    "post": [
+        "python plot.py"
+    ]
+}

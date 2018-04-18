@@ -2,7 +2,7 @@
 """
 \brief Container for the settings of a simulation run.
 
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
+\author Thomas Watteyne <thomas.watteyne@inria.fr>
 \author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
@@ -64,7 +64,7 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            self.simDataDir,
+            self.exec_simDataDir,
             '_'.join(['{0}_{1}'.format(k,getattr(self,k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
@@ -82,22 +82,4 @@ class SimSettings(object):
     def destroy(self):
         self._instance       = None
         self._init           = False
-
-        # This destroy method doesn't destroy the instance in fact. Since I'm
-        # not sure how to destroy the singleton instance from its instance
-        # method, just remove relevant instance attributes so that tests
-        # get happy.
-        if hasattr(self, 'topology'):
-            del self.topology
-        if hasattr(self, 'numFragments'):
-            del self.numFragments
-        if hasattr(self, 'cascadingScheduling'):
-            del self.cascadingScheduling
-        if hasattr(self, 'schedulingMode'):
-            del self.schedulingMode
-        if hasattr(self, 'numReassQueue'):
-            del self.numReassQueue
-        if hasattr(self, 'maxVRBEntryNum'):
-            del self.maxVRBEntryNum
-        if hasattr(self, 'optFragmentForwarding'):
-            del self.optFragmentForwarding
+        del self.__dict__

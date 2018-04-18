@@ -9,3 +9,9 @@
 Thumbs.db
 *.templog
 /bin/templog.txt
+
+# pycharm
+.idea/
+.cache/
+/test-reports
+.pytest_cache

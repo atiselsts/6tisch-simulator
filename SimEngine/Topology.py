@@ -7,48 +7,62 @@
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
 
+# =========================== imports =========================================
+
 from abc import ABCMeta, abstractmethod
 import logging
 import math
 import random
 
+from k7 import k7
 
 import SimSettings
+import Propagation
 import Mote
-
+import Mote.MoteDefines as d
 
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
 
+# =========================== logging =========================================
 
 log = logging.getLogger('Topology')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
+# =========================== defines =========================================
+
+TOP_TYPE_ALL = ['linear', 'twoBranch', 'random']
+
+# =========================== body ============================================
 
 class Topology(object):
 
     def __new__(cls, motes):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
-                return LinearTopology(motes)
-            elif settings.topology == 'twoBranch':
-                return TwoBranchTopology(motes)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+        if   settings.top_type == 'linear':
+            return LinearTopology(motes)
+        elif settings.top_type == 'twoBranch':
+            return TwoBranchTopology(motes)
+        elif settings.top_type == 'trace':
+            return TraceTopology(motes, settings.prop_trace)
+        elif settings.top_type == 'random':
             return RandomTopology(motes)
+        else:
+            raise SystemError()
 
     @classmethod
     def rssiToPdr(cls, rssi):
         settings = SimSettings.SimSettings()
-        if hasattr(settings, 'topology'):
-            if settings.topology == 'linear':
-                return LinearTopology.rssiToPdr(rssi)
-            elif settings.topology == 'twoBranch':
-                return TwoBranchTopology.rssiToPdr(rssi)
-        if not hasattr(settings, 'topology') or settings.topology == 'random':
+        if   settings.top_type   == 'linear':
+            return LinearTopology.rssiToPdr(rssi)
+        elif settings.top_type == 'twoBranch':
+            return TwoBranchTopology.rssiToPdr(rssi)
+        elif settings.top_type == 'random':
             return RandomTopology.rssiToPdr(rssi)
+        else:
+            raise SystemError()
 
 
 class TopologyCreator:
@@ -125,18 +139,19 @@ class RandomTopology(TopologyCreator):
     def __init__(self, motes):
         # store params
         self.motes = motes
+        self.shape = 'random'
 
         # local variables
         self.settings = SimSettings.SimSettings()
 
-        # if fullyMeshed is enabled, create a topology where each node has N-1
+        # if top_fullyMeshed is enabled, create a topology where each node has N-1
         # stable neighbors
-        if self.settings.fullyMeshed:
+        if self.settings.top_fullyMeshed:
             self.stable_neighbors = len(self.motes) - 1
             self.squareSide = self.FULLY_MESHED_SQUARE_SIDE
         else:
             self.stable_neighbors = self.STABLE_NEIGHBORS
-            self.squareSide = self.settings.squareSide
+            self.squareSide = self.settings.top_squareSide
 
     def createTopology(self):
         """
@@ -196,7 +211,7 @@ class RandomTopology(TopologyCreator):
             for m in self.motes:
                 if mote == m:
                     continue
-                if mote.getRSSI(m) > mote.minRssi:
+                if mote.getRSSI(m) > mote.propagation.minRssi:
                     pdr = self._computePDR(mote, m)
                     mote.setPDR(m, pdr)
                     m.setPDR(mote, pdr)
@@ -204,8 +219,13 @@ class RandomTopology(TopologyCreator):
     @classmethod
     def rssiToPdr(cls, rssi):
         """
+
         rssi and pdr relationship obtained by experiment below
         http://wsn.eecs.berkeley.edu/connectivity/?dataset=dust
+
+        :param rssi:
+        :return:
+        :rtype: float
         """
 
         rssiPdrTable = {
@@ -234,22 +254,21 @@ class RandomTopology(TopologyCreator):
         minRssi = min(rssiPdrTable.keys())
         maxRssi = max(rssiPdrTable.keys())
 
-        if rssi < minRssi:
+        if  rssi < minRssi:
             pdr = 0.0
         elif rssi > maxRssi:
             pdr = 1.0
         else:
             floorRssi = int(math.floor(rssi))
-            pdrLow = rssiPdrTable[floorRssi]
-            pdrHigh = rssiPdrTable[floorRssi+1]
+            pdrLow    = rssiPdrTable[floorRssi]
+            pdrHigh   = rssiPdrTable[floorRssi+1]
             # linear interpolation
-            pdr = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
+            pdr       = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
 
         assert pdr >= 0.0
         assert pdr <= 1.0
 
         return pdr
-
 
 class LinearTopology(TopologyCreator):
 
@@ -258,6 +277,7 @@ class LinearTopology(TopologyCreator):
     def __init__(self, motes):
 
         self.motes = motes
+        self.shape = 'linear'
         self.settings = SimSettings.SimSettings()
 
     def createTopology(self):
@@ -286,20 +306,8 @@ class LinearTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (hasattr(self.settings, 'linearTopologyStaticScheduling') and
-           self.settings.linearTopologyStaticScheduling is True):
-            assert ((not hasattr(self.settings, 'withJoin')) or
-                    (self.settings.withJoin is False))
+        if not self.settings.secjoin_enabled:
             self._build_rpl_tree()
-
-            if (not hasattr(self.settings, 'cascadingScheduling')) or (self.settings.cascadingScheduling == False):
-                self._install_symmetric_schedule()
-            else:
-                self._install_cascading_schedule()
-
-            # make all the motes synchronized
-            for mote in self.motes:
-                mote.timeCorrectedSlot = 0
 
     @classmethod
     def rssiToPdr(cls, rssi):
@@ -340,7 +348,7 @@ class LinearTopology(TopologyCreator):
             if mote.id == 0:
                 mote.role_setDagRoot()
                 root = mote
-                mote.rank = Mote.RPL_MIN_HOP_RANK_INCREASE
+                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
             else:
                 # mote with smaller ID becomes its preferred parent
                 for neighbor in mote.PDR:
@@ -349,52 +357,10 @@ class LinearTopology(TopologyCreator):
                         mote.preferredParent = neighbor
                 root.parents.update({tuple([mote.id]):
                                      [[mote.preferredParent.id]]})
-                mote.rank = (7 * Mote.RPL_MIN_HOP_RANK_INCREASE +
+                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
                              mote.preferredParent.rank)
 
-            mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
-
-    def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
-        # cell structure: (slot_offset, channel_offset, direction)
-        transmitter._tsch_addCells(receiver,
-                                   [(slot_offset,
-                                     channel_offset,
-                                     Mote.DIR_TX)])
-        if receiver not in transmitter.numCellsToNeighbors:
-            transmitter.numCellsToNeighbors[receiver] = 1
-        else:
-            transmitter.numCellsToNeighbors[receiver] += 1
-
-        receiver._tsch_addCells(transmitter,
-                                [(slot_offset,
-                                  channel_offset,
-                                  Mote.DIR_RX)])
-        if transmitter not in receiver.numCellsFromNeighbors:
-            receiver.numCellsFromNeighbors[transmitter] = 1
-        else:
-            receiver.numCellsFromNeighbors[transmitter] += 1
-
-    def _install_symmetric_schedule(self):
-        # find the edge node in the given linear topology
-        depth = len(self.motes)
-        for mote in self.motes:
-            if mote.preferredParent:
-                self._alloc_cell(mote,
-                                 mote.preferredParent,
-                                 depth - mote.id,
-                                 0)
-
-    def _install_cascading_schedule(self):
-        alloc_pointer = 1 # start allocating with slot-1
-
-        for mote in self.motes[::-1]: # loop in the reverse order
-            child = mote
-            while child and child.preferredParent:
-                self._alloc_cell(child, child.preferredParent,
-                                 alloc_pointer, 0)
-                alloc_pointer += 1
-                child = child.preferredParent
-
+            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
 
 class TwoBranchTopology(TopologyCreator):
 
@@ -402,6 +368,7 @@ class TwoBranchTopology(TopologyCreator):
 
     def __init__(self, motes):
         self.motes = motes
+        self.shape = 'twoBranch'
         self.settings = SimSettings.SimSettings()
         self.depth = int(math.ceil((float(len(self.motes)) - 2) / 2) + 1)
         if len(self.motes) < 2:
@@ -443,16 +410,8 @@ class TwoBranchTopology(TopologyCreator):
                 if(pdr > 0):
                     mote.setPDR(neighbor, pdr)
 
-        if (not hasattr(self.settings, 'withJoin')) or (self.settings.withJoin == False):
+        if not self.settings.secjoin_enabled:
             self._build_rpl_tree()
-            if (not hasattr(self.settings, 'cascadingScheduling') or
-               not self.settings.cascadingScheduling):
-                self._install_symmetric_schedule()
-            else:
-                self._install_cascading_schedule()
-            # make all the motes synchronized
-            for mote in self.motes:
-                mote.timeCorrectedSlot = 0
 
     @classmethod
     def rssiToPdr(cls, rssi):
@@ -485,6 +444,13 @@ class TwoBranchTopology(TopologyCreator):
             return -100
 
     def _computePDR(self, mote, neighbor):
+        """
+
+        :param Mote mote:
+        :param Mote neighbor:
+        :return:
+        :rtype: float
+        """
         return self.rssiToPdr(self._computeRSSI(mote, neighbor))
 
     def _build_rpl_tree(self):
@@ -503,27 +469,11 @@ class TwoBranchTopology(TopologyCreator):
                                      [[mote.preferredParent.id]]})
 
             if mote.id == 0:
-                mote.rank = Mote.RPL_MIN_HOP_RANK_INCREASE
+                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
             else:
-                mote.rank = (7 * Mote.RPL_MIN_HOP_RANK_INCREASE +
+                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
                              mote.preferredParent.rank)
-            mote.dagRank = mote.rank / Mote.RPL_MIN_HOP_RANK_INCREASE
-
-    def _alloc_cell(self, transmitter, receiver, slot_offset, channel_offset):
-        # cell structure: (slot_offset, channel_offset, direction)
-        transmitter._tsch_addCells(receiver, [(slot_offset, channel_offset,
-                                               Mote.DIR_TX)])
-        if receiver not in transmitter.numCellsToNeighbors:
-            transmitter.numCellsToNeighbors[receiver] = 1
-        else:
-            transmitter.numCellsToNeighbors[receiver] += 1
-
-        receiver._tsch_addCells(transmitter, [(slot_offset, channel_offset,
-                                               Mote.DIR_RX)])
-        if transmitter not in receiver.numCellsFromNeighbors:
-            receiver.numCellsFromNeighbors[transmitter] = 1
-        else:
-            receiver.numCellsFromNeighbors[transmitter] += 1
+            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
 
     def _install_symmetric_schedule(self):
         # allocate TX cells for each node to its parent, which has the same
@@ -545,9 +495,10 @@ class TwoBranchTopology(TopologyCreator):
                                    self.switch_to_right_branch - 1 -
                                    mote.id) * 2
 
-                self._alloc_cell(mote,
-                                 mote.preferredParent,
-                                 int(slot_offset), 0)
+                Mote.sf.alloc_cell(mote,
+                              mote.preferredParent,
+                              int(slot_offset),
+                              0)
 
     def _install_cascading_schedule(self):
         # allocate TX cells and RX cells in a cascading bandwidth manner.
@@ -555,18 +506,17 @@ class TwoBranchTopology(TopologyCreator):
         for mote in self.motes[::-1]: # loop in the reverse order
             child = mote
             while child and child.preferredParent:
-                if (hasattr(self.settings, 'schedulingMode') and
-                   self.settings.schedulingMode == 'random-pick'):
+                if self.settings.top_schedulingMode == 'random-pick':
                     if 'alloc_table' not in locals():
                         alloc_table = set()
 
-                    if len(alloc_table) >= self.settings.slotframeLength:
+                    if len(alloc_table) >= self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
                     while True:
                         # we don't use slot-0 since it's designated for a shared cell
                         alloc_pointer = random.randint(1,
-                                                       self.settings.slotframeLength - 1)
+                                                       self.settings.tsch_slotframeLength - 1)
                         if alloc_pointer not in alloc_table:
                             alloc_table.add(alloc_pointer)
                             break
@@ -576,11 +526,74 @@ class TwoBranchTopology(TopologyCreator):
                     else:
                         alloc_pointer += 1
 
-                    if alloc_pointer > self.settings.slotframeLength:
+                    if alloc_pointer > self.settings.tsch_slotframeLength:
                         raise ValueError('slotframe is too small')
 
-                self._alloc_cell(child,
-                                 child.preferredParent,
-                                 alloc_pointer,
-                                 0)
+                Mote.sf.alloc_cell(child,
+                              child.preferredParent,
+                              alloc_pointer,
+                              0)
                 child = child.preferredParent
+
+class TraceTopology(TopologyCreator):
+
+    def __init__(self, motes, trace):
+        log.debug("Init Topology from trace file.")
+        self.trace = trace
+        self.shape = "trace"
+        self.motes = motes
+        self.settings = SimSettings.SimSettings()
+        self.propagation = Propagation.Propagation()
+
+    def createTopology(self):
+        # read first transaction from trace
+        header, trace = k7.read(self.trace)
+        first_transaction = trace[(trace.transaction_id == trace.transaction_id.min()) &
+                                  (trace.channels == "11-26") &
+                                  (trace.pdr > 0)]
+
+        # build graph
+        nodes = list(set().union(first_transaction.src.unique(),
+                                 first_transaction.dst.unique()))
+        log.debug("Selected nodes: {0}".format(nodes))
+
+        # set motes ids
+        for i, mote in enumerate(self.motes):
+            mote.id = nodes[i]  # replace mote id by trace id
+
+        # select first mote as DagRoot
+        self.motes[0].role_setDagRoot()
+        log.debug("DagRoot selected, id: {0}".format(self.motes[0].id))
+
+        # for each mote, compute PDR and RSSI to each neighbors
+        for source in self.motes:
+            # clear RSSI and PDR table; we may need clearRSSI and clear PDR
+            # methods
+            mote.RSSI = {}
+            mote.PDR = {}
+
+            for destination in self.motes:
+                if source == destination:
+                    continue
+                # source -> destination
+                pdr = self._computePDR(source, destination)
+                source.setPDR(destination, pdr)
+                rssi = self._computeRSSI(source, destination)
+                source.setRSSI(destination, rssi)
+
+        # randomly place motes
+        for mote in self.motes:
+            # pick a random location
+            mote.setLocation(x=self.settings.top_squareSide * random.random(),
+                             y=self.settings.top_squareSide * random.random())
+
+        log.debug("Topology Created.")
+
+    def _computePDR(self, source, destination):
+        return self.propagation.get_pdr(source, destination)
+
+    def _computeRSSI(self, source, destination):
+        return self.propagation.get_rssi(source, destination)
+
+    def rssiToPdr(cls, rssi):
+        raise NotImplementedError

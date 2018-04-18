@@ -6,57 +6,50 @@
 
 import types
 
-import pytest
-
-import SimEngine.SimEngine as SimEngine
-import SimEngine.SimSettings as SimSettings
-import SimEngine.Mote as Mote
-
+import SimEngine.Mote.Mote as Mote
+import SimEngine.Mote.MoteDefines as d
+from   SimEngine import SimSettings
 
 def test_app_schedule_transmit(sim):
-
-    sim = sim(**{'numMotes': 2,
-                 'pkPeriod': 0,
-                 'beaconPeriod': 0,
-                 'dioPeriod': 0,
-                 'daoPeriod': 0,
-                 'topology': 'linear',
-                 'disableMSF': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'tsch_ebPeriod_sec':       0,
+            'rpl_dioPeriod':           0,
+            'rpl_daoPeriod':           0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading'
+        }
+    )
+    
     node = sim.motes[1]
-   # active TX cell event for node, active RX cell event for root, and
+    
+    # active TX cell event for node, active RX cell event for root, and
     # propagation event
     assert len(sim.events) == 3
     node.pkPeriod = 100
-    node._app_schedule_sendSinglePacket(firstPacket=True)
+    node._app_schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
     assert len(sim.events) == 4
     print sim.events[3][2]
-    assert sim.events[3][2] == node._app_action_sendSinglePacket
-
-
-@pytest.fixture(scope="function")
-def params(request):
-    params = {}
-    params['numMotes'] = 10
-    params['pkPeriod'] = 60
-    params['pkPeriodVar'] = 0.1
-    params['minRssi'] = 0
-    params['withJoin'] = False
-    params['slotframeLength'] = 101
-    params['slotDuration'] = 0.010
-    params['bayesianBroadcast'] = False
-    params['numCyclesPerRun'] = 101
-    params['topology'] = 'linear'
-    return params
+    assert sim.events[3][2] == node._app_action_mote_sendSinglePacketToDAGroot
 
 
 def test_drop_join_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'joinAttemptTimeout': 0})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'secjoin_joinTimeout':     0,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_JOIN}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_JOIN}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -76,18 +69,25 @@ def test_drop_join_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node.join_sendJoinPacket('token', root)
+    node.secjoin._sendJoinPacket('token', root)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
 
 def test_drop_data_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -107,19 +107,26 @@ def test_drop_data_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedDataFailedEnqueue'] == 0
-    node._app_action_enqueueData()
+    node._app_action_mote_enqueueDataForDAGroot()
     assert test_is_called['result'] is True
     assert node.motestats['droppedDataFailedEnqueue'] == 1
 
 
 def test_drop_frag_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numFragments': 2})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -138,18 +145,25 @@ def test_drop_frag_packet_tx_queue_full(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node._app_action_enqueueData()
+    node._app_action_mote_enqueueDataForDAGroot()
     assert test_is_called['result'] is True
 
 
 def test_drop_app_ack_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'downwardAcks': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'app_e2eAck':              True,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': node, 'type': Mote.APP_TYPE_DATA, 'sourceRoute': []}
+    packet = {'dstIp': node, 'type': d.APP_TYPE_DATA, 'sourceRoute': []}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -168,17 +182,24 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
         assert len(pkt) == 0
 
     root._radio_drop_packet = types.MethodType(test, root)
-    root._app_action_receivePacket(node, [1, 0, 1], 0)
+    root._app_action_dagroot_receivePacketFromMote(node, [1, 0, 1], 0)
     assert test_is_called['result'] is True
 
 
 def test_drop_eb_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -204,12 +225,19 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
 
 def test_drop_dio_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -235,12 +263,19 @@ def test_drop_dio_packet_tx_queue_full(sim):
 
 
 def test_drop_dao_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.RPL_TYPE_DAO}
+    packet = {'dstIp': root, 'type': d.RPL_TYPE_DAO}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -266,12 +301,19 @@ def test_drop_dao_packet_tx_queue_full(sim):
 
 
 def test_drop_sixtop_request_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.IANA_6TOP_TYPE_REQUEST}
+    packet = {'dstIp': root, 'type': d.IANA_6TOP_TYPE_REQUEST}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -291,23 +333,30 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node._sixtop_enqueue_ADD_REQUEST(root, [], 1, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_ADD_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
     test_is_called = {'result': False}
     assert test_is_called['result'] is False
-    node._sixtop_enqueue_DELETE_REQUEST(root, [], 1, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_DELETE_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert test_is_called['result'] is True
 
 
 def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 2, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           2,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.IANA_6TOP_TYPE_RESPONSE}
+    packet = {'dstIp': root, 'type': d.IANA_6TOP_TYPE_RESPONSE}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -327,20 +376,27 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node._sixtop_enqueue_RESPONSE(root, [], Mote.IANA_6TOP_RC_SUCCESS, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
 
 def test_drop_forwarding_frag_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numFragments': 2, 'enableFragmentForwarding': True,})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+        }
+    )
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -361,16 +417,24 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
     node._radio_drop_packet = types.MethodType(test, node)
     payload = [2, 0, 1]
     payload.append({'datagram_tag': 1, 'datagram_size': 2, 'datagram_offset': 0})
-    node.waitingFor = Mote.DIR_RX
-    node.radio_rxDone(type=Mote.APP_TYPE_FRAG, smac=leaf,
+    node.waitingFor = d.DIR_RX
+    node.radio_rxDone(type=d.APP_TYPE_FRAG, smac=leaf,
                       dmac=[node], srcIp=leaf, dstIp=root, payload=payload)
     assert test_is_called['result'] is True
 
 
 def test_drop_forwarding_frag_vrb_table_full(sim):
-    sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numFragments': 2, 'enableFragmentForwarding': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+            'frag_ff_vrbtablesize':    50,
+        }
+    )
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -379,7 +443,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     frag['payload'].append({'datagram_tag': 1, 'datagram_size': 2, 'datagram_offset': 0})
 
     node.vrbTable[leaf] = {}
-    for i in range(0, Mote.FRAGMENT_FORWARDING_DEFAULT_MAX_VRB_ENTRY_NUM):
+    for i in range(0, SimSettings.SimSettings().frag_ff_vrbtablesize):
         # fill VRB Table
         node.vrbTable[leaf][i] = {'otag': 0, 'ts': 0}
 
@@ -394,14 +458,21 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node._app_is_frag_to_forward(frag)
+    node._app_frag_ff_forward_fragment(frag)
     assert test_is_called['result'] is True
 
-
 def test_drop_forwarding_frag_no_vrb_entry(sim):
-    sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numFragments': 2, 'enableFragmentForwarding': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_numFragments':       2,
+            'frag_ff_enable':          True,
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -420,18 +491,25 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node._app_is_frag_to_forward(frag)
+    node._app_frag_ff_forward_fragment(frag)
     assert test_is_called['result'] is True
 
 
 def test_drop_forwarding_data_tx_queue_full(sim):
-    sim = sim(**{'numMotes': 3, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True})
+    sim = sim(
+        **{
+            'exec_numMotes':           3,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+        }
+    )
+    
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -451,18 +529,26 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     payload = [2, 0, 1]
-    node.waitingFor = Mote.DIR_RX
-    node.radio_rxDone(type=Mote.APP_TYPE_DATA, smac=leaf,
+    node.waitingFor = d.DIR_RX
+    node.radio_rxDone(type=d.APP_TYPE_DATA, smac=leaf,
                       dmac=[node], srcIp=leaf, dstIp=root, payload=payload)
     assert test_is_called['result'] is True
 
 
 def test_drop_frag_reassembly_queue_full(sim):
-    sim = sim(**{'numMotes': 4, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numReassQueue': 1, 'numFragments': 2})
-    root = sim.motes[0]
-    node = sim.motes[1]
+    sim = sim(
+        **{ 
+            'exec_numMotes':           4,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_ph_numReassBuffs':   1,
+            'frag_numFragments':       2,
+        }
+    )
+    
+    root  = sim.motes[0]
+    node  = sim.motes[1]
     leaf1 = sim.motes[2]
     leaf2 = sim.motes[3]
 
@@ -483,27 +569,35 @@ def test_drop_frag_reassembly_queue_full(sim):
     node._radio_drop_packet = types.MethodType(test, node)
 
     assert len(node.reassQueue) == 0
-    assert node._app_reass_packet(leaf1, payload) is False
+    assert node._app_frag_reassemble_packet(leaf1, payload) is False
     assert len(node.reassQueue) == 1
     assert leaf1 in node.reassQueue
     assert 12345 in node.reassQueue[leaf1]
 
-    assert node._app_reass_packet(leaf2, payload) is False
+    assert node._app_frag_reassemble_packet(leaf2, payload) is False
     assert test_is_called['result'] is True
     assert len(node.reassQueue) == 1
 
 
 def test_drop_frag_too_big_for_reassembly_queue(sim):
-    sim = sim(**{'numMotes': 4, 'pkPeriod': 0,
-                 'topology': 'linear', 'linearTopologyStaticScheduling': True,
-                 'numReassQueue': 1, 'numFragments': 2})
-    root = sim.motes[0]
-    node = sim.motes[1]
+    sim = sim(
+        **{
+            'exec_numMotes':           4,
+            'app_pkPeriod':            0,
+            'top_type':                'linear',
+            'sf_type':                 'SSF-cascading',
+            'frag_ph_numReassBuffs':   1,
+            'frag_numFragments':       2,
+        }
+    )
+    
+    root  = sim.motes[0]
+    node  = sim.motes[1]
     leaf1 = sim.motes[2]
     leaf2 = sim.motes[3]
 
-    payload = [2, 0, 1]
     # fragment can be enqueued even if datagram_offset is not 0
+    payload = [2, 0, 1]
     payload.append({'datagram_tag': 12345, 'datagram_size': 3, 'datagram_offset': 1})
 
     node.original_radio_drop_packet = node._radio_drop_packet
@@ -519,6 +613,6 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
     node._radio_drop_packet = types.MethodType(test, node)
 
     assert len(node.reassQueue) == 0
-    assert node._app_reass_packet(leaf1, payload) is False
+    assert node._app_frag_reassemble_packet(leaf1, payload) is False
     assert test_is_called['result'] is True
     assert len(node.reassQueue) == 0
