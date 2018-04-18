@@ -183,7 +183,7 @@ class TestFragmentation:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
@@ -199,13 +199,12 @@ class TestFragmentation:
         assert frag0['asn'] == packet['asn']
         assert frag0['type'] == d.APP_TYPE_FRAG
         assert frag0['code'] == packet['code']
-        assert len(frag0['payload']) == 4
-        assert frag0['payload'][0] == packet['payload'][0]
-        assert frag0['payload'][1] == packet['payload'][1]
-        assert frag0['payload'][2] == packet['payload'][2]
-        assert frag0['payload'][3]['datagram_offset'] == 0
-        assert frag0['payload'][3]['datagram_size'] == 2
-        assert 'datagram_tag' in frag0['payload'][3]
+        assert len(frag0['payload']) == 5
+        assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+        assert frag0['payload']['hops'] == packet['payload']['hops']
+        assert frag0['payload']['datagram_offset'] == 0
+        assert frag0['payload']['datagram_size'] == 2
+        assert 'datagram_tag' in frag0['payload']
         assert frag0['retriesLeft'] == packet['retriesLeft']
         assert frag0['srcIp'] == packet['srcIp']
         assert frag0['dstIp'] == packet['dstIp']
@@ -214,13 +213,12 @@ class TestFragmentation:
         assert frag1['asn'] == packet['asn']
         assert frag1['type'] == d.APP_TYPE_FRAG
         assert frag1['code'] == packet['code']
-        assert len(frag0['payload']) == 4
-        assert frag1['payload'][0] == packet['payload'][0]
-        assert frag1['payload'][1] == packet['payload'][1]
-        assert frag1['payload'][2] == packet['payload'][2]
-        assert frag1['payload'][3]['datagram_offset'] == 1
-        assert frag1['payload'][3]['datagram_size'] == 2
-        assert frag1['payload'][3]['datagram_tag'] == frag0['payload'][3]['datagram_tag']
+        assert len(frag0['payload']) == 5
+        assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+        assert frag1['payload']['hops'] == packet['payload']['hops']
+        assert frag1['payload']['datagram_offset'] == 1
+        assert frag1['payload']['datagram_size'] == 2
+        assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
         assert frag1['retriesLeft'] == packet['retriesLeft']
         assert frag1['srcIp'] == packet['srcIp']
         assert frag1['dstIp'] == packet['dstIp']
@@ -237,7 +235,7 @@ class TestFragmentation:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
@@ -254,13 +252,12 @@ class TestFragmentation:
         assert frag0['asn'] == packet['asn']
         assert frag0['type'] == d.APP_TYPE_FRAG
         assert frag0['code'] == packet['code']
-        assert len(frag0['payload']) == 4
-        assert frag0['payload'][0] == packet['payload'][0]
-        assert frag0['payload'][1] == packet['payload'][1]
-        assert frag0['payload'][2] == packet['payload'][2]
-        assert frag0['payload'][3]['datagram_offset'] == 0
-        assert frag0['payload'][3]['datagram_size'] == 3
-        assert 'datagram_tag' in frag0['payload'][3]
+        assert len(frag0['payload']) == 5
+        assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+        assert frag0['payload']['hops'] == packet['payload']['hops']
+        assert frag0['payload']['datagram_offset'] == 0
+        assert frag0['payload']['datagram_size'] == 3
+        assert 'datagram_tag' in frag0['payload']
         assert frag0['retriesLeft'] == packet['retriesLeft']
         assert frag0['srcIp'] == packet['srcIp']
         assert frag0['dstIp'] == packet['dstIp']
@@ -269,13 +266,12 @@ class TestFragmentation:
         assert frag1['asn'] == packet['asn']
         assert frag1['type'] == d.APP_TYPE_FRAG
         assert frag1['code'] == packet['code']
-        assert len(frag0['payload']) == 4
-        assert frag1['payload'][0] == packet['payload'][0]
-        assert frag1['payload'][1] == packet['payload'][1]
-        assert frag1['payload'][2] == packet['payload'][2]
-        assert frag1['payload'][3]['datagram_offset'] == 1
-        assert frag1['payload'][3]['datagram_size'] == 3
-        assert frag1['payload'][3]['datagram_tag'] == frag0['payload'][3]['datagram_tag']
+        assert len(frag0['payload']) == 5
+        assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+        assert frag1['payload']['hops'] == packet['payload']['hops']
+        assert frag1['payload']['datagram_offset'] == 1
+        assert frag1['payload']['datagram_size'] == 3
+        assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
         assert frag1['retriesLeft'] == packet['retriesLeft']
         assert frag1['srcIp'] == packet['srcIp']
         assert frag1['dstIp'] == packet['dstIp']
@@ -284,13 +280,12 @@ class TestFragmentation:
         assert frag2['asn'] == packet['asn']
         assert frag2['type'] == d.APP_TYPE_FRAG
         assert frag2['code'] == packet['code']
-        assert len(frag0['payload']) == 4
-        assert frag2['payload'][0] == packet['payload'][0]
-        assert frag2['payload'][1] == packet['payload'][1]
-        assert frag2['payload'][2] == packet['payload'][2]
-        assert frag2['payload'][3]['datagram_offset'] == 2
-        assert frag2['payload'][3]['datagram_size'] == 3
-        assert frag2['payload'][3]['datagram_tag'] == frag0['payload'][3]['datagram_tag']
+        assert len(frag0['payload']) == 5
+        assert frag2['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+        assert frag2['payload']['hops'] == packet['payload']['hops']
+        assert frag2['payload']['datagram_offset'] == 2
+        assert frag2['payload']['datagram_size'] == 3
+        assert frag2['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
         assert frag2['retriesLeft'] == packet['retriesLeft']
         assert frag2['srcIp'] == packet['srcIp']
         assert frag2['dstIp'] == packet['dstIp']
@@ -310,7 +305,7 @@ class TestReassembly:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
@@ -321,8 +316,8 @@ class TestReassembly:
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
 
-        size = frag0['payload'][3]['datagram_size']
-        tag = frag0['payload'][3]['datagram_tag']
+        size = frag0['payload']['datagram_size']
+        tag = frag0['payload']['datagram_tag']
 
         assert node not in root.app.reassQueue
 
@@ -353,7 +348,7 @@ class TestReassembly:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
@@ -364,7 +359,7 @@ class TestReassembly:
         frag1 = node.txQueue[1]
         frag2 = node.txQueue[2]
 
-        tag = frag0['payload'][3]['datagram_tag']
+        tag = frag0['payload']['datagram_tag']
 
         assert node not in root.app.reassQueue
 
@@ -401,7 +396,7 @@ class TestPacketFowarding:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
             'dstIp': root,
@@ -501,7 +496,7 @@ class TestPacketFowarding:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
             'dstIp': root,
@@ -549,16 +544,16 @@ class TestPacketFowarding:
         hop1 = sim.motes[1]
         frag = {
             'dstIp': root,
-            'payload': [1, 0, 1, {}],
+            'payload': {'asn_at_source': 0, 'hops': 1},
         }
-        frag['payload'][3]['datagram_size'] = params['frag_numFragments']
-        frag['payload'][3]['datagram_offset'] = 0
+        frag['payload']['datagram_size'] = params['frag_numFragments']
+        frag['payload']['datagram_offset'] = 0
         for i in range(0, 10):
             frag['smac'] = i
-            frag['payload'][3]['datagram_tag'] = i
+            frag['payload']['datagram_tag'] = i
             assert hop1.app.frag_ff_forward_fragment(frag) is True
         frag['smac'] += 1
-        frag['payload'][3]['datagram_tag'] += 1
+        frag['payload']['datagram_tag'] += 1
         assert hop1.app.frag_ff_forward_fragment(frag) is False
 
     def test_vrb_table_size_limit_2(self, sim):
@@ -576,16 +571,16 @@ class TestPacketFowarding:
         hop1 = sim.motes[1]
         frag = {
             'dstIp': root,
-            'payload': [1, 0, 1, {}],
+            'payload': {'asn_at_source': 0, 'hops': 1},
         }
-        frag['payload'][3]['datagram_size'] = params['frag_numFragments']
-        frag['payload'][3]['datagram_offset'] = 0
+        frag['payload']['datagram_size'] = params['frag_numFragments']
+        frag['payload']['datagram_offset'] = 0
         for i in range(0, params['frag_ff_vrbtablesize']):
             frag['smac'] = i
-            frag['payload'][3]['datagram_tag'] = i
+            frag['payload']['datagram_tag'] = i
             assert hop1.app.frag_ff_forward_fragment(frag) is True
         frag['smac'] += 1
-        frag['payload'][3]['datagram_tag'] += 1
+        frag['payload']['datagram_tag'] += 1
         assert hop1.app.frag_ff_forward_fragment(frag) is False
 
 class TestDatagramTag:
@@ -600,7 +595,7 @@ class TestDatagramTag:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
@@ -614,15 +609,15 @@ class TestDatagramTag:
         node.app.fragment_and_enqueue_packet(packet)
         node.app.fragment_and_enqueue_packet(packet)
 
-        tag0 = node.txQueue[0]['payload'][3]['datagram_tag']
-        tag1 = node.txQueue[2]['payload'][3]['datagram_tag']
+        tag0 = node.txQueue[0]['payload']['datagram_tag']
+        tag1 = node.txQueue[2]['payload']['datagram_tag']
 
         node.app.next_datagram_tag = 65535
         node.app.fragment_and_enqueue_packet(packet)
         node.app.fragment_and_enqueue_packet(packet)
 
-        tag2 = node.txQueue[4]['payload'][3]['datagram_tag']
-        tag3 = node.txQueue[6]['payload'][3]['datagram_tag']
+        tag2 = node.txQueue[4]['payload']['datagram_tag']
+        tag3 = node.txQueue[6]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -646,7 +641,7 @@ class TestDatagramTag:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
             'dstIp': root,
@@ -678,10 +673,10 @@ class TestDatagramTag:
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag3_0['payload'])
 
-        tag0 = hop1.txQueue[0]['payload'][3]['datagram_tag']
-        tag1 = hop1.txQueue[1]['payload'][3]['datagram_tag']
-        tag2 = hop1.txQueue[2]['payload'][3]['datagram_tag']
-        tag3 = hop1.txQueue[3]['payload'][3]['datagram_tag']
+        tag0 = hop1.txQueue[0]['payload']['datagram_tag']
+        tag1 = hop1.txQueue[1]['payload']['datagram_tag']
+        tag2 = hop1.txQueue[2]['payload']['datagram_tag']
+        tag3 = hop1.txQueue[3]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -705,7 +700,7 @@ class TestDatagramTag:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop1,
             'dstIp': root,
@@ -715,7 +710,7 @@ class TestDatagramTag:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
             'dstIp': root,
@@ -729,15 +724,15 @@ class TestDatagramTag:
         tag_init = hop1.app.next_datagram_tag
 
         hop1.app.fragment_and_enqueue_packet(packet1)
-        tag0 = hop1.txQueue[0]['payload'][3]['datagram_tag']
+        tag0 = hop1.txQueue[0]['payload']['datagram_tag']
 
         hop1.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
-        tag1 = hop1.txQueue[2]['payload'][3]['datagram_tag']
+        tag1 = hop1.txQueue[2]['payload']['datagram_tag']
 
         hop1.app.fragment_and_enqueue_packet(packet1)
-        tag2 = hop1.txQueue[3]['payload'][3]['datagram_tag']
+        tag2 = hop1.txQueue[3]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -757,7 +752,7 @@ class TestOptimization:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
@@ -794,7 +789,7 @@ class TestOptimization:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
@@ -826,7 +821,7 @@ class TestOptimization:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
@@ -860,7 +855,7 @@ class TestOptimization:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
@@ -871,7 +866,7 @@ class TestOptimization:
             'asn': 0,
             'type': d.APP_TYPE_DATA,
             'code': None,
-            'payload': [1, 0, 1],
+            'payload': {'asn_at_source': 0, 'hops': 1},
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
