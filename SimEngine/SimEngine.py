@@ -24,9 +24,8 @@ import threading
 
 from Propagation import Propagation
 import Topology
-from Mote import Mote
+import Mote
 import SimSettings
-import sf
 
 #============================ defines =========================================
 
@@ -73,13 +72,13 @@ class SimEngine(threading.Thread):
         self.settings                       = SimSettings.SimSettings()
         self.propagation                    = Propagation()
         
-        self.motes                          = [Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
+        self.motes                          = [Mote.Mote.Mote(id) for id in range(self.settings.exec_numMotes)]
         
         self.topology                       = Topology.Topology(self.motes)
         self.topology.createTopology()
 
         # init schedule
-        sf.init(self.topology, self.settings.sf_type)
+        Mote.sf.init(self.topology, self.settings.sf_type)
 
         # boot all motes
         for i in range(len(self.motes)):

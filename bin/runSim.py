@@ -39,9 +39,7 @@ import argparse
 from SimEngine import SimConfig,   \
                       SimEngine,   \
                       SimSettings, \
-                      SimStats,    \
-                      Topology,    \
-                      sf
+                      SimStats
 
 #============================ helpers =========================================
 

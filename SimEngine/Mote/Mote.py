@@ -19,6 +19,7 @@ import threading
 import math
 
 import SimEngine
+import sf
 
 # =========================== logging =========================================
 
@@ -175,7 +176,7 @@ class Mote(object):
         self.packetHops                = []
         self.dagRoot                   = False
         # sf
-        self.sf                        = SimEngine.sf.SchedulingFunction.get_sf(self.settings.sf_type)
+        self.sf                        = sf.SchedulingFunction.get_sf(self.settings.sf_type)
         # 6top protocol
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id
