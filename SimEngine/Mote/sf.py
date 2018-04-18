@@ -9,7 +9,6 @@ import math
 import random
 from abc import abstractmethod
 
-import SimSettings
 import SimEngine
 import Mote
 
@@ -56,8 +55,8 @@ def init(topology, scheduling_function):
 def _alloc_cell(transmitter, receiver, slot_offset, channel_offset):
     """
     Allocate cells between two motes
-    :param Mote.Mote transmitter:
-    :param Mote.Mote receiver:
+    :param Mote transmitter:
+    :param Mote receiver:
     :param int slot_offset:
     :param int channel_offset:
     :return: None
@@ -158,8 +157,8 @@ class SchedulingFunction(object):
 
     def __init__(self):
 
-        self.settings = SimSettings.SimSettings()
-        self.engine = SimEngine.SimEngine()
+        self.settings = SimEngine.SimSettings.SimSettings()
+        self.engine = SimEngine.SimEngine.SimEngine()
 
     @classmethod
     def get_sf(cls, scheduling_function):
@@ -173,15 +172,15 @@ class SchedulingFunction(object):
     @abstractmethod
     def schedule_parent_change(self, mote):
         """ Schedule parent change
-        :param Mote.Mote mote:
+        :param Mote mote:
         """
         raise NotImplementedError
 
     @abstractmethod
     def signal_cell_elapsed(self, mote, neighbor, direction):
         """
-        :param Mote.Mote mote:
-        :param Mote.Mote neighbor:
+        :param Mote mote:
+        :param Mote neighbor:
         :param direction:
         :return:
         """
@@ -190,8 +189,8 @@ class SchedulingFunction(object):
     @abstractmethod
     def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
         """
-        :param Mote.Mote mote:
-        :param Mote.Mote neighbor:
+        :param Mote mote:
+        :param Mote neighbor:
         :param cellOptions:
         :param direction:
         :param celltype:

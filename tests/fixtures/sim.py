@@ -6,7 +6,8 @@
 
 import pytest
 
-from SimEngine import SimSettings, SimEngine, Topology, sf
+from SimEngine import SimSettings, \
+                      SimEngine
 
 @pytest.fixture(scope="function")
 def sim(request):

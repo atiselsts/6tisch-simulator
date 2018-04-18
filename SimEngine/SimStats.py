@@ -22,7 +22,7 @@ log.addHandler(NullHandler())
 
 import SimEngine
 import SimSettings
-import Mote
+from Mote import Mote
 
 #============================ defines =========================================
 

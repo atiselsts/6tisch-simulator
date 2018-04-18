@@ -6,7 +6,7 @@
 
 import types
 
-import SimEngine.Mote as Mote
+import SimEngine.Mote.Mote as Mote
 from   SimEngine import SimSettings
 
 def test_app_schedule_transmit(sim):
