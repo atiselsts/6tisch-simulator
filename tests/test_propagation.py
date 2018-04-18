@@ -15,6 +15,7 @@ def test_propagation_from_trace_get_pdr(sim):
     source         = Mote.Mote(1)
     destination    = Mote.Mote(2)
     channel        = 11
+    
     propagation = Propagation.PropagationTrace(trace='traces/grenoble.k7.gz')
     
     propagation.get_pdr(source, destination, asn=asn, channel=channel)
