@@ -316,7 +316,7 @@ class App(object):
         if self.settings.app_e2eAck:
             
             destination = srcIp
-            sourceRoute = self._rpl_getSourceRoute([destination.id])
+            sourceRoute = self.mote._rpl_getSourceRoute([destination.id])
 
             if sourceRoute:
                 
