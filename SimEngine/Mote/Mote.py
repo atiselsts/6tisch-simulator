@@ -150,12 +150,8 @@ class Mote(object):
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
         self.propagation               = SimEngine.Propagation.Propagation()
-
-        # secjoin
-        self.isJoined                  = False
-        self.joinRetransmissionPayload = 0
-        self.joinAsn                   = 0       # ASN at the time node successfully joined
-        self.firstBeaconAsn            = 0
+        
+        # stack
         # app
         self.pkPeriod                  = self.settings.app_pkPeriod
         self.reassQueue                = {}
@@ -175,8 +171,10 @@ class Mote(object):
         self.packetLatencies           = []      # in slots
         self.packetHops                = []
         self.dagRoot                   = False
+        # frag
         # sf
         self.sf                        = sf.SchedulingFunction.get_sf(self.settings.sf_type)
+        # 6P
         # 6top protocol
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id
@@ -187,6 +185,11 @@ class Mote(object):
         self.sixtopStates              = {}
         self.tsSixTopReqRecv           = {}      # for every neighbor, it tracks the 6top transaction latency
         self.avgsixtopLatency          = []      # it tracks the average 6P transaction latency in a given frame
+        # secjoin
+        self.isJoined                  = False
+        self.joinRetransmissionPayload = 0
+        self.joinAsn                   = 0       # ASN at the time node successfully joined
+        self.firstBeaconAsn            = 0
         # tsch
         self.schedule                  = {}      # indexed by ts, contains cell
         self.numCellsElapsed           = 0
@@ -214,6 +217,7 @@ class Mote(object):
         # location
         # battery
         self.chargeConsumed            = 0
+        
         # stats
         self._stats_resetMoteStats()
         self._stats_resetQueueStats()
