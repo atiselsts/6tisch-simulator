@@ -18,7 +18,7 @@ from k7 import k7
 
 import SimSettings
 import Propagation
-import Mote
+from Mote import Mote
 import sf
 
 class NullHandler(logging.Handler):

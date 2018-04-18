@@ -1,4 +1,4 @@
-import SimEngine.Mote as Mote
+import SimEngine.Mote.Mote as Mote
 
 def test_linear_symmetric_schedule_1(sim):
 

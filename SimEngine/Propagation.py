@@ -20,7 +20,7 @@ from k7 import k7
 import Topology
 import SimSettings
 import SimEngine
-import Mote
+from Mote import Mote
 
 #============================ logging =========================================
 

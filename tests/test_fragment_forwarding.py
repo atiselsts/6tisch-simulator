@@ -9,8 +9,7 @@ import types
 
 import pytest
 
-import SimEngine.Mote as Mote
-
+import SimEngine.Mote.Mote as Mote
 
 class TestNumFragmentsVsTxQueue:
     @pytest.mark.parametrize('test_input, expected', [

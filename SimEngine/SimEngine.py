@@ -24,7 +24,7 @@ import threading
 
 from Propagation import Propagation
 import Topology
-import Mote
+from Mote import Mote
 import SimSettings
 import sf
 

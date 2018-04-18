@@ -6,7 +6,7 @@
 
 
 import SimEngine.Topology as Topology
-import SimEngine.Mote as Mote
+import SimEngine.Mote.Mote as Mote
 
 def test_create_random_topology_1(sim):
     sim()

@@ -19,10 +19,6 @@ import threading
 import math
 
 import SimEngine
-import SimSettings
-import Propagation
-import Topology
-from sf import SchedulingFunction as Sf
 
 # =========================== logging =========================================
 
@@ -150,9 +146,9 @@ class Mote(object):
         self.dataLock                  = threading.RLock()
         
         # singletons (to access quicker than recreate every time)
-        self.engine                    = SimEngine.SimEngine()
-        self.settings                  = SimSettings.SimSettings()
-        self.propagation               = Propagation.Propagation()
+        self.engine                    = SimEngine.SimEngine.SimEngine()
+        self.settings                  = SimEngine.SimSettings.SimSettings()
+        self.propagation               = SimEngine.Propagation.Propagation()
 
         # secjoin
         self.isJoined                  = False
@@ -179,7 +175,7 @@ class Mote(object):
         self.packetHops                = []
         self.dagRoot                   = False
         # sf
-        self.sf                        = Sf.get_sf(self.settings.sf_type)
+        self.sf                        = SimEngine.sf.SchedulingFunction.get_sf(self.settings.sf_type)
         # 6top protocol
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id

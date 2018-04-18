@@ -1,6 +1,7 @@
 import pytest
 
-from SimEngine import Propagation, Mote
+from SimEngine import Propagation
+from SimEngine.Mote import Mote
 
 def test_propagation_from_trace_get_pdr(sim):
     sim(**{'prop_trace': 'traces/grenoble.k7.gz',
