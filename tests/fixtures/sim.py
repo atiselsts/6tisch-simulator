@@ -60,12 +60,8 @@ def sim(request):
         engine   = SimEngine.SimEngine(1)
 
         def fin():
-            # We check the _init value to make sure the singletons were not already
-            # deleted in the test
-            if engine._init is True:
-                engine.destroy()
-            if settings._init is True:
-                settings.destroy()
+            engine.destroy()
+            settings.destroy()
 
         request.addfinalizer(fin)
 
