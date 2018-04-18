@@ -6,6 +6,7 @@
 
 import pytest
 
+import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.Mote as Mote
 
 class TestNumFragmentsVsTxQueue:
@@ -40,10 +41,10 @@ class TestFragmentation:
         node = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
             'sourceRoute': []
@@ -56,7 +57,7 @@ class TestFragmentation:
         frag1 = node.txQueue[1]
 
         assert frag0['asn'] == packet['asn']
-        assert frag0['type'] == Mote.APP_TYPE_FRAG
+        assert frag0['type'] == d.APP_TYPE_FRAG
         assert frag0['code'] == packet['code']
         assert len(frag0['payload']) == 4
         assert frag0['payload'][0] == packet['payload'][0]
@@ -71,7 +72,7 @@ class TestFragmentation:
         assert frag0['sourceRoute'] == packet['sourceRoute']
 
         assert frag1['asn'] == packet['asn']
-        assert frag1['type'] == Mote.APP_TYPE_FRAG
+        assert frag1['type'] == d.APP_TYPE_FRAG
         assert frag1['code'] == packet['code']
         assert len(frag0['payload']) == 4
         assert frag1['payload'][0] == packet['payload'][0]
@@ -95,10 +96,10 @@ class TestFragmentation:
         node = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
             'sourceRoute': []
@@ -112,7 +113,7 @@ class TestFragmentation:
         frag2 = node.txQueue[2]
 
         assert frag0['asn'] == packet['asn']
-        assert frag0['type'] == Mote.APP_TYPE_FRAG
+        assert frag0['type'] == d.APP_TYPE_FRAG
         assert frag0['code'] == packet['code']
         assert len(frag0['payload']) == 4
         assert frag0['payload'][0] == packet['payload'][0]
@@ -127,7 +128,7 @@ class TestFragmentation:
         assert frag0['sourceRoute'] == packet['sourceRoute']
 
         assert frag1['asn'] == packet['asn']
-        assert frag1['type'] == Mote.APP_TYPE_FRAG
+        assert frag1['type'] == d.APP_TYPE_FRAG
         assert frag1['code'] == packet['code']
         assert len(frag0['payload']) == 4
         assert frag1['payload'][0] == packet['payload'][0]
@@ -142,7 +143,7 @@ class TestFragmentation:
         assert frag1['sourceRoute'] == packet['sourceRoute']
 
         assert frag2['asn'] == packet['asn']
-        assert frag2['type'] == Mote.APP_TYPE_FRAG
+        assert frag2['type'] == d.APP_TYPE_FRAG
         assert frag2['code'] == packet['code']
         assert len(frag0['payload']) == 4
         assert frag2['payload'][0] == packet['payload'][0]
@@ -166,10 +167,10 @@ class TestReassembly:
         node = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
             'sourceRoute': []
@@ -208,10 +209,10 @@ class TestReassembly:
         node = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
             'sourceRoute': []
@@ -250,10 +251,10 @@ class TestReassembly:
         leaf = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
             'dstIp': root,
             'sourceRoute': []
@@ -277,10 +278,10 @@ class TestReassembly:
         leaf2 = sim.motes[3]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
             'dstIp': root,
             'smac': leaf1,
@@ -313,10 +314,10 @@ class TestReassembly:
         leaf2 = sim.motes[3]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
             'dstIp': root,
             'smac': leaf1,
@@ -353,10 +354,10 @@ class TestReassembly:
         leaf2 = sim.motes[3]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
             'dstIp': root,
             'smac': leaf1,
@@ -391,10 +392,10 @@ class TestReassembly:
         leaf2 = sim.motes[2]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
             'dstIp': root,
             'smac': leaf1,
@@ -432,10 +433,10 @@ class TestPacketFowarding:
         hop2 = sim.motes[2]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
             'dstIp': root,
             'sourceRoute': []
@@ -447,14 +448,14 @@ class TestPacketFowarding:
         assert len(hop1.txQueue) == 0
         assert len(hop1.reassQueue) == 0
 
-        hop1.waitingFor = Mote.DIR_RX
-        assert hop1.radio_rxDone(Mote.APP_TYPE_FRAG, None,
+        hop1.waitingFor = d.DIR_RX
+        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
         assert len(hop1.txQueue) == 0
         assert len(hop1.reassQueue) == 1
 
-        hop1.waitingFor = Mote.DIR_RX
-        assert hop1.radio_rxDone(Mote.APP_TYPE_FRAG, None,
+        hop1.waitingFor = d.DIR_RX
+        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
         assert len(hop1.txQueue) == 2
         assert len(hop1.reassQueue) == 0
@@ -549,10 +550,10 @@ class TestDatagramTag:
         node = sim.motes[1]
         packet = {
             'asn': 0,
-            'type': Mote.APP_TYPE_DATA,
+            'type': d.APP_TYPE_DATA,
             'code': None,
             'payload': [1, 0, 1],
-            'retriesLeft': Mote.TSCH_MAXTXRETRIES,
+            'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
             'dstIp': root,
             'sourceRoute': []

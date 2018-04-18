@@ -23,6 +23,7 @@ log.addHandler(NullHandler())
 import SimEngine
 import SimSettings
 from Mote import Mote
+import Mote.MoteDefines as d
 
 #============================ defines =========================================
 
@@ -169,7 +170,7 @@ class SimStats(object):
         for mote in self.engine.motes:
             for (ts,cell) in mote.schedule.items():
                 (ts,ch) = (ts,cell['ch'])
-                if cell['dir']==Mote.DIR_TX:
+                if cell['dir']==d.DIR_TX:
                     if (ts,ch) in txCells:
                         scheduleCollisions += 1
                     else:
@@ -179,7 +180,7 @@ class SimStats(object):
         txLinks = {}
         for mote in self.engine.motes:
             for (ts,cell) in mote.schedule.items():
-                if cell['dir']==Mote.DIR_TX:
+                if cell['dir']==d.DIR_TX:
                     (ts,ch) = (ts,cell['ch'])
                     (tx,rx) = (mote,cell['neighbor'])
                     if (ts,ch) in txLinks:

@@ -19,6 +19,7 @@ from k7 import k7
 import SimSettings
 import Propagation
 import Mote
+import Mote.MoteDefines as d
 
 class NullHandler(logging.Handler):
     def emit(self, record):
@@ -347,7 +348,7 @@ class LinearTopology(TopologyCreator):
             if mote.id == 0:
                 mote.role_setDagRoot()
                 root = mote
-                mote.rank = Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
             else:
                 # mote with smaller ID becomes its preferred parent
                 for neighbor in mote.PDR:
@@ -356,10 +357,10 @@ class LinearTopology(TopologyCreator):
                         mote.preferredParent = neighbor
                 root.parents.update({tuple([mote.id]):
                                      [[mote.preferredParent.id]]})
-                mote.rank = (7 * Mote.Mote.RPL_MIN_HOP_RANK_INCREASE +
+                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
                              mote.preferredParent.rank)
 
-            mote.dagRank = mote.rank / Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
 
 class TwoBranchTopology(TopologyCreator):
 
@@ -468,11 +469,11 @@ class TwoBranchTopology(TopologyCreator):
                                      [[mote.preferredParent.id]]})
 
             if mote.id == 0:
-                mote.rank = Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
             else:
-                mote.rank = (7 * Mote.Mote.RPL_MIN_HOP_RANK_INCREASE +
+                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
                              mote.preferredParent.rank)
-            mote.dagRank = mote.rank / Mote.Mote.RPL_MIN_HOP_RANK_INCREASE
+            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
 
     def _install_symmetric_schedule(self):
         # allocate TX cells for each node to its parent, which has the same
