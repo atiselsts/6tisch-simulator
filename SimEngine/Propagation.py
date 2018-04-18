@@ -83,9 +83,10 @@ class PropagationCreator(object):
     def __init__(self):
         #===== start singleton
         # don't re-initialize an instance (needed because singleton)
-        if self._init:
+        cls = type(self)
+        if cls._init:
             return
-        self._init = True
+        cls._init = True
         #===== end singleton
 
         # store params
@@ -105,9 +106,9 @@ class PropagationCreator(object):
         self._schedule_propagate()
 
     def destroy(self):
-        self._instance                 = None
-        self._init                     = False
-        del self.__dict__
+        cls = type(self)
+        cls._instance                 = None
+        cls._init                     = False
 
     #======================== public ==========================================
 

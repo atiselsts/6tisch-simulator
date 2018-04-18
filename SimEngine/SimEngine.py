@@ -45,13 +45,14 @@ class SimEngine(threading.Thread):
 
     def __init__(self, cpuID=None, runNum=None, failIfNotInit=False):
 
-        if failIfNotInit and not self._init:
+        if failIfNotInit and not cls._init:
             raise EnvironmentError('SimEngine singleton not initialized.')
 
         #===== start singleton
-        if self._init:
+        cls = type(self)
+        if cls._init:
             return
-        self._init = True
+        cls._init = True
         #===== end singleton
 
         # store params
@@ -93,9 +94,9 @@ class SimEngine(threading.Thread):
         self.propagation.destroy()
 
         # destroy my own instance
-        self._instance                      = None
-        self._init                          = False
-        del self.__dict__
+        cls = type(self)
+        cls._instance                      = None
+        cls._init                          = False
 
     #======================== thread ==========================================
 

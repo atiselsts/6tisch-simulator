@@ -44,9 +44,10 @@ class SimSettings(object):
             raise EnvironmentError('SimSettings singleton not initialized.')
 
         #===== start singleton
-        if self._init:
+        cls = type(self)
+        if cls._init:
             return
-        self._init = True
+        cls._init = True
         #===== end singleton
 
         # store params
@@ -80,6 +81,6 @@ class SimSettings(object):
         return datafilename
 
     def destroy(self):
-        self._instance       = None
-        self._init           = False
-        del self.__dict__
+        cls = type(self)
+        cls._instance       = None
+        cls._init           = False
