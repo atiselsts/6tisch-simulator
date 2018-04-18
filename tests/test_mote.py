@@ -7,6 +7,7 @@
 import types
 
 import SimEngine.Mote.Mote as Mote
+import SimEngine.Mote.MoteDefines as d
 from   SimEngine import SimSettings
 
 def test_app_schedule_transmit(sim):
@@ -48,7 +49,7 @@ def test_drop_join_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_JOIN}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_JOIN}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -68,7 +69,7 @@ def test_drop_join_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node._secjoin_sendJoinPacket('token', root)
+    node.secjoin._sendJoinPacket('token', root)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
@@ -86,7 +87,7 @@ def test_drop_data_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -125,7 +126,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -162,7 +163,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': node, 'type': Mote.APP_TYPE_DATA, 'sourceRoute': []}
+    packet = {'dstIp': node, 'type': d.APP_TYPE_DATA, 'sourceRoute': []}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -198,7 +199,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -236,7 +237,7 @@ def test_drop_dio_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -274,7 +275,7 @@ def test_drop_dao_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.RPL_TYPE_DAO}
+    packet = {'dstIp': root, 'type': d.RPL_TYPE_DAO}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -312,7 +313,7 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.IANA_6TOP_TYPE_REQUEST}
+    packet = {'dstIp': root, 'type': d.IANA_6TOP_TYPE_REQUEST}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -332,13 +333,13 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node._sixtop_enqueue_ADD_REQUEST(root, [], 1, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_ADD_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
     test_is_called = {'result': False}
     assert test_is_called['result'] is False
-    node._sixtop_enqueue_DELETE_REQUEST(root, [], 1, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_DELETE_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert test_is_called['result'] is True
 
 
@@ -355,7 +356,7 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': Mote.IANA_6TOP_TYPE_RESPONSE}
+    packet = {'dstIp': root, 'type': d.IANA_6TOP_TYPE_RESPONSE}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -375,7 +376,7 @@ def test_drop_sixtop_respnose_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert node.motestats['droppedFailedEnqueue'] == 0
-    node._sixtop_enqueue_RESPONSE(root, [], Mote.IANA_6TOP_RC_SUCCESS, Mote.DIR_TX, 1)
+    node._sixtop_enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert node.motestats['droppedFailedEnqueue'] == 1
 
@@ -395,7 +396,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
     node = sim.motes[1]
     leaf = sim.motes[2]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -416,8 +417,8 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
     node._radio_drop_packet = types.MethodType(test, node)
     payload = [2, 0, 1]
     payload.append({'datagram_tag': 1, 'datagram_size': 2, 'datagram_offset': 0})
-    node.waitingFor = Mote.DIR_RX
-    node.radio_rxDone(type=Mote.APP_TYPE_FRAG, smac=leaf,
+    node.waitingFor = d.DIR_RX
+    node.radio_rxDone(type=d.APP_TYPE_FRAG, smac=leaf,
                       dmac=[node], srcIp=leaf, dstIp=root, payload=payload)
     assert test_is_called['result'] is True
 
@@ -508,7 +509,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
     node = sim.motes[1]
     leaf = sim.motes[2]
 
-    packet = {'dstIp': root, 'type': Mote.APP_TYPE_DATA}
+    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
@@ -528,8 +529,8 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     payload = [2, 0, 1]
-    node.waitingFor = Mote.DIR_RX
-    node.radio_rxDone(type=Mote.APP_TYPE_DATA, smac=leaf,
+    node.waitingFor = d.DIR_RX
+    node.radio_rxDone(type=d.APP_TYPE_DATA, smac=leaf,
                       dmac=[node], srcIp=leaf, dstIp=root, payload=payload)
     assert test_is_called['result'] is True
 
