@@ -469,13 +469,16 @@ class TestPacketFowarding:
 
         asn0 = sim.asn
         assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
-        # two fragments should reach to the root within two timeslots.
-        while len(sim.events) > 0 and asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration)):
+        # two fragments should reach to the root within two slotframes
+        while len(sim.events) > 0:
             (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
             cb(**kwargs)
             if(len(hop1.txQueue) == 2):
+                break
+            if asn > (asn0 + (2 * sim.settings.tsch_slotframeLength)):
+                # timeout
                 break
 
         # now hop1 has two fragments
