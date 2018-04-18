@@ -348,19 +348,21 @@ class LinearTopology(TopologyCreator):
             if mote.id == 0:
                 mote.role_setDagRoot()
                 root = mote
-                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
+                mote.rpl.setRank(d.RPL_MIN_HOP_RANK_INCREASE)
             else:
                 # mote with smaller ID becomes its preferred parent
                 for neighbor in mote.PDR:
-                    if ((not mote.preferredParent) or
-                       (neighbor.id < mote.preferredParent.id)):
-                        mote.preferredParent = neighbor
-                root.parents.update({tuple([mote.id]):
-                                     [[mote.preferredParent.id]]})
-                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
-                             mote.preferredParent.rank)
+                    if ((not mote.rpl.getPreferredParent()) or
+                       (neighbor.id < mote.rpl.getPreferredParent().id)):
+                        mote.rpl.setPreferredParent(neighbor)
+                root.rpl.updateDaoParents({tuple([mote.id]):
+                                     [[mote.rpl.getPreferredParent().id]]})
+                mote.rpl.setRank(
+                    7 * d.RPL_MIN_HOP_RANK_INCREASE +
+                    mote.rpl.getPreferredParent().rpl.getRank()
+                )
 
-            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
+            mote.rpl.setDagRank( mote.rpl.getRank() / d.RPL_MIN_HOP_RANK_INCREASE )
 
 class TwoBranchTopology(TopologyCreator):
 
@@ -462,18 +464,20 @@ class TwoBranchTopology(TopologyCreator):
             else:
                 # mote with smaller ID becomes its preferred parent
                 for neighbor in mote.PDR:
-                    if (not mote.preferredParent or
-                       neighbor.id < mote.preferredParent.id):
-                        mote.preferredParent = neighbor
-                root.parents.update({tuple([mote.id]):
-                                     [[mote.preferredParent.id]]})
+                    if (not mote.rpl.getPreferredParent() or
+                       neighbor.id < mote.rpl.getPreferredParent().id):
+                        mote.rpl.setPreferredParent(neighbor)
+                root.rpl.updateDaoParents({tuple([mote.id]):
+                                     [[mote.rpl.getPreferredParent().id]]})
 
             if mote.id == 0:
-                mote.rank = d.RPL_MIN_HOP_RANK_INCREASE
+                mote.rpl.setRank(d.RPL_MIN_HOP_RANK_INCREASE)
             else:
-                mote.rank = (7 * d.RPL_MIN_HOP_RANK_INCREASE +
-                             mote.preferredParent.rank)
-            mote.dagRank = mote.rank / d.RPL_MIN_HOP_RANK_INCREASE
+                mote.rpl.setRank(
+                    7 * d.RPL_MIN_HOP_RANK_INCREASE +
+                    mote.rpl.getPreferredParent().rpl.getRank()
+                )
+            mote.rpl.setDagRank( mote.rpl.getRank() / d.RPL_MIN_HOP_RANK_INCREASE )
 
     def _install_symmetric_schedule(self):
         # allocate TX cells for each node to its parent, which has the same
@@ -481,7 +485,7 @@ class TwoBranchTopology(TopologyCreator):
         tx_alloc_factor = 1
 
         for mote in self.motes:
-            if mote.preferredParent:
+            if mote.rpl.getPreferredParent():
                 if mote.id == 1:
                     slot_offset = len(self.motes) - 1
                 elif mote.id < self.switch_to_right_branch:
@@ -496,7 +500,7 @@ class TwoBranchTopology(TopologyCreator):
                                    mote.id) * 2
 
                 Mote.sf.alloc_cell(mote,
-                              mote.preferredParent,
+                              mote.rpl.getPreferredParent(),
                               int(slot_offset),
                               0)
 
@@ -505,7 +509,7 @@ class TwoBranchTopology(TopologyCreator):
 
         for mote in self.motes[::-1]: # loop in the reverse order
             child = mote
-            while child and child.preferredParent:
+            while child and child.rpl.getPreferredParent():
                 if self.settings.top_schedulingMode == 'random-pick':
                     if 'alloc_table' not in locals():
                         alloc_table = set()
@@ -530,10 +534,10 @@ class TwoBranchTopology(TopologyCreator):
                         raise ValueError('slotframe is too small')
 
                 Mote.sf.alloc_cell(child,
-                              child.preferredParent,
+                              child.rpl.getPreferredParent(),
                               alloc_pointer,
                               0)
-                child = child.preferredParent
+                child = child.rpl.getPreferredParent()
 
 class TraceTopology(TopologyCreator):
 

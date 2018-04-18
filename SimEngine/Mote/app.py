@@ -315,7 +315,7 @@ class App(object):
         if self.settings.app_e2eAck:
 
             destination = srcIp
-            sourceRoute = self.mote._rpl_getSourceRoute([destination.id])
+            sourceRoute = self.mote.rpl.getSourceRoute([destination.id])
 
             if sourceRoute:
 
@@ -343,7 +343,7 @@ class App(object):
         assert not self.mote.dagRoot
 
         # only send data if I have a preferred parent and dedicated cells to that parent
-        if self.mote.preferredParent and self.mote.numCellsToNeighbors.get(self.mote.preferredParent,0)>0:
+        if self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0:
 
             # create new data packet
             newPacket = {

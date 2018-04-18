@@ -261,7 +261,7 @@ def test_drop_dio_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._rpl_action_enqueueDIO()
+    node.rpl._action_enqueueDIO()
     assert test_is_called['result'] is True
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
@@ -299,7 +299,7 @@ def test_drop_dao_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._rpl_action_enqueueDAO()
+    node.rpl._action_enqueueDAO()
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 

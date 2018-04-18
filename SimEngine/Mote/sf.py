@@ -87,24 +87,24 @@ def _ssf_linear_cascading_schedule(topology):
 
     for mote in topology.motes[::-1]:  # loop in the reverse order
         child = mote
-        while child and child.preferredParent:
-            _alloc_cell(child, child.preferredParent, alloc_pointer, 0)
+        while child and child.rpl.getPreferredParent():
+            _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
             alloc_pointer += 1
-            child = child.preferredParent
+            child = child.rpl.getPreferredParent()
 
 def _ssf_linear_symmetric_schedule(topology):
     # find the edge node in the given linear topology
     depth = len(topology.motes)
     for mote in topology.motes:
-        if mote.preferredParent:
-            _alloc_cell(mote, mote.preferredParent, depth - mote.id, 0)
+        if mote.rpl.getPreferredParent():
+            _alloc_cell(mote, mote.rpl.getPreferredParent(), depth - mote.id, 0)
 
 def _ssf_twobranch_symmetric_schedule(topology):
     # allocate TX cells for each node to its parent, which has the same
     # channel offset, 0.
 
     for mote in topology.motes:
-        if mote.preferredParent:
+        if mote.rpl.getPreferredParent():
             if mote.id == 1:
                 slot_offset = len(topology.motes) - 1
             elif mote.id < topology.switch_to_right_branch:
@@ -118,7 +118,7 @@ def _ssf_twobranch_symmetric_schedule(topology):
                                topology.switch_to_right_branch - 1 -
                                mote.id) * 2
 
-            _alloc_cell(mote, mote.preferredParent, int(slot_offset), 0)
+            _alloc_cell(mote, mote.rpl.getPreferredParent(), int(slot_offset), 0)
 
 def _ssf_twobranch_cascading_schedule(self):
     # allocate TX cells and RX cells in a cascading bandwidth manner.
@@ -126,7 +126,7 @@ def _ssf_twobranch_cascading_schedule(self):
     alloc_pointer = 0
     for mote in self.motes[::-1]:  # loop in the reverse order
         child = mote
-        while child and child.preferredParent:
+        while child and child.rpl.getPreferredParent():
             if self.settings.sf_ssf_initMethod == 'random-pick':
                 if 'alloc_table' not in locals():
                     alloc_table = set()
@@ -146,8 +146,8 @@ def _ssf_twobranch_cascading_schedule(self):
                 if alloc_pointer > self.settings.tsch_slotframeLength:
                     raise ValueError('slotframe is too small')
 
-            _alloc_cell(child, child.preferredParent, alloc_pointer, 0)
-            child = child.preferredParent
+            _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
+            child = child.rpl.getPreferredParent()
 
 # =========================== body ============================================
 
@@ -234,42 +234,44 @@ class MSF(SchedulingFunction):
           In the case of bootstrap, add one cell to the preferred parent.
         """
 
-        assert mote.preferredParent
+        assert mote.rpl.getPreferredParent()
 
         armTimeout = False
 
         celloptions = d.DIR_TXRX_SHARED
 
-        if mote.numCellsToNeighbors.get(mote.preferredParent, 0) == 0:
+        if mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) == 0:
 
-            timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
+            timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                         self.settings.sf_msf_numCellsToAddRemove, celloptions,
-                        mote.preferredParent.id, timeout))
+                        mote.rpl.getPreferredParent().id, timeout))
 
             mote.sixtop_ADD_REQUEST(
-                mote.preferredParent,
+                mote.rpl.getPreferredParent(),
                 mote.numCellsToNeighbors.get(
-                    mote.oldPreferredParent,
-                    1),  # request at least one cell
+                    mote.rpl.getOldPreferredParent(),
+                    1, # request at least one cell
+                ),
                 celloptions,
-                timeout)
+                timeout,
+            )
 
             armTimeout = True
 
-        if mote.numCellsToNeighbors.get(mote.oldPreferredParent, 0) > 0 and \
-                mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 0:
+        if mote.numCellsToNeighbors.get(mote.rpl.getOldPreferredParent(), 0) > 0 and \
+                mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) > 0:
 
-            timeout = self.get_sixtop_timeout(mote, mote.oldPreferredParent)
+            timeout = self.get_sixtop_timeout(mote, mote.rpl.getOldPreferredParent())
 
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.oldPreferredParent.id, timeout))
+                        self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.rpl.getOldPreferredParent().id, timeout))
 
             mote.sixtop_DELETE_REQUEST(
-                mote.oldPreferredParent,
+                mote.rpl.getOldPreferredParent(),
                 mote.numCellsToNeighbors.get(
-                    mote.oldPreferredParent,
+                    mote.rpl.getOldPreferredParent(),
                     0),
                 celloptions,
                 timeout)
@@ -285,9 +287,9 @@ class MSF(SchedulingFunction):
                 kwargs      = {'mote': mote}
             )
         else:
-            assert mote.numCellsToNeighbors.get(mote.preferredParent, 0)
+            assert mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0)
             # upon success, invalidate old parent
-            mote.oldPreferredParent = None
+            mote.rpl.setOldPreferredParent(None)
 
     def get_sixtop_timeout(self, mote, neighbor):
         """
@@ -317,9 +319,9 @@ class MSF(SchedulingFunction):
         assert celltype is not None
 
         # MSF: updating numCellsUsed
-        if cellOptions == d.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
+        if cellOptions == d.DIR_TXRX_SHARED and neighbor == mote.rpl.getPreferredParent():
             log.info('[msf] signal_cell_used: neighbor {0} direction {1} type {2} preferredParent = {3}'.format(
-                        neighbor.id, direction, celltype, mote.preferredParent.id))
+                        neighbor.id, direction, celltype, mote.rpl.getPreferredParent().id))
             mote.numCellsUsed += 1
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
@@ -328,7 +330,7 @@ class MSF(SchedulingFunction):
         assert direction in [d.DIR_TXRX_SHARED, d.DIR_TX, d.DIR_RX]
 
         # MSF: updating numCellsElapsed
-        if direction == d.DIR_TXRX_SHARED and neighbor == mote.preferredParent:
+        if direction == d.DIR_TXRX_SHARED and neighbor == mote.rpl.getPreferredParent():
             mote.numCellsElapsed += 1
 
             if mote.numCellsElapsed == self.settings.sf_msf_maxNumCells:
@@ -380,11 +382,11 @@ class MSF(SchedulingFunction):
         """
           Trigger 6P to add self.settings.sf_msf_numCellsToAddRemove cells to preferred parent
         """
-        timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
+        timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
         celloptions = d.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
-        mote.sixtop_ADD_REQUEST(mote.preferredParent,
+                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, rpl.getPreferredParent().id, timeout))
+        mote.sixtop_ADD_REQUEST(mote.rpl.getPreferredParent(),
                                               self.settings.sf_msf_numCellsToAddRemove,
                                               celloptions,
                                               timeout)
@@ -406,15 +408,15 @@ class MSF(SchedulingFunction):
           Trigger 6P to remove self.settings.sf_msf_numCellsToAddRemove cells from preferred parent
         """
         # ensure at least one dedicated cell is kept with preferred parent
-        if mote.numCellsToNeighbors.get(mote.preferredParent, 0) > 1:
-            timeout = self.get_sixtop_timeout(mote, mote.preferredParent)
+        if mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) > 1:
+            timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
             celloptions = d.DIR_TXRX_SHARED
             log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                         self.settings.sf_msf_numCellsToAddRemove,
-                        d.DIR_TXRX_SHARED, mote.preferredParent.id, timeout))
+                        d.DIR_TXRX_SHARED, mote.rpl.getPreferredParent().id, timeout))
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
-            mote.sixtop_DELETE_REQUEST(mote.preferredParent,
+            mote.sixtop_DELETE_REQUEST(mote.rpl.getPreferredParent(),
                                      self.settings.sf_msf_numCellsToAddRemove,
                                      celloptions,
                                      timeout)
