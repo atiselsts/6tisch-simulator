@@ -13,11 +13,9 @@ def test_create_random_topology_1(sim):
     sim()
     assert isinstance(Topology.Topology([]), Topology.RandomTopology)
 
-
 def test_create_random_topology_2(sim):
     sim(**{'top_type': 'random'})
     assert isinstance(Topology.Topology([]), Topology.RandomTopology)
-
 
 def test_create_linear_topology(sim):
     sim(**{'top_type': 'linear'})
@@ -46,7 +44,6 @@ def test_linear_topology_with_3_motes(sim):
     assert motes[0].id in motes[2].RSSI
     assert motes[1].id in motes[2].RSSI
 
-
 def test_linear_topology_4_motes(sim):
     sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})
     motes = sim.motes
@@ -71,7 +68,6 @@ def test_linear_topology_4_motes(sim):
     assert motes[0].id in motes[3].RSSI
     assert motes[1].id in motes[3].RSSI
     assert motes[2].id in motes[3].RSSI
-
 
 def test_linear_rpl_tree_builder(sim):
     sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})

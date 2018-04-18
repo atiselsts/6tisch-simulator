@@ -3,9 +3,13 @@ import SimEngine.Mote.MoteDefines as d
 
 def test_linear_symmetric_schedule_1(sim):
 
-    sim = sim(**{'exec_numMotes':3,
-                 'sf_type': 'SSF-symmetric',
-                 'top_type': 'linear'})
+    sim = sim(
+        **{
+            'exec_numMotes': 3,
+            'sf_type':       'SSF-symmetric',
+            'top_type':      'linear',
+        }
+    )
     motes = sim.motes
 
     assert motes[0].numCellsToNeighbors == {}
@@ -45,9 +49,13 @@ def test_linear_symmetric_schedule_1(sim):
 
 def test_linear_symmetric_schedule_2(sim):
 
-    sim = sim(**{'exec_numMotes':8,
-                 'sf_type': 'SSF-symmetric',
-                 'top_type': 'linear'})
+    sim = sim(
+        **{
+            'exec_numMotes': 8,
+            'sf_type':       'SSF-symmetric',
+            'top_type':      'linear',
+        }
+    )
     motes = sim.motes
 
     assert motes[7].schedule[1]['ch'] == 0
@@ -102,9 +110,13 @@ def test_linear_symmetric_schedule_2(sim):
 
 
 def test_linear_cascading_schedule_installation(sim):
-    sim = sim(**{'exec_numMotes': 8,
-                 'top_type': 'linear',
-                 'sf_type': 'SSF-cascading'})
+    sim = sim(
+        **{
+            'exec_numMotes': 8,
+            'top_type':      'linear',
+            'sf_type':       'SSF-cascading',
+        }
+    )
     motes = sim.motes
 
     assert motes[7].schedule[1]['ch'] == 0
