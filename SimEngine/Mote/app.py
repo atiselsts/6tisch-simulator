@@ -32,7 +32,7 @@ log.addHandler(NullHandler())
 
 class App(object):
 
-    def __init__(self,mote):
+    def __init__(self, mote):
 
         # store params
         self.mote                           = mote
@@ -51,9 +51,9 @@ class App(object):
     #======================== public ==========================================
 
     def schedule_mote_sendSinglePacketToDAGroot(self, firstPacket=False):
-        '''
+        """
         schedule an event to send a single packet
-        '''
+        """
 
         # disable app pkPeriod is zero
         if self.pkPeriod == 0:
@@ -77,9 +77,9 @@ class App(object):
         )
 
     def schedule_mote_sendPacketBurstToDAGroot(self):
-        '''
+        """
         schedule an event to send a single burst of data (NOT periodic)
-        '''
+        """
 
         # schedule app_burstNumPackets packets at app_burstTimestamp
         for i in xrange(self.settings.app_burstNumPackets):
@@ -91,16 +91,16 @@ class App(object):
             )
 
     def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
-        '''
+        """
         mote receives end-to-end ACK from the DAGroot
-        '''
+        """
 
         assert not self.mote.dagRoot
 
     def fragment_and_enqueue_packet(self, packet):
-        '''
+        """
         fragment packet into fragments, and put in TSCH queue
-        '''
+        """
 
         # choose tag (same for all fragments)
         tag                       = self.next_datagram_tag
@@ -126,11 +126,11 @@ class App(object):
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
 
     def frag_ff_forward_fragment(self, frag):
-        '''
+        """
         handle a fragment, and decide whether should be forwarded.
 
         return True if should be forwarded
-        '''
+        """
 
         assert self.settings.frag_ff_enable
 
@@ -285,9 +285,9 @@ class App(object):
     # app that periodically sends a single packet
 
     def _action_mote_sendSinglePacketToDAGroot(self):
-        '''
+        """
         send a single packet, and reschedule next one
-        '''
+        """
 
         # enqueue data
         self._action_mote_enqueueDataForDAGroot()
@@ -296,9 +296,9 @@ class App(object):
         self.schedule_mote_sendSinglePacketToDAGroot()
 
     def _action_dagroot_receivePacketFromMote(self, srcIp, payload, timestamp):
-        '''
+        """
         dagroot received data packet
-        '''
+        """
 
         assert self.mote.dagRoot
 
@@ -336,9 +336,9 @@ class App(object):
                     self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
 
     def _action_mote_enqueueDataForDAGroot(self):
-        '''
+        """
         enqueue data packet to the DAGroot
-        '''
+        """
 
         assert not self.mote.dagRoot
 
@@ -364,7 +364,7 @@ class App(object):
             self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_GENERATED['type'])
 
             # enqueue packet (or fragments) into TSCH queue
-            if self.settings.frag_numFragments>1:
+            if self.settings.frag_numFragments > 1:
                 # multiple frames (fragmentation)
 
                 self.fragment_and_enqueue_packet(newPacket)

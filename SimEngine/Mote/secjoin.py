@@ -31,7 +31,7 @@ log.addHandler(NullHandler())
 
 class SecJoin(object):
 
-    def __init__(self,mote):
+    def __init__(self, mote):
 
         # store params
         self.mote                           = mote
@@ -48,17 +48,17 @@ class SecJoin(object):
 
     #======================== public ==========================================
 
-    def setIsJoined(self,newState):
-        assert newState in [True,False]
+    def setIsJoined(self, newState):
+        assert newState in [True, False]
         self._isJoined = newState
 
     def isJoined(self):
         return self._isJoined
 
     def scheduleJoinProcess(self):
-        '''
+        """
         Schedule to start the join process sometimes in the future
-        '''
+        """
         self.engine.scheduleIn(
             delay       = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
             cb          = self._initiateJoinProcess,
@@ -67,11 +67,11 @@ class SecJoin(object):
         )
 
     def receiveJoinPacket(self, srcIp, payload, timestamp):
-        '''
+        """
         Receiving a join packet (same function for join request and response).
 
         FIXME: different functions for join request and response.
-        '''
+        """
 
         # remove pending retransmission event
         self.engine.removeEvent(
@@ -107,17 +107,17 @@ class SecJoin(object):
             self.mote._stack_init_synced()
 
     def areAllNeighborsJoined(self):
-        '''
+        """
         Are all my neighbors joined?
-        '''
+        """
         return [nei for nei in self.mote._myNeighbors() if nei.secjoin.isJoined is True]
 
     #======================== private ==========================================
 
     def _initiateJoinProcess(self):
-        '''
+        """
         Start the join process.
-        '''
+        """
         if not self.mote.dagRoot:
             if self.mote.rpl.getPreferredParent():
                 if not self.isJoined:
@@ -129,13 +129,13 @@ class SecJoin(object):
                 self.scheduleJoinProcess()
 
     def _sendJoinPacket(self, token, destination):
-        '''
+        """
         Send join packet (same function for join request and response).
 
         Payload contains number of exchanges.
 
         FIXME: different functions for join request and response.
-        '''
+        """
 
         sourceRoute = []
         if self.mote.dagRoot:
@@ -185,9 +185,9 @@ class SecJoin(object):
                 )
 
     def _setJoined(self):
-        '''
+        """
         Record that I'm now joined.
-        '''
+        """
         assert not self.mote.dagRoot
 
         if not self.isJoined:
@@ -219,9 +219,9 @@ class SecJoin(object):
                 self.engine.terminateSimulation(delay)
 
     def _retransmitJoinPacket(self):
-        '''
+        """
         Send join packet again.
-        '''
+        """
         if not self.mote.dagRoot and not self.isJoined:
             self._sendJoinPacket(
                 self._joinRetransmissionPayload,

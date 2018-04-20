@@ -174,9 +174,9 @@ class Mote(object):
     # ADD
 
     def sixtop_ADD_REQUEST(self, neighbor, numCells, dir, timeout):
-        '''
+        """
         Receives a request to add a cell from the SF.
-        '''
+        """
 
         with self.dataLock:
             if self.settings.sixtop_messaging:
@@ -235,8 +235,7 @@ class Mote(object):
                     # log
                     self.engine.log(SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                                     {"ts": ts, "channel": ch, "direction": dir,
-                                     "mote_id": self.id, "neighbor_id": neighbor.id}
-                    )
+                                     "mote_id": self.id, "neighbor_id": neighbor.id})
                     cellList += [(ts, ch, dir)]
                 self._tsch_addCells(neighbor, cellList)
 
@@ -1146,7 +1145,7 @@ class Mote(object):
 
     def _tsch_schedule_sendEB(self, firstEB=False):
 
-        if self.settings.tsch_ebPeriod_sec==0:
+        if self.settings.tsch_ebPeriod_sec == 0:
             # disable periodic EB transmission
             return
 
@@ -1940,7 +1939,7 @@ class Mote(object):
                     }
 
                     # enqueue packet in TSCH queue
-                    if (type == d.APP_TYPE_DATA and self.settings.frag_numFragments > 1):
+                    if type == d.APP_TYPE_DATA and self.settings.frag_numFragments > 1:
                         self.app.fragment_and_enqueue_packet(relayPacket)
                         # we return ack since we've received the last fragment successfully
                         (isACKed, isNACKed) = (True, False)

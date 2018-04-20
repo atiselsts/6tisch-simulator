@@ -387,9 +387,9 @@ class MSF(SchedulingFunction):
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                  self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, rpl.getPreferredParent().id, timeout))
         mote.sixtop_ADD_REQUEST(mote.rpl.getPreferredParent(),
-                                              self.settings.sf_msf_numCellsToAddRemove,
-                                              celloptions,
-                                              timeout)
+                                self.settings.sf_msf_numCellsToAddRemove,
+                                celloptions,
+                                timeout)
 
     def schedule_bandwidth_decrement(self, mote):
         """
@@ -417,9 +417,9 @@ class MSF(SchedulingFunction):
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
             mote.sixtop_DELETE_REQUEST(mote.rpl.getPreferredParent(),
-                                     self.settings.sf_msf_numCellsToAddRemove,
-                                     celloptions,
-                                     timeout)
+                                       self.settings.sf_msf_numCellsToAddRemove,
+                                       celloptions,
+                                       timeout)
 
     def housekeeping(self, mote):
 

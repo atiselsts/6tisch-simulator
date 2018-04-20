@@ -10,7 +10,7 @@
 import os
 import sys
 
-if __name__=='__main__':
+if __name__ == '__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..'))
 
@@ -71,7 +71,7 @@ def printOrLog(cpuID, output, verbose):
     assert cpuID is not None
 
     if not verbose:
-        with open('cpu{0}.templog'.format(cpuID),'w') as f:
+        with open('cpu{0}.templog'.format(cpuID), 'w') as f:
             f.write(output)
     else:
         print output
@@ -100,9 +100,9 @@ def runSimCombinations(params):
     simParams           = []
     for p in itertools.product(*[simconfig.settings.combination[k] for k in combinationKeys]):
         simParam = {}
-        for (k,v) in zip(combinationKeys,p):
+        for (k, v) in zip(combinationKeys, p):
             simParam[k] = v
-        for (k,v) in simconfig.settings.regular.items():
+        for (k, v) in simconfig.settings.regular.items():
             if k not in simParam:
                 simParam[k] = v
         simParams      += [simParam]
@@ -152,13 +152,13 @@ def printProgress(cpuIDs):
         output     = []
         for cpuID in cpuIDs:
             try:
-                with open('cpu{0}.templog'.format(cpuID),'r') as f:
-                    output += ['[cpu {0}] {1}'.format(cpuID,f.read())]
+                with open('cpu{0}.templog'.format(cpuID), 'r') as f:
+                    output += ['[cpu {0}] {1}'.format(cpuID, f.read())]
             except IOError:
                 output += ['[cpu {0}] no info (yet?)'.format(cpuID)]
         allDone = True
         for line in output:
-            if line.count('ended')==0:
+            if line.count('ended') == 0:
                 allDone = False
         output = '\n'.join(output)
         os.system('cls' if os.name == 'nt' else 'clear')
