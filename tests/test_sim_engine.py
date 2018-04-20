@@ -1,3 +1,4 @@
+import time
 from SimEngine.SimEngine import SimEngine
 from SimEngine.SimSettings import SimSettings
 
@@ -7,8 +8,9 @@ class TestSingleton:
     @classmethod
     def setup_method(cls):
         # make sure a default SimSettings instance
-        SimSettings(**{
+        settings = SimSettings(**{
             'exec_numMotes': 1,
+            'exec_simDataDir': "simData",
             'app_pkPeriod': 0,
             'rpl_dioPeriod': 0,
             'rpl_daoPeriod': 0,
@@ -23,6 +25,9 @@ class TestSingleton:
             'prop_type': 'pisterhack',
             'phy_noInterference': True,
             'phy_minRssi': -97})
+        start_time = time.strftime("%Y%m%d-%H%M%S")
+        settings.setStartTime(start_time)
+        settings.setCombinationKeys([])
 
     def teardown_method(cls):
         # make sure a SimEngine instance created during a test is destroyed

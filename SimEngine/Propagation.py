@@ -21,6 +21,7 @@ import Topology
 import SimSettings
 import SimEngine
 from Mote import Mote
+from Mote import MoteDefines as d
 
 #============================ logging =========================================
 
@@ -178,8 +179,11 @@ class PropagationCreator(object):
                                 transmission['smac'].schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
 
                                 if interferenceFlag:
-                                    transmission['smac'].stats_incrementRadioStats('probableCollisions')
-                                if transmission['smac'].schedule[ts]['dir'] == Mote.DIR_TXRX_SHARED:
+                                    self.engine.log(SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
+                                                    {"source_id": transmission['smac'].id,
+                                                     "channel": transmission['channel']})
+
+                                if transmission['smac'].schedule[ts]['dir'] == d.DIR_TXRX_SHARED:
                                     if interferenceFlag:
                                         transmission['smac'].stats_sharedCellCollisionSignal()
                                     else:

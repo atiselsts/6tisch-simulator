@@ -21,6 +21,7 @@ log.addHandler(NullHandler())
 #============================ imports =========================================
 
 import os
+import time
 
 #============================ defines =========================================
 
@@ -38,7 +39,7 @@ class SimSettings(object):
         return cls._instance
     #===== end singleton
 
-    def __init__(self, cpuID=None, runNum=None, failIfNotInit=False, **kwargs):
+    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, **kwargs):
 
         if failIfNotInit and not self._init:
             raise EnvironmentError('SimSettings singleton not initialized.')
@@ -52,21 +53,22 @@ class SimSettings(object):
 
         # store params
         self.cpuID                          = cpuID
-        self.runNum                         = runNum
+        self.run_id                         = run_id
 
         self.__dict__.update(kwargs)
 
-    def setStartTime(self,startTime):
+    def setStartTime(self, startTime):
         self.startTime       = startTime
 
-    def setCombinationKeys(self,combinationKeys):
+    def setCombinationKeys(self, combinationKeys):
         self.combinationKeys = combinationKeys
 
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
             self.exec_simDataDir,
-            '_'.join(['{0}_{1}'.format(k,getattr(self,k)) for k in self.combinationKeys]),
+            self.startTime,
+            '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -76,7 +78,7 @@ class SimSettings(object):
             tempname         = 'output.dat'
         else:
             tempname         = 'output_cpu{0}.dat'.format(self.cpuID)
-        datafilename         = os.path.join(dirname,tempname)
+        datafilename         = os.path.join(dirname, tempname)
 
         return datafilename
 

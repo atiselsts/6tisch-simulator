@@ -31,25 +31,25 @@ log.addHandler(NullHandler())
 # =========================== body ============================================
 
 class App(object):
-    
+
     def __init__(self,mote):
-        
+
         # store params
         self.mote                           = mote
-        
+
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
         self.propagation                    = SimEngine.Propagation.Propagation()
-        
+
         # local variables
         self.pkPeriod                       = self.settings.app_pkPeriod
         self.reassQueue                     = {}
         self.vrbTable                       = {}
         self.next_datagram_tag              = random.randint(0, 2**16-1)
-    
+
     #======================== public ==========================================
-    
+
     def schedule_mote_sendSinglePacketToDAGroot(self, firstPacket=False):
         '''
         schedule an event to send a single packet
@@ -58,7 +58,7 @@ class App(object):
         # disable app pkPeriod is zero
         if self.pkPeriod == 0:
             return
-        
+
         # compute how long before transmission
         if firstPacket:
             # compute initial time within the range of [next asn, next asn+pkPeriod]
@@ -75,7 +75,7 @@ class App(object):
             uniqueTag        = (self.mote.numCellsToNeighbors, '_action_mote_sendSinglePacketToDAGroot'),
             priority         = 2,
         )
-    
+
     def schedule_mote_sendPacketBurstToDAGroot(self):
         '''
         schedule an event to send a single burst of data (NOT periodic)
@@ -89,29 +89,29 @@ class App(object):
                 uniqueTag    = (self.mote.numCellsToNeighbors, '_app_action_enqueueData_burst_{0}'.format(i)),
                 priority     = 2,
             )
-    
+
     def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
         '''
         mote receives end-to-end ACK from the DAGroot
         '''
-        
+
         assert not self.mote.dagRoot
 
     def fragment_and_enqueue_packet(self, packet):
         '''
         fragment packet into fragments, and put in TSCH queue
         '''
-        
+
         # choose tag (same for all fragments)
         tag                       = self.next_datagram_tag
         self.next_datagram_tag    = (self.next_datagram_tag + 1) % 65536
-        
+
         # create and put fragmets in TSCH queue
         for i in range(0, self.settings.frag_numFragments):
-            
+
             # copy (fake) contents of the packets in fragment
             frag = copy.copy(packet)
-            
+
             # change fields so looks like fragment
             frag['type']     = d.APP_TYPE_FRAG
             frag['payload']  = copy.deepcopy(packet['payload'])
@@ -119,28 +119,28 @@ class App(object):
             frag['payload']['datagram_tag']     = tag
             frag['payload']['datagram_offset']  = i
             frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
-            
+
             # put in TSCH queue
             if not self.mote._tsch_enqueue(frag):
-                self.mote._radio_drop_packet(frag, 'droppedFragFailedEnqueue')
+                self.mote._radio_drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
-    
+
     def frag_ff_forward_fragment(self, frag):
         '''
         handle a fragment, and decide whether should be forwarded.
-        
+
         return True if should be forwarded
         '''
-        
+
         assert self.settings.frag_ff_enable
-        
+
         smac            = frag['smac']
         dstIp           = frag['dstIp']
         size            = frag['payload']['datagram_size']
         itag            = frag['payload']['datagram_tag']
         offset          = frag['payload']['datagram_offset']
         entry_lifetime  = 60 / self.settings.tsch_slotDuration
-        
+
         # cleanup VRB table entries
         for mac in self.vrbTable.keys():
             # too old
@@ -151,7 +151,7 @@ class App(object):
             # FIXME: document
             if len(self.vrbTable[mac]) == 0:
                 del self.vrbTable[mac]
-        
+
         # handle first fragments
         if offset == 0:
             vrb_entry_num = 0
@@ -160,7 +160,7 @@ class App(object):
 
             if (not self.mote.dagRoot) and (vrb_entry_num == self.settings.frag_ff_vrbtablesize):
                 # no room for a new entry
-                self.mote._radio_drop_packet(frag, 'droppedFragVRBTableFull')
+                self.mote._radio_drop_packet(frag, 'frag_vrb_table_full')
                 return False
 
             if smac not in self.vrbTable:
@@ -186,14 +186,14 @@ class App(object):
 
             if 'kill_entry_by_missing' in self.settings.frag_ff_options:
                 self.vrbTable[smac][itag]['next_offset'] = 0
-        
+
         # find entry in VRB table and forward fragment
         if (smac in self.vrbTable) and (itag in self.vrbTable[smac]):
             # VRB entry found!
-            
+
             if self.vrbTable[smac][itag]['otag'] is None:
                 # fragment for me
-                
+
                 # do no forward (but reassemble)
                 return False
 
@@ -202,7 +202,7 @@ class App(object):
                     self.vrbTable[smac][itag]['next_offset'] += 1
                 else:
                     del self.vrbTable[smac][itag]
-                    self.mote._radio_drop_packet(frag, 'droppedFragMissingFrag')
+                    self.mote._radio_drop_packet(frag, 'frag_missing_frag')
                     return False
 
             frag['asn'] = self.engine.getAsn()
@@ -210,8 +210,7 @@ class App(object):
             frag['payload']['datagram_tag'] = self.vrbTable[smac][itag]['otag']
         else:
             # no VRB entry found!
-            
-            self.mote._radio_drop_packet(frag, 'droppedFragNoVRBEntry')
+            self.mote._radio_drop_packet(frag, 'frag_no_vrb_entry')
             return False
 
         # return True when the fragment is to be forwarded even if it cannot be
@@ -224,7 +223,7 @@ class App(object):
             del self.vrbTable[smac][itag]
 
         return True
-    
+
     def frag_reassemble_packet(self, smac, payload):
         size                 = payload['datagram_size']
         tag                  = payload['datagram_tag']
@@ -241,12 +240,12 @@ class App(object):
                     # empty
                     if len(self.reassQueue[s]) == 0:
                         del self.reassQueue[s]
-        
+
         # drop packet longer than reassembly queue elements
         if size > self.settings.frag_numFragments:
             # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
-            self.mote._radio_drop_packet({'payload': payload}, 'droppedFragTooBigForReassQueue')
+            self.mote._radio_drop_packet({'payload': payload}, 'frag_too_big_for_reass_queue')
             return False
 
         # create reassembly queue entry for new packet
@@ -257,7 +256,7 @@ class App(object):
                     reass_queue_num += len(self.reassQueue[i])
                 if reass_queue_num == self.settings.frag_ph_numReassBuffs:
                     # no room for a new entry
-                    self.mote._radio_drop_packet({'payload': payload}, 'droppedFragReassQueueFull')
+                    self.mote._radio_drop_packet({'payload': payload}, 'frag_reass_queue_full')
                     return False
             else:
                 pass
@@ -280,11 +279,11 @@ class App(object):
             return True
 
         return False
-    
+
     #======================== private ==========================================
-    
+
     # app that periodically sends a single packet
-    
+
     def _action_mote_sendSinglePacketToDAGroot(self):
         '''
         send a single packet, and reschedule next one
@@ -295,16 +294,16 @@ class App(object):
 
         # schedule sending next packet
         self.schedule_mote_sendSinglePacketToDAGroot()
-    
+
     def _action_dagroot_receivePacketFromMote(self, srcIp, payload, timestamp):
         '''
         dagroot received data packet
         '''
-        
+
         assert self.mote.dagRoot
 
         # update mote stats
-        self.mote._stats_incrementMoteStats('appReachesDagroot')
+        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'])
 
         # log end-to-end latency
         self.mote._stats_logLatencyStat(timestamp - payload['asn_at_source']) # payload[0] is the ASN when sent
@@ -314,12 +313,12 @@ class App(object):
 
         # send end-to-end ACK back to mote, if applicable
         if self.settings.app_e2eAck:
-            
+
             destination = srcIp
             sourceRoute = self.mote._rpl_getSourceRoute([destination.id])
 
             if sourceRoute:
-                
+
                 # create e2e ACK
                 newPacket = {
                     'asn':             self.engine.getAsn(),
@@ -334,18 +333,18 @@ class App(object):
 
                 # enqueue packet in TSCH queue
                 if not self.mote._tsch_enqueue(newPacket):
-                    self.mote._radio_drop_packet(newPacket, 'droppedAppAckFailedEnqueue')
-    
+                    self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
+
     def _action_mote_enqueueDataForDAGroot(self):
         '''
         enqueue data packet to the DAGroot
         '''
 
         assert not self.mote.dagRoot
-        
+
         # only send data if I have a preferred parent and dedicated cells to that parent
         if self.mote.preferredParent and self.mote.numCellsToNeighbors.get(self.mote.preferredParent,0)>0:
-            
+
             # create new data packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
@@ -354,7 +353,7 @@ class App(object):
                 'payload':        { # payload overloaded is to calculate packet stats
                     'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
                     'hops':            1,                       # number of hops, used to calculate empirical hop count
-                }, 
+                },
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self,               # from mote
                 'dstIp':          self.mote.dagRootAddress,# to DAGroot
@@ -362,18 +361,18 @@ class App(object):
             }
 
             # update mote stats
-            self.mote._stats_incrementMoteStats('appGenerated')
-            
+            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_GENERATED['type'])
+
             # enqueue packet (or fragments) into TSCH queue
             if self.settings.frag_numFragments>1:
                 # multiple frames (fragmentation)
-                
+
                 self.fragment_and_enqueue_packet(newPacket)
             else:
                 # single frame
-                
+
                 isEnqueued = self.mote._tsch_enqueue(newPacket)
                 if not isEnqueued:
                     # update mote stats
-                    self.mote._radio_drop_packet(newPacket, 'droppedDataFailedEnqueue')
-    
+                    self.mote._radio_drop_packet(newPacket,
+                                                 SimEngine.SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type'])

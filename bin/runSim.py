@@ -5,7 +5,7 @@
 \author Malisa Vucinic <malishav@gmail.com>
 """
 
-#============================ adjust path =====================================
+# =========================== adjust path =====================================
 
 import os
 import sys
@@ -14,7 +14,7 @@ if __name__=='__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..'))
 
-#============================ logging =========================================
+# =========================== logging =========================================
 
 import logging
 
@@ -25,7 +25,7 @@ log = logging.getLogger('runSim')
 log.setLevel(logging.ERROR)
 log.addHandler(NullHandler())
 
-#============================ imports =========================================
+# =========================== imports =========================================
 
 import time
 import subprocess
@@ -35,18 +35,21 @@ import threading
 import math
 import multiprocessing
 import argparse
+import json
+import glob
+import shutil
 
 from SimEngine import SimConfig,   \
                       SimEngine,   \
                       SimSettings, \
-                      SimStats
+                      SimSettings
 
-#============================ helpers =========================================
+# =========================== helpers =========================================
 
 def parseCliParams():
 
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument(
         '--gui',
         dest       = 'gui',
@@ -64,32 +67,34 @@ def parseCliParams():
     cliparams      = parser.parse_args()
     return cliparams.__dict__
 
-def printOrLog(cpuID, output, log):
+def printOrLog(cpuID, output, verbose):
     assert cpuID is not None
-    
-    if log:
+
+    if not verbose:
         with open('cpu{0}.templog'.format(cpuID),'w') as f:
             f.write(output)
     else:
         print output
 
 def runSimCombinations(params):
-    '''
+    """
     Runs simulations for all combinations of simulation settings.
     This function may run independently on different cores.
-    '''
-    
+    """
+
     cpuID = params['cpuID']
     numRuns = params['numRuns']
+    first_run = params['first_run']
     configfile = params['configfile']
-    log = params['log']
-    
+    verbose = params['verbose']
+    start_time = params['start_time']
+
     # sim config (need to re-load, as executing on different cores)
     simconfig = SimConfig.SimConfig(configfile)
-    
+
     # record simulation start time
     simStartTime        = time.time()
-    
+
     # compute all the simulation parameter combinations
     combinationKeys     = simconfig.settings.combination.keys()
     simParams           = []
@@ -103,29 +108,26 @@ def runSimCombinations(params):
         simParams      += [simParam]
 
     # run a simulation for each set of simParams
-    for (simParamNum,simParam) in enumerate(simParams):
-        
-        # record run start time
-        runStartTime = time.time()
+    for (simParamNum, simParam) in enumerate(simParams):
 
         # run the simulation runs
-        for runNum in xrange(numRuns):
+        for run_id in xrange(first_run, numRuns):
 
             # print
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(
                simParamNum+1,
                len(simParams),
-               runNum+1,
+               run_id+1,
                numRuns
             )
-            printOrLog(cpuID, output, True)
+            printOrLog(cpuID, output, verbose)
 
             # create singletons
-            settings         = SimSettings.SimSettings(cpuID=cpuID, runNum=runNum, **simParam)
-            settings.setStartTime(runStartTime)
+            settings         = SimSettings.SimSettings(cpuID=cpuID, run_id=run_id, **simParam)
+            settings.setStartTime(start_time)
             settings.setCombinationKeys(combinationKeys)
-            simengine        = SimEngine.SimEngine(cpuID=cpuID, runNum=runNum)
-            simstats         = SimStats.SimStats(cpuID=cpuID, runNum=runNum, verbose=(not log))
+            simengine        = SimEngine.SimEngine(run_id=run_id, verbose=verbose,
+                                                   log_types=simconfig.logging)
 
             # start simulation run
             simengine.start()
@@ -134,7 +136,6 @@ def runSimCombinations(params):
             simengine.join()
 
             # destroy singletons
-            simstats.destroy()
             simengine.destroy()
             settings.destroy()
 
@@ -143,7 +144,7 @@ def runSimCombinations(params):
             time.time()-simStartTime,
             numRuns
         )
-        printOrLog(cpuID, output, True)
+        printOrLog(cpuID, output, verbose)
 
 def printProgress(cpuIDs):
     while True:
@@ -165,25 +166,49 @@ def printProgress(cpuIDs):
         if allDone:
             break
 
-#============================ main ============================================
+def merge_output_files(folder_path):
+    """
+    Read the dataset folders and merge the datasets (usefull when using multiple cores).
+    :param string folder_path:
+    """
+
+    for subfolder in os.listdir(folder_path):
+        file_path_list = sorted(glob.glob(os.path.join(folder_path, subfolder, 'output_cpu*.dat')))
+
+        # read files and concatenate results
+        with open(os.path.join(folder_path, subfolder + ".dat"), 'w') as outputfile:
+            config_written = None
+            for file_path in file_path_list:
+                with open(file_path, 'r') as inputfile:
+                    config = json.loads(inputfile.readline())
+                    if config_written is None: # only writing config once
+                        outputfile.write(json.dumps(config) + "\n")
+                        config_written = True
+                    outputfile.write(inputfile.read())
+        shutil.rmtree(os.path.join(folder_path, subfolder))
+
+# =========================== main ============================================
 
 def main():
     # initialize logging
     dir_path = os.path.dirname(os.path.realpath(__file__))
     logging.config.fileConfig(os.path.join(dir_path, 'logging.conf'))
-    
+
     # cli params
     cliparams = parseCliParams()
-    
+
     # sim config
     simconfig = SimConfig.SimConfig(cliparams['config'])
     assert simconfig.version == 0
-    
+
+    # record run start time
+    start_time = time.strftime("%Y%m%d-%H%M%S")
+
     if cliparams['gui']:
         # with GUI, on a single core
-        
+
         from SimGui import SimGui
-        
+
         # create the GUI, single core
         gui        = SimGui.SimGui()
 
@@ -193,15 +218,15 @@ def main():
             args   = ((0, simconfig.execution.numRuns, simconfig.settings, False),)
         )
         simThread.start()
-        
+
         # start GUI's mainloop (in main thread)
         gui.mainloop()
-    
+
     else:
-        # headless, on multiple cores 
-        
-        #=== run simulations
-        
+        # headless, on multiple cores
+
+        # === run simulations
+
         # decide on number of cores
         multiprocessing.freeze_support()
         max_numCores = multiprocessing.cpu_count()
@@ -210,24 +235,35 @@ def main():
         else:
             numCores = simconfig.execution.numCores
         assert numCores <= max_numCores
-        
-        if numCores==1:
+
+        if numCores == 1:
             # run on single core
-            
+
             runSimCombinations({
                 'cpuID':          0,
                 'numRuns':        simconfig.execution.numRuns,
+                'first_run':      0,
                 'configfile':     cliparams['config'],
-                'log':            False,
+                'verbose':        True,
+                'start_time':     start_time,
             })
-            
+
         else:
             # distribute runs on different cores
-            runsPerCore = [int(math.floor(float(simconfig.execution.numRuns)/float(numCores)))]*numCores
+            runsPerCore = [int(math.floor(float(simconfig.execution.numRuns)
+                                          / float(numCores)))]*numCores
             idx         = 0
-            while sum(runsPerCore)<simconfig.execution.numRuns:
+            while sum(runsPerCore) < simconfig.execution.numRuns:
                 runsPerCore[idx] += 1
                 idx              += 1
+
+            # distribute run ids on different cores (transform runsPerCore into a list of tuples)
+            first_run = 0
+            for cpuID in range(numCores):
+                runs = runsPerCore[cpuID]
+                runsPerCore[cpuID] = (runs, first_run)
+                first_run += runs
+
             pool = multiprocessing.Pool(numCores)
             pool.map_async(
                 runSimCombinations,
@@ -235,26 +271,35 @@ def main():
                     {
                         'cpuID':      cpuID,
                         'numRuns':    runs,
+                        'first_run':  first_run,
                         'configfile': cliparams['config'],
-                        'log':        True,
-                    } for [cpuID,runs] in enumerate(runsPerCore)
+                        'verbose':    False,
+                        'start_time': start_time,
+                    } for [cpuID, (runs, first_run)] in enumerate(runsPerCore)
                 ]
             )
-            
+
             # print progress, wait until done
             printProgress([i for i in range(numCores)])
-            
+
             # cleanup
             for i in range(numCores):
                 os.remove('cpu{0}.templog'.format(i))
-        
+
+        # merge output files
+        folder_path = os.path.join(simconfig.settings.regular.exec_simDataDir, start_time)
+        merge_output_files(folder_path)
+
+        # copy config file
+        shutil.copy(cliparams['config'], folder_path)
+
         #=== post-simulation actions
-        
+
         for c in simconfig.post:
             print 'calling "{0}"'.format(c)
-            subprocess.call(c,shell=True)
-        
+            subprocess.call(c, shell=True)
+
         #raw_input("Done. Press Enter to exit.")
-        
+
 if __name__ == '__main__':
     main()

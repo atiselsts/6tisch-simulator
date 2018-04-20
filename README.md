@@ -77,7 +77,7 @@ Simulated protocol stack
     * `SimConfig.py`: The overall configuration of running a simulation campaign.
     * `SimEngine.py`: Event-driven simulation engine at the core of this simulator.
     * `SimSettings.py`: The settings of a single simulation, part of a simulation campaign.
-    * `SimStats.py`: Periodically collects statistics and writes those to a file.
+    * `SimLog.py`: Used to save the simulation logs.
     * `Topology.py`: creates a topology of the motes in the network.
 * `SimGui/`: the graphical user interface to the simulator
 * `tests/`: the unit tests, run using `pytest`

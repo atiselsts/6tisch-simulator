@@ -30,31 +30,31 @@ log.addHandler(NullHandler())
 # =========================== body ============================================
 
 class SecJoin(object):
-    
+
     def __init__(self,mote):
-        
+
         # store params
         self.mote                           = mote
-        
+
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
         self.propagation                    = SimEngine.Propagation.Propagation()
-        
+
         # local variables
         self._isJoined                      = False
         self._joinRetransmissionPayload     = 0
         self._joinAsn                       = 0
-    
+
     #======================== public ==========================================
-    
+
     def setIsJoined(self,newState):
         assert newState in [True,False]
         self._isJoined = newState
-    
+
     def isJoined(self):
         return self._isJoined
-    
+
     def scheduleJoinProcess(self):
         '''
         Schedule to start the join process sometimes in the future
@@ -65,19 +65,19 @@ class SecJoin(object):
             uniqueTag   = (self.mote.id, 'secjoin._initiateJoinProcess'),
             priority    = 2,
         )
-    
+
     def receiveJoinPacket(self, srcIp, payload, timestamp):
         '''
         Receiving a join packet (same function for join request and response).
-        
+
         FIXME: different functions for join request and response.
         '''
-        
+
         # remove pending retransmission event
         self.engine.removeEvent(
             (self.mote.id, '_join_action_retransmission')
-        ) 
-        
+        )
+
         # log
         self._log(
             d.INFO,
@@ -91,7 +91,7 @@ class SecJoin(object):
 
         if payload[0] != 0:
             # FIXME: document
-            
+
             newToken = payload[0] - 1
             self._sendJoinPacket(
                 token        = newToken,
@@ -99,21 +99,21 @@ class SecJoin(object):
             )
         else:
             # FIXME: document
-            
+
             # record that I'm joined
             self._setJoined()
-            
+
             # initialize the rest of the stack
             self.mote._stack_init_synced()
-    
+
     def areAllNeighborsJoined(self):
         '''
         Are all my neighbors joined?
         '''
-        return [nei for nei in self.mote._myNeighbors() if nei.isJoined is True]
-    
+        return [nei for nei in self.mote._myNeighbors() if nei.secjoin.isJoined is True]
+
     #======================== private ==========================================
-    
+
     def _initiateJoinProcess(self):
         '''
         Start the join process.
@@ -127,20 +127,20 @@ class SecJoin(object):
                     )
             else: # node doesn't have a parent yet, re-scheduling
                 self.scheduleJoinProcess()
-    
+
     def _sendJoinPacket(self, token, destination):
         '''
         Send join packet (same function for join request and response).
-        
+
         Payload contains number of exchanges.
-        
+
         FIXME: different functions for join request and response.
         '''
-        
+
         sourceRoute = []
         if self.mote.dagRoot:
             sourceRoute = self.mote._rpl_getSourceRoute([destination.id])
-        
+
         if sourceRoute or not self.mote.dagRoot:
             # create new packet
             newPacket = {
@@ -170,7 +170,7 @@ class SecJoin(object):
                 )
             else:
                 # update mote stats
-                self.mote._radio_drop_packet(newPacket, 'droppedFailedEnqueue')
+                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
             # save last token sent
             self._joinRetransmissionPayload = token
@@ -183,7 +183,7 @@ class SecJoin(object):
                     uniqueTag     = (self.mote.id, '_join_action_retransmission'),
                     priority      = 2,
                 )
-    
+
     def _setJoined(self):
         '''
         Record that I'm now joined.
@@ -193,7 +193,7 @@ class SecJoin(object):
         if not self.isJoined:
             self.isJoined = True
             self._joinAsn  = self.engine.getAsn()
-            
+
             # log
             self.mote_log(
                 d.INFO,
@@ -217,7 +217,7 @@ class SecJoin(object):
                     delay = 1
                 # end the simulation
                 self.engine.terminateSimulation(delay)
-    
+
     def _retransmitJoinPacket(self):
         '''
         Send join packet again.

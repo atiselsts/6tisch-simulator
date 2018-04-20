@@ -9,6 +9,7 @@ import types
 import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
 from   SimEngine import SimSettings
+from   SimEngine import SimLog
 
 def test_app_schedule_transmit(sim):
     sim = sim(
@@ -22,9 +23,9 @@ def test_app_schedule_transmit(sim):
             'sf_type':                 'SSF-cascading'
         }
     )
-    
+
     node = sim.motes[1]
-    
+
     # active TX cell event for node, active RX cell event for root, and
     # propagation event
     assert len(sim.events) == 3
@@ -44,7 +45,7 @@ def test_drop_join_packet_tx_queue_full(sim):
             'secjoin_joinTimeout':     0,
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -62,15 +63,16 @@ def test_drop_join_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node.secjoin._sendJoinPacket('token', root)
     assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_data_packet_tx_queue_full(sim):
     sim = sim(
@@ -81,7 +83,7 @@ def test_drop_data_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -99,15 +101,15 @@ def test_drop_data_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedDataFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedDataFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type'] not in node.motestats
     node.app._action_mote_enqueueDataForDAGroot()
     assert test_is_called['result'] is True
-    assert node.motestats['droppedDataFailedEnqueue'] == 1
+    assert node.motestats[SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_frag_packet_tx_queue_full(sim):
     sim = sim(
@@ -119,7 +121,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
             'frag_numFragments':       2,
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -137,7 +139,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -155,7 +157,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
             'app_e2eAck':              True,
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -173,7 +175,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedAppAckFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -197,7 +199,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -215,15 +217,16 @@ def test_drop_eb_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node._tsch_action_enqueueEB()
     assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_dio_packet_tx_queue_full(sim):
     sim = sim(
@@ -234,7 +237,7 @@ def test_drop_dio_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -252,15 +255,16 @@ def test_drop_dio_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node._rpl_action_enqueueDIO()
     assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_dao_packet_tx_queue_full(sim):
     sim = sim(
@@ -271,7 +275,7 @@ def test_drop_dao_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -289,15 +293,15 @@ def test_drop_dao_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node._rpl_action_enqueueDAO()
-    assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_sixtop_request_packet_tx_queue_full(sim):
     sim = sim(
@@ -308,7 +312,7 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -326,15 +330,15 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node._sixtop_enqueue_ADD_REQUEST(root, [], 1, d.DIR_TX, 1)
-    assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
     test_is_called = {'result': False}
     assert test_is_called['result'] is False
@@ -350,7 +354,7 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
 
@@ -368,15 +372,17 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    assert node.motestats['droppedFailedEnqueue'] == 0
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
     node._sixtop_enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
     assert test_is_called['result'] is True
-    assert node.motestats['droppedFailedEnqueue'] == 1
+    assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
+    print node.motestats
+    assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_forwarding_frag_tx_queue_full(sim):
     sim = sim(
@@ -407,7 +413,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -469,7 +475,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragVRBTableFull'
+        assert reason == 'frag_vrb_table_full'
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -488,11 +494,11 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
             'frag_ff_enable':          True,
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
-     
+
     frag = {
         'smac': leaf,
         'dstIp': root,
@@ -504,14 +510,14 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
             'datagram_offset':    1,
         }
     }
-    
+
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
 
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragNoVRBEntry'
+        assert reason == 'frag_no_vrb_entry'
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -529,7 +535,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
             'sf_type':                 'SSF-cascading',
         }
     )
-    
+
     root = sim.motes[0]
     node = sim.motes[1]
     leaf = sim.motes[2]
@@ -548,7 +554,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedRelayFailedEnqueue'
+        assert reason == SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type']
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -570,7 +576,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
 def test_drop_frag_reassembly_queue_full(sim):
     sim = sim(
-        **{ 
+        **{
             'exec_numMotes':           4,
             'app_pkPeriod':            0,
             'top_type':                'linear',
@@ -579,12 +585,12 @@ def test_drop_frag_reassembly_queue_full(sim):
             'frag_numFragments':       2,
         }
     )
-    
+
     root  = sim.motes[0]
     node  = sim.motes[1]
     leaf1 = sim.motes[2]
     leaf2 = sim.motes[3]
-    
+
     # fragment can be enqueued even if datagram_offset is not 0
     payload = {
         'asn_at_source':      0,
@@ -593,14 +599,14 @@ def test_drop_frag_reassembly_queue_full(sim):
         'datagram_size':      2,
         'datagram_offset':    1,
     }
-    
+
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
 
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragReassQueueFull'
+        assert reason == 'frag_reass_queue_full'
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
@@ -628,7 +634,7 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
             'frag_numFragments':       2,
         }
     )
-    
+
     root  = sim.motes[0]
     node  = sim.motes[1]
     leaf1 = sim.motes[2]
@@ -642,14 +648,14 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
         'datagram_size':      3,
         'datagram_offset':    1,
     }
-    
+
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
 
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'droppedFragTooBigForReassQueue'
+        assert reason == 'frag_too_big_for_reass_queue'
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
