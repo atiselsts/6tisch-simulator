@@ -1,4 +1,4 @@
-# The 6TiSCH Simulator - [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/develop/)
+# The 6TiSCH Simulator - [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/master)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/master/)
 
 Core Developers:
 
