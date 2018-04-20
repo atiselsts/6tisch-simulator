@@ -30,7 +30,7 @@ log.addHandler(NullHandler())
 
 class Rpl(object):
 
-    def __init__(self,mote):
+    def __init__(self, mote):
 
         # store params
         self.mote                           = mote
@@ -50,6 +50,7 @@ class Rpl(object):
         self.rplRxDIO                  = {}      # indexed by neighbor, contains int
         self.neighborRank              = {}      # indexed by neighbor
         self.neighborDagRank           = {}      # indexed by neighbor
+        self.timeCorrectedSlot         = None
 
     #======================== public ==========================================
 
@@ -57,33 +58,33 @@ class Rpl(object):
 
     def getRank(self):
         return self.rank
-    def setRank(self,newVal):
+    def setRank(self, newVal):
         self.rank = newVal
 
     def getDagRank(self):
         return self.dagRank
-    def setDagRank(self,newVal):
+    def setDagRank(self, newVal):
         self.dagRank = newVal
 
-    def updateDaoParents(self,newVal):
+    def updateDaoParents(self, newVal):
         self.daoParents.update(newVal)
 
     def getPreferredParent(self):
         return self.preferredParent
-    def setPreferredParent(self,newVal):
+    def setPreferredParent(self, newVal):
         self.preferredParent = newVal
 
     def getOldPreferredParent(self):
         return self.oldPreferredParent
-    def setOldPreferredParent(self,newVal):
+    def setOldPreferredParent(self, newVal):
         self.oldPreferredParent = newVal
 
     # admin
 
     def activate(self):
-        '''
+        """
         Initialize the RPL layer
-        '''
+        """
 
         # all nodes send DIOs
         self._schedule_sendDIO()
@@ -142,9 +143,9 @@ class Rpl(object):
     # DAO
 
     def action_receiveDAO(self, type, smac, payload):
-        '''
+        """
         DAGroot receives DAO, store parent/child relationship for source route calculation.
-        '''
+        """
 
         assert self.mote.dagRoot
 
@@ -157,14 +158,14 @@ class Rpl(object):
     # source route
 
     def getSourceRoute(self, destAddr):
-        '''
+        """
         Compute the source route to a given mote.
 
         :param destAddr: [in] The EUI64 address of the final destination.
 
         :returns: The source route, a list of EUI64 address, ordered from
             destination to source.
-        '''
+        """
 
         sourceRoute = []
 
@@ -179,9 +180,9 @@ class Rpl(object):
     # forwarding
 
     def findNextHop(self, packet):
-        '''
+        """
         Determines the next hop and writes that in the packet's 'nextHop' field.
-        '''
+        """
 
         assert self != packet['dstIp']
 
@@ -216,12 +217,12 @@ class Rpl(object):
     # DIO
 
     def _schedule_sendDIO(self):
-        '''
+        """
         Send a DIO sometimes in the future.
-        '''
+        """
 
         # stop if DIOs disabled
-        if self.settings.rpl_dioPeriod==0:
+        if self.settings.rpl_dioPeriod == 0:
             return
 
         asnNow    = self.engine.getAsn()
@@ -245,9 +246,9 @@ class Rpl(object):
         )
 
     def _action_sendDIO(self):
-        '''
+        """
         decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
-        '''
+        """
 
         # decide whether to enqueue a DIO
         if self.settings.tsch_probBcast_enabled:
@@ -272,9 +273,9 @@ class Rpl(object):
         self._schedule_sendDIO()
 
     def _action_enqueueDIO(self):
-        '''
+        """
         enqueue DIO in TSCH queue
-        '''
+        """
 
         # only send DIOs if I'm a DAGroot, or I have a preferred parent and dedicated cells to it
         if self.mote.dagRoot or (self.preferredParent and self.mote.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
@@ -300,12 +301,12 @@ class Rpl(object):
     # DAO
 
     def _schedule_sendDAO(self, firstDAO=False):
-        '''
+        """
         Schedule to send a DAO sometimes in the future.
-        '''
+        """
 
         # abort if DAO disabled
-        if self.settings.rpl_daoPeriod==0:
+        if self.settings.rpl_daoPeriod == 0:
             return
 
         asnNow = self.engine.getAsn()
@@ -329,9 +330,9 @@ class Rpl(object):
         )
 
     def _action_sendDAO(self):
-        '''
+        """
         Enqueue a DAO and schedule next one.
-        '''
+        """
 
         # enqueue
         self._action_enqueueDAO()
@@ -340,9 +341,9 @@ class Rpl(object):
         self._schedule_sendDAO()
 
     def _action_enqueueDAO(self):
-        '''
+        """
         enqueue a DAO into TSCH queue
-        '''
+        """
 
         assert not self.mote.dagRoot
 
@@ -395,6 +396,7 @@ class Rpl(object):
 
             # add non empty parents recursively
             nextparent = self._getSourceRoute_internal(parent, sourceRoute, daoParents)
+            # FIXME: _getSourceRoute_internal does return anything
 
             if nextparent:
                 sourceRoute += [nextparent]
@@ -402,7 +404,7 @@ class Rpl(object):
     # misc
 
     def _housekeeping(self):
-        '''
+        """
         RPL housekeeping tasks.
 
         This routine refreshes
@@ -410,7 +412,7 @@ class Rpl(object):
         - self.rank
         - self.dagRank
         - self.parentSet
-        '''
+        """
 
         # calculate my potential rank with each of the motes I have heard a DIO from
         potentialRanks = {}
@@ -451,7 +453,7 @@ class Rpl(object):
                             (newPreferredParent, newrank) = (mote, rank)
 
             # update mote stats
-            if self.rank and newrank!=self.rank:
+            if self.rank and newrank != self.rank:
                 self.mote._stats_incrementMoteStats('rplChurnRank')
                 # log
                 self.mote._log(
@@ -492,9 +494,9 @@ class Rpl(object):
                 self.mote._stats_incrementMoteStats('rplChurnParentSet')
 
     def _calcRankIncrease(self, neighbor):
-        '''
+        """
         calculate the RPL rank increase with a particular neighbor.
-        '''
+        """
 
         # estimate the ETX to that neighbor
         etx = self._estimateETX(neighbor)
