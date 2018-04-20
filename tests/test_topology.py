@@ -74,27 +74,27 @@ def test_linear_rpl_tree_builder(sim):
     motes = sim.motes
 
     assert motes[0].dagRoot is True
-    assert motes[0].preferredParent is None
-    assert motes[0].parents[(1,)] == [[0]]
-    assert motes[0].parents[(2,)] == [[1]]
-    assert motes[0].parents[(3,)] == [[2]]
-    assert motes[0].rank == d.RPL_MIN_HOP_RANK_INCREASE
-    assert motes[0].dagRank == 1
+    assert motes[0].rpl.getPreferredParent() is None
+    assert motes[0].rpl.daoParents[(1,)] == [[0]]
+    assert motes[0].rpl.daoParents[(2,)] == [[1]]
+    assert motes[0].rpl.daoParents[(3,)] == [[2]]
+    assert motes[0].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE
+    assert motes[0].rpl.getDagRank() == 1
 
     assert motes[1].dagRoot is False
-    assert motes[1].preferredParent == motes[0]
-    assert motes[1].rank == d.RPL_MIN_HOP_RANK_INCREASE * 8
-    assert motes[1].dagRank == 8
+    assert motes[1].rpl.getPreferredParent() == motes[0]
+    assert motes[1].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 8
+    assert motes[1].rpl.getDagRank() == 8
 
     assert motes[2].dagRoot is False
-    assert motes[2].preferredParent == motes[1]
-    assert motes[2].rank == d.RPL_MIN_HOP_RANK_INCREASE * 15
-    assert motes[2].dagRank == 15
+    assert motes[2].rpl.getPreferredParent() == motes[1]
+    assert motes[2].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 15
+    assert motes[2].rpl.getDagRank() == 15
 
     assert motes[3].dagRoot is False
-    assert motes[3].preferredParent == motes[2]
-    assert motes[3].rank == d.RPL_MIN_HOP_RANK_INCREASE * 22
-    assert motes[3].dagRank == 22
+    assert motes[3].rpl.getPreferredParent() == motes[2]
+    assert motes[3].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 22
+    assert motes[3].rpl.getDagRank() == 22
 
 def test_two_branch_topology_with_6_motes(sim):
     sim = sim(**{'exec_numMotes': 6, 'top_type': 'twoBranch'})
@@ -175,36 +175,36 @@ def test_two_branch_rpl_tree_builder(sim):
     motes = sim.motes
 
     assert motes[0].dagRoot == True
-    assert motes[0].preferredParent == None
-    assert motes[0].parents[(1,)] == [[0]]
-    assert motes[0].parents[(2,)] == [[1]]
-    assert motes[0].parents[(3,)] == [[2]]
-    assert motes[0].parents[(4,)] == [[1]]
-    assert motes[0].parents[(5,)] == [[4]]
-    assert motes[0].rank == d.RPL_MIN_HOP_RANK_INCREASE
-    assert motes[0].dagRank == 1
+    assert motes[0].rpl.getPreferredParent() == None
+    assert motes[0].rpl.daoParents[(1,)] == [[0]]
+    assert motes[0].rpl.daoParents[(2,)] == [[1]]
+    assert motes[0].rpl.daoParents[(3,)] == [[2]]
+    assert motes[0].rpl.daoParents[(4,)] == [[1]]
+    assert motes[0].rpl.daoParents[(5,)] == [[4]]
+    assert motes[0].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE
+    assert motes[0].rpl.getDagRank() == 1
 
     assert motes[1].dagRoot == False
-    assert motes[1].preferredParent == motes[0]
-    assert motes[1].rank == d.RPL_MIN_HOP_RANK_INCREASE * 8
-    assert motes[1].dagRank == 8
+    assert motes[1].rpl.getPreferredParent() == motes[0]
+    assert motes[1].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 8
+    assert motes[1].rpl.getDagRank() == 8
 
     assert motes[2].dagRoot == False
-    assert motes[2].preferredParent == motes[1]
-    assert motes[2].rank == d.RPL_MIN_HOP_RANK_INCREASE * 15
-    assert motes[2].dagRank == 15
+    assert motes[2].rpl.getPreferredParent() == motes[1]
+    assert motes[2].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 15
+    assert motes[2].rpl.getDagRank() == 15
 
     assert motes[3].dagRoot == False
-    assert motes[3].preferredParent == motes[2]
-    assert motes[3].rank == d.RPL_MIN_HOP_RANK_INCREASE * 22
-    assert motes[3].dagRank == 22
+    assert motes[3].rpl.getPreferredParent() == motes[2]
+    assert motes[3].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 22
+    assert motes[3].rpl.getDagRank() == 22
 
     assert motes[4].dagRoot == False
-    assert motes[4].preferredParent == motes[1]
-    assert motes[4].rank == d.RPL_MIN_HOP_RANK_INCREASE * 15
-    assert motes[4].dagRank == 15
+    assert motes[4].rpl.getPreferredParent() == motes[1]
+    assert motes[4].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 15
+    assert motes[4].rpl.getDagRank() == 15
 
     assert motes[5].dagRoot == False
-    assert motes[5].preferredParent == motes[4]
-    assert motes[5].rank == d.RPL_MIN_HOP_RANK_INCREASE * 22
-    assert motes[5].dagRank == 22
+    assert motes[5].rpl.getPreferredParent() == motes[4]
+    assert motes[5].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 22
+    assert motes[5].rpl.getDagRank() == 22

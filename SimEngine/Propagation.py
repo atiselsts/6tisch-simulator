@@ -21,7 +21,7 @@ import Topology
 import SimSettings
 import SimEngine
 from Mote import Mote
-from Mote import MoteDefines as d
+import Mote.MoteDefines as d
 
 #============================ logging =========================================
 

@@ -87,7 +87,7 @@ class SecJoin(object):
 
         # this is a hack to allow downward routing of join packets before node has sent a DAO
         if self.mote.dagRoot:
-            self.parents.update({tuple([payload[1]]): [[payload[2]]]})
+            self.mote.rpl.updateDaoParents({tuple([payload[1]]): [[payload[2]]]})
 
         if payload[0] != 0:
             # FIXME: document
@@ -119,7 +119,7 @@ class SecJoin(object):
         Start the join process.
         '''
         if not self.mote.dagRoot:
-            if self.mote.preferredParent:
+            if self.mote.rpl.getPreferredParent():
                 if not self.isJoined:
                     self._sendJoinPacket(
                         token          = self.settings.secjoin_numExchanges - 1,
@@ -139,7 +139,7 @@ class SecJoin(object):
 
         sourceRoute = []
         if self.mote.dagRoot:
-            sourceRoute = self.mote._rpl_getSourceRoute([destination.id])
+            sourceRoute = self.mote.rpl.getSourceRoute([destination.id])
 
         if sourceRoute or not self.mote.dagRoot:
             # create new packet
@@ -150,7 +150,7 @@ class SecJoin(object):
                 'payload':        [
                     token,
                     self.mote.id if not self.mote.dagRoot else None,
-                    self.mote.preferredParent.id if not self.mote.dagRoot else None,
+                    self.mote.rpl.getPreferredParent().id if not self.mote.dagRoot else None,
                 ],
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self, # DAG root
@@ -204,7 +204,7 @@ class SecJoin(object):
             self.sf.schedule_parent_change(self)
 
             # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
-            if self.settings.secjoin_enabled and all(mote.isJoined is True for mote in self.engine.motes):
+            if self.settings.secjoin_enabled and all(mote.secjoin.isJoined is True for mote in self.engine.motes):
                 if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
                     simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength

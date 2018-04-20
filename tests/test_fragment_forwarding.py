@@ -424,15 +424,18 @@ class TestPacketFowarding:
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {'frag_ff_enable': True,
-                  'frag_numFragments': 2,
-                  'exec_numMotes': 3,
-                  'top_type': 'linear',
-                  'sf_type': 'SSF-symmetric',
-                  'app_pkPeriod': 0,
-                  'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
+        params = {
+            'frag_ff_enable':     True,
+            'frag_numFragments':  2,
+            'exec_numMotes':      3,
+            'top_type':           'linear',
+            'sf_type':            'SSF-symmetric',
+            'app_pkPeriod':       0,
+            'app_pkPeriodVar':    0,
+            'app_e2eAck':         False,
+        }
         sim = sim(**params)
+
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
