@@ -4,6 +4,7 @@
 # =========================== imports =========================================
 
 import random
+import threading
 import math
 
 # Mote sub-modules
@@ -34,6 +35,9 @@ class SixP(object):
 
         # store params
         self.mote                           = mote
+
+        # admin
+        self.dataLock                       = threading.RLock()
 
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
@@ -103,10 +107,10 @@ class SixP(object):
 
                     # randomly picking cells
                     availableTimeslots = list(
-                        set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                        set(range(self.settings.tsch_slotframeLength)) - set(self.mote.schedule.keys()) - set(tsBlocked))
                     random.shuffle(availableTimeslots)
                     cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in
-                                  availableTimeslots[:numCells * self.sf.MIN_NUM_CELLS]])
+                                  availableTimeslots[:numCells * self.mote.sf.MIN_NUM_CELLS]])
                     cellList = [(ts, ch, dir) for (ts, ch) in cells.iteritems()]
 
                     self._enqueue_ADD_REQUEST(neighbor, cellList, numCells, dir,
@@ -128,24 +132,24 @@ class SixP(object):
                                     {"ts": ts, "channel": ch, "direction": dir,
                                      "mote_id": self.mote.id, "neighbor_id": neighbor.id})
                     cellList += [(ts, ch, dir)]
-                self._tsch_addCells(neighbor, cellList)
+                self.mote._tsch_addCells(neighbor, cellList)
 
                 # update counters
                 if dir == d.DIR_TX:
-                    if neighbor not in self.numCellsToNeighbors:
-                        self.numCellsToNeighbors[neighbor] = 0
-                    self.numCellsToNeighbors[neighbor] += len(cells)
+                    if neighbor not in self.mote.numCellsToNeighbors:
+                        self.mote.numCellsToNeighbors[neighbor] = 0
+                    self.mote.numCellsToNeighbors[neighbor] += len(cells)
                 elif dir == d.DIR_RX:
-                    if neighbor not in self.numCellsFromNeighbors:
-                        self.numCellsFromNeighbors[neighbor] = 0
-                    self.numCellsFromNeighbors[neighbor] += len(cells)
+                    if neighbor not in self.mote.numCellsFromNeighbors:
+                        self.mote.numCellsFromNeighbors[neighbor] = 0
+                    self.mote.numCellsFromNeighbors[neighbor] += len(cells)
                 else:
-                    if neighbor not in self.numCellsFromNeighbors:
-                        self.numCellsFromNeighbors[neighbor] = 0
-                    self.numCellsFromNeighbors[neighbor] += len(cells)
-                    if neighbor not in self.numCellsToNeighbors:
-                        self.numCellsToNeighbors[neighbor] = 0
-                    self.numCellsToNeighbors[neighbor] += len(cells)
+                    if neighbor not in self.mote.numCellsFromNeighbors:
+                        self.mote.numCellsFromNeighbors[neighbor] = 0
+                    self.mote.numCellsFromNeighbors[neighbor] += len(cells)
+                    if neighbor not in self.mote.numCellsToNeighbors:
+                        self.mote.numCellsToNeighbors[neighbor] = 0
+                    self.mote.numCellsToNeighbors[neighbor] += len(cells)
 
                 if len(cells) != numCells:
                     # log
@@ -165,7 +169,7 @@ class SixP(object):
 
             # has the asn of when the req packet was enqueued in the neighbor
             self.tsSixTopReqRecv[neighbor] = payload[4]
-            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_ADD_REQ['type'])
+            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_ADD_REQ['type'])
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and \
                self.sixtopStates[smac.id]['rx']['state'] != d.SIX_STATE_IDLE:
@@ -226,7 +230,7 @@ class SixP(object):
 
             # available timeslots on this mote
             availableTimeslots = list(
-                set(range(self.settings.tsch_slotframeLength)) - set(self.schedule.keys()) - set(tsBlocked))
+                set(range(self.settings.tsch_slotframeLength)) - set(self.mote.schedule.keys()) - set(tsBlocked))
             random.shuffle(cellList)
             for (ts, ch, dir) in cellList:
                 if len(newCellList) == numCells:
@@ -257,7 +261,7 @@ class SixP(object):
         scheduleList = []
 
         # worst cell removing initialized by theoretical pdr
-        for (ts, cell) in self.schedule.iteritems():
+        for (ts, cell) in self.mote.schedule.iteritems():
             if (cell['neighbor'] == neighbor and cell['dir'] == d.DIR_TX) or (
                     cell['dir'] == d.DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
                 cellPDR = self.getCellPDR(cell)
@@ -309,7 +313,7 @@ class SixP(object):
             receivedDir = payload[2]
             seq = payload[3]
 
-            self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_DEL_REQ['type'])
+            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_DEL_REQ['type'])
             # has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
             self.tsSixTopReqRecv[neighbor] = payload[4]
 
@@ -359,7 +363,7 @@ class SixP(object):
             returnCode = d.IANA_6TOP_RC_SUCCESS  # all is fine
 
             for cell in cellList:
-                if cell not in self.schedule.keys():
+                if cell not in self.mote.schedule.keys():
                     returnCode = d.IANA_6TOP_RC_NORES  # resources are not present
 
             # enqueue response
@@ -379,7 +383,7 @@ class SixP(object):
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET  # RC_BUSY not implemented yet
 
-                self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
+                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -452,24 +456,24 @@ class SixP(object):
                                         {"ts": ts, "channel": ch, "direction": cellDir,
                                          "neighbor_id": neighbor.id, "mote_id": self.mote.id})
                         cellList += [(ts, ch, newDir)]
-                    self._tsch_addCells(neighbor, cellList)
+                    self.mote._tsch_addCells(neighbor, cellList)
 
                     # update counters
                     if newDir == d.DIR_TX:
-                        if neighbor not in self.numCellsToNeighbors:
-                            self.numCellsToNeighbors[neighbor] = 0
-                        self.numCellsToNeighbors[neighbor] += len(receivedCellList)
+                        if neighbor not in self.mote.numCellsToNeighbors:
+                            self.mote.numCellsToNeighbors[neighbor] = 0
+                        self.mote.numCellsToNeighbors[neighbor] += len(receivedCellList)
                     elif newDir == d.DIR_RX:
-                        if neighbor not in self.numCellsFromNeighbors:
-                            self.numCellsFromNeighbors[neighbor] = 0
-                        self.numCellsFromNeighbors[neighbor] += len(receivedCellList)
+                        if neighbor not in self.mote.numCellsFromNeighbors:
+                            self.mote.numCellsFromNeighbors[neighbor] = 0
+                        self.mote.numCellsFromNeighbors[neighbor] += len(receivedCellList)
                     else:
-                        if neighbor not in self.numCellsToNeighbors:
-                            self.numCellsToNeighbors[neighbor] = 0
-                        self.numCellsToNeighbors[neighbor] += len(receivedCellList)
-                        if neighbor not in self.numCellsFromNeighbors:
-                            self.numCellsFromNeighbors[neighbor] = 0
-                        self.numCellsFromNeighbors[neighbor] += len(receivedCellList)
+                        if neighbor not in self.mote.numCellsToNeighbors:
+                            self.mote.numCellsToNeighbors[neighbor] = 0
+                        self.mote.numCellsToNeighbors[neighbor] += len(receivedCellList)
+                        if neighbor not in self.mote.numCellsFromNeighbors:
+                            self.mote.numCellsFromNeighbors[neighbor] = 0
+                        self.mote.numCellsFromNeighbors[neighbor] += len(receivedCellList)
 
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -518,7 +522,7 @@ class SixP(object):
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET
 
-                self._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
+                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -586,10 +590,10 @@ class SixP(object):
                             (ts, self.mote.id, self.mote.id, neighbor.id, newDir),
                         )
 
-                    self._tsch_removeCells(neighbor, receivedCellList)
+                    self.mote._tsch_removeCells(neighbor, receivedCellList)
 
-                    self.numCellsFromNeighbors[neighbor] -= len(receivedCellList)
-                    assert self.numCellsFromNeighbors[neighbor] >= 0
+                    self.mote.numCellsFromNeighbors[neighbor] -= len(receivedCellList)
+                    assert self.mote.numCellsFromNeighbors[neighbor] >= 0
 
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -650,7 +654,7 @@ class SixP(object):
                 neighbor = packet['dstIp']
                 code = packet['code']
 
-                self._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
+                self.mote._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
                 self.tsSixTopReqRecv[neighbor] = 0
 
                 if code == d.IANA_6TOP_RC_SUCCESS:
@@ -665,24 +669,24 @@ class SixP(object):
                                         {"source_id": neighbor.id, "destination_id": self.mote.id,
                                          "ts": ts, "channel": ch, "direction": cellDir,
                                          "rc": code})
-                    self._tsch_addCells(neighbor, confirmedCellList)
+                    self.mote._tsch_addCells(neighbor, confirmedCellList)
 
                     # update counters
                     if receivedDir == d.DIR_TX:
-                        if neighbor not in self.numCellsToNeighbors:
-                            self.numCellsToNeighbors[neighbor] = 0
-                        self.numCellsToNeighbors[neighbor] += len(confirmedCellList)
+                        if neighbor not in self.mote.numCellsToNeighbors:
+                            self.mote.numCellsToNeighbors[neighbor] = 0
+                        self.mote.numCellsToNeighbors[neighbor] += len(confirmedCellList)
                     elif receivedDir == d.DIR_RX:
-                        if neighbor not in self.numCellsFromNeighbors:
-                            self.numCellsFromNeighbors[neighbor] = 0
-                        self.numCellsFromNeighbors[neighbor] += len(confirmedCellList)
+                        if neighbor not in self.mote.numCellsFromNeighbors:
+                            self.mote.numCellsFromNeighbors[neighbor] = 0
+                        self.mote.numCellsFromNeighbors[neighbor] += len(confirmedCellList)
                     else:
-                        if neighbor not in self.numCellsToNeighbors:
-                            self.numCellsToNeighbors[neighbor] = 0
-                        self.numCellsToNeighbors[neighbor] += len(confirmedCellList)
-                        if neighbor not in self.numCellsFromNeighbors:
-                            self.numCellsFromNeighbors[neighbor] = 0
-                        self.numCellsFromNeighbors[neighbor] += len(confirmedCellList)
+                        if neighbor not in self.mote.numCellsToNeighbors:
+                            self.mote.numCellsToNeighbors[neighbor] = 0
+                        self.mote.numCellsToNeighbors[neighbor] += len(confirmedCellList)
+                        if neighbor not in self.mote.numCellsFromNeighbors:
+                            self.mote.numCellsFromNeighbors[neighbor] = 0
+                        self.mote.numCellsFromNeighbors[neighbor] += len(confirmedCellList)
 
                 # go back to IDLE, i.e. remove the neighbor form the states
                 # but if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
@@ -697,7 +701,7 @@ class SixP(object):
                 neighbor = packet['dstIp']
                 code = packet['code']
 
-                self._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
+                self.mote._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
                 self.tsSixTopReqRecv[neighbor] = 0
 
                 if code == d.IANA_6TOP_RC_SUCCESS:
@@ -708,10 +712,10 @@ class SixP(object):
                             '[6top] delete {3} cell ts={0} from {1} to {2}',
                             (ts, self.mote.id, neighbor.id, receivedDir),
                         )
-                    self._tsch_removeCells(neighbor, confirmedCellList)
+                    self.mote._tsch_removeCells(neighbor, confirmedCellList)
 
-                self.numCellsFromNeighbors[neighbor] -= len(confirmedCellList)
-                assert self.numCellsFromNeighbors[neighbor] >= 0
+                self.mote.numCellsFromNeighbors[neighbor] -= len(confirmedCellList)
+                assert self.mote.numCellsFromNeighbors[neighbor] >= 0
 
                 # go back to IDLE, i.e. remove the neighbor form the states
                 self.sixtopStates[neighbor.id]['rx']['state'] = d.SIX_STATE_IDLE
@@ -856,7 +860,7 @@ class SixP(object):
                 newDir = d.DIR_TXRX_SHARED
 
             availableTimeslots = list(
-                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.schedule.keys()))
+                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.mote.schedule.keys()))
             random.shuffle(availableTimeslots)
             cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in availableTimeslots[:numCells]])
             cellList = []
@@ -869,24 +873,24 @@ class SixP(object):
                     (ts, ch, self.mote.id, neighbor.id),
                 )
                 cellList += [(ts, ch, newDir)]
-            self._tsch_addCells(neighbor, cellList)
+            self.mote._tsch_addCells(neighbor, cellList)
 
             # update counters
             if newDir == d.DIR_TX:
-                if neighbor not in self.numCellsToNeighbors:
-                    self.numCellsToNeighbors[neighbor] = 0
-                self.numCellsToNeighbors[neighbor] += len(cells)
+                if neighbor not in self.mote.numCellsToNeighbors:
+                    self.mote.numCellsToNeighbors[neighbor] = 0
+                self.mote.numCellsToNeighbors[neighbor] += len(cells)
             elif newDir == d.DIR_RX:
-                if neighbor not in self.numCellsFromNeighbors:
-                    self.numCellsFromNeighbors[neighbor] = 0
-                self.numCellsFromNeighbors[neighbor] += len(cells)
+                if neighbor not in self.mote.numCellsFromNeighbors:
+                    self.mote.numCellsFromNeighbors[neighbor] = 0
+                self.mote.numCellsFromNeighbors[neighbor] += len(cells)
             else:
-                if neighbor not in self.numCellsFromNeighbors:
-                    self.numCellsFromNeighbors[neighbor] = 0
-                self.numCellsFromNeighbors[neighbor] += len(cells)
-                if neighbor not in self.numCellsToNeighbors:
-                    self.numCellsToNeighbors[neighbor] = 0
-                self.numCellsToNeighbors[neighbor] += len(cells)
+                if neighbor not in self.mote.numCellsFromNeighbors:
+                    self.mote.numCellsFromNeighbors[neighbor] = 0
+                self.mote.numCellsFromNeighbors[neighbor] += len(cells)
+                if neighbor not in self.mote.numCellsToNeighbors:
+                    self.mote.numCellsToNeighbors[neighbor] = 0
+                self.mote.numCellsToNeighbors[neighbor] += len(cells)
 
             return cells
     
@@ -922,7 +926,7 @@ class SixP(object):
                     "[6top] remove timeslots={0} with {1}",
                     (tsList, neighbor.id),
                 )
-                self._tsch_removeCells(
+                self.mote._tsch_removeCells(
                     neighbor=neighbor,
                     tsList=tsList,
                 )
@@ -939,27 +943,27 @@ class SixP(object):
 
                 # update counters
                 if dir == d.DIR_TX:
-                    self.numCellsToNeighbors[neighbor] -= len(tsList)
+                    self.mote.numCellsToNeighbors[neighbor] -= len(tsList)
                 elif dir == d.DIR_RX:
-                    self.numCellsFromNeighbors[neighbor] -= len(tsList)
+                    self.mote.numCellsFromNeighbors[neighbor] -= len(tsList)
                 else:
-                    self.numCellsToNeighbors[neighbor] -= len(tsList)
-                    self.numCellsFromNeighbors[neighbor] -= len(tsList)
+                    self.mote.numCellsToNeighbors[neighbor] -= len(tsList)
+                    self.mote.numCellsFromNeighbors[neighbor] -= len(tsList)
 
-                assert self.numCellsToNeighbors[neighbor] >= 0
+                assert self.mote.numCellsToNeighbors[neighbor] >= 0
 
     def _cell_deletion_receiver(self, neighbor, tsList, dir):
         with self.dataLock:
-            self._tsch_removeCells(
+            self.mote._tsch_removeCells(
                 neighbor=neighbor,
                 tsList=tsList,
             )
             # update counters
             if dir == d.DIR_TX:
-                self.numCellsToNeighbors[neighbor] -= len(tsList)
+                self.mote.numCellsToNeighbors[neighbor] -= len(tsList)
             elif dir == d.DIR_RX:
-                self.numCellsFromNeighbors[neighbor] -= len(tsList)
+                self.mote.numCellsFromNeighbors[neighbor] -= len(tsList)
             else:
-                self.numCellsToNeighbors[neighbor] -= len(tsList)
-                self.numCellsFromNeighbors[neighbor] -= len(tsList)
-            assert self.numCellsFromNeighbors[neighbor] >= 0
+                self.mote.numCellsToNeighbors[neighbor] -= len(tsList)
+                self.mote.numCellsFromNeighbors[neighbor] -= len(tsList)
+            assert self.mote.numCellsFromNeighbors[neighbor] >= 0

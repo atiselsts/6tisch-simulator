@@ -704,7 +704,7 @@ class Mote(object):
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
-                            cb=self.sixp.time_fired,
+                            cb=self.sixp.timer_fired,
                             uniqueTag=(self.id, uniqueTag),
                             priority=5,
                         )
@@ -725,7 +725,7 @@ class Mote(object):
                         uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                         self.engine.scheduleAtAsn(
                             asn=fireASN,
-                            cb=self.sixp.time_fired,
+                            cb=self.sixp.timer_fired,
                             uniqueTag=(self.id, uniqueTag),
                             priority=5,
                         )
@@ -746,7 +746,7 @@ class Mote(object):
                 tmpDir = self.schedule[ts]['dir']
 
                 if self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
-                    self.sixtop.receive_RESPONSE_ACK(self.pktToSend)
+                    self.sixp.receive_RESPONSE_ACK(self.pktToSend)
 
                 # remove packet from queue
                 self.txQueue.remove(self.pktToSend)
