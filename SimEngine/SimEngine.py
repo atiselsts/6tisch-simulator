@@ -170,6 +170,11 @@ class SimEngine(threading.Thread):
         else:
             self.exc = None
 
+    def join(self):
+        super(SimEngine, self).join()
+        if self.exc:
+            raise self.exc
+
     #======================== public ==========================================
 
     #=== scheduling
