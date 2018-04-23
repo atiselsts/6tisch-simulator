@@ -176,18 +176,10 @@ class PropagationCreator(object):
                                     if self.get_rssi(self.receivers[i]['mote'], itfr) > self.minRssi:
                                         interferenceFlag = 1
 
-                                transmission['smac'].tsch.schedule[ts]['debug_interference'] += [interferenceFlag] # debug only
-
                                 if interferenceFlag:
                                     self.engine.log(SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
                                                     {"source_id": transmission['smac'].id,
                                                      "channel": transmission['channel']})
-
-                                if transmission['smac'].tsch.schedule[ts]['dir'] == d.DIR_TXRX_SHARED:
-                                    if interferenceFlag:
-                                        transmission['smac'].stats_sharedCellCollisionSignal()
-                                    else:
-                                        transmission['smac'].stats_sharedCellSuccessSignal()
 
                                 lockOn = transmission['smac']
                                 for itfr in interferers:
@@ -197,8 +189,6 @@ class PropagationCreator(object):
 
                                 if lockOn == transmission['smac']:
                                     # mote locked in the current signal
-
-                                    transmission['smac'].tsch.schedule[ts]['debug_lockInterference'] += [0] # debug only
 
                                     # calculate pdr, including interference
                                     pdr = self.get_pdr(transmission['smac'], self.receivers[i]['mote'],
@@ -210,7 +200,7 @@ class PropagationCreator(object):
                                     if pdr >= failure:
                                         # packet is received correctly
                                         # this mote is delivered the packet
-                                        isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
+                                        (isACKed, isNACKed) = self.receivers[i]['mote'].radio_rxDone(
                                             type       = transmission['type'],
                                             code       = transmission['code'],
                                             smac       = transmission['smac'],
@@ -231,9 +221,6 @@ class PropagationCreator(object):
                                 else:
                                     # mote locked in an interfering signal
 
-                                    # for debug
-                                    transmission['smac'].tsch.schedule[ts]['debug_lockInterference'] += [1]
-
                                     # receive the interference as if it's a desired packet
                                     interferers.remove(lockOn)
                                     pseudo_interferers = interferers + [transmission['smac']]
@@ -242,21 +229,12 @@ class PropagationCreator(object):
                                     pseudo_pdr = self.get_pdr(lockOn, self.receivers[i]['mote'],
                                                               asn=asn, interferers=pseudo_interferers,
                                                               channel=transmission['channel'])
-
-                                    # pick a random number
-                                    failure = random.random()
-                                    if pseudo_pdr >= failure and self.receivers[i]['mote'].tsch.getIsSync():
-                                        # success to receive the interference and realize collision
-                                        self.receivers[i]['mote'].tsch.schedule[ts]['rxDetectedCollision'] = True
-
+                                    
                                     # desired packet is not received
                                     self.receivers[i]['mote'].radio_rxDone()
                                     del self.receivers[i]
 
                             else:  # ================ without interference ========
-
-                                transmission['smac'].tsch.schedule[ts]['debug_interference']     += [0] # for debug only
-                                transmission['smac'].tsch.schedule[ts]['debug_lockInterference'] += [0] # for debug only
 
                                 # calculate pdr with no interference
                                 pdr = self.get_pdr(transmission['smac'], self.receivers[i]['mote'],
@@ -325,18 +303,6 @@ class PropagationCreator(object):
 
                         # receive the interference as if it's a desired packet
                         interferers.remove(lockOn)
-
-                        # calculate SINR where locked interference and other signals are considered S and I+N respectively
-                        pseudo_pdr = self.get_pdr(lockOn, r['mote'],
-                                                  asn=asn,
-                                                  interferers=interferers,
-                                                  channel=r['channel'])
-
-                        # pick a random number
-                        failure = random.random()
-                        if pseudo_pdr >= failure and r['mote'].tsch.getIsSync():
-                            # success to receive the interference and realize collision
-                            r['mote'].tsch.schedule[ts]['rxDetectedCollision'] = True
 
                 # desired packet is not received
                 r['mote'].radio_rxDone()

@@ -97,6 +97,8 @@ class Tsch(object):
     # admin
     
     def activate(self):
+        
+        # start sending EBs
         self._tsch_schedule_sendEB()
         
         # if not join, set the neighbor variables when initializing stack.
@@ -119,8 +121,13 @@ class Tsch(object):
     # minimal
     
     def add_minimal_cell(self):
-        # add minimal cell
-        self.addCells(self.mote._myNeighbors(), [(0, 0, d.DIR_TXRX_SHARED)])
+        
+        self.addCells(
+            self.mote._myNeighbors(),
+            [
+                (0, 0, d.DIR_TXRX_SHARED)
+            ],
+        )
     
     # schedule interface
     
@@ -142,14 +149,6 @@ class Tsch(object):
                     'numTx':                     0,
                     'numTxAck':                  0,
                     'numRx':                     0,
-                    'history':                   [],
-                    'sharedCellSuccess':         0,                       # indicator of success for shared cells
-                    'sharedCellCollision':       0,                       # indicator of a collision for shared cells
-                    'rxDetectedCollision':       False,
-                    'debug_canbeInterfered':     [],                      # [debug] shows schedule collision that can be interfered with minRssi or larger level
-                    'debug_interference':        [],                      # [debug] shows an interference packet with minRssi or larger level
-                    'debug_lockInterference':    [],                      # [debug] shows locking on the interference packet
-                    'debug_cellCreatedAsn':      self.engine.getAsn(),    # [debug]
                 }
                 # log
                 self.engine.log(
@@ -251,27 +250,10 @@ class Tsch(object):
             assert self.getSchedule()[ts]['dir'] == d.DIR_TX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
             assert self.waitingFor == d.DIR_TX
 
-            # for debug
-            ch = self.getSchedule()[ts]['ch']
-            rx = self.getSchedule()[ts]['neighbor']
-            canbeInterfered = 0
-            for mote in self.engine.motes:
-                if mote == self.mote:
-                    continue
-                if ts in mote.tsch.schedule and ch == mote.tsch.schedule[ts]['ch'] and mote.tsch.schedule[ts]['dir'] == d.DIR_TX:
-                    if mote.getRSSI(rx) > rx.propagation.minRssi:
-                        canbeInterfered = 1
-            self.getSchedule()[ts]['debug_canbeInterfered'] += [canbeInterfered]
-
             if isACKed:
-                # ACK received
-                self.mote._logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
 
                 # update schedule stats
                 self.getSchedule()[ts]['numTxAck'] += 1
-
-                # update history
-                self.getSchedule()[ts]['history'] += [1]
 
                 # update queue stats
                 self.mote._stats_logQueueDelay(asn-self.pktToSend['asn'])
@@ -346,14 +328,9 @@ class Tsch(object):
                         self._resetBroadcastBackoff()
 
             elif isNACKed:
-                # NACK received
-                self.mote._logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
 
                 # update schedule stats as if it were successfully transmitted
                 self.getSchedule()[ts]['numTxAck'] += 1
-
-                # update history
-                self.getSchedule()[ts]['history'] += [1]
 
                 # time correction
                 if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
@@ -409,16 +386,15 @@ class Tsch(object):
                         self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
                     else:
                         self._resetBroadcastBackoff()
+            
             elif self.pktToSend['dstIp'] == d.BROADCAST_ADDRESS:
-                # broadcast packet is not acked, remove from queue and update stats
-                self.mote._logChargeConsumed(d.CHARGE_TxData_uC)
+                
                 self.getTxQueue().remove(self.pktToSend)
+                
                 self._resetBroadcastBackoff()
 
             else:
-                # neither ACK nor NACK received
-                self.mote._logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
-
+                
                 # increment backoffExponent and get new backoff value
                 if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED:
                     if self.getSchedule()[ts]['neighbor'] == self.mote._myNeighbors():
@@ -429,9 +405,6 @@ class Tsch(object):
                         if self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] < d.TSCH_MAX_BACKOFF_EXPONENT:
                             self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] += 1
                         self.backoffPerNeigh[self.getSchedule()[ts]['neighbor']] = random.randint(0, 2 ** self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] - 1)
-
-                # update history
-                self.getSchedule()[ts]['history'] += [0]
 
                 # decrement 'retriesLeft' counter associated with that packet
                 i = self.getTxQueue().index(self.pktToSend)
@@ -489,7 +462,7 @@ class Tsch(object):
                 assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
                 assert self.waitingFor == d.DIR_RX
             
-            if smac and self.mote in dmac:  # layer 2 addressing
+            if smac and (self.mote in dmac):  # layer 2 addressing
                 # I received a packet
 
                 if self.isSync:
@@ -500,12 +473,7 @@ class Tsch(object):
                         d.DIR_RX,
                         type,
                     )
-
-                if [self.mote] == dmac:  # unicast packet
-                    self.mote._logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
-                else:  # broadcast
-                    self.mote._logChargeConsumed(d.CHARGE_RxData_uC)
-
+                
                 if self.isSync:
                     # update schedule stats
                     self.getSchedule()[ts]['numRx'] += 1
@@ -653,13 +621,7 @@ class Tsch(object):
 
             else:
                 # this was an idle listen
-
-                # log charge usage
-                if self.isSync:
-                    self.mote._logChargeConsumed(d.CHARGE_Idle_uC)
-                else:
-                    self.mote._logChargeConsumed(d.CHARGE_IdleNotSync_uC)
-
+                
                 (isACKed, isNACKed) = (False, False)
 
             self.waitingFor = None
@@ -760,8 +722,7 @@ class Tsch(object):
             if  cell['dir'] == d.DIR_RX:
 
                 # start listening
-                self.propagation.startRx(
-                    mote          = self.mote,
+                self.radio.startRx(
                     channel       = cell['ch'],
                 )
 
@@ -817,7 +778,7 @@ class Tsch(object):
                         else:
                             raise SystemError()
 
-                    self.propagation.startTx(
+                    self.radio.startTx(
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         code      = self.pktToSend['code'],
@@ -911,7 +872,7 @@ class Tsch(object):
                         else:
                             assert False
 
-                    self.propagation.startTx(
+                    self.radio.startTx(
                         channel   = cell['ch'],
                         type      = self.pktToSend['type'],
                         code      = self.pktToSend['code'],
@@ -927,8 +888,7 @@ class Tsch(object):
 
                 else:
                     # start listening
-                    self.propagation.startRx(
-                         mote          = self.mote,
+                    self.radio.startRx(
                          channel       = cell['ch'],
                      )
                     # indicate that we're waiting for the RX operation to finish
@@ -1058,8 +1018,7 @@ class Tsch(object):
             channel = random.randint(0, self.settings.phy_numChans-1)
             
             # start listening
-            self.propagation.startRx(
-                mote    = self.mote,
+            self.radio.startRx(
                 channel = channel,
             )
             
