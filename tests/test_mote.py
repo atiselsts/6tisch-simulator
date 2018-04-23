@@ -197,6 +197,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
             'app_pkPeriod':            0,
             'top_type':                'linear',
             'sf_type':                 'SSF-cascading',
+            'tsch_probBcast_enabled':  0,
         }
     )
 
@@ -223,7 +224,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._tsch_action_enqueueEB()
+    node.tsch._tsch_action_sendEB()
     assert test_is_called['result'] is True
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1

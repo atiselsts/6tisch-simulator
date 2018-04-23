@@ -14,7 +14,7 @@ def test_linear_symmetric_schedule_1(sim):
 
     assert motes[0].numCellsToNeighbors == {}
     assert motes[0].numCellsFromNeighbors[motes[1]] == 1
-    assert len(motes[0].schedule) == 2
+    assert len(motes[0].tsch.getSchedule()) == 2
     assert motes[0].tsch.getSchedule()[0]['ch'] == 0
     assert motes[0].tsch.getSchedule()[0]['dir'] == d.DIR_TXRX_SHARED
     assert motes[0].tsch.getSchedule()[0]['neighbor'] == [motes[1]]
@@ -24,7 +24,7 @@ def test_linear_symmetric_schedule_1(sim):
 
     assert motes[1].numCellsToNeighbors[motes[0]] == 1
     assert motes[1].numCellsFromNeighbors[motes[2]] == 1
-    assert len(motes[1].schedule) == 3
+    assert len(motes[1].tsch.getSchedule()) == 3
     assert motes[1].tsch.getSchedule()[0]['ch'] == 0
     assert motes[1].tsch.getSchedule()[0]['dir'] == d.DIR_TXRX_SHARED
     assert len(motes[1].tsch.getSchedule()[0]['neighbor']) == 2
@@ -39,7 +39,7 @@ def test_linear_symmetric_schedule_1(sim):
 
     assert motes[2].numCellsToNeighbors[motes[1]] == 1
     assert motes[2].numCellsFromNeighbors == {}
-    assert len(motes[2].schedule) == 2
+    assert len(motes[2].tsch.getSchedule()) == 2
     assert motes[2].tsch.getSchedule()[0]['ch'] == 0
     assert motes[2].tsch.getSchedule()[0]['dir'] == d.DIR_TXRX_SHARED
     assert motes[2].tsch.getSchedule()[0]['neighbor'] == [motes[1]]
@@ -654,9 +654,9 @@ def test_two_branch_cascading_schedule_installation(sim):
 
     assert len(motes1) == len(motes2)
     for i, v in enumerate(motes1):
-        assert len(motes1[i].schedule) == len(motes2[i].schedule)
-        for j in motes1[i].schedule.keys():
-            assert j in motes2[i].schedule
+        assert len(motes1[i].tsch.getSchedule()) == len(motes2[i].tsch.getSchedule())
+        for j in motes1[i].tsch.getSchedule().keys():
+            assert j in motes2[i].tsch.getSchedule()
 
             cell1 = motes1[i].tsch.getSchedule()[j]
             cell2 = motes2[i].tsch.getSchedule()[j]
@@ -690,12 +690,12 @@ def test_two_branch_cascading_schedule_installation_4(sim):
     ret = False
     assert len(motes1) == len(motes2)
     for i, v in enumerate(motes1):
-        assert len(motes1[i].schedule) == len(motes2[i].schedule)
+        assert len(motes1[i].tsch.getSchedule()) == len(motes2[i].tsch.getSchedule())
 
-        for j in motes1[i].schedule.keys():
+        for j in motes1[i].tsch.getSchedule().keys():
             # the motes in the first simulation should have different timeslot
             # allocacations from the motes in the second simulation
-            if j not in motes2[i].schedule:
+            if j not in motes2[i].tsch.getSchedule():
                 ret = True
                 break
 
