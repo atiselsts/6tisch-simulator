@@ -121,7 +121,7 @@ class App(object):
             frag['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
 
             # put in TSCH queue
-            if not self.mote._tsch_enqueue(frag):
+            if not self.mote.tsch.enqueue(frag):
                 self.mote._radio_drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
 
@@ -332,7 +332,7 @@ class App(object):
                 }
 
                 # enqueue packet in TSCH queue
-                if not self.mote._tsch_enqueue(newPacket):
+                if not self.mote.tsch.enqueue(newPacket):
                     self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
 
     def _action_mote_enqueueDataForDAGroot(self):
@@ -371,7 +371,7 @@ class App(object):
             else:
                 # single frame
 
-                isEnqueued = self.mote._tsch_enqueue(newPacket)
+                isEnqueued = self.mote.tsch.enqueue(newPacket)
                 if not isEnqueued:
                     # update mote stats
                     self.mote._radio_drop_packet(newPacket,

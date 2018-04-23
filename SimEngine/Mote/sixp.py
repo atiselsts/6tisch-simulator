@@ -107,7 +107,7 @@ class SixP(object):
 
                     # randomly picking cells
                     availableTimeslots = list(
-                        set(range(self.settings.tsch_slotframeLength)) - set(self.mote.schedule.keys()) - set(tsBlocked))
+                        set(range(self.settings.tsch_slotframeLength)) - set(self.mote.tsch.getSchedule().keys()) - set(tsBlocked))
                     random.shuffle(availableTimeslots)
                     cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in
                                   availableTimeslots[:numCells * self.mote.sf.MIN_NUM_CELLS]])
@@ -132,7 +132,7 @@ class SixP(object):
                                     {"ts": ts, "channel": ch, "direction": dir,
                                      "mote_id": self.mote.id, "neighbor_id": neighbor.id})
                     cellList += [(ts, ch, dir)]
-                self.mote._tsch_addCells(neighbor, cellList)
+                self.mote.tsch.addCells(neighbor, cellList)
 
                 # update counters
                 if dir == d.DIR_TX:
@@ -173,9 +173,9 @@ class SixP(object):
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and \
                self.sixtopStates[smac.id]['rx']['state'] != d.SIX_STATE_IDLE:
-                for pkt in self.txQueue:
+                for pkt in self.mote.tsch.getTxQueue():
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
-                        self.txQueue.remove(pkt)
+                        self.mote.tsch.getTxQueue().remove(pkt)
                         self.mote._log(
                             d.INFO,
                             "[6top] removed a 6TOP_TYPE_RESPONSE packet (seqNum = {0}) in the queue of mote {1} to neighbor {2}, because a new TYPE_REQUEST (add, seqNum = {3}) was received.",
@@ -230,7 +230,7 @@ class SixP(object):
 
             # available timeslots on this mote
             availableTimeslots = list(
-                set(range(self.settings.tsch_slotframeLength)) - set(self.mote.schedule.keys()) - set(tsBlocked))
+                set(range(self.settings.tsch_slotframeLength)) - set(self.mote.tsch.getSchedule().keys()) - set(tsBlocked))
             random.shuffle(cellList)
             for (ts, ch, dir) in cellList:
                 if len(newCellList) == numCells:
@@ -261,7 +261,7 @@ class SixP(object):
         scheduleList = []
 
         # worst cell removing initialized by theoretical pdr
-        for (ts, cell) in self.mote.schedule.iteritems():
+        for (ts, cell) in self.mote.tsch.getSchedule().iteritems():
             if (cell['neighbor'] == neighbor and cell['dir'] == d.DIR_TX) or (
                     cell['dir'] == d.DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
                 cellPDR = self.getCellPDR(cell)
@@ -319,9 +319,9 @@ class SixP(object):
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and \
                self.sixtopStates[smac.id]['rx']['state'] != d.SIX_STATE_IDLE:
-                for pkt in self.txQueue:
+                for pkt in self.mote.tsch.getTxQueue():
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
-                        self.txQueue.remove(pkt)
+                        self.mote.tsch.getTxQueue().remove(pkt)
                         self.mote._log(
                             d.INFO,
                             "[6top] removed a 6TOP_TYPE_RESPONSE packet in the queue of mote {0} to neighbor {1}, because a new TYPE_REQUEST (delete) was received.",
@@ -363,7 +363,7 @@ class SixP(object):
             returnCode = d.IANA_6TOP_RC_SUCCESS  # all is fine
 
             for cell in cellList:
-                if cell not in self.mote.schedule.keys():
+                if cell not in self.mote.tsch.getSchedule().keys():
                     returnCode = d.IANA_6TOP_RC_NORES  # resources are not present
 
             # enqueue response
@@ -456,7 +456,7 @@ class SixP(object):
                                         {"ts": ts, "channel": ch, "direction": cellDir,
                                          "neighbor_id": neighbor.id, "mote_id": self.mote.id})
                         cellList += [(ts, ch, newDir)]
-                    self.mote._tsch_addCells(neighbor, cellList)
+                    self.mote.tsch.addCells(neighbor, cellList)
 
                     # update counters
                     if newDir == d.DIR_TX:
@@ -590,7 +590,7 @@ class SixP(object):
                             (ts, self.mote.id, self.mote.id, neighbor.id, newDir),
                         )
 
-                    self.mote._tsch_removeCells(neighbor, receivedCellList)
+                    self.mote.tsch.removeCells(neighbor, receivedCellList)
 
                     self.mote.numCellsFromNeighbors[neighbor] -= len(receivedCellList)
                     assert self.mote.numCellsFromNeighbors[neighbor] >= 0
@@ -669,7 +669,7 @@ class SixP(object):
                                         {"source_id": neighbor.id, "destination_id": self.mote.id,
                                          "ts": ts, "channel": ch, "direction": cellDir,
                                          "rc": code})
-                    self.mote._tsch_addCells(neighbor, confirmedCellList)
+                    self.mote.tsch.addCells(neighbor, confirmedCellList)
 
                     # update counters
                     if receivedDir == d.DIR_TX:
@@ -712,7 +712,7 @@ class SixP(object):
                             '[6top] delete {3} cell ts={0} from {1} to {2}',
                             (ts, self.mote.id, neighbor.id, receivedDir),
                         )
-                    self.mote._tsch_removeCells(neighbor, confirmedCellList)
+                    self.mote.tsch.removeCells(neighbor, confirmedCellList)
 
                 self.mote.numCellsFromNeighbors[neighbor] -= len(confirmedCellList)
                 assert self.mote.numCellsFromNeighbors[neighbor] >= 0
@@ -772,7 +772,7 @@ class SixP(object):
         }
 
         # enqueue packet in TSCH queue
-        isEnqueued = self.mote._tsch_enqueue(newPacket)
+        isEnqueued = self.mote.tsch.enqueue(newPacket)
 
         if not isEnqueued:
             # update mote stats
@@ -806,7 +806,7 @@ class SixP(object):
         }
 
         # enqueue packet in TSCH queue
-        isEnqueued = self.mote._tsch_enqueue(newPacket)
+        isEnqueued = self.mote.tsch.enqueue(newPacket)
 
         if not isEnqueued:
             # update mote stats
@@ -838,7 +838,7 @@ class SixP(object):
         }
 
         # enqueue packet in TSCH queue
-        isEnqueued = self.mote._tsch_enqueue(newPacket)
+        isEnqueued = self.mote.tsch.enqueue(newPacket)
 
         if not isEnqueued:
             # update mote stats
@@ -860,7 +860,7 @@ class SixP(object):
                 newDir = d.DIR_TXRX_SHARED
 
             availableTimeslots = list(
-                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.schedule.keys()) - set(self.mote.schedule.keys()))
+                set(range(self.settings.tsch_slotframeLength)) - set(neighbor.tsch.getSchedule().keys()) - set(self.mote.tsch.getSchedule().keys()))
             random.shuffle(availableTimeslots)
             cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in availableTimeslots[:numCells]])
             cellList = []
@@ -873,7 +873,7 @@ class SixP(object):
                     (ts, ch, self.mote.id, neighbor.id),
                 )
                 cellList += [(ts, ch, newDir)]
-            self.mote._tsch_addCells(neighbor, cellList)
+            self.mote.tsch.addCells(neighbor, cellList)
 
             # update counters
             if newDir == d.DIR_TX:
@@ -926,7 +926,7 @@ class SixP(object):
                     "[6top] remove timeslots={0} with {1}",
                     (tsList, neighbor.id),
                 )
-                self.mote._tsch_removeCells(
+                self.mote.tsch.removeCells(
                     neighbor=neighbor,
                     tsList=tsList,
                 )
@@ -954,7 +954,7 @@ class SixP(object):
 
     def _cell_deletion_receiver(self, neighbor, tsList, dir):
         with self.dataLock:
-            self.mote._tsch_removeCells(
+            self.mote.tsch.removeCells(
                 neighbor=neighbor,
                 tsList=tsList,
             )

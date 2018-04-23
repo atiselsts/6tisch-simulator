@@ -79,7 +79,7 @@ class SecJoin(object):
         )
 
         # log
-        self._log(
+        self.mote._log(
             d.INFO,
             "[join] Received join packet from {0} with token {1}",
             (srcIp.id, payload[0])
@@ -159,7 +159,7 @@ class SecJoin(object):
             }
 
             # enqueue packet in TSCH queue
-            isEnqueued = self.mote._tsch_enqueue(newPacket)
+            isEnqueued = self.mote.tsch.enqueue(newPacket)
 
             if isEnqueued:
                 # increment traffic
