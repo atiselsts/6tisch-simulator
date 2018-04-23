@@ -1326,7 +1326,8 @@ class Mote(object):
 
     def _stats_logSixTopLatencyStat(self, latency):
         with self.dataLock:
-            self.sixp.getavgsixtopLatency() += [latency]
+            l = self.sixp.getavgsixtopLatency()
+            l += [latency]
 
     def _stats_getAveLatency(self):
         with self.dataLock:
@@ -1345,7 +1346,8 @@ class Mote(object):
 
     def _stats_resetSixTopLatencyStats(self):
         with self.dataLock:
-            self.sixp.getavgsixtopLatency() = []
+            l = self.sixp.getavgsixtopLatency()
+            l = []
 
     # hops stats
 
