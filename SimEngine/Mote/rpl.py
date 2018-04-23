@@ -38,7 +38,6 @@ class Rpl(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         self.rank                      = None
@@ -290,7 +289,7 @@ class Rpl(object):
 
             # enqueue packet in TSCH queue
             if not self.mote.tsch.enqueue(newPacket):
-                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+                self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # DAO
 
@@ -363,7 +362,7 @@ class Rpl(object):
 
             # enqueue packet in TSCH queue
             if not self.mote.tsch.enqueue(newPacket):
-                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+                self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # source route
 

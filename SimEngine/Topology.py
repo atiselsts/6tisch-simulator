@@ -98,7 +98,7 @@ class TopologyCreator:
         fspl = (self.SPEED_OF_LIGHT/(4*math.pi*distance*self.TWO_DOT_FOUR_GHZ))
 
         # simple friis equation in Pr=Pt+Gt+Gr+20log10(c/4piR)
-        pr = (mote.txPower + mote.antennaGain + neighbor.antennaGain +
+        pr = (mote.radio.txPower + mote.radio.antennaGain + neighbor.radio.antennaGain +
               (20 * math.log10(fspl)))
 
         # according to the receiver power (RSSI) we can apply the Pister hack
@@ -142,7 +142,8 @@ class RandomTopology(TopologyCreator):
         self.shape = 'random'
 
         # local variables
-        self.settings = SimSettings.SimSettings()
+        self.settings     = SimSettings.SimSettings()
+        self.propagation  = Propagation.Propagation()
 
         # if top_fullyMeshed is enabled, create a topology where each node has N-1
         # stable neighbors
@@ -211,7 +212,7 @@ class RandomTopology(TopologyCreator):
             for m in self.motes:
                 if mote == m:
                     continue
-                if mote.getRSSI(m) > mote.propagation.minRssi:
+                if mote.getRSSI(m) > self.propagation.minRssi:
                     pdr = self._computePDR(mote, m)
                     mote.setPDR(m, pdr)
                     m.setPDR(mote, pdr)

@@ -74,7 +74,7 @@ class Radio(object):
         # remember whether frame is broadcast
         self.onGoingBroadcast = (dmac==d.BROADCAST_ADDRESS)
     
-    def radio_txDone(self, isACKed, isNACKed):
+    def txDone(self, isACKed, isNACKed):
         """end of tx slot"""
         
         assert self.onGoingBroadcast in [True,False]
@@ -94,19 +94,19 @@ class Radio(object):
         self.onGoingBroadcast = None
         
         # inform upper layer (TSCH)
-        self.tsch.txDone(  isACKed, isNACKed)
+        self.mote.tsch.txDone(  isACKed, isNACKed)
     
     # RX
     
-    def startRx(channel):
+    def startRx(self,channel):
         
         # send to propagation model
         self.propagation.startRx(
             mote          = self.mote,
-            channel       = cell['ch'],
+            channel       = channel,
         )
     
-    def radio_rxDone(self,      type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
+    def rxDone(self,      type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         """end of RX radio activity"""
         
         # log charge consumed
@@ -121,14 +121,14 @@ class Radio(object):
             self.mote._logChargeConsumed(d.CHARGE_RxData_uC)
         
         # inform upper layer (TSCH)
-        return self.tsch.rxDone(type, code, smac, dmac, srcIp, dstIp, srcRoute, payload)
+        return self.mote.tsch.rxDone(type, code, smac, dmac, srcIp, dstIp, srcRoute, payload)
     
     # dropping
     
-    def _radio_drop_packet(self, pkt, reason):
+    def drop_packet(self, pkt, reason):
         # remove all the element of pkt so that it won't be processed further
         for k in pkt.keys():
             del pkt[k]
 
         # increment mote stat
-        self._stats_incrementMoteStats(reason)
+        self.mote._stats_incrementMoteStats(reason)

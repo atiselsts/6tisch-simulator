@@ -413,7 +413,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
-        (isACKed,isNACKed) = hop1.radio_rxDone(
+        (isACKed,isNACKed) = hop1.radio.rxDone(
             type        = d.APP_TYPE_FRAG,
             code        = None,
             smac        = hop2,
@@ -428,7 +428,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 2
         assert len(hop1.app.reassQueue) == 0
@@ -530,7 +530,7 @@ class TestPacketFowarding:
         assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
@@ -539,12 +539,12 @@ class TestPacketFowarding:
         assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
@@ -679,18 +679,18 @@ class TestDatagramTag:
         tag_init = hop1.app.next_datagram_tag
 
         hop1.tsch.waitingFor = d.DIR_RX
-        hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
         hop1.tsch.waitingFor = d.DIR_RX
-        hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag1_0['payload'])
 
         hop1.app.next_datagram_tag = 65535
         hop1.tsch.waitingFor = d.DIR_RX
-        hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag2_0['payload'])
         hop1.tsch.waitingFor = d.DIR_RX
-        hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag3_0['payload'])
 
         tag0 = hop1.tsch.getTxQueue()[0]['payload']['datagram_tag']
@@ -747,7 +747,7 @@ class TestDatagramTag:
         tag0 = hop1.tsch.getTxQueue()[0]['payload']['datagram_tag']
 
         hop1.tsch.waitingFor = d.DIR_RX
-        hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
+        hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
         tag1 = hop1.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
@@ -906,14 +906,14 @@ class TestOptimization:
         frag2_2 = leaf.tsch.getTxQueue()[2]
         frag2_3 = leaf.tsch.getTxQueue()[3]
 
-        node.original_radio_drop_packet = node._radio_drop_packet
+        node.original_radio_drop_packet = node.radio.drop_packet
         test_is_called = {'result': False}
 
         def test(self, pkt, reason):
             test_is_called['result'] = True
             assert reason == 'frag_no_vrb_entry'
 
-        node._radio_drop_packet = types.MethodType(test, node)
+        node.radio.drop_packet = types.MethodType(test, node)
 
         assert len(node.app.vrbTable) == 0
 
@@ -925,7 +925,7 @@ class TestOptimization:
         frag1_3_2['smac'] = leaf
         assert node.app.frag_ff_forward_fragment(frag1_3_2) is False
         assert test_is_called['result'] is True
-        node._radio_drop_packet = node.original_radio_drop_packet
+        node.radio.drop_packet = node.original_radio_drop_packet
 
         assert node.app.frag_ff_forward_fragment(frag2_0) is True
         # frag2 afterb frag0 indicates frag1 is missing

@@ -42,7 +42,6 @@ class SixP(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         
@@ -797,7 +796,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -831,7 +830,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -863,7 +862,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # misc
 

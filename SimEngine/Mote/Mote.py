@@ -69,7 +69,6 @@ class Mote(object):
         # singletons (to access quicker than recreate every time)
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
-        self.propagation               = SimEngine.Propagation.Propagation()
 
         # stack
         self.app                       = app.App(self)

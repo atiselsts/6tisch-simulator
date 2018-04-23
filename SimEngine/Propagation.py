@@ -200,7 +200,7 @@ class PropagationCreator(object):
                                     if pdr >= failure:
                                         # packet is received correctly
                                         # this mote is delivered the packet
-                                        (isACKed, isNACKed) = self.receivers[i]['mote'].radio_rxDone(
+                                        (isACKed, isNACKed) = self.receivers[i]['mote'].radio.rxDone(
                                             type       = transmission['type'],
                                             code       = transmission['code'],
                                             smac       = transmission['smac'],
@@ -215,7 +215,7 @@ class PropagationCreator(object):
 
                                     else:
                                         # packet is NOT received correctly
-                                        self.receivers[i]['mote'].radio_rxDone()
+                                        self.receivers[i]['mote'].radio.rxDone()
                                         del self.receivers[i]
 
                                 else:
@@ -231,7 +231,7 @@ class PropagationCreator(object):
                                                               channel=transmission['channel'])
                                     
                                     # desired packet is not received
-                                    self.receivers[i]['mote'].radio_rxDone()
+                                    self.receivers[i]['mote'].radio.rxDone()
                                     del self.receivers[i]
 
                             else:  # ================ without interference ========
@@ -247,7 +247,7 @@ class PropagationCreator(object):
                                     # packet is received correctly
 
                                     # this mote is delivered the packet
-                                    isACKed, isNACKed = self.receivers[i]['mote'].radio_rxDone(
+                                    (isACKed, isNACKed) = self.receivers[i]['mote'].radio.rxDone(
                                         type       = transmission['type'],
                                         code       = transmission['code'],
                                         smac       = transmission['smac'],
@@ -263,7 +263,7 @@ class PropagationCreator(object):
 
                                 else:
                                     # packet is NOT received correctly
-                                    self.receivers[i]['mote'].radio_rxDone()
+                                    self.receivers[i]['mote'].radio.rxDone()
                                     del self.receivers[i]
 
                         else:
@@ -279,7 +279,7 @@ class PropagationCreator(object):
                         i += 1
 
                 # indicate to source packet was sent
-                transmission['smac'].radio_txDone(isACKed, isNACKed)
+                transmission['smac'].radio.txDone(isACKed, isNACKed)
 
             # remaining receivers that do not receive a desired packet
             for r in self.receivers:
@@ -305,7 +305,7 @@ class PropagationCreator(object):
                         interferers.remove(lockOn)
 
                 # desired packet is not received
-                r['mote'].radio_rxDone()
+                r['mote'].radio.rxDone()
 
             # clear all outstanding transmissions
             self.transmissions              = []
@@ -409,7 +409,7 @@ class PropagationPisterHack(PropagationCreator):
         :rtype: int
         """
 
-        noise = _dBmTomW(destination.noisepower)
+        noise = _dBmTomW(destination.radio.noisepower)
         # S = RSSI - N
         signal = _dBmTomW(self.get_rssi(source, destination)) - noise
         if signal < 0.0:
@@ -440,8 +440,8 @@ class PropagationPisterHack(PropagationCreator):
         """
 
         equivalentRSSI = _mWTodBm(
-            _dBmTomW(sinr + destination.noisepower) +
-            _dBmTomW(destination.noisepower)
+            _dBmTomW(sinr + destination.radio.noisepower) +
+            _dBmTomW(destination.radio.noisepower)
         )
 
         pdr = Topology.Topology.rssiToPdr(equivalentRSSI)

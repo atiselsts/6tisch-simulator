@@ -494,7 +494,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(
+        assert hop1.radio.rxDone(
             d.APP_TYPE_FRAG,
             None,
             hop2,
@@ -508,7 +508,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 1
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(
+        assert hop1.radio.rxDone(
             type        = d.APP_TYPE_FRAG,
             code        = None,
             smac        = hop2,
