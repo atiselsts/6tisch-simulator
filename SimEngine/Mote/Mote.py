@@ -20,6 +20,7 @@ import math
 
 # Mote sub-modules
 import app
+import sixlowpan
 import rpl
 import sf
 import sixp
@@ -73,7 +74,7 @@ class Mote(object):
 
         # stack
         self.app                       = app.App(self)
-        # TODO frag
+        self.sixlowpan                 = sixlowpan.Sixlowpan(self)
         self.rpl                       = rpl.Rpl(self)
         self.sf                        = sf.SchedulingFunction.get_sf(self.settings.sf_type)
         self.sixp                      = sixp.SixP(self)

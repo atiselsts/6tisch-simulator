@@ -112,6 +112,8 @@ def test_drop_data_packet_tx_queue_full(sim):
 def test_drop_frag_packet_tx_queue_full(sim):
     sim = sim(
         **{
+            'fragmentation':           'FragmentForwarding',
+            'app_pkLength' :           180,
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
             'top_type':                'linear',
@@ -271,10 +273,10 @@ def test_drop_dio_packet_tx_queue_full(sim):
 def test_drop_dao_packet_tx_queue_full(sim):
     sim = sim(
         **{
-            'exec_numMotes':           2,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'exec_numMotes':            2,
+            'app_pkPeriod':             0,
+            'top_type':                 'linear',
+            'sf_type':                  'SSF-cascading',
         }
     )
 
@@ -393,8 +395,9 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
             'app_pkPeriod':            0,
             'top_type':                'linear',
             'sf_type':                 'SSF-cascading',
-            'frag_numFragments':       2,
-            'frag_ff_enable':          True,
+            'app_pkLength':            180,
+            'fragmentation':           'FragmentForwarding',
+            'fragmentation_ff_options': [],
         }
     )
     root = sim.motes[0]
@@ -424,8 +427,10 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
         'asn_at_source':   0,
         'hops':            1,
         'datagram_tag':    1,
-        'datagram_size':   2,
-        'datagram_offset': 0
+        'datagram_size':   sim.settings.app_pkLength,
+        'datagram_offset': 0,
+        'original_type':   d.APP_TYPE_DATA,
+        'length':          90
     }
     node.tsch.waitingFor = d.DIR_RX
     node.radio.rxDone(
@@ -441,13 +446,14 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
 def test_drop_forwarding_frag_vrb_table_full(sim):
     sim = sim(
         **{
-            'exec_numMotes':           3,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
-            'frag_numFragments':       2,
-            'frag_ff_enable':          True,
-            'frag_ff_vrbtablesize':    50,
+            'exec_numMotes':                   3,
+            'app_pkPeriod':                    0,
+            'top_type':                        'linear',
+            'sf_type':                         'SSF-cascading',
+            'app_pkLength':                    180,
+            'fragmentation':                   'FragmentForwarding',
+            'fragmentation_ff_options':        [],
+            'fragmentation_ff_vrb_table_size': 50
         }
     )
     root = sim.motes[0]
@@ -457,6 +463,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
     frag = {
         'smac': leaf,
         'dstIp': root,
+        'type': d.APP_TYPE_FRAG,
         'payload': {
             'asn_at_source':      0,
             'hops':               1,
@@ -466,10 +473,11 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         }
     }
 
-    node.app.vrbTable[leaf] = {}
-    for i in range(0, SimSettings.SimSettings().frag_ff_vrbtablesize):
+    node.sixlowpan.fragmentation.vrb_table[leaf] = {}
+    for i in range(0, SimSettings.SimSettings().fragmentation_ff_vrb_table_size):
         # fill VRB Table
-        node.app.vrbTable[leaf][i] = {'otag': 0, 'ts': 0}
+        node.sixlowpan.fragmentation.vrb_table[leaf][i] = {'outgoing_datagram_tag': 0,
+                                                           'expiration': 6000}
 
     node.original_radio_drop_packet = node.radio.drop_packet
     test_is_called = {'result': False}
@@ -482,18 +490,20 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         assert len(pkt) == 0
 
     node.radio.drop_packet = types.MethodType(test, node)
-    node.app.frag_ff_forward_fragment(frag)
+    node.sixlowpan.input(leaf, frag)
     assert test_is_called['result'] is True
 
 def test_drop_forwarding_frag_no_vrb_entry(sim):
     sim = sim(
         **{
-            'exec_numMotes':           3,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
-            'frag_numFragments':       2,
-            'frag_ff_enable':          True,
+            'exec_numMotes':                   3,
+            'app_pkPeriod':                    0,
+            'top_type':                        'linear',
+            'sf_type':                         'SSF-cascading',
+            'app_pkLength':                    180,
+            'fragmentation':                   'FragmentForwarding',
+            'fragmentation_ff_options':        [],
+            'fragmentation_ff_vrb_table_size': 50
         }
     )
 
@@ -504,12 +514,14 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
     frag = {
         'smac': leaf,
         'dstIp': root,
+        'type': d.APP_TYPE_FRAG,
         'payload': {
             'asn_at_source':      0,
             'hops':               1,
             'datagram_tag':       1,
             'datagram_size':      2,
             'datagram_offset':    1,
+            'length':             90,
         }
     }
 
@@ -524,17 +536,21 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
         assert len(pkt) == 0
 
     node.radio.drop_packet = types.MethodType(test, node)
-    node.app.frag_ff_forward_fragment(frag)
+    node.sixlowpan.input(leaf, frag)
     assert test_is_called['result'] is True
 
 
 def test_drop_forwarding_data_tx_queue_full(sim):
     sim = sim(
         **{
-            'exec_numMotes':           3,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'exec_numMotes':                   3,
+            'app_pkPeriod':                    0,
+            'top_type':                        'linear',
+            'sf_type':                         'SSF-cascading',
+            'app_pkLength':                    180,
+            'fragmentation':                   'FragmentForwarding',
+            'fragmentation_ff_options':        [],
+            'fragmentation_ff_vrb_table_size': 50
         }
     )
 
@@ -571,6 +587,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
         payload    = {
             'asn_at_source':   0,
             'hops':            1,
+            'length':          90,
         },
     )
     assert test_is_called['result'] is True
@@ -579,12 +596,13 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 def test_drop_frag_reassembly_queue_full(sim):
     sim = sim(
         **{
-            'exec_numMotes':           4,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
-            'frag_ph_numReassBuffs':   1,
-            'frag_numFragments':       2,
+            'fragmentation'                 : 'PerHopReassembly',
+            'app_pkLength'                  : 180,
+            'exec_numMotes'                 : 4,
+            'top_type'                      : 'linear',
+            'sf_type'                       : 'SSF-symmetric',
+            'sixlowpan_reassembly_queue_len': 1280,
+            'sixlowpan_reassembly_queue_num': 1,
         }
     )
 
@@ -594,12 +612,21 @@ def test_drop_frag_reassembly_queue_full(sim):
     leaf2 = sim.motes[3]
 
     # fragment can be enqueued even if datagram_offset is not 0
-    payload = {
-        'asn_at_source':      0,
-        'hops':               1,
-        'datagram_tag':       12345,
-        'datagram_size':      2,
-        'datagram_offset':    1,
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_FRAG,
+        'code':               None,
+        'dstIp':              root,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'datagram_tag':       12345,
+            'datagram_size':      sim.settings.app_pkLength,
+            'datagram_offset':    0,
+            'length':         90,
+            'original_type':  d.APP_TYPE_DATA
+        },
+        'sourceRoute':        [],
     }
 
     node.original_radio_drop_packet = node.radio.drop_packet
@@ -614,26 +641,27 @@ def test_drop_frag_reassembly_queue_full(sim):
 
     node.radio.drop_packet = types.MethodType(test, node)
 
-    assert len(node.app.reassQueue) == 0
-    assert node.app.frag_reassemble_packet(leaf1, payload) is False
-    assert len(node.app.reassQueue) == 1
-    assert leaf1 in node.app.reassQueue
-    assert 12345 in node.app.reassQueue[leaf1]
+    assert len(node.sixlowpan.reassembly_buffer) == 0
+    node.sixlowpan.input(leaf1, packet)
+    assert len(node.sixlowpan.reassembly_buffer) == 1
+    assert leaf1 in node.sixlowpan.reassembly_buffer
+    assert 12345 in node.sixlowpan.reassembly_buffer[leaf1]
 
-    assert node.app.frag_reassemble_packet(leaf2, payload) is False
+    node.sixlowpan.input(leaf2, packet)
     assert test_is_called['result'] is True
-    assert len(node.app.reassQueue) == 1
+    assert len(node.sixlowpan.reassembly_buffer) == 1
 
 
 def test_drop_frag_too_big_for_reassembly_queue(sim):
     sim = sim(
         **{
-            'exec_numMotes':           4,
-            'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
-            'frag_ph_numReassBuffs':   1,
-            'frag_numFragments':       2,
+            'fragmentation'                 : 'PerHopReassembly',
+            'app_pkLength'                  : 180,
+            'exec_numMotes'                 : 4,
+            'top_type'                      : 'linear',
+            'sf_type'                       : 'SSF-symmetric',
+            'sixlowpan_reassembly_queue_len': 1280,
+            'sixlowpan_reassembly_queue_num': 1,
         }
     )
 
@@ -643,12 +671,21 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
     leaf2 = sim.motes[3]
 
     # fragment can be enqueued even if datagram_offset is not 0
-    payload = {
-        'asn_at_source':      0,
-        'hops':               1,
-        'datagram_tag':       12345,
-        'datagram_size':      3,
-        'datagram_offset':    1,
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_FRAG,
+        'code':               None,
+        'dstIp':              root,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'datagram_tag':       12345,
+            'datagram_size':      2000, # too big for reassembly queue
+            'datagram_offset':    0,
+            'length':         90,
+            'original_type':  d.APP_TYPE_DATA
+        },
+        'sourceRoute':        [],
     }
 
     node.original_radio_drop_packet = node.radio.drop_packet
@@ -663,7 +700,7 @@ def test_drop_frag_too_big_for_reassembly_queue(sim):
 
     node.radio.drop_packet = types.MethodType(test, node)
 
-    assert len(node.app.reassQueue) == 0
-    assert node.app.frag_reassemble_packet(leaf1, payload) is False
+    assert len(node.sixlowpan.reassembly_buffer) == 0
+    node.sixlowpan.input(leaf1, packet)
     assert test_is_called['result'] is True
-    assert len(node.app.reassQueue) == 0
+    assert len(node.sixlowpan.reassembly_buffer) == 0

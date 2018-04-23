@@ -20,15 +20,13 @@ def sim(request):
             'exec_simDataDir':              "simData",
 
             'app_pkPeriod':                 0,
+            'app_pkLength':                 90,
             'app_burstNumPackets':          0,
 
             'rpl_daoPeriod':                0,
 
-            'frag_numFragments':            1,
-            'frag_ff_enable':               False,
-            'frag_ff_options':              [],
-            'frag_ff_vrbtablesize':         50,
-            'frag_ph_numReassBuffs':        1,
+            'fragmentation':                'FragmentForwarding',
+            'tsch_max_payload_len':         90,
 
             'sf_type':                      "MSF",
             'sf_msf_housekeepingPeriod':    60,

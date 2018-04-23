@@ -12,6 +12,7 @@ import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
+import sixlowpan
 
 #============================ logging =========================================
 
@@ -472,49 +473,18 @@ class Tsch(object):
             if smac == self.mote.rpl.getPreferredParent():
                 self.asnLastSync = asn
             
-            if type == d.APP_TYPE_FRAG:
-                frag = {
-                    'type':        type,
-                    'code':        code,
-                    'retriesLeft': d.TSCH_MAXTXRETRIES,
-                    'smac':        smac,
-                    'srcIp':       srcIp,
-                    'dstIp':       dstIp,
-                    'payload':     copy.deepcopy(payload),
-                    'sourceRoute': copy.deepcopy(srcRoute)
-                }
+            if (type == d.APP_TYPE_FRAG) or (type == d.APP_TYPE_DATA):
                 self.waitingFor = None
-                if self.settings.frag_ff_enable:
-                    if self.mote.app.frag_ff_forward_fragment(frag) is True:
-                        if self.enqueue(frag):
-                            # ACK when succeeded to enqueue
-                            return True, False
-                        else:
-                            # ACK anyway
-                            self.mote.radio.drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
-                            return True, False
-                    elif dstIp == self.mote:
-                        if self.mote.app.frag_reassemble_packet(smac, payload) is True:
-                            del payload['datagram_size']
-                            del payload['datagram_offset']
-                            del payload['datagram_tag']
-                            type = d.APP_TYPE_DATA
-                        else:
-                            # not fully reassembled yet
-                            return True, False
-                    else:
-                        # frag is out-of-order; ACK anyway since it's received successfully
-                        return True, False
-                else:
-                    if self.mote.app.frag_reassemble_packet(smac, payload) is True:
-                        # remove fragment information from the payload
-                        del payload['datagram_size']
-                        del payload['datagram_offset']
-                        del payload['datagram_tag']
-                        type = d.APP_TYPE_DATA
-                    else:
-                        # ACK here
-                        return True, False
+                self.mote.sixlowpan.input(smac, {
+                    'asn'        : asn,
+                    'type'       : type,
+                    'code'       : None,
+                    'payload'    : payload,
+                    'srcIp'      : srcIp,
+                    'dstIp'      : dstIp,
+                    'sourceRoute': srcRoute})
+                (isACKed, isNACKed) = (True, False)
+                return isACKed, isNACKed
 
             if dstIp == d.BROADCAST_ADDRESS:
                 if type == d.RPL_TYPE_DIO:
@@ -550,33 +520,19 @@ class Tsch(object):
                         (isACKed, isNACKed) = (True, False)
                     else:
                         (isACKed, isNACKed) = (False, False)
-                elif type == d.APP_TYPE_DATA:  # application packet
-                    self.mote.app._action_dagroot_receivePacketFromMote(srcIp=srcIp, payload=payload, timestamp=asn)
-                    (isACKed, isNACKed) = (True, False)
                 elif type == d.APP_TYPE_ACK:
                     self.mote.app.action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
                     (isACKed, isNACKed) = (True, False)
                 elif type == d.APP_TYPE_JOIN:
                     self.mote.secjoin.receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
                     (isACKed, isNACKed) = (True, False)
-                elif type == d.APP_TYPE_FRAG:
-                    # never comes here; but just in case
-                    (isACKed, isNACKed) = (True, False)
                 else:
                     assert False
-            elif type == d.APP_TYPE_FRAG:
-                # do nothing for fragmented packet; just ack
-                (isACKed, isNACKed) = (True, False)
             else:
                 # relaying packet
 
-                if type == d.APP_TYPE_DATA:
-                    # update the number of hops
-                    newPayload     = copy.deepcopy(payload)
-                    newPayload['hops'] += 1
-                else:
-                    # copy the payload and forward
-                    newPayload     = copy.deepcopy(payload)
+                # copy the payload and forward
+                newPayload     = copy.deepcopy(payload)
 
                 # create packet
                 relayPacket = {
@@ -590,26 +546,19 @@ class Tsch(object):
                     'sourceRoute': srcRoute,
                 }
 
-                # enqueue packet in TSCH queue
-                if type == d.APP_TYPE_DATA and self.settings.frag_numFragments > 1:
-                    self.mote.app.fragment_and_enqueue_packet(relayPacket)
-                    # we return ack since we've received the last fragment successfully
+                isEnqueued = self.enqueue(relayPacket)
+                if isEnqueued:
+
+                    # update mote stats
+                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
+
                     (isACKed, isNACKed) = (True, False)
                 else:
-                    isEnqueued = self.enqueue(relayPacket)
-                    if isEnqueued:
-
-                        # update mote stats
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
-
-                        (isACKed, isNACKed) = (True, False)
-
-                    else:
-                        self.mote.radio.drop_packet(
-                            relayPacket,
-                            SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
-                        )
-                        (isACKed, isNACKed) = (False, True)
+                    self.mote.radio.drop_packet(
+                        relayPacket,
+                        SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
+                    )
+                    (isACKed, isNACKed) = (False, True)
 
         else:
             # this was an idle listen
