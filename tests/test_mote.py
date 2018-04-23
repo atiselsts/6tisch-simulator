@@ -336,13 +336,13 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._sixtop_enqueue_ADD_REQUEST(root, [], 1, d.DIR_TX, 1)
+    node.sixp._enqueue_ADD_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
     test_is_called = {'result': False}
     assert test_is_called['result'] is False
-    node._sixtop_enqueue_DELETE_REQUEST(root, [], 1, d.DIR_TX, 1)
+    node.sixp._enqueue_DELETE_REQUEST(root, [], 1, d.DIR_TX, 1)
     assert test_is_called['result'] is True
 
 def test_drop_sixtop_response_packet_tx_queue_full(sim):
@@ -378,7 +378,7 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._sixtop_enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
+    node.sixp._enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     print node.motestats

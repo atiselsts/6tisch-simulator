@@ -248,7 +248,7 @@ class MSF(SchedulingFunction):
                         self.settings.sf_msf_numCellsToAddRemove, celloptions,
                         mote.rpl.getPreferredParent().id, timeout))
 
-            mote.sixtop_ADD_REQUEST(
+            mote.sixp.issue_ADD_REQUEST(
                 mote.rpl.getPreferredParent(),
                 mote.numCellsToNeighbors.get(
                     mote.rpl.getOldPreferredParent(),
@@ -268,7 +268,7 @@ class MSF(SchedulingFunction):
             log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                         self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.rpl.getOldPreferredParent().id, timeout))
 
-            mote.sixtop_DELETE_REQUEST(
+            mote.sixp.issue_DELETE_REQUEST(
                 mote.rpl.getOldPreferredParent(),
                 mote.numCellsToNeighbors.get(
                     mote.rpl.getOldPreferredParent(),
@@ -386,10 +386,12 @@ class MSF(SchedulingFunction):
         celloptions = d.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
                  self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, rpl.getPreferredParent().id, timeout))
-        mote.sixtop_ADD_REQUEST(mote.rpl.getPreferredParent(),
-                                self.settings.sf_msf_numCellsToAddRemove,
-                                celloptions,
-                                timeout)
+        mote.sixp.issue_ADD_REQUEST(
+            mote.rpl.getPreferredParent(),
+            self.settings.sf_msf_numCellsToAddRemove,
+            celloptions,
+            timeout,
+        )
 
     def schedule_bandwidth_decrement(self, mote):
         """
@@ -416,10 +418,12 @@ class MSF(SchedulingFunction):
                         d.DIR_TXRX_SHARED, mote.rpl.getPreferredParent().id, timeout))
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
-            mote.sixtop_DELETE_REQUEST(mote.rpl.getPreferredParent(),
-                                       self.settings.sf_msf_numCellsToAddRemove,
-                                       celloptions,
-                                       timeout)
+            mote.sixp.issue_DELETE_REQUEST(
+                mote.rpl.getPreferredParent(),
+                self.settings.sf_msf_numCellsToAddRemove,
+                celloptions,
+                timeout,
+            )
 
     def housekeeping(self, mote):
 
