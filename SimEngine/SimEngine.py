@@ -110,60 +110,70 @@ class SimEngine(threading.Thread):
     def run(self):
         """ event driven simulator, this thread manages the events """
 
-        # log
-        log.info("thread {0} starting".format(self.name))
+        try:
+            # log
+            log.info("thread {0} starting".format(self.name))
 
-        # schedule the endOfSimulation event if we are not simulating the join process
-        if not self.settings.secjoin_enabled:
+            # schedule the endOfSimulation event if we are not simulating the join process
+            if not self.settings.secjoin_enabled:
+                self.scheduleAtAsn(
+                    asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
+                    cb          = self._actionEndSim,
+                    uniqueTag   = (None,'_actionEndSim'),
+                )
+
+            # schedule action at every end of cycle
             self.scheduleAtAsn(
-                asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
-                cb          = self._actionEndSim,
-                uniqueTag   = (None,'_actionEndSim'),
+                asn=self.asn + self.settings.tsch_slotframeLength - 1,
+                cb=self._actionEndCycle,
+                uniqueTag=(None, '_actionEndCycle'),
+                priority=10,
             )
 
-        # schedule action at every end of cycle
-        self.scheduleAtAsn(
-            asn=self.asn + self.settings.tsch_slotframeLength - 1,
-            cb=self._actionEndCycle,
-            uniqueTag=(None, '_actionEndCycle'),
-            priority=10,
-        )
+            # call the start callbacks
+            for cb in self.startCb:
+                cb()
 
-        # call the start callbacks
-        for cb in self.startCb:
-            cb()
+            # consume events until self.goOn is False
+            while self.goOn:
 
-        # consume events until self.goOn is False
-        while self.goOn:
+                with self.dataLock:
 
-            with self.dataLock:
-
-                # abort simulation when no more events
-                if not self.events:
-                    log.info("end of simulation at ASN={0}".format(self.asn))
-                    break
-
-                # make sure we are in the future
-                (a, b, cb, c, kwargs) = self.events[0]
-                if c[1] != '_actionPauseSim':
-                    assert self.events[0][0] >= self.asn
-
-                # update the current ASN
-                self.asn = self.events[0][0]
-
-                # call callbacks at this ASN
-                while True:
-                    if self.events[0][0] != self.asn:
+                    # abort simulation when no more events
+                    if not self.events:
+                        log.info("end of simulation at ASN={0}".format(self.asn))
                         break
-                    (_, _, cb, _, kwargs) = self.events.pop(0)
-                    cb(**kwargs)
 
-        # call the end callbacks
-        for cb in self.endCb:
-            cb()
+                    # make sure we are in the future
+                    (a, b, cb, c, kwargs) = self.events[0]
+                    if c[1] != '_actionPauseSim':
+                        assert self.events[0][0] >= self.asn
 
-        # log
-        log.info("thread {0} ends".format(self.name))
+                    # update the current ASN
+                    self.asn = self.events[0][0]
+
+                    # call callbacks at this ASN
+                    while True:
+                        if self.events[0][0] != self.asn:
+                            break
+                        (_, _, cb, _, kwargs) = self.events.pop(0)
+                        cb(**kwargs)
+
+            # call the end callbacks
+            for cb in self.endCb:
+                cb()
+
+            # log
+            log.info("thread {0} ends".format(self.name))
+        except Exception as e:
+            self.exc = e
+        else:
+            self.exc = None
+
+    def join(self):
+        super(SimEngine, self).join()
+        if self.exc:
+            raise self.exc
 
     #======================== public ==========================================
 
