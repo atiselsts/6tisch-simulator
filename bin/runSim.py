@@ -265,7 +265,7 @@ def main():
                 first_run += runs
 
             pool = multiprocessing.Pool(numCores)
-            pool.map_async(
+            async_result = pool.map_async(
                 runSimCombinations,
                 [
                     {
@@ -278,6 +278,8 @@ def main():
                     } for [cpuID, (runs, first_run)] in enumerate(runsPerCore)
                 ]
             )
+            # get() raises an exception raised by a thread if any
+            async_result.get()
 
             # print progress, wait until done
             printProgress([i for i in range(numCores)])
