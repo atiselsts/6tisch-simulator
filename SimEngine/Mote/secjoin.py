@@ -159,7 +159,7 @@ class SecJoin(object):
             }
 
             # enqueue packet in TSCH queue
-            isEnqueued = self.mote._tsch_enqueue(newPacket)
+            isEnqueued = self.mote.tsch.enqueue(newPacket)
 
             if isEnqueued:
                 # increment traffic

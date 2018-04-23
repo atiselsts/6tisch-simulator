@@ -150,7 +150,7 @@ class PropagationCreator(object):
 
             # store arrival times of transmitted packets
             for transmission in self.transmissions:
-                arrivalTime[transmission['smac']] = transmission['smac'].clock_getOffsetToDagRoot()
+                arrivalTime[transmission['smac']] = transmission['smac'].tsch.getOffsetToDagRoot()
 
             for transmission in self.transmissions:
 
@@ -245,7 +245,7 @@ class PropagationCreator(object):
 
                                     # pick a random number
                                     failure = random.random()
-                                    if pseudo_pdr >= failure and self.receivers[i]['mote'].radio_isSync():
+                                    if pseudo_pdr >= failure and self.receivers[i]['mote'].tsch.getIsSync():
                                         # success to receive the interference and realize collision
                                         self.receivers[i]['mote'].schedule[ts]['rxDetectedCollision'] = True
 
@@ -334,7 +334,7 @@ class PropagationCreator(object):
 
                         # pick a random number
                         failure = random.random()
-                        if pseudo_pdr >= failure and r['mote'].radio_isSync():
+                        if pseudo_pdr >= failure and r['mote'].tsch.getIsSync():
                             # success to receive the interference and realize collision
                             r['mote'].schedule[ts]['rxDetectedCollision'] = True
 
