@@ -5,6 +5,7 @@ static schedules
 
 # =========================== imports =========================================
 
+import sys
 import math
 import random
 from abc import abstractmethod
@@ -25,26 +26,9 @@ log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
-SF_TYPE_ALL = ['MSF', 'SSF-symmetric', 'SSF-cascading']
+SF_TYPE_ALL = ['MSF', 'SSFSymmetric', 'SSFCascading']
 
 # =========================== helpers =========================================
-
-def init(topology, scheduling_function):
-    """ This function initiate the scheduling function
-    :param Topology topology:
-    :param str scheduling_function:
-    :return: None
-    """
-    if scheduling_function == 'SSF-cascading':
-        if topology.shape == 'linear':
-            _ssf_linear_cascading_schedule(topology)
-        elif topology.shape == 'twoBranch':
-            _ssf_twobranch_cascading_schedule(topology)
-    elif scheduling_function == 'SSF-symmetric':
-        if topology.shape == 'linear':
-            _ssf_linear_symmetric_schedule(topology)
-        elif topology.shape == 'twoBranch':
-            _ssf_twobranch_symmetric_schedule(topology)
 
 #--- private helpers
 
@@ -81,73 +65,6 @@ def _alloc_cell(transmitter, receiver, slot_offset, channel_offset):
     else:
         receiver.numCellsFromNeighbors[transmitter] += 1
 
-def _ssf_linear_cascading_schedule(topology):
-    alloc_pointer = 1  # start allocating with slot-1
-
-    for mote in topology.motes[::-1]:  # loop in the reverse order
-        child = mote
-        while child and child.rpl.getPreferredParent():
-            _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
-            alloc_pointer += 1
-            child = child.rpl.getPreferredParent()
-
-def _ssf_linear_symmetric_schedule(topology):
-    # find the edge node in the given linear topology
-    depth = len(topology.motes)
-    for mote in topology.motes:
-        if mote.rpl.getPreferredParent():
-            _alloc_cell(mote, mote.rpl.getPreferredParent(), depth - mote.id, 0)
-
-def _ssf_twobranch_symmetric_schedule(topology):
-    # allocate TX cells for each node to its parent, which has the same
-    # channel offset, 0.
-
-    for mote in topology.motes:
-        if mote.rpl.getPreferredParent():
-            if mote.id == 1:
-                slot_offset = len(topology.motes) - 1
-            elif mote.id < topology.switch_to_right_branch:
-                slot_offset = (topology.depth - mote.id) * 2 + 1
-            elif len(topology.motes) % 2 == 0:  # even branches
-                slot_offset = (topology.depth +
-                               topology.switch_to_right_branch -
-                               1 - mote.id) * 2
-            else:
-                slot_offset = (topology.depth - 1 +
-                               topology.switch_to_right_branch - 1 -
-                               mote.id) * 2
-
-            _alloc_cell(mote, mote.rpl.getPreferredParent(), int(slot_offset), 0)
-
-def _ssf_twobranch_cascading_schedule(self):
-    # allocate TX cells and RX cells in a cascading bandwidth manner.
-
-    alloc_pointer = 0
-    for mote in self.motes[::-1]:  # loop in the reverse order
-        child = mote
-        while child and child.rpl.getPreferredParent():
-            if self.settings.sf_ssf_initMethod == 'random-pick':
-                if 'alloc_table' not in locals():
-                    alloc_table = set()
-
-                if len(alloc_table) >= self.settings.tsch_slotframeLength:
-                    raise ValueError('slotframe is too small')
-
-                while True:
-                    # we don't use slot-0 since it's designated for a shared cell
-                    alloc_pointer = random.randint(1, self.settings.tsch_slotframeLength - 1)
-                    if alloc_pointer not in alloc_table:
-                        alloc_table.add(alloc_pointer)
-                        break
-            else:
-                alloc_pointer += 1
-
-                if alloc_pointer > self.settings.tsch_slotframeLength:
-                    raise ValueError('slotframe is too small')
-
-            _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
-            child = child.rpl.getPreferredParent()
-
 # =========================== body ============================================
 
 class SchedulingFunction(object):
@@ -155,25 +72,22 @@ class SchedulingFunction(object):
     This class is instantiated by each mote.
     """
 
-    def __init__(self):
+    def __init__(self, mote):
 
         self.settings = SimEngine.SimSettings.SimSettings()
         self.engine = SimEngine.SimEngine.SimEngine()
-        
+
         self.numCellsElapsed                = 0
         self.numCellsUsed                   = 0
-    
-    def activate(self,mote):
-        self.housekeeping(mote)
-    
+        self.mote                           = mote
+
+    def activate(self):
+        self.housekeeping()
+
     @classmethod
-    def get_sf(cls, scheduling_function):
-        if scheduling_function == "SSF-cascading":
-            return Static()
-        elif scheduling_function == "SSF-symmetric":
-            return Static()
-        else:
-            return MSF()
+    def get_sf(cls, mote):
+        settings = SimEngine.SimSettings.SimSettings()
+        return getattr(sys.modules[__name__], settings.sf_type)(mote)
 
     @abstractmethod
     def schedule_parent_change(self, mote):
@@ -205,7 +119,7 @@ class SchedulingFunction(object):
         raise NotImplementedError
 
     @abstractmethod
-    def housekeeping(self, mote):
+    def housekeeping(self):
         raise NotImplementedError
 
 class MSF(SchedulingFunction):
@@ -216,8 +130,8 @@ class MSF(SchedulingFunction):
     DEFAULT_SIXTOP_TIMEOUT = 15
     SIXP_TIMEOUT_SEC_FACTOR = 3
 
-    def __init__(self):
-        super(MSF, self).__init__()
+    def __init__(self, mote):
+        super(MSF, self).__init__(mote)
         self.msfTimeoutExp = {}
 
     def schedule_parent_change(self, mote):
@@ -229,7 +143,6 @@ class MSF(SchedulingFunction):
             cb          = self.action_parent_change,
             uniqueTag   = (mote.id, 'action_parent_change'),
             priority    = 4,
-            kwargs      = {'mote': mote}
         )
 
     def action_parent_change(self, mote):
@@ -289,7 +202,6 @@ class MSF(SchedulingFunction):
                 cb          = self.action_parent_change,
                 uniqueTag   = (mote.id, 'action_parent_change_retransmission'),
                 priority    = 4,
-                kwargs      = {'mote': mote}
             )
         else:
             assert mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0)
@@ -380,7 +292,6 @@ class MSF(SchedulingFunction):
             cb          = self.action_bandwidth_increment,
             uniqueTag   = (mote.id, 'action_bandwidth_increment'),
             priority    = 4,
-            kwargs      = {'mote': mote}
         )
 
     def action_bandwidth_increment(self, mote):
@@ -390,7 +301,7 @@ class MSF(SchedulingFunction):
         timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
         celloptions = d.DIR_TXRX_SHARED
         log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, rpl.getPreferredParent().id, timeout))
+                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.rpl.getPreferredParent().id, timeout))
         mote.sixp.issue_ADD_REQUEST(
             mote.rpl.getPreferredParent(),
             self.settings.sf_msf_numCellsToAddRemove,
@@ -407,7 +318,6 @@ class MSF(SchedulingFunction):
             cb          = self.action_bandwidth_decrement,
             uniqueTag   = (mote.id, 'action_bandwidth_decrement'),
             priority    = 4,
-            kwargs      = {'mote': mote}
         )
 
     def action_bandwidth_decrement(self, mote):
@@ -430,31 +340,30 @@ class MSF(SchedulingFunction):
                 timeout,
             )
 
-    def housekeeping(self, mote):
+    def housekeeping(self):
 
         self.engine.scheduleIn(
             delay       = self.settings.sf_msf_housekeepingPeriod*(0.9+0.2*random.random()),
             cb          = self.action_housekeeping,
-            uniqueTag   = (mote.id, 'action_housekeeping'),
+            uniqueTag   = (self.mote.id, 'action_housekeeping'),
             priority    = 4,
-            kwargs      = {'mote': mote}
         )
 
-    def action_housekeeping(self, mote):
+    def action_housekeeping(self):
         """
         MSF housekeeping: decides when to relocate cells
         """
-        if mote.dagRoot:
+        if self.mote.dagRoot:
             return
 
         # TODO MSF relocation algorithm
 
         # schedule next housekeeping
-        self.housekeeping(mote)
+        self.housekeeping()
 
-class Static(SchedulingFunction):
-    def __init__(self):
-        super(Static, self).__init__()
+class SSFSymmetric(SchedulingFunction):
+    def __init__(self, mote):
+        super(SSFSymmetric, self).__init__(mote)
 
     def schedule_parent_change(self, mote):
         pass
@@ -467,6 +376,68 @@ class Static(SchedulingFunction):
         # ignore signal
         pass
 
-    def housekeeping(self, mote):
+    def housekeeping(self):
         # ignore housekeeping
         pass
+
+    def _ssf_linear_symmetric_schedule(self):
+        assert self.mote.rpl.getPreferredParent()
+        _alloc_cell(self.mote, self.mote.rpl.getPreferredParent(), self.mote.id, 0)
+
+class SSFCascading(SchedulingFunction):
+    def __init__(self, mote):
+        super(SSFCascading, self).__init__(mote)
+
+    def schedule_parent_change(self, mote):
+        pass
+
+    def signal_cell_elapsed(self, mote, neighbor, direction):
+        # ignore signal
+        pass
+
+    def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
+        # ignore signal
+        pass
+
+    def housekeeping(self):
+        # ignore housekeeping
+        pass
+
+    def _ssf_linear_cascading_schedule(self):
+        alloc_pointer = 1  # start allocating with slot-1
+
+        for mote in self.engine.motes[::-1]:  # loop in the reverse order
+            child = mote
+            while child and child.rpl.getPreferredParent():
+                _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
+                alloc_pointer += 1
+                child = child.rpl.getPreferredParent()
+
+    def _ssf_twobranch_cascading_schedule(self):
+        # allocate TX cells and RX cells in a cascading bandwidth manner.
+
+        alloc_pointer = 0
+        for mote in self.engine.motes[::-1]:  # loop in the reverse order
+            child = mote
+            while child and child.rpl.getPreferredParent():
+                if self.settings.sf_ssf_initMethod == 'random-pick':
+                    if 'alloc_table' not in locals():
+                        alloc_table = set()
+
+                    if len(alloc_table) >= self.settings.tsch_slotframeLength:
+                        raise ValueError('slotframe is too small')
+
+                    while True:
+                        # we don't use slot-0 since it's designated for a shared cell
+                        alloc_pointer = random.randint(1, self.settings.tsch_slotframeLength - 1)
+                        if alloc_pointer not in alloc_table:
+                            alloc_table.add(alloc_pointer)
+                            break
+                else:
+                    alloc_pointer += 1
+
+                    if alloc_pointer > self.settings.tsch_slotframeLength:
+                        raise ValueError('slotframe is too small')
+
+                _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
+                child = child.rpl.getPreferredParent()

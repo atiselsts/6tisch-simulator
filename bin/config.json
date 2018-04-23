@@ -47,12 +47,8 @@
             "tsch_probBcast_ebProb":            0.33,
             "tsch_probBcast_dioProb":           0.33,
 
-            "top_type":                         "random",
-            "top_squareSide":                   2.000,
-            "top_fullyMeshed":                  false,
-            "top_schedulingMode":               "random-pick",
-            "prop_type":                        "pisterhack",
-            "prop_trace":                       null,
+            "conn_type":                       "fully_meshed",
+            "conn_trace":                      "../traces/grenoble.k7",
 
             "phy_numChans":                     16,
             "phy_minRssi":                      -97,

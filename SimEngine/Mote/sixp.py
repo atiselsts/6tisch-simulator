@@ -44,7 +44,7 @@ class SixP(object):
         self.settings                       = SimEngine.SimSettings.SimSettings()
 
         # local variables
-        
+
         # a dictionary that stores the different 6p states for each neighbor
         # in each entry the key is the neighbor.id
         # the values are:
@@ -61,7 +61,7 @@ class SixP(object):
 
     def getSixtopStates(self):
         return self.sixtopStates
-    
+
     def getavgsixtopLatency(self):
         return self.avgsixtopLatency
 
@@ -164,7 +164,7 @@ class SixP(object):
                         '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}. cells={4}',
                         (len(cells), numCells, self.mote.id, neighbor.id, cells),
                     )
-    
+
     def receive_ADD_REQUEST(self, type, smac, payload):
         with self.dataLock:
             neighbor         = smac
@@ -255,9 +255,9 @@ class SixP(object):
 
             # enqueue response
             self._enqueue_RESPONSE(neighbor, newCellList, returnCode, newDir, seq)
-    
+
     # DELETE request
-    
+
     def issue_DELETE_REQUEST(self, neighbor, numCellsToRemove, dir, timeout):
         """
         Finds cells to neighbor, and remove it.
@@ -308,7 +308,7 @@ class SixP(object):
 
         # remove cells
         self._cell_deletion_sender(neighbor, tsList, dir, timeout)
-    
+
     def receive_DELETE_REQUEST(self, type, smac, payload):
         """ receive a 6P delete request message """
         with self.dataLock:
@@ -374,9 +374,9 @@ class SixP(object):
 
             # enqueue response
             self._enqueue_RESPONSE(neighbor, cellList, returnCode, newDir, seq)
-    
+
     # response
-    
+
     def receive_RESPONSE(self, type, code, smac, payload):
         """ receive a 6P response messages """
 
@@ -656,7 +656,7 @@ class SixP(object):
                 # do not do an assert because it can be you come here if a timer expires
                 # assert False
                 pass
-    
+
     def receive_RESPONSE_ACK(self, packet):
         with self.dataLock:
 
@@ -745,9 +745,9 @@ class SixP(object):
             else:
                 # only add and delete are implemented so far
                 assert False
-    
+
     # misc
-    
+
     def timer_fired(self):
         found = False
         for n in self.sixtopStates.keys():
@@ -765,11 +765,11 @@ class SixP(object):
 
         if not found: # if we did not find it, assert
             assert False
-    
+
     #======================== private ==========================================
-    
+
     # ADD request
-    
+
     def _enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, dir, seq):
         """ enqueue a new 6P ADD request """
 
@@ -834,9 +834,9 @@ class SixP(object):
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
-    
+
     # response
-    
+
     def _enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir, seq):
         """ enqueue a new 6P ADD or DELETE response """
 
@@ -913,7 +913,7 @@ class SixP(object):
                 self.mote.numCellsToNeighbors[neighbor] += len(cells)
 
             return cells
-    
+
     def _cell_deletion_sender(self, neighbor, tsList, dir, timeout):
         with self.dataLock:
             if self.settings.sixtop_messaging:

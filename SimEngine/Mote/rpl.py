@@ -109,7 +109,7 @@ class Rpl(object):
         # update my mote stats
         self.mote._stats_incrementMoteStats('statsNumRxDIO')
 
-        sender = smac
+        sender = self.engine(smac)
 
         rank = payload[0]
 
@@ -177,7 +177,7 @@ class Rpl(object):
         nextHop = None
 
         if   packet['dstIp'] == d.BROADCAST_ADDRESS:
-            nextHop = self.mote._myNeighbors()
+            nextHop = [d.BROADCAST_ADDRESS]
         elif packet['type'] == d.IANA_6TOP_TYPE_REQUEST or packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
             # 6P packet: send directly to neighbor
             nextHop = [packet['dstIp']]
@@ -235,7 +235,7 @@ class Rpl(object):
         if sendDio:
             # probability passes
             self._action_enqueueDIO()
-        
+
         # schedule next DIO
         self._schedule_sendDIO()
 
@@ -246,7 +246,7 @@ class Rpl(object):
 
         if self.mote.dagRoot or (self.preferredParent and self.mote.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
             # I am the root, or I have a preferred parent with dedicated cells to it
-            
+
             self.mote._stats_incrementMoteStats('rplTxDIO')
 
             # create new packet
@@ -271,11 +271,11 @@ class Rpl(object):
         """
         Schedule to send a DAO sometimes in the future.
         """
-        
+
         # abort it I'm the root
         if self.mote.dagRoot:
             return
-        
+
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
             return
