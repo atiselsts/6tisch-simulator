@@ -152,7 +152,7 @@ class Mote(object):
     def radio_rxDone(self,      type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         """end of RX radio activity"""
         
-        return self.tsch.rxDone(type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None)
+        return self.tsch.rxDone(type,      code,      smac,      dmac,      srcIp,      dstIp,      srcRoute,      payload)
 
     #===== wireless
 
@@ -243,20 +243,20 @@ class Mote(object):
         # gather statistics
         with self.dataLock:
             dataPktQueues = 0
-            for p in self.txQueue:
+            for p in self.tsch.getTxQueue():
                 if p['type'] == d.APP_TYPE_DATA:
                     dataPktQueues += 1
 
             returnVal = copy.deepcopy(self.motestats)
-            returnVal['numTxCells']         = len(self.getTxCells())
-            returnVal['numRxCells']         = len(self.getRxCells())
+            returnVal['numTxCells']         = len(self.tsch.getTxCells())
+            returnVal['numRxCells']         = len(self.tsch.getRxCells())
             returnVal['numDedicatedCells']  = len([(ts, c) for (ts, c) in self.tsch.getSchedule().items() if type(self) == type(c['neighbor'])])
-            returnVal['numSharedCells']     = len(self.getSharedCells())
+            returnVal['numSharedCells']     = len(self.tsch.getSharedCells())
             returnVal['aveQueueDelay']      = self._stats_getAveQueueDelay()
             returnVal['aveLatency']         = self._stats_getAveLatency()
             returnVal['aveHops']            = self._stats_getAveHops()
             returnVal['probableCollisions'] = self._stats_getRadioStats('probableCollisions')
-            returnVal['txQueueFill']        = len(self.txQueue)
+            returnVal['txQueueFill']        = len(self.tsch.getTxQueue())
             returnVal['chargeConsumed']     = self.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_, cell) in self.tsch.getSchedule().items()])
             returnVal['dataQueueFill']      = dataPktQueues

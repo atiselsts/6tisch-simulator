@@ -323,31 +323,31 @@ class MSF(SchedulingFunction):
         if cellOptions == d.DIR_TXRX_SHARED and neighbor == mote.rpl.getPreferredParent():
             log.info('[msf] signal_cell_used: neighbor {0} direction {1} type {2} preferredParent = {3}'.format(
                         neighbor.id, direction, celltype, mote.rpl.getPreferredParent().id))
-            mote.numCellsUsed += 1
+            mote.sf.numCellsUsed += 1
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
 
-        assert mote.numCellsElapsed <= self.settings.sf_msf_maxNumCells
+        assert mote.sf.numCellsElapsed <= self.settings.sf_msf_maxNumCells
         assert direction in [d.DIR_TXRX_SHARED, d.DIR_TX, d.DIR_RX]
 
         # MSF: updating numCellsElapsed
         if direction == d.DIR_TXRX_SHARED and neighbor == mote.rpl.getPreferredParent():
-            mote.numCellsElapsed += 1
+            mote.sf.numCellsElapsed += 1
 
-            if mote.numCellsElapsed == self.settings.sf_msf_maxNumCells:
+            if mote.sf.numCellsElapsed == self.settings.sf_msf_maxNumCells:
                 log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
-                             mote.numCellsElapsed, mote.numCellsUsed))
+                             mote.sf.numCellsElapsed, mote.sf.numCellsUsed))
 
-                if   mote.numCellsUsed > self.settings.sf_msf_highUsageThres:
+                if   mote.sf.numCellsUsed > self.settings.sf_msf_highUsageThres:
                     self.schedule_bandwidth_increment(mote)
-                elif mote.numCellsUsed < self.settings.sf_msf_lowUsageThres:
+                elif mote.sf.numCellsUsed < self.settings.sf_msf_lowUsageThres:
                     self.schedule_bandwidth_decrement(mote)
                 self.reset_counters(mote)
 
     @staticmethod
     def reset_counters(mote):
-        mote.numCellsElapsed = 0
-        mote.numCellsUsed = 0
+        mote.sf.numCellsElapsed = 0
+        mote.sf.numCellsUsed = 0
 
     def reset_timeout_exponent(self, neighborId, firstTime):
         """

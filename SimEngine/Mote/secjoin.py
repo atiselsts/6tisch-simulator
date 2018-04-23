@@ -79,7 +79,7 @@ class SecJoin(object):
         )
 
         # log
-        self._log(
+        self.mote._log(
             d.INFO,
             "[join] Received join packet from {0} with token {1}",
             (srcIp.id, payload[0])

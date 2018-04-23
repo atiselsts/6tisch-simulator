@@ -382,28 +382,30 @@ class TestReassembly:
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'frag_ff_enable': True,
-                  'frag_numFragments': 2,
-                  'exec_numMotes': 3,
-                  'top_type': 'linear',
-                  'app_pkPeriod': 0,
-                  'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
-        sim = sim(**params)
+        sim = sim(**{
+            'frag_ff_enable':     True,
+            'frag_numFragments':  2,
+            'exec_numMotes':      3,
+            'top_type':           'linear',
+            'app_pkPeriod':       0,
+            'app_pkPeriodVar':    0,
+            'app_e2eAck':         False,
+        })
+        
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
-        packet = {
-            'asn': 0,
-            'type': d.APP_TYPE_DATA,
-            'code': None,
-            'payload': {'asn_at_source': 0, 'hops': 1},
-            'retriesLeft': d.TSCH_MAXTXRETRIES,
-            'srcIp': hop2,
-            'dstIp': root,
-            'sourceRoute': []
-        }
-        hop2.app.fragment_and_enqueue_packet(packet)
+        
+        hop2.app.fragment_and_enqueue_packet({
+            'asn':           0,
+            'type':          d.APP_TYPE_DATA,
+            'code':          None,
+            'payload':       {'asn_at_source': 0, 'hops': 1},
+            'retriesLeft':   d.TSCH_MAXTXRETRIES,
+            'srcIp':         hop2,
+            'dstIp':         root,
+            'sourceRoute':   [],
+        })
         frag0 = hop2.tsch.getTxQueue()[0]
         frag1 = hop2.tsch.getTxQueue()[1]
 
@@ -411,8 +413,17 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
-                                 hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
+        (isACKed,isNACKed) = hop1.radio_rxDone(
+            type        = d.APP_TYPE_FRAG,
+            code        = None,
+            smac        = hop2,
+            dmac        = [hop1],
+            srcIp       = hop2,
+            dstIp       = root,
+            srcRoute    = [],
+            payload     = frag0['payload']
+        )
+        assert (isACKed,isNACKed) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
 
@@ -424,7 +435,7 @@ class TestPacketFowarding:
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {
+        sim = sim(**{
             'frag_ff_enable':     True,
             'frag_numFragments':  2,
             'exec_numMotes':      3,
@@ -433,18 +444,19 @@ class TestPacketFowarding:
             'app_pkPeriod':       0,
             'app_pkPeriodVar':    0,
             'app_e2eAck':         False,
-        }
-        sim = sim(**params)
+        })
 
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
-
+        
+        # send a packet from hop2
         hop2.app.pkPeriod = one_second
         hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
         assert len(sim.events) == 5
         assert sim.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
-
+        
+        # execute all events
         cb = None
         asn0 = sim.asn
         while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
@@ -484,6 +496,7 @@ class TestPacketFowarding:
         # now hop1 has two fragments
         assert len(hop2.tsch.getTxQueue()) == 0
         assert len(hop1.tsch.getTxQueue()) == 0
+        print root.motestats
         assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
     def test_drop_fragment(self, sim):
