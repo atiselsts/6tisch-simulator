@@ -12,6 +12,7 @@
 
 import threading
 import json
+import traceback
 
 from Propagation import Propagation
 import Topology
@@ -166,6 +167,9 @@ class SimEngine(threading.Thread):
             # log
             log.info("thread {0} ends".format(self.name))
         except Exception as e:
+            print 'poipoipoipoipoi'
+            traceback.print_exc()
+            print 'poipoipoipoipoi'
             self.exc = e
         else:
             self.exc = None

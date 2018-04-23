@@ -50,7 +50,6 @@ class Rpl(object):
         self.rplRxDIO                  = {}      # indexed by neighbor, contains int
         self.neighborRank              = {}      # indexed by neighbor
         self.neighborDagRank           = {}      # indexed by neighbor
-        self.timeCorrectedSlot         = None
 
     #======================== public ==========================================
 
@@ -102,7 +101,7 @@ class Rpl(object):
             return
 
         # non sync'ed mote don't use DIO
-        if not self.mote.isSync:
+        if not self.mote.tsch.getIsSync():
             return
 
         # log
@@ -134,11 +133,6 @@ class Rpl(object):
 
         # trigger RPL housekeeping
         self._housekeeping()
-
-        # update time correction
-        if self.preferredParent == sender:
-            asn                         = self.engine.getAsn()
-            self.timeCorrectedSlot      = asn
 
     # DAO
 
@@ -295,7 +289,7 @@ class Rpl(object):
             }
 
             # enqueue packet in TSCH queue
-            if not self.mote._tsch_enqueue(newPacket):
+            if not self.mote.tsch.enqueue(newPacket):
                 self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # DAO
@@ -368,7 +362,7 @@ class Rpl(object):
             }
 
             # enqueue packet in TSCH queue
-            if not self.mote._tsch_enqueue(newPacket):
+            if not self.mote.tsch.enqueue(newPacket):
                 self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # source route
@@ -515,7 +509,7 @@ class Rpl(object):
         numTx                 = d.NUM_SUFFICIENT_TX
         numTxAck              = math.floor(pdr*numTx)
 
-        for (_, cell) in self.mote.schedule.items():
+        for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (                                          \
                     cell['neighbor'] == neighbor and       \
                     cell['dir'] == d.DIR_TX                \

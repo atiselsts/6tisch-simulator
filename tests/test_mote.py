@@ -53,9 +53,9 @@ def test_drop_join_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -91,9 +91,9 @@ def test_drop_data_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -129,9 +129,9 @@ def test_drop_frag_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -165,9 +165,9 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(root.txQueue) == i
-        assert root._tsch_enqueue(packet) is True
-        assert len(root.txQueue) == i + 1
+        assert len(root.tsch.getTxQueue()) == i
+        assert root.tsch.enqueue(packet) is True
+        assert len(root.tsch.getTxQueue()) == i + 1
 
     root.original_radio_drop_packet = root._radio_drop_packet
     test_is_called = {'result': False}
@@ -197,6 +197,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
             'app_pkPeriod':            0,
             'top_type':                'linear',
             'sf_type':                 'SSF-cascading',
+            'tsch_probBcast_enabled':  0,
         }
     )
 
@@ -207,9 +208,9 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -223,7 +224,7 @@ def test_drop_eb_packet_tx_queue_full(sim):
 
     node._radio_drop_packet = types.MethodType(test, node)
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] not in node.motestats
-    node._tsch_action_enqueueEB()
+    node.tsch._tsch_action_sendEB()
     assert test_is_called['result'] is True
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
@@ -245,9 +246,9 @@ def test_drop_dio_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -283,9 +284,9 @@ def test_drop_dao_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -320,9 +321,9 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -362,9 +363,9 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -403,9 +404,9 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -425,7 +426,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
         'datagram_size':   2,
         'datagram_offset': 0
     }
-    node.waitingFor = d.DIR_RX
+    node.tsch.waitingFor = d.DIR_RX
     node.radio_rxDone(
         type       = d.APP_TYPE_FRAG,
         smac       = leaf,
@@ -544,9 +545,9 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10
-        assert len(node.txQueue) == i
-        assert node._tsch_enqueue(packet) is True
-        assert len(node.txQueue) == i + 1
+        assert len(node.tsch.getTxQueue()) == i
+        assert node.tsch.enqueue(packet) is True
+        assert len(node.tsch.getTxQueue()) == i + 1
 
     node.original_radio_drop_packet = node._radio_drop_packet
     test_is_called = {'result': False}
@@ -559,7 +560,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
         assert len(pkt) == 0
 
     node._radio_drop_packet = types.MethodType(test, node)
-    node.waitingFor = d.DIR_RX
+    node.tsch.waitingFor = d.DIR_RX
     node.radio_rxDone(
         type       = d.APP_TYPE_DATA,
         smac       = leaf,

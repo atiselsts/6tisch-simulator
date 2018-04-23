@@ -27,9 +27,9 @@ class TestNumFragmentsVsTxQueue:
                    'exec_numMotes': 2,
                    'top_type': 'linear',
                    'sf_type': 'SSF-symmetric'}).motes[1]
-        assert len(m.txQueue) == 0
+        assert len(m.tsch.getTxQueue()) == 0
         m.app._action_mote_enqueueDataForDAGroot()
-        assert len(m.txQueue) == expected
+        assert len(m.tsch.getTxQueue()) == expected
 
 
 class TestFragmentForwarding:
@@ -61,8 +61,8 @@ class TestFragmentForwarding:
 
         leaf.app.fragment_and_enqueue_packet(packet)
 
-        frag0 = leaf.txQueue[0]
-        frag1 = leaf.txQueue[1]
+        frag0 = leaf.tsch.getTxQueue()[0]
+        frag1 = leaf.tsch.getTxQueue()[1]
 
         assert node.app.frag_ff_forward_fragment(frag1) is False
         assert node.app.frag_ff_forward_fragment(frag0) is True
@@ -105,11 +105,11 @@ class TestFragmentForwarding:
         packet['smac'] = leaf3
         leaf3.app.fragment_and_enqueue_packet(packet)
 
-        assert node.app.frag_ff_forward_fragment(leaf1.txQueue[0]) is True
-        assert node.app.frag_ff_forward_fragment(leaf2.txQueue[0]) is True
-        assert node.app.frag_ff_forward_fragment(leaf3.txQueue[0]) is True
-        leaf1.txQueue[0]['payload']['datagram_tag'] += 1
-        assert node.app.frag_ff_forward_fragment(leaf1.txQueue[0]) is True
+        assert node.app.frag_ff_forward_fragment(leaf1.tsch.getTxQueue()[0]) is True
+        assert node.app.frag_ff_forward_fragment(leaf2.tsch.getTxQueue()[0]) is True
+        assert node.app.frag_ff_forward_fragment(leaf3.tsch.getTxQueue()[0]) is True
+        leaf1.tsch.getTxQueue()[0]['payload']['datagram_tag'] += 1
+        assert node.app.frag_ff_forward_fragment(leaf1.tsch.getTxQueue()[0]) is True
 
     def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim):
         sim = sim(
@@ -141,8 +141,8 @@ class TestFragmentForwarding:
         }
 
         leaf.app.fragment_and_enqueue_packet(packet)
-        frag0 = leaf.txQueue[0]
-        frag1 = leaf.txQueue[1]
+        frag0 = leaf.tsch.getTxQueue()[0]
+        frag1 = leaf.tsch.getTxQueue()[1]
 
         print frag0
         print frag1
@@ -190,12 +190,12 @@ class TestFragmentation:
             'dstIp': root,
             'sourceRoute': []
         }
-        assert len(node.txQueue) == 0
+        assert len(node.tsch.getTxQueue()) == 0
         node.app.fragment_and_enqueue_packet(packet)
-        assert len(node.txQueue) == 2
+        assert len(node.tsch.getTxQueue()) == 2
 
-        frag0 = node.txQueue[0]
-        frag1 = node.txQueue[1]
+        frag0 = node.tsch.getTxQueue()[0]
+        frag1 = node.tsch.getTxQueue()[1]
 
         assert frag0['asn'] == packet['asn']
         assert frag0['type'] == d.APP_TYPE_FRAG
@@ -242,13 +242,13 @@ class TestFragmentation:
             'dstIp': root,
             'sourceRoute': []
         }
-        assert len(node.txQueue) == 0
+        assert len(node.tsch.getTxQueue()) == 0
         node.app.fragment_and_enqueue_packet(packet)
-        assert len(node.txQueue) == 3
+        assert len(node.tsch.getTxQueue()) == 3
 
-        frag0 = node.txQueue[0]
-        frag1 = node.txQueue[1]
-        frag2 = node.txQueue[2]
+        frag0 = node.tsch.getTxQueue()[0]
+        frag1 = node.tsch.getTxQueue()[1]
+        frag2 = node.tsch.getTxQueue()[2]
 
         assert frag0['asn'] == packet['asn']
         assert frag0['type'] == d.APP_TYPE_FRAG
@@ -313,9 +313,9 @@ class TestReassembly:
             'sourceRoute': []
         }
         node.app.fragment_and_enqueue_packet(packet)
-        frag0 = node.txQueue[0]
-        frag1 = node.txQueue[1]
-        frag2 = node.txQueue[2]
+        frag0 = node.tsch.getTxQueue()[0]
+        frag1 = node.tsch.getTxQueue()[1]
+        frag2 = node.tsch.getTxQueue()[2]
 
         size = frag0['payload']['datagram_size']
         tag = frag0['payload']['datagram_tag']
@@ -356,9 +356,9 @@ class TestReassembly:
             'sourceRoute': []
         }
         node.app.fragment_and_enqueue_packet(packet)
-        frag0 = node.txQueue[0]
-        frag1 = node.txQueue[1]
-        frag2 = node.txQueue[2]
+        frag0 = node.tsch.getTxQueue()[0]
+        frag1 = node.tsch.getTxQueue()[1]
+        frag2 = node.tsch.getTxQueue()[2]
 
         tag = frag0['payload']['datagram_tag']
 
@@ -382,49 +382,60 @@ class TestReassembly:
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'frag_ff_enable': True,
-                  'frag_numFragments': 2,
-                  'exec_numMotes': 3,
-                  'top_type': 'linear',
-                  'app_pkPeriod': 0,
-                  'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
-        sim = sim(**params)
+        sim = sim(**{
+            'frag_ff_enable':     True,
+            'frag_numFragments':  2,
+            'exec_numMotes':      3,
+            'top_type':           'linear',
+            'app_pkPeriod':       0,
+            'app_pkPeriodVar':    0,
+            'app_e2eAck':         False,
+        })
+        
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
-        packet = {
-            'asn': 0,
-            'type': d.APP_TYPE_DATA,
-            'code': None,
-            'payload': {'asn_at_source': 0, 'hops': 1},
-            'retriesLeft': d.TSCH_MAXTXRETRIES,
-            'srcIp': hop2,
-            'dstIp': root,
-            'sourceRoute': []
-        }
-        hop2.app.fragment_and_enqueue_packet(packet)
-        frag0 = hop2.txQueue[0]
-        frag1 = hop2.txQueue[1]
+        
+        hop2.app.fragment_and_enqueue_packet({
+            'asn':           0,
+            'type':          d.APP_TYPE_DATA,
+            'code':          None,
+            'payload':       {'asn_at_source': 0, 'hops': 1},
+            'retriesLeft':   d.TSCH_MAXTXRETRIES,
+            'srcIp':         hop2,
+            'dstIp':         root,
+            'sourceRoute':   [],
+        })
+        frag0 = hop2.tsch.getTxQueue()[0]
+        frag1 = hop2.tsch.getTxQueue()[1]
 
-        assert len(hop1.txQueue) == 0
+        assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
 
-        hop1.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
-                                 hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
-        assert len(hop1.txQueue) == 1
+        hop1.tsch.waitingFor = d.DIR_RX
+        (isACKed,isNACKed) = hop1.radio_rxDone(
+            type        = d.APP_TYPE_FRAG,
+            code        = None,
+            smac        = hop2,
+            dmac        = [hop1],
+            srcIp       = hop2,
+            dstIp       = root,
+            srcRoute    = [],
+            payload     = frag0['payload']
+        )
+        assert (isACKed,isNACKed) == (True, False)
+        assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
 
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
-        assert len(hop1.txQueue) == 2
+        assert len(hop1.tsch.getTxQueue()) == 2
         assert len(hop1.app.reassQueue) == 0
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {
+        sim = sim(**{
             'frag_ff_enable':     True,
             'frag_numFragments':  2,
             'exec_numMotes':      3,
@@ -433,18 +444,19 @@ class TestPacketFowarding:
             'app_pkPeriod':       0,
             'app_pkPeriodVar':    0,
             'app_e2eAck':         False,
-        }
-        sim = sim(**params)
+        })
 
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
-
+        
+        # send a packet from hop2
         hop2.app.pkPeriod = one_second
         hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
         assert len(sim.events) == 5
         assert sim.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
-
+        
+        # execute all events
         cb = None
         asn0 = sim.asn
         while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
@@ -463,9 +475,9 @@ class TestPacketFowarding:
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
 
         # make sure there are two fragments added by app._action_mote_sendSinglePacketToDAGroot
-        assert len(hop2.txQueue) == 0
+        assert len(hop2.tsch.getTxQueue()) == 0
         hop2.app._action_mote_sendSinglePacketToDAGroot()
-        assert len(hop2.txQueue) == 2
+        assert len(hop2.tsch.getTxQueue()) == 2
 
         asn0 = sim.asn
         assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
@@ -475,15 +487,16 @@ class TestPacketFowarding:
             if sim.asn != asn:
                 sim.asn = asn
             cb(**kwargs)
-            if(len(hop1.txQueue) == 2):
+            if(len(hop1.tsch.getTxQueue()) == 2):
                 break
             if asn > (asn0 + (2 * sim.settings.tsch_slotframeLength)):
                 # timeout
                 break
 
         # now hop1 has two fragments
-        assert len(hop2.txQueue) == 0
-        assert len(hop1.txQueue) == 0
+        assert len(hop2.tsch.getTxQueue()) == 0
+        assert len(hop1.tsch.getTxQueue()) == 0
+        print root.motestats
         assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
     def test_drop_fragment(self, sim):
@@ -510,30 +523,30 @@ class TestPacketFowarding:
             'sourceRoute': []
         }
         hop2.app.fragment_and_enqueue_packet(packet)
-        frag0 = hop2.txQueue[0]
-        frag1 = hop2.txQueue[1]
+        frag0 = hop2.tsch.getTxQueue()[0]
+        frag1 = hop2.tsch.getTxQueue()[1]
 
         #frag1 should be dropped at hop-1 if a relevant VRBtable entry is not available
-        assert len(hop1.txQueue) == 0
+        assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
-        assert len(hop1.txQueue) == 0
+        assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
 
         # duplicate frag0 should be dropped at hop-1
-        assert len(hop1.txQueue) == 0
+        assert len(hop1.tsch.getTxQueue()) == 0
         assert len(hop1.app.reassQueue) == 0
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
-        assert len(hop1.txQueue) == 1
+        assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
-        assert len(hop1.txQueue) == 1
+        assert len(hop1.tsch.getTxQueue()) == 1
         assert len(hop1.app.reassQueue) == 0
 
 
@@ -608,7 +621,7 @@ class TestDatagramTag:
             'dstIp': root,
             'sourceRoute': []
         }
-        assert len(node.txQueue) == 0
+        assert len(node.tsch.getTxQueue()) == 0
 
         tag_init = node.app.next_datagram_tag
 
@@ -616,15 +629,15 @@ class TestDatagramTag:
         node.app.fragment_and_enqueue_packet(packet)
         node.app.fragment_and_enqueue_packet(packet)
 
-        tag0 = node.txQueue[0]['payload']['datagram_tag']
-        tag1 = node.txQueue[2]['payload']['datagram_tag']
+        tag0 = node.tsch.getTxQueue()[0]['payload']['datagram_tag']
+        tag1 = node.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
         node.app.next_datagram_tag = 65535
         node.app.fragment_and_enqueue_packet(packet)
         node.app.fragment_and_enqueue_packet(packet)
 
-        tag2 = node.txQueue[4]['payload']['datagram_tag']
-        tag3 = node.txQueue[6]['payload']['datagram_tag']
+        tag2 = node.tsch.getTxQueue()[4]['payload']['datagram_tag']
+        tag3 = node.tsch.getTxQueue()[6]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -658,32 +671,32 @@ class TestDatagramTag:
         hop2.app.fragment_and_enqueue_packet(packet)
         hop2.app.fragment_and_enqueue_packet(packet)
         hop2.app.fragment_and_enqueue_packet(packet)
-        frag0_0 = hop2.txQueue[0]
-        frag1_0 = hop2.txQueue[2]
-        frag2_0 = hop2.txQueue[4]
-        frag3_0 = hop2.txQueue[6]
+        frag0_0 = hop2.tsch.getTxQueue()[0]
+        frag1_0 = hop2.tsch.getTxQueue()[2]
+        frag2_0 = hop2.tsch.getTxQueue()[4]
+        frag3_0 = hop2.tsch.getTxQueue()[6]
 
         tag_init = hop1.app.next_datagram_tag
 
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag1_0['payload'])
 
         hop1.app.next_datagram_tag = 65535
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag2_0['payload'])
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag3_0['payload'])
 
-        tag0 = hop1.txQueue[0]['payload']['datagram_tag']
-        tag1 = hop1.txQueue[1]['payload']['datagram_tag']
-        tag2 = hop1.txQueue[2]['payload']['datagram_tag']
-        tag3 = hop1.txQueue[3]['payload']['datagram_tag']
+        tag0 = hop1.tsch.getTxQueue()[0]['payload']['datagram_tag']
+        tag1 = hop1.tsch.getTxQueue()[1]['payload']['datagram_tag']
+        tag2 = hop1.tsch.getTxQueue()[2]['payload']['datagram_tag']
+        tag3 = hop1.tsch.getTxQueue()[3]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -725,21 +738,21 @@ class TestDatagramTag:
         }
         hop2.app.fragment_and_enqueue_packet(packet2)
         hop2.app.fragment_and_enqueue_packet(packet2)
-        frag0_0 = hop2.txQueue[0]
-        frag1_0 = hop2.txQueue[2]
+        frag0_0 = hop2.tsch.getTxQueue()[0]
+        frag1_0 = hop2.tsch.getTxQueue()[2]
 
         tag_init = hop1.app.next_datagram_tag
 
         hop1.app.fragment_and_enqueue_packet(packet1)
-        tag0 = hop1.txQueue[0]['payload']['datagram_tag']
+        tag0 = hop1.tsch.getTxQueue()[0]['payload']['datagram_tag']
 
-        hop1.waitingFor = d.DIR_RX
+        hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio_rxDone(d.APP_TYPE_FRAG, None,
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
-        tag1 = hop1.txQueue[2]['payload']['datagram_tag']
+        tag1 = hop1.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
         hop1.app.fragment_and_enqueue_packet(packet1)
-        tag2 = hop1.txQueue[3]['payload']['datagram_tag']
+        tag2 = hop1.tsch.getTxQueue()[3]['payload']['datagram_tag']
 
         assert tag0 == tag_init
         assert tag1 == (tag0 + 1) % 65536
@@ -767,10 +780,10 @@ class TestOptimization:
             'sourceRoute': []
         }
         leaf.app.fragment_and_enqueue_packet(packet)
-        frag0 = leaf.txQueue[0]
-        frag1 = leaf.txQueue[1]
-        frag2 = leaf.txQueue[2]
-        frag3 = leaf.txQueue[3]
+        frag0 = leaf.tsch.getTxQueue()[0]
+        frag1 = leaf.tsch.getTxQueue()[1]
+        frag2 = leaf.tsch.getTxQueue()[2]
+        frag3 = leaf.tsch.getTxQueue()[3]
 
 
         assert len(node.app.vrbTable) == 0
@@ -804,9 +817,9 @@ class TestOptimization:
             'sourceRoute': []
         }
         leaf.app.fragment_and_enqueue_packet(packet)
-        frag0 = leaf.txQueue[0]
-        frag1 = leaf.txQueue[1]
-        frag2 = leaf.txQueue[2]
+        frag0 = leaf.tsch.getTxQueue()[0]
+        frag1 = leaf.tsch.getTxQueue()[1]
+        frag2 = leaf.tsch.getTxQueue()[2]
 
         assert len(node.app.vrbTable) == 0
 
@@ -836,10 +849,10 @@ class TestOptimization:
             'sourceRoute': []
         }
         leaf.app.fragment_and_enqueue_packet(packet)
-        frag0 = leaf.txQueue[0]
-        frag1 = leaf.txQueue[1]
-        frag2 = leaf.txQueue[2]
-        frag3 = leaf.txQueue[3]
+        frag0 = leaf.tsch.getTxQueue()[0]
+        frag1 = leaf.tsch.getTxQueue()[1]
+        frag2 = leaf.tsch.getTxQueue()[2]
+        frag3 = leaf.tsch.getTxQueue()[3]
 
         assert len(node.app.vrbTable) == 0
 
@@ -881,17 +894,17 @@ class TestOptimization:
             'sourceRoute': []
         }
         leaf.app.fragment_and_enqueue_packet(packet1)
-        frag1_0 = leaf.txQueue[0]
-        frag1_1 = leaf.txQueue[1]
-        frag1_2 = leaf.txQueue[2]
-        frag1_3_1 = leaf.txQueue[3]
+        frag1_0 = leaf.tsch.getTxQueue()[0]
+        frag1_1 = leaf.tsch.getTxQueue()[1]
+        frag1_2 = leaf.tsch.getTxQueue()[2]
+        frag1_3_1 = leaf.tsch.getTxQueue()[3]
         frag1_3_2 = copy.copy(frag1_3_1)
         frag1_3_2['payload'] = copy.deepcopy(frag1_3_1['payload'])
         leaf.app.fragment_and_enqueue_packet(packet2)
-        frag2_0 = leaf.txQueue[0]
-        frag2_1 = leaf.txQueue[1]
-        frag2_2 = leaf.txQueue[2]
-        frag2_3 = leaf.txQueue[3]
+        frag2_0 = leaf.tsch.getTxQueue()[0]
+        frag2_1 = leaf.tsch.getTxQueue()[1]
+        frag2_2 = leaf.tsch.getTxQueue()[2]
+        frag2_3 = leaf.tsch.getTxQueue()[3]
 
         node.original_radio_drop_packet = node._radio_drop_packet
         test_is_called = {'result': False}
