@@ -20,10 +20,12 @@ import math
 
 # Mote sub-modules
 import app
-import secjoin
 import rpl
 import sf
 import sixp
+import secjoin
+import tsch
+
 import MoteDefines as d
 
 # Simulator-wide modules
@@ -69,18 +71,12 @@ class Mote(object):
         self.propagation               = SimEngine.Propagation.Propagation()
 
         # stack
-        # app
         self.app                       = app.App(self)
-        # frag
-        # rpl
+        # TODO frag
         self.rpl                       = rpl.Rpl(self)
-        # sf
         self.sf                        = sf.SchedulingFunction.get_sf(self.settings.sf_type)
-        # 6P
         self.sixp                      = sixp.SixP(self)
-        # secjoin
         self.secjoin                   = secjoin.SecJoin(self)
-        # tsch
         self.tsch                      = tsch.Tsch(self)
         # radio
         self.txPower                   = 0       # dBm
@@ -151,12 +147,12 @@ class Mote(object):
     def radio_txDone(self, isACKed, isNACKed):
         """end of tx slot"""
         
-        self.tsch.txDone(isACKed, isNACKed)
+        self.tsch.txDone(  isACKed, isNACKed)
 
-    def radio_rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
+    def radio_rxDone(self,      type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         """end of RX radio activity"""
         
-        self.tsch.rxDone(isACKed, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None)
+        return self.tsch.rxDone(type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None)
 
     #===== wireless
 
@@ -231,37 +227,13 @@ class Mote(object):
     def _logChargeConsumed(self, charge):
         with self.dataLock:
             self.chargeConsumed  += charge
-            self.engine.log(SimEngine.SimLog.LOG_CHARGE_CONSUMED,
-                            {"mote_id": self.id, "charge": charge})
+            self.engine.log(
+                SimEngine.SimLog.LOG_CHARGE_CONSUMED,
+                {"mote_id": self.id, "charge": charge}
+            )
 
     #======================== private =========================================
-
-    #===== getters
-
-    def getTxCells(self, neighbor = None):
-        with self.dataLock:
-            if neighbor is None:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if c['dir'] == d.DIR_TX]
-            else:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if
-                        c['dir'] == d.DIR_TX and c['neighbor'] == neighbor]
-
-    def getRxCells(self, neighbor = None):
-        with self.dataLock:
-            if neighbor is None:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if c['dir'] == d.DIR_RX]
-            else:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if
-                        c['dir'] == d.DIR_RX and c['neighbor'] == neighbor]
-
-    def getSharedCells(self, neighbor = None):
-        with self.dataLock:
-            if neighbor is None:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if c['dir'] == d.DIR_TXRX_SHARED]
-            else:
-                return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.tsch.getSchedule().items() if
-                        c['dir'] == d.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
-
+    
     #===== stats
 
     # mote state
