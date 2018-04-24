@@ -9,24 +9,23 @@ from SimEngine.Propagation import Propagation
 
 @pytest.fixture
 def sim_settings():
-    sim_settings = SimSettings(
-        **{
-            'exec_numMotes':           1,
-            'exec_simDataDir':         "simData",
-            'app_pkPeriod':            0,
-            'rpl_daoPeriod':           0,
-            'sf_type':                 'SSF-symmetric',
-            'secjoin_enabled':         False,
-            'tsch_slotDuration':       0.010,
-            'tsch_slotframeLength':    101,
-            'top_type':                'linear',
-            'top_squareSide':          2.000,
-            'top_fullyMeshed':         False,
-            'prop_type':               'pisterhack',
-            'phy_noInterference':      True,
-            'phy_minRssi':             -97,
-        }
-    )
+    sim_settings = SimSettings(**{'exec_numMotes'       : 1,
+                                  'exec_simDataDir'     : "simData",
+                                  'app_pkPeriod'        : 0,
+                                  'app_pkLength'        : 90,
+                                  'rpl_daoPeriod'       : 0,
+                                  'fragmentation'       : 'FragmentForwarding',
+                                  'sf_type'             : 'SSF-symmetric',
+                                  'secjoin_enabled'     : False,
+                                  'tsch_slotDuration'   : 0.010,
+                                  'tsch_slotframeLength': 101,
+                                  'tsch_max_payload_len': 90,
+                                  'top_type'            : 'linear',
+                                  'top_squareSide'      : 2.000,
+                                  'top_fullyMeshed'     : False,
+                                  'prop_type'           : 'pisterhack',
+                                  'phy_noInterference'  : True,
+                                  'phy_minRssi'         : -97})
     sim_settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
     sim_settings.setCombinationKeys([])
     yield

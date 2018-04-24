@@ -12,21 +12,22 @@ import SimEngine
 
 class TestNumFragmentsVsTxQueue:
 
-    @pytest.mark.parametrize('test_input, expected', [
-        (0, 1),
-        (1, 1),
-        (2, 2),
-        (3, 3),
-        (10, 10),
+    @pytest.mark.parametrize('test_recv, expected', [
+        (45, 1),
+        (90, 1),
+        (135, 2),
+        (270, 3),
+        (900, 10),
     ])
 
-    def test_num_frag(self, sim, test_input, expected):
+    def test_num_frag(self, sim, test_recv, expected):
         m = sim(
             **{
-                'exec_numMotes':       2,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
-                'frag_numFragments':   test_input,
+                'fragmentation': 'PerHopReassembly',
+                'exec_numMotes': 2,
+                'top_type'     : 'linear',
+                'sf_type'      : 'SSF-symmetric',
+                'app_pkLength' : test_recv
             }
         ).motes[1]
         assert len(m.tsch.getTxQueue()) == 0
@@ -38,10 +39,11 @@ class TestFragmentation:
     def test_app_frag_packet_2(self, sim):
         sim = sim(
             **{
-                'frag_numFragments':   2,
-                'exec_numMotes':       2,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
+                'fragmentation': 'PerHopReassembly',
+                'app_pkLength' : 180,
+                'exec_numMotes': 2,
+                'top_type'     : 'linear',
+                'sf_type'      : 'SSF-symmetric',
             }
         )
         root = sim.motes[0]
@@ -53,6 +55,7 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              node,
@@ -60,7 +63,7 @@ class TestFragmentation:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 2
 
         fragTheory = {
@@ -70,9 +73,11 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source':  packet['payload']['asn_at_source'],
                 'hops':           packet['payload']['hops'],
-                'datagram_size':  2,
+                'datagram_size':  180,
                 'datagram_offset':0,
                 'datagram_tag':   node.tsch.getTxQueue()[0]['payload']['datagram_tag'],
+                'length':         90,
+                'original_type':  d.APP_TYPE_DATA,
             },
             'retriesLeft':        packet['retriesLeft'],
             'srcIp':              packet['srcIp'],
@@ -83,16 +88,17 @@ class TestFragmentation:
 
         fragTheory['payload']['datagram_offset'] = 0
         assert node.tsch.getTxQueue()[0] == fragTheory
-        fragTheory['payload']['datagram_offset'] = 1
+        fragTheory['payload']['datagram_offset'] = 90
         assert node.tsch.getTxQueue()[1] == fragTheory
 
     def test_app_frag_packet_3(self, sim):
         sim = sim(
             **{
-                'frag_numFragments':   3,
-                'exec_numMotes':       3,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
+                'fragmentation'    : 'PerHopReassembly',
+                'app_pkLength'     : 270,
+                'exec_numMotes'    : 3,
+                'top_type'         : 'linear',
+                'sf_type'          : 'SSF-symmetric',
             }
         )
         root = sim.motes[0]
@@ -104,6 +110,7 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              node,
@@ -111,7 +118,7 @@ class TestFragmentation:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         fragTheory = {
@@ -121,9 +128,11 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source':  packet['payload']['asn_at_source'],
                 'hops':           packet['payload']['hops'],
-                'datagram_size':  3,
+                'datagram_size':  270,
                 'datagram_offset':0,
                 'datagram_tag':   node.tsch.getTxQueue()[0]['payload']['datagram_tag'],
+                'length':         90,
+                'original_type':  d.APP_TYPE_DATA,
             },
             'retriesLeft':        packet['retriesLeft'],
             'srcIp':              packet['srcIp'],
@@ -134,9 +143,9 @@ class TestFragmentation:
 
         fragTheory['payload']['datagram_offset'] = 0
         assert node.tsch.getTxQueue()[0] == fragTheory
-        fragTheory['payload']['datagram_offset'] = 1
+        fragTheory['payload']['datagram_offset'] = 90
         assert node.tsch.getTxQueue()[1] == fragTheory
-        fragTheory['payload']['datagram_offset'] = 2
+        fragTheory['payload']['datagram_offset'] = 180
         assert node.tsch.getTxQueue()[2] == fragTheory
 
 class TestReassembly:
@@ -144,10 +153,12 @@ class TestReassembly:
     def test_app_reass_packet_in_order(self, sim):
         sim = sim(
             **{
-                'frag_numFragments':   3,
-                'exec_numMotes':       3,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
+                'fragmentation'                  : 'PerHopReassembly',
+                'app_pkLength'                   : 270,
+                'exec_numMotes'                  : 3,
+                'top_type'                       : 'linear',
+                'sf_type'                        : 'SSF-symmetric',
+                'app_e2eAck'                     : False,
             }
         )
 
@@ -161,6 +172,7 @@ class TestReassembly:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              node,
@@ -168,7 +180,7 @@ class TestReassembly:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -178,30 +190,48 @@ class TestReassembly:
         size = frag0['payload']['datagram_size']
         tag  = frag0['payload']['datagram_tag']
 
-        assert node not in root.app.reassQueue
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        assert root.app.frag_reassemble_packet(node, frag0['payload']) is False
-        assert len(root.app.reassQueue[node]) == 1
-        assert tag in root.app.reassQueue[node]
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [0]}
+        root.sixlowpan.recv(node, frag0)
+        len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
+                                                               'fragments': [
+                                                                   {
+                                                                       'datagram_offset': 0,
+                                                                       'fragment_length': 90
+                                                                   }]}
 
-        assert root.app.frag_reassemble_packet(node, frag1['payload']) is False
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
+
+        root.sixlowpan.recv(node, frag1)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
+                                                               'fragments': [
+                                                                   {
+                                                                       'datagram_offset': 0,
+                                                                       'fragment_length': 90
+                                                                   },
+                                                                   {
+                                                                       'datagram_offset': 90,
+                                                                       'fragment_length': 90
+                                                                   }]}
 
         # duplicate fragment should be ignored
-        assert root.app.frag_reassemble_packet(node, frag1['payload']) is False
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [0, 1]}
+        root.sixlowpan.recv(node, frag1)
+        assert len(root.sixlowpan.reassembly_buffers[node][tag]) == 2
 
-        assert root.app.frag_reassemble_packet(node, frag2['payload']) is True
-        assert node not in root.app.reassQueue
+        root.sixlowpan.recv(node, frag2)
+        assert node not in root.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_out_of_order(self, sim):
         sim = sim(
             **{
-                'frag_numFragments':   3,
-                'exec_numMotes':       3,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
+                'fragmentation'                  : 'PerHopReassembly',
+                'fragmentation_ff_options'       : [],
+                'app_pkLength'                   : 270,
+                'exec_numMotes'                  : 3,
+                'top_type'                       : 'linear',
+                'sf_type'                        : 'SSF-symmetric',
+                'app_e2eAck'                     : False,
             }
         )
 
@@ -215,6 +245,7 @@ class TestReassembly:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              node,
@@ -222,7 +253,7 @@ class TestReassembly:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -232,66 +263,48 @@ class TestReassembly:
         size = frag0['payload']['datagram_size']
         tag  = frag0['payload']['datagram_tag']
 
-        assert node not in root.app.reassQueue
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        assert root.app.frag_reassemble_packet(node, frag2['payload']) is False
-        assert len(root.app.reassQueue[node]) == 1
-        assert tag in root.app.reassQueue[node]
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [2]}
+        root.sixlowpan.recv(node, frag2)
+        assert len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
+                                                               'fragments': [
+                                                                   {
+                                                                       'datagram_offset': 180,
+                                                                       'fragment_length': 90
+                                                                   }]}
 
-        assert root.app.frag_reassemble_packet(node, frag0['payload']) is False
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
+        root.sixlowpan.recv(node, frag0)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
+                                                               'fragments': [
+                                                                   {
+                                                                       'datagram_offset': 180,
+                                                                       'fragment_length': 90
+                                                                   },
+                                                                   {
+                                                                       'datagram_offset': 0,
+                                                                       'fragment_length': 90
+                                                                   }]}
 
         # duplicate fragment should be ignored
-        assert root.app.frag_reassemble_packet(node, frag0['payload']) is False
-        assert root.app.reassQueue[node][tag] == {'ts': 0, 'fragments': [2, 0]}
+        root.sixlowpan.recv(node, frag0)
+        assert len(root.sixlowpan.reassembly_buffers[node][tag]) == 2
 
-        assert root.app.frag_reassemble_packet(node, frag1['payload']) is True
-        assert node not in root.app.reassQueue
-
-    def test_app_reass_packet_queue_len(self, sim):
-        sim = sim(
-            **{
-                'frag_numFragments':   2,
-                'exec_numMotes':       2,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
-            }
-        )
-
-        root = sim.motes[0]
-        leaf = sim.motes[1]
-
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-            },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp':              leaf,
-            'dstIp':              root,
-            'sourceRoute':        [],
-        }
-
-        leaf.app.fragment_and_enqueue_packet(packet)
-
-        frag0 = leaf.tsch.getTxQueue()[0]
-        frag0['payload']['datagram_size'] = 3
-
-        assert len(root.app.reassQueue) == 0
-        assert root.app.frag_reassemble_packet(leaf, frag0['payload']) is False
-        assert len(root.app.reassQueue) == 0
+        root.sixlowpan.recv(node, frag1)
+        assert node not in root.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_node_queue_num_1(self, sim):
         sim = sim(
             **{
-                'frag_numFragments':   2,
-                'exec_numMotes':       4,
-                'top_type':            'linear',
-                'sf_type':             'SSF-symmetric',
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 1,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 4,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
             }
         )
 
@@ -307,34 +320,39 @@ class TestReassembly:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              leaf1,
             'dstIp':              root,
             'sourceRoute':        [],
         }
-        leaf1.app.fragment_and_enqueue_packet(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 0
-        assert node.app.frag_reassemble_packet(leaf1, frag0_1['payload']) is False
-        assert len(node.app.reassQueue) == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 0
+        node.sixlowpan.recv(leaf1, frag0_1)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac']  = leaf2
-        leaf2.app.fragment_and_enqueue_packet(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 1
-        assert node.app.frag_reassemble_packet(leaf2, frag0_2['payload']) is False
-        assert len(node.app.reassQueue) == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        node.sixlowpan.recv(leaf2, frag0_2)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        assert leaf2 not in node.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_node_queue_num_2(self, sim):
         sim = sim(
             **{
-                'frag_numFragments': 2,
-                'exec_numMotes': 4,
-                'top_type': 'linear',
-                'sf_type': 'SSF-symmetric',
-                'frag_ph_numReassBuffs': 1,
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 2,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 4,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
             }
         )
 
@@ -350,79 +368,41 @@ class TestReassembly:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp':              leaf1,
             'dstIp':              root,
             'sourceRoute':        [],
         }
-        leaf1.app.fragment_and_enqueue_packet(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 0
-        assert node.app.frag_reassemble_packet(leaf1, frag0_1['payload']) is False
-        assert len(node.app.reassQueue) == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 0
+        node.sixlowpan.recv(leaf1, frag0_1)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2.app.fragment_and_enqueue_packet(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 1
-        assert node.app.frag_reassemble_packet(leaf2, frag0_2['payload']) is False
-        reass_queue_num = 0
-        for i in node.app.reassQueue:
-            reass_queue_num += len(node.app.reassQueue[i])
-        assert reass_queue_num == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        node.sixlowpan.recv(leaf2, frag0_2)
+        assert len(node.sixlowpan.reassembly_buffers) == 2
 
-
-    def test_app_reass_packet_node_queue_num_3(self, sim):
-        sim = sim(**{'frag_numFragments': 2,
-                     'exec_numMotes': 4,
-                     'top_type': 'linear',
-                     'sf_type': 'SSF-symmetric',
-                     'frag_ph_numReassBuffs': 2})
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf1 = sim.motes[2]
-        leaf2 = sim.motes[3]
-
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-            },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp':              leaf1,
-            'dstIp':              root,
-            'smac': leaf1,
-            'dmac': node,
-            'sourceRoute':        [],
-        }
-
-        leaf1.app.fragment_and_enqueue_packet(packet)
-        frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 0
-        assert node.app.frag_reassemble_packet(leaf1, frag0_1['payload']) is False
-        assert len(node.app.reassQueue) == 1
-
-        packet['srcIp'] = leaf2
-        packet['smac'] = leaf2
-        leaf2.app.fragment_and_enqueue_packet(packet)
-        frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(node.app.reassQueue) == 1
-        assert node.app.frag_reassemble_packet(leaf2, frag0_2['payload']) is False
-        reass_queue_num = 0
-        for i in node.app.reassQueue:
-            reass_queue_num += len(node.app.reassQueue[i])
-        assert reass_queue_num == 2
 
     def test_app_reass_packet_root_queue_num(self, sim):
-        sim = sim(**{'frag_numFragments': 2,
-                     'exec_numMotes': 3,
-                     'top_type': 'linear',
-                     'sf_type': 'SSF-symmetric'})
+        sim = sim(
+            **{
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 1,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 3,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
+            }
+        )
         root = sim.motes[0]
         leaf1 = sim.motes[1]
         leaf2 = sim.motes[2]
@@ -434,6 +414,7 @@ class TestReassembly:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
@@ -443,30 +424,32 @@ class TestReassembly:
             'sourceRoute':        [],
         }
 
-        leaf1.app.fragment_and_enqueue_packet(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(root.app.reassQueue) == 0
-        assert root.app.frag_reassemble_packet(leaf1, frag0_1['payload']) is False
-        assert len(root.app.reassQueue) == 1
+        assert len(root.sixlowpan.reassembly_buffers) == 0
+        root.sixlowpan.recv(leaf1, frag0_1)
+        assert len(root.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2.app.fragment_and_enqueue_packet(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(root.app.reassQueue) == 1
-        assert root.app.frag_reassemble_packet(leaf2, frag0_2['payload']) is False
-        # root doesn't have app.reassQueue size limitation
-        assert len(root.app.reassQueue) == 2
+        assert len(root.sixlowpan.reassembly_buffers) == 1
+        root.sixlowpan.recv(leaf2, frag0_2)
+        # root doesn't have sixlowpan.reassembly_buffers size limitation
+        assert len(root.sixlowpan.reassembly_buffers) == 2
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'frag_numFragments': 2,
-                  'exec_numMotes': 3,
-                  'top_type': 'linear',
-                  'sf_type': 'SSF-symmetric',
-                  'app_pkPeriod': 0,
-                  'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
+        params = {'fragmentation'                   : 'PerHopReassembly',
+                  'fragmentation_ff_options'        : [],
+                  'sixlowpan_reassembly_buffers_num': 1,
+                  'app_pkLength'                    : 180,
+                  'exec_numMotes'                   : 3,
+                  'top_type'                        : 'linear',
+                  'sf_type'                         : 'SSF-symmetric',
+                  'app_e2eAck'                      : False}
+
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -479,6 +462,7 @@ class TestPacketFowarding:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
@@ -486,12 +470,12 @@ class TestPacketFowarding:
             'sourceRoute':        [],
         }
 
-        hop2.app.fragment_and_enqueue_packet(packet)
+        hop2.sixlowpan.send(packet)
         frag0 = hop2.tsch.getTxQueue()[0]
         frag1 = hop2.tsch.getTxQueue()[1]
 
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.app.reassQueue) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(
@@ -505,7 +489,7 @@ class TestPacketFowarding:
             frag0['payload']
         ) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.app.reassQueue) == 1
+        assert len(hop1.sixlowpan.reassembly_buffers) == 1
 
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(
@@ -519,17 +503,18 @@ class TestPacketFowarding:
             payload     = frag1['payload']
         ) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 2
-        assert len(hop1.app.reassQueue) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {'frag_numFragments': 2,
-                  'exec_numMotes':     3,
-                  'top_type':         'linear',
-                  'sf_type': 'SSF-cascading',
-                  'app_pkPeriod': 0,
-                  'app_pkPeriodVar': 0,
-                  'app_e2eAck': False}
+        params = {'fragmentation'                   : 'PerHopReassembly',
+                  'fragmentation_ff_options'        : [],
+                  'sixlowpan_reassembly_buffers_num': 1,
+                  'app_pkLength'                    : 180,
+                  'exec_numMotes'                   : 3,
+                  'top_type'                        : 'linear',
+                  'sf_type'                         : 'SSF-symmetric',
+                  'app_e2eAck'                      : False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -604,10 +589,15 @@ class TestPacketFowarding:
 class TestDatagramTag:
 
     def test_tag_on_its_fragments_1(self, sim):
-        sim = sim(**{'frag_numFragments': 2,
-                     'exec_numMotes': 2,
-                     'top_type': 'linear',
-                     'sf_type': 'SSF-cascading'})
+        sim = sim(
+            **{
+                'fragmentation': 'PerHopReassembly',
+                'app_pkLength' : 180,
+                'exec_numMotes': 2,
+                'top_type'     : 'linear',
+                'sf_type'      : 'SSF-symmetric',
+            }
+        )
         root = sim.motes[0]
         node = sim.motes[1]
 
@@ -618,6 +608,7 @@ class TestDatagramTag:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
+                'length':         sim.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -626,18 +617,18 @@ class TestDatagramTag:
         }
         assert len(node.tsch.getTxQueue()) == 0
 
-        tag_init = node.app.next_datagram_tag
+        tag_init = node.sixlowpan.next_datagram_tag
 
         # enqueue two packets
-        node.app.fragment_and_enqueue_packet(packet)
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag0 = node.tsch.getTxQueue()[0]['payload']['datagram_tag']
         tag1 = node.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
-        node.app.next_datagram_tag = 65535
-        node.app.fragment_and_enqueue_packet(packet)
-        node.app.fragment_and_enqueue_packet(packet)
+        node.sixlowpan.next_datagram_tag = 65535
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag2 = node.tsch.getTxQueue()[4]['payload']['datagram_tag']
         tag3 = node.tsch.getTxQueue()[6]['payload']['datagram_tag']
