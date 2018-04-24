@@ -34,6 +34,9 @@ LOG_6TOP_RX_RESP = {"type": "6top_rx_resp", "keys": ["mote_id", "rc", "type", "n
 LOG_6TOP_RX_ACK = {"type": "6top_rx_ack"}
 LOG_6TOP_LATENCY = {"type": "6top_latency"}
 
+# === 6LoWPAN
+LOG_SIXLOWPAN_FRAGMENT_RELAYED = {"type": "fragment_relayed"}
+
 # === RPL
 LOG_RPL_TX_DIO = {"type": "rpl_tx_dio"}
 LOG_RPL_RX_DIO = {"type": "rpl_rx_dio"}

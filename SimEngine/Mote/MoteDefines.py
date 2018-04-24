@@ -78,6 +78,10 @@ IANA_6TOP_RC_BUSY                           = 0x07 # busy
 IANA_6TOP_RC_NORES                          = 0x08 # not enough resources
 IANA_6TOP_RC_CELLLIST_ERR                   = 0x09 # cellList error
 
+# === sixlowpan
+SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
+SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds
+
 # === tsch
 TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
