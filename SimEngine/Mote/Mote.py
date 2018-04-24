@@ -26,6 +26,7 @@ import sixp
 import secjoin
 import tsch
 import radio
+import batt
 
 import MoteDefines as d
 
@@ -79,16 +80,15 @@ class Mote(object):
         self.secjoin                   = secjoin.SecJoin(self)
         self.tsch                      = tsch.Tsch(self)
         self.radio                     = radio.Radio(self)
+        self.batt                      = batt.Batt(self)
+        
         # radio
         self.drift                     = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
         self.backoffBroadcast          = 0
         # wireless
         self.RSSI                      = {}      # indexed by neighbor
         self.PDR                       = {}      # indexed by neighbor
-        # location
-        # battery
-        self.chargeConsumed            = 0
-
+        
         # stats
         self.motestats                 = {}
         self._stats_resetMoteStats()
@@ -205,10 +205,7 @@ class Mote(object):
     def _logChargeConsumed(self, charge):
         with self.dataLock:
             self.chargeConsumed  += charge
-            self.engine.log(
-                SimEngine.SimLog.LOG_CHARGE_CONSUMED,
-                {"mote_id": self.id, "charge": charge}
-            )
+            
 
     #======================== private =========================================
     
