@@ -9,22 +9,24 @@ from SimEngine.Propagation import Propagation
 
 @pytest.fixture
 def sim_settings():
-    sim_settings = SimSettings(**{'exec_numMotes'       : 1,
-                                  'exec_simDataDir'     : "simData",
-                                  'app_pkPeriod'        : 0,
-                                  'rpl_dioPeriod'       : 0,
-                                  'rpl_daoPeriod'       : 0,
-                                  'sf_type'             : 'SSF-symmetric',
-                                  'secjoin_enabled'     : False,
-                                  'tsch_slotDuration'   : 0.010,
-                                  'tsch_slotframeLength': 101,
-                                  'tsch_ebPeriod_sec'   : 0,
-                                  'top_type'            : 'linear',
-                                  'top_squareSide'      : 2.000,
-                                  'top_fullyMeshed'     : False,
-                                  'prop_type'           : 'pisterhack',
-                                  'phy_noInterference'  : True,
-                                  'phy_minRssi'         : -97})
+    sim_settings = SimSettings(
+        **{
+            'exec_numMotes':           1,
+            'exec_simDataDir':         "simData",
+            'app_pkPeriod':            0,
+            'rpl_daoPeriod':           0,
+            'sf_type':                 'SSF-symmetric',
+            'secjoin_enabled':         False,
+            'tsch_slotDuration':       0.010,
+            'tsch_slotframeLength':    101,
+            'top_type':                'linear',
+            'top_squareSide':          2.000,
+            'top_fullyMeshed':         False,
+            'prop_type':               'pisterhack',
+            'phy_noInterference':      True,
+            'phy_minRssi':             -97,
+        }
+    )
     sim_settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
     sim_settings.setCombinationKeys([])
     yield

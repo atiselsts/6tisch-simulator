@@ -92,8 +92,8 @@ RADIO_MAXDRIFT                              = 30 # in ppm
 CHARGE_Idle_uC                              = 6.4
 CHARGE_TxDataRxAck_uC                       = 54.5
 CHARGE_TxData_uC                            = 49.5
+CHARGE_TxDataRxAckNone_uC                   = 54.5
 CHARGE_RxDataTxAck_uC                       = 32.6
 CHARGE_RxData_uC                            = 22.6
-CHARGE_IdleNotSync_uC                       = 45.0
 
 BROADCAST_ADDRESS                           = 0xffff

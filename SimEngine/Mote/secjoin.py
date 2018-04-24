@@ -39,7 +39,6 @@ class SecJoin(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         self._isJoined                      = False
@@ -170,7 +169,7 @@ class SecJoin(object):
                 )
             else:
                 # update mote stats
-                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+                self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
             # save last token sent
             self._joinRetransmissionPayload = token

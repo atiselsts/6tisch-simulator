@@ -40,7 +40,6 @@ class App(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         self.pkPeriod                       = self.settings.app_pkPeriod
@@ -122,7 +121,7 @@ class App(object):
 
             # put in TSCH queue
             if not self.mote.tsch.enqueue(frag):
-                self.mote._radio_drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
+                self.mote.radio.drop_packet(frag, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
 
     def frag_ff_forward_fragment(self, frag):
@@ -160,7 +159,7 @@ class App(object):
 
             if (not self.mote.dagRoot) and (vrb_entry_num == self.settings.frag_ff_vrbtablesize):
                 # no room for a new entry
-                self.mote._radio_drop_packet(frag, 'frag_vrb_table_full')
+                self.mote.radio.drop_packet(frag, 'frag_vrb_table_full')
                 return False
 
             if smac not in self.vrbTable:
@@ -202,7 +201,7 @@ class App(object):
                     self.vrbTable[smac][itag]['next_offset'] += 1
                 else:
                     del self.vrbTable[smac][itag]
-                    self.mote._radio_drop_packet(frag, 'frag_missing_frag')
+                    self.mote.radio.drop_packet(frag, 'frag_missing_frag')
                     return False
 
             frag['asn'] = self.engine.getAsn()
@@ -210,7 +209,7 @@ class App(object):
             frag['payload']['datagram_tag'] = self.vrbTable[smac][itag]['otag']
         else:
             # no VRB entry found!
-            self.mote._radio_drop_packet(frag, 'frag_no_vrb_entry')
+            self.mote.radio.drop_packet(frag, 'frag_no_vrb_entry')
             return False
 
         # return True when the fragment is to be forwarded even if it cannot be
@@ -245,7 +244,7 @@ class App(object):
         if size > self.settings.frag_numFragments:
             # the size of reassQueue is the same number as self.settings.frag_numFragments.
             # larger packet than reassQueue should be dropped.
-            self.mote._radio_drop_packet({'payload': payload}, 'frag_too_big_for_reass_queue')
+            self.mote.radio.drop_packet({'payload': payload}, 'frag_too_big_for_reass_queue')
             return False
 
         # create reassembly queue entry for new packet
@@ -256,7 +255,7 @@ class App(object):
                     reass_queue_num += len(self.reassQueue[i])
                 if reass_queue_num == self.settings.frag_ph_numReassBuffs:
                     # no room for a new entry
-                    self.mote._radio_drop_packet({'payload': payload}, 'frag_reass_queue_full')
+                    self.mote.radio.drop_packet({'payload': payload}, 'frag_reass_queue_full')
                     return False
             else:
                 pass
@@ -333,7 +332,7 @@ class App(object):
 
                 # enqueue packet in TSCH queue
                 if not self.mote.tsch.enqueue(newPacket):
-                    self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
+                    self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
 
     def _action_mote_enqueueDataForDAGroot(self):
         """
@@ -374,5 +373,5 @@ class App(object):
                 isEnqueued = self.mote.tsch.enqueue(newPacket)
                 if not isEnqueued:
                     # update mote stats
-                    self.mote._radio_drop_packet(newPacket,
+                    self.mote.radio.drop_packet(newPacket,
                                                  SimEngine.SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type'])
