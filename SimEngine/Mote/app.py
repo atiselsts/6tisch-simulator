@@ -180,4 +180,4 @@ class App(object):
             # update mote stats
             self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_GENERATED['type'])
 
-            self.mote.sixlowpan.output(newPacket)
+            self.mote.sixlowpan.send(newPacket)

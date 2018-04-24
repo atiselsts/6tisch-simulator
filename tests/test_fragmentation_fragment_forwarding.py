@@ -37,12 +37,13 @@ class TestNumFragmentsVsTxQueue:
 class TestFragmentForwarding:
     def test_app_frag_ff_forward_fragment_frag_order(self, sim):
         sim = sim(
-            **{'fragmentation'           : 'FragmentForwarding',
-               'fragmentation_ff_options': [],
-               'app_pkLength'            : 180,
-               'exec_numMotes'           : 3,
-               'top_type'                : 'linear',
-               'sf_type'                 : 'SSF-symmetric'
+            **{'fragmentation'                            : 'FragmentForwarding',
+               'fragmentation_ff_discard_vrb_entry_policy': [],
+               'fragmentation_ff_vrb_table_size'          : 50,
+               'app_pkLength'                             : 180,
+               'exec_numMotes'                            : 3,
+               'top_type'                                 : 'linear',
+               'sf_type'                                  : 'SSF-symmetric'
             }
         )
         root = sim.motes[0]
@@ -66,27 +67,27 @@ class TestFragmentForwarding:
             'sourceRoute':        [],
         }
 
-        leaf.sixlowpan.output(packet)
+        leaf.sixlowpan.send(packet)
 
         frag0 = leaf.tsch.getTxQueue()[0]
         frag1 = leaf.tsch.getTxQueue()[1]
 
-        node.sixlowpan.input(leaf, frag1)
+        node.sixlowpan.recv(leaf, frag1)
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.input(leaf, frag0)
+        node.sixlowpan.recv(leaf, frag0)
         assert len(node.tsch.getTxQueue()) == 1
         assert node.tsch.getTxQueue()[0] == frag0
 
     def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim):
         # no size limit for vrbtable
         sim = sim(
-            **{'fragmentation'                  : 'FragmentForwarding',
-               'fragmentation_ff_options'       : [],
-               'fragmentation_ff_vrb_table_size': 50,
-               'app_pkLength'                   : 180,
-               'exec_numMotes'                  : 5,
-               'top_type'                       : 'linear',
-               'sf_type'                        : 'SSF-symmetric'
+            **{'fragmentation'                            : 'FragmentForwarding',
+               'fragmentation_ff_discard_vrb_entry_policy': [],
+               'fragmentation_ff_vrb_table_size'          : 50,
+               'app_pkLength'                             : 180,
+               'exec_numMotes'                            : 5,
+               'top_type'                                 : 'linear',
+               'sf_type'                                  : 'SSF-symmetric'
             }
         )
         root = sim.motes[0]
@@ -111,38 +112,37 @@ class TestFragmentForwarding:
             'dmac': node,
             'sourceRoute':        [],
         }
-        leaf1.sixlowpan.output(packet)
+        leaf1.sixlowpan.send(packet)
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2.sixlowpan.output(packet)
+        leaf2.sixlowpan.send(packet)
 
         packet['srcIp'] = leaf3
         packet['smac'] = leaf3
-        leaf3.sixlowpan.output(packet)
+        leaf3.sixlowpan.send(packet)
 
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.input(leaf1, leaf1.tsch.getTxQueue()[0])
+        node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
         assert len(node.tsch.getTxQueue()) == 1
-        node.sixlowpan.input(leaf2, leaf2.tsch.getTxQueue()[0])
+        node.sixlowpan.recv(leaf2, leaf2.tsch.getTxQueue()[0])
         assert len(node.tsch.getTxQueue()) == 2
-        node.sixlowpan.input(leaf3, leaf3.tsch.getTxQueue()[0])
+        node.sixlowpan.recv(leaf3, leaf3.tsch.getTxQueue()[0])
         assert len(node.tsch.getTxQueue()) == 3
         leaf1.tsch.getTxQueue()[0]['payload']['datagram_tag'] += 1
-        node.sixlowpan.input(leaf1, leaf1.tsch.getTxQueue()[0])
+        node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
         assert len(node.tsch.getTxQueue()) == 4
 
     def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim):
         sim = sim(
             **{
-                'fragmentation'                  : 'FragmentForwarding',
-                'fragmentation_ff_options'       : [],
-                "sixlowpan_reassembly_queue_len": 1280,
-                'app_pkLength'                   : 180,
-                'exec_numMotes'                  : 2,
-                'top_type'                       : 'linear',
-                'sf_type'                        : 'SSF-symmetric',
-                'app_e2eAck'                     : False,
+                'fragmentation'                            : 'FragmentForwarding',
+                'fragmentation_ff_discard_vrb_entry_policy': [],
+                'app_pkLength'                             : 180,
+                'exec_numMotes'                            : 2,
+                'top_type'                                 : 'linear',
+                'sf_type'                                  : 'SSF-symmetric',
+                'app_e2eAck'                               : False,
             }
         )
         root = sim.motes[0]
@@ -165,22 +165,22 @@ class TestFragmentForwarding:
             'sourceRoute':        [],
         }
 
-        leaf.sixlowpan.output(packet)
+        leaf.sixlowpan.send(packet)
         frag0 = leaf.tsch.getTxQueue()[0]
         frag1 = leaf.tsch.getTxQueue()[1]
 
         itag  = frag0['payload']['datagram_tag']
 
         sim.asn = 100
-        root.sixlowpan.input(leaf, frag0)
+        root.sixlowpan.recv(leaf, frag0)
         assert root.sixlowpan.fragmentation.vrb_table[leaf][itag]['expiration'] == 6100
 
         sim.asn += int(60.0 / sim.settings.tsch_slotDuration)
-        root.sixlowpan.input(leaf, frag0) # duplicate
+        root.sixlowpan.recv(leaf, frag0) # duplicate
         assert itag in root.sixlowpan.fragmentation.vrb_table[leaf]
 
         sim.asn += 1
-        root.sixlowpan.input(leaf, frag1)
+        root.sixlowpan.recv(leaf, frag1)
 
         assert leaf not in root.sixlowpan.fragmentation.vrb_table
 
@@ -209,7 +209,7 @@ class TestFragmentation:
             'sourceRoute': []
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 2
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -267,7 +267,7 @@ class TestFragmentation:
             'sourceRoute': []
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -322,14 +322,13 @@ class TestFragmentation:
 
 class TestReassembly:
     def test_app_reass_packet_in_order(self, sim):
-        sim = sim(**{'fragmentation'                  : 'FragmentForwarding',
-                     'fragmentation_ff_options'       : [],
-                     "sixlowpan_reassembly_queue_len": 1280,
-                     'app_pkLength'                   : 270,
-                     'app_e2eAck'                     : False,
-                     'exec_numMotes'                  : 3,
-                     'top_type'                       : 'linear',
-                     'sf_type'                        : 'SSF-symmetric'})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_discard_vrb_entry_policy': [],
+                     'app_pkLength'                             : 270,
+                     'app_e2eAck'                               : False,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear',
+                     'sf_type'                                  : 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -346,7 +345,7 @@ class TestReassembly:
             'dstIp': root,
             'sourceRoute': []
         }
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         frag0 = node.tsch.getTxQueue()[0]
         frag1 = node.tsch.getTxQueue()[1]
         frag2 = node.tsch.getTxQueue()[2]
@@ -354,12 +353,12 @@ class TestReassembly:
         size = frag0['payload']['datagram_size']
         tag = frag0['payload']['datagram_tag']
 
-        assert node not in root.sixlowpan.reassembly_buffer
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        root.sixlowpan.input(node, frag0)
-        assert len(root.sixlowpan.reassembly_buffer[node]) == 1
-        assert tag in root.sixlowpan.reassembly_buffer[node]
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {
+        root.sixlowpan.recv(node, frag0)
+        assert len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {
             'expiration': 6000,
             'fragments' : [
                 {
@@ -367,8 +366,8 @@ class TestReassembly:
                     'fragment_length': 90
                 }]}
 
-        root.sixlowpan.input(node, frag1)
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {
+        root.sixlowpan.recv(node, frag1)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {
             'expiration': 6000,
             'fragments' : [
                 {
@@ -381,22 +380,21 @@ class TestReassembly:
                 }]}
 
         # duplicate fragment should be ignored
-        root.sixlowpan.input(node, frag1)
-        assert len(root.sixlowpan.reassembly_buffer[node][tag]) == 2
+        root.sixlowpan.recv(node, frag1)
+        assert len(root.sixlowpan.reassembly_buffers[node][tag]) == 2
 
-        root.sixlowpan.input(node, frag2)
-        assert node not in root.sixlowpan.reassembly_buffer
+        root.sixlowpan.recv(node, frag2)
+        assert node not in root.sixlowpan.reassembly_buffers
 
 
     def test_app_reass_packet_out_of_order(self, sim):
-        sim = sim(**{'fragmentation'                  : 'FragmentForwarding',
-                     'fragmentation_ff_options'       : [],
-                     "sixlowpan_reassembly_queue_len": 1280,
-                     'app_pkLength'                   : 270,
-                     'app_e2eAck'                     : False,
-                     'exec_numMotes'                  : 3,
-                     'top_type'                       : 'linear',
-                     'sf_type'                        : 'SSF-symmetric'})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_discard_vrb_entry_policy': [],
+                     'app_pkLength'                             : 270,
+                     'app_e2eAck'                               : False,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear',
+                     'sf_type'                                  : 'SSF-symmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -413,19 +411,19 @@ class TestReassembly:
             'dstIp': root,
             'sourceRoute': []
         }
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         frag0 = node.tsch.getTxQueue()[0]
         frag1 = node.tsch.getTxQueue()[1]
         frag2 = node.tsch.getTxQueue()[2]
 
         tag = frag0['payload']['datagram_tag']
 
-        assert node not in root.sixlowpan.reassembly_buffer
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        root.sixlowpan.input(node, frag0)
-        assert len(root.sixlowpan.reassembly_buffer[node]) == 1
-        assert tag in root.sixlowpan.reassembly_buffer[node]
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {
+        root.sixlowpan.recv(node, frag0)
+        assert len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {
             'expiration': 6000,
             'fragments' : [
                 {
@@ -433,8 +431,8 @@ class TestReassembly:
                     'fragment_length': 90
                 }]}
 
-        root.sixlowpan.input(node, frag2)
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {
+        root.sixlowpan.recv(node, frag2)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {
             'expiration': 6000,
             'fragments' : [
                 {
@@ -446,29 +444,29 @@ class TestReassembly:
                     'fragment_length': 90
                 }]}
 
-        root.sixlowpan.input(node, frag1)
-        assert node not in root.sixlowpan.reassembly_buffer
+        root.sixlowpan.recv(node, frag1)
+        assert node not in root.sixlowpan.reassembly_buffers
 
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
         sim = sim(**{
-            'fragmentation'                  : 'FragmentForwarding',
-            'fragmentation_ff_options'       : [],
-            "sixlowpan_reassembly_queue_len": 1280,
-            'app_pkLength'                   : 180,
-            'exec_numMotes'                  : 3,
-            'top_type'                       : 'linear',
-            'app_pkPeriod'                   : 0,
-            'app_pkPeriodVar'                : 0,
-            'app_e2eAck'                     : False,
+            'fragmentation'                            : 'FragmentForwarding',
+            'fragmentation_ff_discard_vrb_entry_policy': [],
+            'fragmentation_ff_vrb_table_size'          : 50,
+            'app_pkLength'                             : 180,
+            'exec_numMotes'                            : 3,
+            'top_type'                                 : 'linear',
+            'app_pkPeriod'                             : 0,
+            'app_pkPeriodVar'                          : 0,
+            'app_e2eAck'                               : False,
         })
 
         root = sim.motes[0]
         hop1 = sim.motes[1]
         hop2 = sim.motes[2]
 
-        hop2.sixlowpan.output({
+        hop2.sixlowpan.send({
             'asn':           0,
             'type':          d.APP_TYPE_DATA,
             'code':          None,
@@ -486,7 +484,7 @@ class TestPacketFowarding:
         frag1 = hop2.tsch.getTxQueue()[1]
 
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
         (isACKed,isNACKed) = hop1.radio.rxDone(
@@ -501,27 +499,27 @@ class TestPacketFowarding:
         )
         assert (isACKed,isNACKed) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 2
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
     def test_e2e(self, sim):
         one_second = 1
         sim = sim(**{
-            'fragmentation'                  : 'FragmentForwarding',
-            'fragmentation_ff_options'       : [],
-            "sixlowpan_reassembly_queue_len": 1280,
-            'app_pkLength'                   : 180,
-            'exec_numMotes'                  : 3,
-            'top_type'                       : 'linear',
-            'sf_type'                        : 'SSF-symmetric',
-            'app_pkPeriod'                   : 0,
-            'app_pkPeriodVar'                : 0,
-            'app_e2eAck'                     : False,
+            'fragmentation'                            : 'FragmentForwarding',
+            'fragmentation_ff_discard_vrb_entry_policy': [],
+            'fragmentation_ff_vrb_table_size'          : 50,
+            'app_pkLength'                             : 180,
+            'exec_numMotes'                            : 3,
+            'top_type'                                 : 'linear',
+            'sf_type'                                  : 'SSF-symmetric',
+            'app_pkPeriod'                             : 0,
+            'app_pkPeriodVar'                          : 0,
+            'app_e2eAck'                               : False,
         })
 
         root = sim.motes[0]
@@ -578,16 +576,15 @@ class TestPacketFowarding:
         assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
     def test_drop_fragment(self, sim):
-        params = {'fragmentation'                  : 'FragmentForwarding',
-                  'fragmentation_ff_options'       : [],
-                  'fragmentation_ff_vrb_table_size': 50,
-                  "sixlowpan_reassembly_queue_len": 1280,
-                  'app_pkLength'                   : 180,
-                  'exec_numMotes'                  : 3,
-                  'top_type'                       : 'linear',
-                  'app_pkPeriod'                   : 0,
-                  'app_pkPeriodVar'                : 0,
-                  'app_e2eAck'                     : False,
+        params = {'fragmentation'                            : 'FragmentForwarding',
+                  'fragmentation_ff_discard_vrb_entry_policy': [],
+                  'fragmentation_ff_vrb_table_size'          : 50,
+                  'app_pkLength'                             : 180,
+                  'exec_numMotes'                            : 3,
+                  'top_type'                                 : 'linear',
+                  'app_pkPeriod'                             : 0,
+                  'app_pkPeriodVar'                          : 0,
+                  'app_e2eAck'                               : False,
         }
         sim = sim(**params)
         root = sim.motes[0]
@@ -607,7 +604,7 @@ class TestPacketFowarding:
             'dstIp': root,
             'sourceRoute': []
         }
-        hop2.sixlowpan.output(packet)
+        hop2.sixlowpan.send(packet)
         frag0 = hop2.tsch.getTxQueue()[0]
         frag1 = hop2.tsch.getTxQueue()[1]
         dup_frag0 = copy.copy(frag0)
@@ -615,40 +612,40 @@ class TestPacketFowarding:
 
         #frag1 should be dropped at hop-1 if a relevant VRBtable entry is not available
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag1['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
         # duplicate frag0 should be dropped at hop-1
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], frag0['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
                                  hop2, [hop1], hop2, root, [], dup_frag0['payload']) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 1
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
 
     @pytest.mark.parametrize("vrb_table_size",
                              [10, 50])
     def test_vrb_table_size_limit_1(self, sim, vrb_table_size):
-        params = {'fragmentation'                  : 'FragmentForwarding',
-                  'fragmentation_ff_options'       : [],
-                  'fragmentation_ff_vrb_table_size': vrb_table_size,
-                  'app_pkLength'                   : 180,
-                  'exec_numMotes'                  : 3,
-                  'top_type'                       : 'linear',
-                  'app_pkPeriod'                   : 0,
-                  'app_pkPeriodVar'                : 0,
-                  'app_e2eAck'                     : False}
+        params = {'fragmentation'                            : 'FragmentForwarding',
+                  'fragmentation_ff_discard_vrb_entry_policy': [],
+                  'fragmentation_ff_vrb_table_size'          : vrb_table_size,
+                  'app_pkLength'                             : 180,
+                  'exec_numMotes'                            : 3,
+                  'top_type'                                 : 'linear',
+                  'app_pkPeriod'                             : 0,
+                  'app_pkPeriodVar'                          : 0,
+                  'app_e2eAck'                               : False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -671,20 +668,21 @@ class TestPacketFowarding:
             frag['payload'] = copy.deepcopy(frag0['payload'])
             frag['smac'] = i
             frag['payload']['datagram_tag'] = i
-            hop1.sixlowpan.input(hop2, frag)
+            hop1.sixlowpan.recv(hop2, frag)
         assert len(hop1.sixlowpan.fragmentation.vrb_table[hop2]) == vrb_table_size
         frag0['smac'] = 100
         frag0['payload']['datagram_tag'] = 100
-        hop1.sixlowpan.input(hop2, frag0)
+        hop1.sixlowpan.recv(hop2, frag0)
         assert len(hop1.sixlowpan.fragmentation.vrb_table[hop2]) == vrb_table_size
 
 
 class TestDatagramTag:
     def test_tag_on_its_fragments_1(self, sim):
-        sim = sim(**{'fragmentation': 'FragmentForwarding',
-                     'app_pkLength' : 180,
-                     'exec_numMotes': 2,
-                     'top_type'     : 'linear'})
+        sim = sim(**{'fragmentation'                  : 'FragmentForwarding',
+                     'fragmentation_ff_vrb_table_size': 50,
+                     'app_pkLength'                   : 180,
+                     'exec_numMotes'                  : 2,
+                     'top_type'                       : 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -703,18 +701,18 @@ class TestDatagramTag:
         }
         assert len(node.tsch.getTxQueue()) == 0
 
-        tag_init = node.sixlowpan.get_next_datagram_tag()
+        tag_init = node.sixlowpan._get_next_datagram_tag()
 
         # enqueue two packets
-        node.sixlowpan.output(packet)
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag0 = node.tsch.getTxQueue()[0]['payload']['datagram_tag']
         tag1 = node.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
         node.sixlowpan.next_datagram_tag = 65535
-        node.sixlowpan.output(packet)
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag2 = node.tsch.getTxQueue()[4]['payload']['datagram_tag']
         tag3 = node.tsch.getTxQueue()[6]['payload']['datagram_tag']
@@ -725,16 +723,16 @@ class TestDatagramTag:
         assert tag3 == 0
 
     def test_tag_on_its_fragments_2(self, sim):
-        params = {'fragmentation'                  : 'FragmentForwarding',
-                  'fragmentation_ff_options'       : [],
-                  'fragmentation_ff_vrb_table_size': 50,
-                  'app_pkLength'                   : 180,
-                  'exec_numMotes'                  : 3,
-                  'top_type'                       : 'linear',
-                  'sf_type'                        : 'SSF-symmetric',
-                  'app_pkPeriod'                   : 0,
-                  'app_pkPeriodVar'                : 0,
-                  'app_e2eAck'                     : False}
+        params = {'fragmentation'                            : 'FragmentForwarding',
+                  'fragmentation_ff_discard_vrb_entry_policy': [],
+                  'fragmentation_ff_vrb_table_size'          : 50,
+                  'app_pkLength'                             : 180,
+                  'exec_numMotes'                            : 3,
+                  'top_type'                                 : 'linear',
+                  'sf_type'                                  : 'SSF-symmetric',
+                  'app_pkPeriod'                             : 0,
+                  'app_pkPeriodVar'                          : 0,
+                  'app_e2eAck'                               : False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -753,16 +751,16 @@ class TestDatagramTag:
             'dstIp': root,
             'sourceRoute': []
         }
-        hop2.sixlowpan.output(packet)
-        hop2.sixlowpan.output(packet)
-        hop2.sixlowpan.output(packet)
-        hop2.sixlowpan.output(packet)
+        hop2.sixlowpan.send(packet)
+        hop2.sixlowpan.send(packet)
+        hop2.sixlowpan.send(packet)
+        hop2.sixlowpan.send(packet)
         frag0_0 = hop2.tsch.getTxQueue()[0]
         frag1_0 = hop2.tsch.getTxQueue()[2]
         frag2_0 = hop2.tsch.getTxQueue()[4]
         frag3_0 = hop2.tsch.getTxQueue()[6]
 
-        tag_init = hop1.sixlowpan.get_next_datagram_tag()
+        tag_init = hop1.sixlowpan._get_next_datagram_tag()
 
         hop1.tsch.waitingFor = d.DIR_RX
         hop1.radio.rxDone(d.APP_TYPE_FRAG, None,
@@ -791,15 +789,16 @@ class TestDatagramTag:
         assert tag3 == 0
 
     def test_tag_on_its_fragments_3(self, sim):
-        params = {'fragmentation'           : 'FragmentForwarding',
-                  'fragmentation_ff_options': [],
-                  'app_pkLength'            : 180,
-                  'exec_numMotes'           : 3,
-                  'top_type'                : 'linear',
-                  'sf_type'                 : 'SSF-symmetric',
-                  'app_pkPeriod'            : 0,
-                  'app_pkPeriodVar'         : 0,
-                  'app_e2eAck'              : False}
+        params = {'fragmentation'                            : 'FragmentForwarding',
+                  'fragmentation_ff_discard_vrb_entry_policy': [],
+                  'fragmentation_ff_vrb_table_size'          : 50,
+                  'app_pkLength'                             : 180,
+                  'exec_numMotes'                            : 3,
+                  'top_type'                                 : 'linear',
+                  'sf_type'                                  : 'SSF-symmetric',
+                  'app_pkPeriod'                             : 0,
+                  'app_pkPeriodVar'                          : 0,
+                  'app_e2eAck'                               : False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -832,14 +831,14 @@ class TestDatagramTag:
             'dstIp': root,
             'sourceRoute': []
         }
-        hop2.sixlowpan.output(packet2)
-        hop2.sixlowpan.output(packet2)
+        hop2.sixlowpan.send(packet2)
+        hop2.sixlowpan.send(packet2)
         frag0_0 = hop2.tsch.getTxQueue()[0]
         frag1_0 = hop2.tsch.getTxQueue()[2]
 
         tag_init = hop1.sixlowpan.next_datagram_tag
 
-        hop1.sixlowpan.output(packet1)
+        hop1.sixlowpan.send(packet1)
         tag0 = hop1.tsch.getTxQueue()[0]['payload']['datagram_tag']
 
         hop1.tsch.waitingFor = d.DIR_RX
@@ -847,7 +846,7 @@ class TestDatagramTag:
                           hop2, [hop1], hop2, root, [], frag0_0['payload'])
         tag1 = hop1.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
-        hop1.sixlowpan.output(packet1)
+        hop1.sixlowpan.send(packet1)
         tag2 = hop1.tsch.getTxQueue()[3]['payload']['datagram_tag']
 
         assert tag0 == tag_init
@@ -856,11 +855,12 @@ class TestDatagramTag:
 
 class TestOptimization:
     def test_remove_vrb_table_entry_by_expiration(self, sim):
-        sim = sim(**{'fragmentation'           : 'FragmentForwarding',
-                     'fragmentation_ff_options': [],
-                     'app_pkLength'            : 360,
-                     'exec_numMotes'           : 3,
-                     'top_type'                : 'linear'})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_discard_vrb_entry_policy': [],
+                     'fragmentation_ff_vrb_table_size'          : 50,
+                     'app_pkLength'                             : 360,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear'})
 
         root = sim.motes[0]
         node = sim.motes[1]
@@ -881,7 +881,7 @@ class TestOptimization:
             'smac': leaf,
             'sourceRoute': []
         }
-        leaf.sixlowpan.output(packet)
+        leaf.sixlowpan.send(packet)
         frag0 = leaf.tsch.getTxQueue()[0]
         frag1 = leaf.tsch.getTxQueue()[1]
         frag2 = leaf.tsch.getTxQueue()[2]
@@ -890,21 +890,22 @@ class TestOptimization:
 
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-        node.sixlowpan.input(leaf, frag0)
+        node.sixlowpan.recv(leaf, frag0)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        node.sixlowpan.input(leaf, frag3)
+        node.sixlowpan.recv(leaf, frag3)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
         sim.asn += (60 / sim.settings.tsch_slotDuration) + 1
         # VRB Table entry expires
-        node.sixlowpan.input(leaf, frag2)
+        node.sixlowpan.recv(leaf, frag2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
     def test_remove_vrb_table_entry_on_last_frag(self, sim):
-        sim = sim(**{'fragmentation'           : 'FragmentForwarding',
-                     'app_pkLength'            : 270,
-                     'exec_numMotes'           : 3,
-                     'top_type'                : 'linear',
-                     'fragmentation_ff_options': ['kill_entry_by_last']})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_vrb_table_size'          : 50,
+                     'app_pkLength'                             : 270,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear',
+                     'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -924,25 +925,26 @@ class TestOptimization:
             'smac': leaf,
             'sourceRoute': []
         }
-        leaf.sixlowpan.output(packet)
+        leaf.sixlowpan.send(packet)
         frag0 = leaf.tsch.getTxQueue()[0]
         frag1 = leaf.tsch.getTxQueue()[1]
         frag2 = leaf.tsch.getTxQueue()[2]
 
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-        node.sixlowpan.input(leaf, frag0)
+        node.sixlowpan.recv(leaf, frag0)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        node.sixlowpan.input(leaf, frag2)
+        node.sixlowpan.recv(leaf, frag2)
         # the VRB entry is removed by frag2 (last)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
     def test_remove_vrb_table_entry_on_missing_frag(self, sim):
-        sim = sim(**{'fragmentation'           : 'FragmentForwarding',
-                     'app_pkLength'            : 360,
-                     'exec_numMotes'           : 3,
-                     'top_type'                : 'linear',
-                     'fragmentation_ff_options': ['kill_entry_by_missing']})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_vrb_table_size'          : 50,
+                     'app_pkLength'                             : 360,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear',
+                     'fragmentation_ff_discard_vrb_entry_policy': ['missing_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -961,7 +963,7 @@ class TestOptimization:
             'smac': leaf,
             'sourceRoute': []
         }
-        leaf.sixlowpan.output(packet)
+        leaf.sixlowpan.send(packet)
         frag0 = leaf.tsch.getTxQueue()[0]
         frag1 = leaf.tsch.getTxQueue()[1]
         frag2 = leaf.tsch.getTxQueue()[2]
@@ -969,23 +971,24 @@ class TestOptimization:
 
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-        node.sixlowpan.input(leaf, frag0)
+        node.sixlowpan.recv(leaf, frag0)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
         # frag2 after frag0 indicates frag1 is missing
-        node.sixlowpan.input(leaf, frag2)
+        node.sixlowpan.recv(leaf, frag2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
-        node.sixlowpan.input(leaf, frag1)
+        node.sixlowpan.recv(leaf, frag1)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
-        node.sixlowpan.input(leaf, frag3)
+        node.sixlowpan.recv(leaf, frag3)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
 
     def test_remove_vrb_table_entry_on_last_and_missing(self, sim):
-        sim = sim(**{'fragmentation'           : 'FragmentForwarding',
-                     'app_pkLength'            : 360,
-                     'exec_numMotes'           : 3,
-                     'top_type'                : 'linear',
-                     'fragmentation_ff_options': ['kill_entry_by_last', 'kill_entry_by_missing']})
+        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+                     'fragmentation_ff_vrb_table_size'          : 50,
+                     'app_pkLength'                             : 360,
+                     'exec_numMotes'                            : 3,
+                     'top_type'                                 : 'linear',
+                     'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment', 'missing_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -1019,14 +1022,14 @@ class TestOptimization:
             'smac': leaf,
             'sourceRoute': []
         }
-        leaf.sixlowpan.output(packet1)
+        leaf.sixlowpan.send(packet1)
         frag1_0 = leaf.tsch.getTxQueue()[0]
         frag1_1 = leaf.tsch.getTxQueue()[1]
         frag1_2 = leaf.tsch.getTxQueue()[2]
         frag1_3_1 = leaf.tsch.getTxQueue()[3]
         frag1_3_2 = copy.copy(frag1_3_1)
         frag1_3_2['payload'] = copy.deepcopy(frag1_3_1['payload'])
-        leaf.sixlowpan.output(packet2)
+        leaf.sixlowpan.send(packet2)
         frag2_0 = leaf.tsch.getTxQueue()[0]
         frag2_1 = leaf.tsch.getTxQueue()[1]
         frag2_2 = leaf.tsch.getTxQueue()[2]
@@ -1043,27 +1046,27 @@ class TestOptimization:
 
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-        node.sixlowpan.input(leaf, frag1_0)
+        node.sixlowpan.recv(leaf, frag1_0)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        node.sixlowpan.input(leaf, frag1_1)
+        node.sixlowpan.recv(leaf, frag1_1)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        node.sixlowpan.input(leaf, frag1_2)
+        node.sixlowpan.recv(leaf, frag1_2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        node.sixlowpan.input(leaf, frag1_3_1)
+        node.sixlowpan.recv(leaf, frag1_3_1)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
         # the VRB entry is removed by frag1_3_1 (last)
         frag1_3_2['smac'] = leaf
-        node.sixlowpan.input(leaf, frag1_3_2)
+        node.sixlowpan.recv(leaf, frag1_3_2)
         assert test_is_called['result'] is True
         node.radio.drop_packet = node.original_radio_drop_packet
 
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
-        node.sixlowpan.input(leaf, frag2_0)
+        node.sixlowpan.recv(leaf, frag2_0)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
         # frag2 after frag0 indicates frag1 is missing
-        node.sixlowpan.input(leaf, frag2_2)
+        node.sixlowpan.recv(leaf, frag2_2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
-        node.sixlowpan.input(leaf, frag2_1)
+        node.sixlowpan.recv(leaf, frag2_1)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
-        node.sixlowpan.input(leaf, frag2_3)
+        node.sixlowpan.recv(leaf, frag2_3)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0

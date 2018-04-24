@@ -6,6 +6,7 @@
 
 from abc import abstractmethod
 import copy
+import math
 import random
 
 # Simulator-wide modules
@@ -36,21 +37,31 @@ class Sixlowpan(object):
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.fragmentation        = globals()[self.settings.fragmentation](self)
-        self.tsch_max_payload_len = self.settings.tsch_max_payload_len
         self.next_datagram_tag    = random.randint(0, 2**16-1)
-        self.reassembly_buffer    = {}
+        # "reassembly_buffers" has mote instances as keys. Each value is a list.
+        # A list is indexed by incoming datagram_tags.
+        # An element of the list a dictionary consisting of two key-values:
+        # "expiration" and "fragments".
+        # "fragments" holds received fragments, although only their
+        # datagram_offset and lenghts are stored in the "fragments" list.
+        self.reassembly_buffers    = {}
 
-    def input(self, smac, packet):
+    #======================== public ==========================================
+
+    def recv(self, smac, packet):
         if packet['type'] == d.APP_TYPE_FRAG:
-            self.fragmentation.input(smac, packet)
+            self.fragmentation.recv(smac, packet)
         elif packet['dstIp'] == self.mote:
             # TODO: support multiple apps
             assert self.mote.dagRoot
-            self.mote.app._action_dagroot_receivePacketFromMote(srcIp=packet['srcIp'],
-                                                                payload=packet['payload'],
-                                                                timestamp=self.engine.getAsn())
+            self.mote.app._action_dagroot_receivePacketFromMote(
+                srcIp=packet['srcIp'],
+                payload=packet['payload'],
+                timestamp=self.engine.getAsn()
+            )
         else:
-            # update field
+            # this packet is to be forwarded. 'asn' and 'retriesLeft' fields
+            # needs update by the forwarder.
             packet['asn']         = self.engine.getAsn()
             packet['retriesLeft'] = d.TSCH_MAXTXRETRIES,
             if packet['type'] == d.APP_TYPE_DATA:
@@ -60,18 +71,25 @@ class Sixlowpan(object):
             self.forward(packet)
 
     def forward(self, packet):
-        if packet['payload']['length'] > self.tsch_max_payload_len:
+        if self.settings.tsch_max_payload_len < packet['payload']['length']:
             # packet doesn't fit into a single frame; needs fragmentation
             self.fragment(packet)
         elif not self.mote.tsch.enqueue(packet):
-            self.mote.radio.drop_packet(packet,
-                                         SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(
+                packet,
+                SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type']
+            )
         else:
             # update mote stats
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
+            if packet['type'] == d.APP_TYPE_DATA:
+                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
+            elif packet['type'] == d.APP_TYPE_FRAG:
+                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_SIXLOWPAN_FRAGMENT_RELAYED['type'])
+            else:
+                raise NotImplementedError()
 
-    def output(self, packet):
-        if packet['payload']['length'] > self.tsch_max_payload_len:
+    def send(self, packet):
+        if self.settings.tsch_max_payload_len < packet['payload']['length']:
             # packet doesn't fit into a single frame; needs fragmentation
             self.fragment(packet)
         elif not self.mote.tsch.enqueue(packet):
@@ -82,54 +100,52 @@ class Sixlowpan(object):
         datagram_size         = fragment['payload']['datagram_size']
         datagram_offset       = fragment['payload']['datagram_offset']
         incoming_datagram_tag = fragment['payload']['datagram_tag']
-        reass_queue_lifetime  = 60 / self.settings.tsch_slotDuration
+        buffer_lifetime  = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
 
-        self._remove_expired_reassembly_queue()
+        self._remove_expired_reassembly_buffer()
 
-        # drop packet longer than reassembly queue elements
-        if datagram_size > self.settings.sixlowpan_reassembly_queue_len:
-            self.mote.radio.drop_packet(fragment, 'frag_too_big_for_reass_queue')
-            return None
-
-        # make sure we can allocate a reassembly queue if necessary
-        if (smac not in self.reassembly_buffer) or (incoming_datagram_tag not in self.reassembly_buffer[smac]):
+        # make sure we can allocate a reassembly buffer if necessary
+        if (smac not in self.reassembly_buffers) or (incoming_datagram_tag not in self.reassembly_buffers[smac]):
             # dagRoot has no memory limitation for reassembly buffer
             if not self.mote.dagRoot:
-                reass_queue_num = 0
-                for i in self.reassembly_buffer:
-                    reass_queue_num += len(self.reassembly_buffer[i])
-                if reass_queue_num == self.settings.sixlowpan_reassembly_queue_num:
+                total_reassembly_buffers_num = 0
+                for i in self.reassembly_buffers:
+                    total_reassembly_buffers_num += len(self.reassembly_buffers[i])
+                if total_reassembly_buffers_num == self.settings.sixlowpan_reassembly_buffers_num:
                     # no room for a new entry
-                    self.mote.radio.drop_packet(fragment, 'frag_reass_queue_full')
-                    return None
+                    self.mote.radio.drop_packet(fragment, 'frag_reassembly_buffer_full')
+                    return
 
-            # create a new reassembly queue
-            if smac not in self.reassembly_buffer:
-                self.reassembly_buffer[smac] = {}
-            if incoming_datagram_tag not in self.reassembly_buffer[smac]:
-                self.reassembly_buffer[smac][incoming_datagram_tag] = {'expiration': self.engine.getAsn() + reass_queue_lifetime,
-                                                                       'fragments': []}
+            # create a new reassembly buffer
+            if smac not in self.reassembly_buffers:
+                self.reassembly_buffers[smac] = {}
+            if incoming_datagram_tag not in self.reassembly_buffers[smac]:
+                self.reassembly_buffers[smac][incoming_datagram_tag] = {
+                    'expiration': self.engine.getAsn() + buffer_lifetime,
+                    'fragments': []
+                }
 
-        if datagram_offset not in map(lambda x: x['datagram_offset'], self.reassembly_buffer[smac][incoming_datagram_tag]['fragments']):
-            self.reassembly_buffer[smac][incoming_datagram_tag]['fragments'].append({'datagram_offset': datagram_offset,
-                                                                                     'fragment_length': fragment['payload']['length']})
+        if datagram_offset not in map(lambda x: x['datagram_offset'], self.reassembly_buffers[smac][incoming_datagram_tag]['fragments']):
+            self.reassembly_buffers[smac][incoming_datagram_tag]['fragments'].append({
+                'datagram_offset': datagram_offset,
+                'fragment_length': fragment['payload']['length']
+            })
         else:
-            # it's a duplicate fragment or queue overflow
-            return None
+            # it's a duplicate fragment
+            return
 
-        # check if we have a full packet in the reassembly queue
-        length_list = map(lambda x: x['fragment_length'], self.reassembly_buffer[smac][incoming_datagram_tag]['fragments'])
-        total_fragment_length = reduce(lambda x, y: x + y, length_list)
-        if datagram_size > total_fragment_length:
+        # check whether we have a full packet in the reassembly buffer
+        total_fragment_length = sum([f['fragment_length'] for f in self.reassembly_buffers[smac][incoming_datagram_tag]['fragments']])
+        assert total_fragment_length <= datagram_size
+        if total_fragment_length < datagram_size:
             # reassembly is not completed
-            return None
-        elif datagram_size < total_fragment_length:
-            # TODO fragment overwrapping is not implemented
-            raise NotImplementedError
+            return
 
-        del self.reassembly_buffer[smac][incoming_datagram_tag]
-        if len(self.reassembly_buffer[smac]) == 0:
-            del self.reassembly_buffer[smac]
+        # reassembly is done; we don't need the reassembly buffer for the
+        # packet any more. remove the buffer.
+        del self.reassembly_buffers[smac][incoming_datagram_tag]
+        if len(self.reassembly_buffers[smac]) == 0:
+            del self.reassembly_buffers[smac]
 
         # construct an original packet
         packet = copy.copy(fragment)
@@ -148,12 +164,10 @@ class Sixlowpan(object):
         fragment packet into fragments, and put in TSCH queue
         """
         # choose tag (same for all fragments)
-        outgoing_datagram_tag = self.get_next_datagram_tag()
+        outgoing_datagram_tag = self._get_next_datagram_tag()
 
         # create and put fragmets in TSCH queue
-        number_of_fragments = packet['payload']['length'] / self.tsch_max_payload_len
-        if packet['payload']['length'] % self.tsch_max_payload_len > 0:
-            number_of_fragments += 1
+        number_of_fragments = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
         for i in range(0, number_of_fragments):
 
             # copy (fake) contents of the packets in fragment
@@ -164,11 +178,17 @@ class Sixlowpan(object):
             fragment['payload']['original_type']            = packet['type']
             fragment['payload']['datagram_size'] = packet['payload']['length']
             fragment['payload']['datagram_tag']  = outgoing_datagram_tag
-            fragment['payload']['datagram_offset']  = i * self.tsch_max_payload_len
-            if (i * self.tsch_max_payload_len) < packet['payload']['length']:
-                fragment['payload']['length'] = self.tsch_max_payload_len
+            fragment['payload']['datagram_offset']  = i * self.settings.tsch_max_payload_len
+            if (
+                    (i == 0) and
+                    ((packet['payload']['length'] % self.settings.tsch_max_payload_len) > 0)
+               ):
+                # Make the first fragment have some room to handle size changes
+                # of the compressed header, although header compaction and
+                # inflation have been not implemented yet.
+                fragment['payload']['length'] = packet['payload']['length'] % self.settings.tsch_max_payload_len
             else:
-                fragment['payload']['length'] = packet['payload']['length'] % self.tsch_max_payload_len
+                fragment['payload']['length'] = self.settings.tsch_max_payload_len
             fragment['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
 
             # put in TSCH queue
@@ -176,60 +196,81 @@ class Sixlowpan(object):
                 self.mote.radio.drop_packet(fragment, SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
                 # OPTIMIZATION: we could remove all fragments from queue if one is refused
 
-    def get_next_datagram_tag(self):
+    #======================== private ==========================================
+
+    def _get_next_datagram_tag(self):
         ret = self.next_datagram_tag
         self.next_datagram_tag = (ret + 1) % 65536
         return ret
 
-    def _remove_expired_reassembly_queue(self):
-        if len(self.reassembly_buffer) == 0:
+    def _remove_expired_reassembly_buffer(self):
+        if len(self.reassembly_buffers) == 0:
             return
 
-        for smac in list(self.reassembly_buffer):
-            for incoming_datagram_tag in list(self.reassembly_buffer[smac]):
-                # to old
-                if self.engine.getAsn() > self.reassembly_buffer[smac][incoming_datagram_tag]['expiration']:
-                    del self.reassembly_buffer[smac][incoming_datagram_tag]
+        for smac in self.reassembly_buffers.keys():
+            for incoming_datagram_tag in self.reassembly_buffers[smac].keys():
+                # remove a reassembly buffer which expires
+                if self.reassembly_buffers[smac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
+                    del self.reassembly_buffers[smac][incoming_datagram_tag]
 
-            # empty
-            if len(self.reassembly_buffer[smac]) == 0:
-                del self.reassembly_buffer[smac]
+            # remove an reassembly buffer entry if it's empty
+            if len(self.reassembly_buffers[smac]) == 0:
+                del self.reassembly_buffers[smac]
 
 
 class Fragmentation(object):
+    """The base class for forwarding implementations of fragments
+    """
 
     def __init__(self, sixlowpan):
         self.sixlowpan = sixlowpan
         self.mote      = sixlowpan.mote
-        self.settings  = sixlowpan.settings
-        self.engine    = sixlowpan.engine
+        self.settings  = SimEngine.SimSettings.SimSettings()
+        self.engine    = SimEngine.SimEngine.SimEngine()
+
+    #======================== public ==========================================
 
     @abstractmethod
-    def input(self, fragment):
-        raise NotImplementedError
+    def recv(self, fragment):
+        raise NotImplementedError()
 
 
 class PerHopReassembly(Fragmentation):
+    """The typical 6LoWPAN reassembly and fragmentation implementation.
 
-    def input(self, smac, fragment):
+    Each intermediate node between the source node and the destination
+    node of the fragments of a packet reasembles the original packet and
+    fragment it again before forwarding the fragments to its next-hop.
+    """
+    #======================== public ==========================================
+
+    def recv(self, smac, fragment):
         packet = self.sixlowpan.reassemble(smac, fragment)
         if packet:
-            self.sixlowpan.input(smac, packet)
+            self.sixlowpan.recv(smac, packet)
 
 
 class FragmentForwarding(Fragmentation):
+    """Fragment Forwarding implementation.
+
+    A fragment is forwarded without reassembling the original packet
+    using VRB Table. For further information, see this I-d:
+    https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment
+    """
 
     def __init__(self, sixlowpan):
         super(FragmentForwarding, self).__init__(sixlowpan)
         self.vrb_table   = {}
 
-    def input(self, smac, fragment):
+    #======================== public ==========================================
+
+    def recv(self, smac, fragment):
 
         dstIp                 = fragment['dstIp']
         datagram_size         = fragment['payload']['datagram_size']
         datagram_offset       = fragment['payload']['datagram_offset']
         incoming_datagram_tag = fragment['payload']['datagram_tag']
-        entry_lifetime        = 60 / self.settings.tsch_slotDuration
+        entry_lifetime        = d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME / self.settings.tsch_slotDuration
 
         self._remove_expired_vrb_table_entry()
 
@@ -240,13 +281,12 @@ class FragmentForwarding(Fragmentation):
                 # dagRoot has no memory limitation for VRB Table
                 pass
             else:
-                vrb_entry_num = 0
-                for i in self.vrb_table:
-                    vrb_entry_num += len(self.vrb_table[i])
-                    if vrb_entry_num == self.settings.fragmentation_ff_vrb_table_size:
-                        # no room for a new entry
-                        self.mote.radio.drop_packet(fragment, 'frag_vrb_table_full')
-                        return
+                total_vrb_table_entry_num = sum([len(e) for _, e in self.vrb_table.items()])
+                assert total_vrb_table_entry_num <= self.settings.fragmentation_ff_vrb_table_size
+                if total_vrb_table_entry_num == self.settings.fragmentation_ff_vrb_table_size:
+                    # no room for a new entry
+                    self.mote.radio.drop_packet(fragment, 'frag_vrb_table_full')
+                    return
 
             if smac not in self.vrb_table:
                 self.vrb_table[smac] = {}
@@ -269,10 +309,10 @@ class FragmentForwarding(Fragmentation):
                 # this is a special entry for fragments destined to the mote
                 self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] = None
             else:
-                self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] = self.sixlowpan.get_next_datagram_tag()
+                self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] = self.sixlowpan._get_next_datagram_tag()
             self.vrb_table[smac][incoming_datagram_tag]['expiration'] = self.engine.getAsn() + entry_lifetime
 
-            if 'kill_entry_by_missing' in self.settings.fragmentation_ff_options:
+            if 'missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy:
                 self.vrb_table[smac][incoming_datagram_tag]['next_offset'] = 0
 
         # find entry in VRB table and forward fragment
@@ -284,10 +324,10 @@ class FragmentForwarding(Fragmentation):
                 # do no forward (but reassemble)
                 packet = self.sixlowpan.reassemble(smac, fragment)
                 if packet:
-                    self.sixlowpan.input(smac, packet)
+                    self.sixlowpan.recv(smac, packet)
                 return
 
-            if 'kill_entry_by_missing' in self.settings.fragmentation_ff_options:
+            if 'missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy:
                 if datagram_offset == self.vrb_table[smac][incoming_datagram_tag]['next_offset']:
                     self.vrb_table[smac][incoming_datagram_tag]['next_offset'] += fragment['payload']['length']
                 else:
@@ -311,7 +351,7 @@ class FragmentForwarding(Fragmentation):
                 self.mote.radio.drop_packet(fragment,
                                              SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
 
-            if (('kill_entry_by_last' in self.settings.fragmentation_ff_options) and
+            if (('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
                ((fragment['payload']['datagram_offset'] + fragment['payload']['length']) == fragment['payload']['datagram_size'])):
                 # this fragment is the last one
                 del self.vrb_table[smac][incoming_datagram_tag]
@@ -322,6 +362,8 @@ class FragmentForwarding(Fragmentation):
             self.mote.radio.drop_packet(fragment, 'frag_no_vrb_entry')
             return
 
+    #======================== private ==========================================
+
     def _remove_expired_vrb_table_entry(self):
         if len(self.vrb_table) == 0:
             return
@@ -329,7 +371,7 @@ class FragmentForwarding(Fragmentation):
         for smac in self.vrb_table.keys():
             for incoming_datagram_tag in self.vrb_table[smac].keys():
                 # too old
-                if self.engine.getAsn() > self.vrb_table[smac][incoming_datagram_tag]['expiration']:
+                if self.vrb_table[smac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
                     del self.vrb_table[smac][incoming_datagram_tag]
             # empty
             if len(self.vrb_table[smac]) == 0:

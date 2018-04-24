@@ -12,7 +12,7 @@ import SimEngine
 
 class TestNumFragmentsVsTxQueue:
 
-    @pytest.mark.parametrize('test_input, expected', [
+    @pytest.mark.parametrize('test_recv, expected', [
         (45, 1),
         (90, 1),
         (135, 2),
@@ -20,14 +20,14 @@ class TestNumFragmentsVsTxQueue:
         (900, 10),
     ])
 
-    def test_num_frag(self, sim, test_input, expected):
+    def test_num_frag(self, sim, test_recv, expected):
         m = sim(
             **{
                 'fragmentation': 'PerHopReassembly',
                 'exec_numMotes': 2,
                 'top_type'     : 'linear',
                 'sf_type'      : 'SSF-symmetric',
-                'app_pkLength' : test_input
+                'app_pkLength' : test_recv
             }
         ).motes[1]
         assert len(m.tsch.getTxQueue()) == 0
@@ -63,7 +63,7 @@ class TestFragmentation:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 2
 
         fragTheory = {
@@ -118,7 +118,7 @@ class TestFragmentation:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         fragTheory = {
@@ -155,7 +155,6 @@ class TestReassembly:
             **{
                 'fragmentation'                  : 'PerHopReassembly',
                 'app_pkLength'                   : 270,
-                'sixlowpan_reassembly_queue_len' : 1280,
                 'exec_numMotes'                  : 3,
                 'top_type'                       : 'linear',
                 'sf_type'                        : 'SSF-symmetric',
@@ -181,7 +180,7 @@ class TestReassembly:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -191,12 +190,12 @@ class TestReassembly:
         size = frag0['payload']['datagram_size']
         tag  = frag0['payload']['datagram_tag']
 
-        assert node not in root.sixlowpan.reassembly_buffer
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        root.sixlowpan.input(node, frag0)
-        len(root.sixlowpan.reassembly_buffer[node]) == 1
-        assert tag in root.sixlowpan.reassembly_buffer[node]
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {'expiration': 6000,
+        root.sixlowpan.recv(node, frag0)
+        len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
                                                                'fragments': [
                                                                    {
                                                                        'datagram_offset': 0,
@@ -204,8 +203,8 @@ class TestReassembly:
                                                                    }]}
 
 
-        root.sixlowpan.input(node, frag1)
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {'expiration': 6000,
+        root.sixlowpan.recv(node, frag1)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
                                                                'fragments': [
                                                                    {
                                                                        'datagram_offset': 0,
@@ -217,18 +216,17 @@ class TestReassembly:
                                                                    }]}
 
         # duplicate fragment should be ignored
-        root.sixlowpan.input(node, frag1)
-        assert len(root.sixlowpan.reassembly_buffer[node][tag]) == 2
+        root.sixlowpan.recv(node, frag1)
+        assert len(root.sixlowpan.reassembly_buffers[node][tag]) == 2
 
-        root.sixlowpan.input(node, frag2)
-        assert node not in root.sixlowpan.reassembly_buffer
+        root.sixlowpan.recv(node, frag2)
+        assert node not in root.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_out_of_order(self, sim):
         sim = sim(
             **{
                 'fragmentation'                  : 'PerHopReassembly',
                 'fragmentation_ff_options'       : [],
-                'sixlowpan_reassembly_queue_len': 1280,
                 'app_pkLength'                   : 270,
                 'exec_numMotes'                  : 3,
                 'top_type'                       : 'linear',
@@ -255,7 +253,7 @@ class TestReassembly:
             'sourceRoute':        [],
         }
         assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
         assert len(node.tsch.getTxQueue()) == 3
 
         frag0 = node.tsch.getTxQueue()[0]
@@ -265,20 +263,20 @@ class TestReassembly:
         size = frag0['payload']['datagram_size']
         tag  = frag0['payload']['datagram_tag']
 
-        assert node not in root.sixlowpan.reassembly_buffer
+        assert node not in root.sixlowpan.reassembly_buffers
 
-        root.sixlowpan.input(node, frag2)
-        assert len(root.sixlowpan.reassembly_buffer[node]) == 1
-        assert tag in root.sixlowpan.reassembly_buffer[node]
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {'expiration': 6000,
+        root.sixlowpan.recv(node, frag2)
+        assert len(root.sixlowpan.reassembly_buffers[node]) == 1
+        assert tag in root.sixlowpan.reassembly_buffers[node]
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
                                                                'fragments': [
                                                                    {
                                                                        'datagram_offset': 180,
                                                                        'fragment_length': 90
                                                                    }]}
 
-        root.sixlowpan.input(node, frag0)
-        assert root.sixlowpan.reassembly_buffer[node][tag] == {'expiration': 6000,
+        root.sixlowpan.recv(node, frag0)
+        assert root.sixlowpan.reassembly_buffers[node][tag] == {'expiration': 6000,
                                                                'fragments': [
                                                                    {
                                                                        'datagram_offset': 180,
@@ -290,65 +288,23 @@ class TestReassembly:
                                                                    }]}
 
         # duplicate fragment should be ignored
-        root.sixlowpan.input(node, frag0)
-        assert len(root.sixlowpan.reassembly_buffer[node][tag]) == 2
+        root.sixlowpan.recv(node, frag0)
+        assert len(root.sixlowpan.reassembly_buffers[node][tag]) == 2
 
-        root.sixlowpan.input(node, frag1)
-        assert node not in root.sixlowpan.reassembly_buffer
-
-    def test_app_reass_packet_queue_len(self, sim):
-        sim = sim(
-            **{
-                'fragmentation'                  : 'PerHopReassembly',
-                'fragmentation_ff_options'       : [],
-                'sixlowpan_reassembly_queue_len': 1280,
-                'app_pkLength'                   : 180,
-                'exec_numMotes'                  : 2,
-                'top_type'                       : 'linear',
-                'sf_type'                        : 'SSF-symmetric',
-                'app_e2eAck'                     : False,
-            }
-        )
-
-        root = sim.motes[0]
-        leaf = sim.motes[1]
-
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-                'length':         sim.settings.app_pkLength,
-            },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp':              leaf,
-            'dstIp':              root,
-            'sourceRoute':        [],
-        }
-
-        leaf.sixlowpan.output(packet)
-
-        frag0 = leaf.tsch.getTxQueue()[0]
-        frag0['payload']['datagram_size'] = 1500 # too big for reassembly queue
-
-        assert len(root.sixlowpan.reassembly_buffer) == 0
-        root.sixlowpan.input(leaf, frag0)
-        assert len(root.sixlowpan.reassembly_buffer) == 0
+        root.sixlowpan.recv(node, frag1)
+        assert node not in root.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_node_queue_num_1(self, sim):
         sim = sim(
             **{
-                'fragmentation'                 : 'PerHopReassembly',
-                'fragmentation_ff_options'      : [],
-                'sixlowpan_reassembly_queue_len': 1280,
-                'sixlowpan_reassembly_queue_num': 1,
-                'app_pkLength'                  : 180,
-                'exec_numMotes'                 : 4,
-                'top_type'                      : 'linear',
-                'sf_type'                       : 'SSF-symmetric',
-                'app_e2eAck'                    : False,
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 1,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 4,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
             }
         )
 
@@ -371,33 +327,32 @@ class TestReassembly:
             'dstIp':              root,
             'sourceRoute':        [],
         }
-        leaf1.sixlowpan.output(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(node.sixlowpan.reassembly_buffer) == 0
-        node.sixlowpan.input(leaf1, frag0_1)
-        assert len(node.sixlowpan.reassembly_buffer) == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 0
+        node.sixlowpan.recv(leaf1, frag0_1)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac']  = leaf2
-        leaf2.sixlowpan.output(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(node.sixlowpan.reassembly_buffer) == 1
-        node.sixlowpan.input(leaf2, frag0_2)
-        assert len(node.sixlowpan.reassembly_buffer) == 1
-        assert leaf2 not in node.sixlowpan.reassembly_buffer
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        node.sixlowpan.recv(leaf2, frag0_2)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        assert leaf2 not in node.sixlowpan.reassembly_buffers
 
     def test_app_reass_packet_node_queue_num_2(self, sim):
         sim = sim(
             **{
-                'fragmentation'                 : 'PerHopReassembly',
-                'fragmentation_ff_options'      : [],
-                'sixlowpan_reassembly_queue_len': 1280,
-                'sixlowpan_reassembly_queue_num': 2,
-                'app_pkLength'                  : 180,
-                'exec_numMotes'                 : 4,
-                'top_type'                      : 'linear',
-                'sf_type'                       : 'SSF-symmetric',
-                'app_e2eAck'                    : False,
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 2,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 4,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
             }
         )
 
@@ -420,33 +375,32 @@ class TestReassembly:
             'dstIp':              root,
             'sourceRoute':        [],
         }
-        leaf1.sixlowpan.output(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(node.sixlowpan.reassembly_buffer) == 0
-        node.sixlowpan.input(leaf1, frag0_1)
-        assert len(node.sixlowpan.reassembly_buffer) == 1
+        assert len(node.sixlowpan.reassembly_buffers) == 0
+        node.sixlowpan.recv(leaf1, frag0_1)
+        assert len(node.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2.sixlowpan.output(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(node.sixlowpan.reassembly_buffer) == 1
-        node.sixlowpan.input(leaf2, frag0_2)
-        assert len(node.sixlowpan.reassembly_buffer) == 2
+        assert len(node.sixlowpan.reassembly_buffers) == 1
+        node.sixlowpan.recv(leaf2, frag0_2)
+        assert len(node.sixlowpan.reassembly_buffers) == 2
 
 
     def test_app_reass_packet_root_queue_num(self, sim):
         sim = sim(
             **{
-                'fragmentation'                 : 'PerHopReassembly',
-                'fragmentation_ff_options'      : [],
-                'sixlowpan_reassembly_queue_len': 1280,
-                'sixlowpan_reassembly_queue_num': 1,
-                'app_pkLength'                  : 180,
-                'exec_numMotes'                 : 3,
-                'top_type'                      : 'linear',
-                'sf_type'                       : 'SSF-symmetric',
-                'app_e2eAck'                    : False,
+                'fragmentation'                   : 'PerHopReassembly',
+                'fragmentation_ff_options'        : [],
+                'sixlowpan_reassembly_buffers_num': 1,
+                'app_pkLength'                    : 180,
+                'exec_numMotes'                   : 3,
+                'top_type'                        : 'linear',
+                'sf_type'                         : 'SSF-symmetric',
+                'app_e2eAck'                      : False,
             }
         )
         root = sim.motes[0]
@@ -470,32 +424,31 @@ class TestReassembly:
             'sourceRoute':        [],
         }
 
-        leaf1.sixlowpan.output(packet)
+        leaf1.sixlowpan.send(packet)
         frag0_1 = leaf1.tsch.getTxQueue()[0]
-        assert len(root.sixlowpan.reassembly_buffer) == 0
-        root.sixlowpan.input(leaf1, frag0_1)
-        assert len(root.sixlowpan.reassembly_buffer) == 1
+        assert len(root.sixlowpan.reassembly_buffers) == 0
+        root.sixlowpan.recv(leaf1, frag0_1)
+        assert len(root.sixlowpan.reassembly_buffers) == 1
 
         packet['srcIp'] = leaf2
         packet['smac'] = leaf2
-        leaf2.sixlowpan.output(packet)
+        leaf2.sixlowpan.send(packet)
         frag0_2 = leaf2.tsch.getTxQueue()[0]
-        assert len(root.sixlowpan.reassembly_buffer) == 1
-        root.sixlowpan.input(leaf2, frag0_2)
-        # root doesn't have sixlowpan.reassembly_buffer size limitation
-        assert len(root.sixlowpan.reassembly_buffer) == 2
+        assert len(root.sixlowpan.reassembly_buffers) == 1
+        root.sixlowpan.recv(leaf2, frag0_2)
+        # root doesn't have sixlowpan.reassembly_buffers size limitation
+        assert len(root.sixlowpan.reassembly_buffers) == 2
 
 class TestPacketFowarding:
     def test_forwarder(self, sim):
-        params = {'fragmentation'                 : 'PerHopReassembly',
-                  'fragmentation_ff_options'      : [],
-                  'sixlowpan_reassembly_queue_len': 1280,
-                  'sixlowpan_reassembly_queue_num': 1,
-                  'app_pkLength'                  : 180,
-                  'exec_numMotes'                 : 3,
-                  'top_type'                      : 'linear',
-                  'sf_type'                       : 'SSF-symmetric',
-                  'app_e2eAck'                    : False}
+        params = {'fragmentation'                   : 'PerHopReassembly',
+                  'fragmentation_ff_options'        : [],
+                  'sixlowpan_reassembly_buffers_num': 1,
+                  'app_pkLength'                    : 180,
+                  'exec_numMotes'                   : 3,
+                  'top_type'                        : 'linear',
+                  'sf_type'                         : 'SSF-symmetric',
+                  'app_e2eAck'                      : False}
 
         sim = sim(**params)
         root = sim.motes[0]
@@ -517,12 +470,12 @@ class TestPacketFowarding:
             'sourceRoute':        [],
         }
 
-        hop2.sixlowpan.output(packet)
+        hop2.sixlowpan.send(packet)
         frag0 = hop2.tsch.getTxQueue()[0]
         frag1 = hop2.tsch.getTxQueue()[1]
 
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(
@@ -536,7 +489,7 @@ class TestPacketFowarding:
             frag0['payload']
         ) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 0
-        assert len(hop1.sixlowpan.reassembly_buffer) == 1
+        assert len(hop1.sixlowpan.reassembly_buffers) == 1
 
         hop1.tsch.waitingFor = d.DIR_RX
         assert hop1.radio.rxDone(
@@ -550,19 +503,18 @@ class TestPacketFowarding:
             payload     = frag1['payload']
         ) == (True, False)
         assert len(hop1.tsch.getTxQueue()) == 2
-        assert len(hop1.sixlowpan.reassembly_buffer) == 0
+        assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
     def test_e2e(self, sim):
         one_second = 1
-        params = {'fragmentation'                 : 'PerHopReassembly',
-                  'fragmentation_ff_options'      : [],
-                  'sixlowpan_reassembly_queue_len': 1280,
-                  'sixlowpan_reassembly_queue_num': 1,
-                  'app_pkLength'                  : 180,
-                  'exec_numMotes'                 : 3,
-                  'top_type'                      : 'linear',
-                  'sf_type'                       : 'SSF-symmetric',
-                  'app_e2eAck'                    : False}
+        params = {'fragmentation'                   : 'PerHopReassembly',
+                  'fragmentation_ff_options'        : [],
+                  'sixlowpan_reassembly_buffers_num': 1,
+                  'app_pkLength'                    : 180,
+                  'exec_numMotes'                   : 3,
+                  'top_type'                        : 'linear',
+                  'sf_type'                         : 'SSF-symmetric',
+                  'app_e2eAck'                      : False}
         sim = sim(**params)
         root = sim.motes[0]
         hop1 = sim.motes[1]
@@ -668,15 +620,15 @@ class TestDatagramTag:
         tag_init = node.sixlowpan.next_datagram_tag
 
         # enqueue two packets
-        node.sixlowpan.output(packet)
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag0 = node.tsch.getTxQueue()[0]['payload']['datagram_tag']
         tag1 = node.tsch.getTxQueue()[2]['payload']['datagram_tag']
 
         node.sixlowpan.next_datagram_tag = 65535
-        node.sixlowpan.output(packet)
-        node.sixlowpan.output(packet)
+        node.sixlowpan.send(packet)
+        node.sixlowpan.send(packet)
 
         tag2 = node.tsch.getTxQueue()[4]['payload']['datagram_tag']
         tag3 = node.tsch.getTxQueue()[6]['payload']['datagram_tag']

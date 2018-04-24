@@ -473,9 +473,9 @@ class Tsch(object):
             if smac == self.mote.rpl.getPreferredParent():
                 self.asnLastSync = asn
             
-            if (type == d.APP_TYPE_FRAG) or (type == d.APP_TYPE_DATA):
+            if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
                 self.waitingFor = None
-                self.mote.sixlowpan.input(smac, {
+                self.mote.sixlowpan.recv(smac, {
                     'asn'        : asn,
                     'type'       : type,
                     'code'       : None,

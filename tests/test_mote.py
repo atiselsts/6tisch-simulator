@@ -490,7 +490,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         assert len(pkt) == 0
 
     node.radio.drop_packet = types.MethodType(test, node)
-    node.sixlowpan.input(leaf, frag)
+    node.sixlowpan.recv(leaf, frag)
     assert test_is_called['result'] is True
 
 def test_drop_forwarding_frag_no_vrb_entry(sim):
@@ -536,7 +536,7 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
         assert len(pkt) == 0
 
     node.radio.drop_packet = types.MethodType(test, node)
-    node.sixlowpan.input(leaf, frag)
+    node.sixlowpan.recv(leaf, frag)
     assert test_is_called['result'] is True
 
 
@@ -596,13 +596,12 @@ def test_drop_forwarding_data_tx_queue_full(sim):
 def test_drop_frag_reassembly_queue_full(sim):
     sim = sim(
         **{
-            'fragmentation'                 : 'PerHopReassembly',
-            'app_pkLength'                  : 180,
-            'exec_numMotes'                 : 4,
-            'top_type'                      : 'linear',
-            'sf_type'                       : 'SSF-symmetric',
-            'sixlowpan_reassembly_queue_len': 1280,
-            'sixlowpan_reassembly_queue_num': 1,
+            'fragmentation'                   : 'PerHopReassembly',
+            'app_pkLength'                    : 180,
+            'exec_numMotes'                   : 4,
+            'top_type'                        : 'linear',
+            'sf_type'                         : 'SSF-symmetric',
+            'sixlowpan_reassembly_buffers_num': 1,
         }
     )
 
@@ -635,72 +634,18 @@ def test_drop_frag_reassembly_queue_full(sim):
     def test(self, pkt, reason):
         test_is_called['result'] = True
         assert len(pkt) > 0
-        assert reason == 'frag_reass_queue_full'
+        assert reason == 'frag_reassembly_buffer_full'
         self.original_radio_drop_packet(pkt, reason)
         assert len(pkt) == 0
 
     node.radio.drop_packet = types.MethodType(test, node)
 
-    assert len(node.sixlowpan.reassembly_buffer) == 0
-    node.sixlowpan.input(leaf1, packet)
-    assert len(node.sixlowpan.reassembly_buffer) == 1
-    assert leaf1 in node.sixlowpan.reassembly_buffer
-    assert 12345 in node.sixlowpan.reassembly_buffer[leaf1]
+    assert len(node.sixlowpan.reassembly_buffers) == 0
+    node.sixlowpan.recv(leaf1, packet)
+    assert len(node.sixlowpan.reassembly_buffers) == 1
+    assert leaf1 in node.sixlowpan.reassembly_buffers
+    assert 12345 in node.sixlowpan.reassembly_buffers[leaf1]
 
-    node.sixlowpan.input(leaf2, packet)
+    node.sixlowpan.recv(leaf2, packet)
     assert test_is_called['result'] is True
-    assert len(node.sixlowpan.reassembly_buffer) == 1
-
-
-def test_drop_frag_too_big_for_reassembly_queue(sim):
-    sim = sim(
-        **{
-            'fragmentation'                 : 'PerHopReassembly',
-            'app_pkLength'                  : 180,
-            'exec_numMotes'                 : 4,
-            'top_type'                      : 'linear',
-            'sf_type'                       : 'SSF-symmetric',
-            'sixlowpan_reassembly_queue_len': 1280,
-            'sixlowpan_reassembly_queue_num': 1,
-        }
-    )
-
-    root  = sim.motes[0]
-    node  = sim.motes[1]
-    leaf1 = sim.motes[2]
-    leaf2 = sim.motes[3]
-
-    # fragment can be enqueued even if datagram_offset is not 0
-    packet = {
-        'asn':                0,
-        'type':               d.APP_TYPE_FRAG,
-        'code':               None,
-        'dstIp':              root,
-        'payload': {
-            'asn_at_source':  0,
-            'hops':           1,
-            'datagram_tag':       12345,
-            'datagram_size':      2000, # too big for reassembly queue
-            'datagram_offset':    0,
-            'length':         90,
-            'original_type':  d.APP_TYPE_DATA
-        },
-        'sourceRoute':        [],
-    }
-
-    node.original_radio_drop_packet = node.radio.drop_packet
-    test_is_called = {'result': False}
-
-    def test(self, pkt, reason):
-        test_is_called['result'] = True
-        assert len(pkt) > 0
-        assert reason == 'frag_too_big_for_reass_queue'
-        self.original_radio_drop_packet(pkt, reason)
-        assert len(pkt) == 0
-
-    node.radio.drop_packet = types.MethodType(test, node)
-
-    assert len(node.sixlowpan.reassembly_buffer) == 0
-    node.sixlowpan.input(leaf1, packet)
-    assert test_is_called['result'] is True
-    assert len(node.sixlowpan.reassembly_buffer) == 0
+    assert len(node.sixlowpan.reassembly_buffers) == 1
