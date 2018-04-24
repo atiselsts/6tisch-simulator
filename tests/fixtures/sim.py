@@ -22,7 +22,6 @@ def sim(request):
             'app_pkPeriod':                 0,
             'app_burstNumPackets':          0,
 
-            'rpl_dioPeriod':                0,
             'rpl_daoPeriod':                0,
 
             'frag_numFragments':            1,
@@ -43,7 +42,8 @@ def sim(request):
 
             'tsch_slotDuration':            0.010,
             'tsch_slotframeLength':         101,
-            'tsch_ebPeriod_sec':            0,
+            'tsch_probBcast_ebProb':        0,
+            'tsch_probBcast_dioProb':       0,
 
             'top_type':                     'random',
             'top_squareSide':               2.000,

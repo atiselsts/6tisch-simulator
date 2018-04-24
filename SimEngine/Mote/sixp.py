@@ -42,7 +42,6 @@ class SixP(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         
@@ -128,9 +127,16 @@ class SixP(object):
                 cellList = []
                 for (ts, ch) in cells.iteritems():
                     # log
-                    self.engine.log(SimEngine.SimLog.LOG_6TOP_ADD_CELL,
-                                    {"ts": ts, "channel": ch, "direction": dir,
-                                     "mote_id": self.mote.id, "neighbor_id": neighbor.id})
+                    self.engine.log(
+                        SimEngine.SimLog.LOG_6TOP_ADD_CELL,
+                        {
+                            "ts": ts,
+                            "channel": ch,
+                            "direction": dir,
+                            "mote_id": self.mote.id,
+                            "neighbor_id": neighbor.id
+                        }
+                    )
                     cellList += [(ts, ch, dir)]
                 self.mote.tsch.addCells(neighbor, cellList)
 
@@ -452,9 +458,16 @@ class SixP(object):
                             '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
                             (ts, ch, self.mote.id, neighbor.id, newDir),
                         )
-                        self.engine.log(SimEngine.SimLog.LOG_6TOP_ADD_CELL,
-                                        {"ts": ts, "channel": ch, "direction": cellDir,
-                                         "neighbor_id": neighbor.id, "mote_id": self.mote.id})
+                        self.engine.log(
+                            SimEngine.SimLog.LOG_6TOP_ADD_CELL,
+                            {
+                                "ts": ts,
+                                "channel": ch,
+                                "direction": cellDir,
+                                "neighbor_id": neighbor.id,
+                                "mote_id": self.mote.id,
+                            }
+                        )
                         cellList += [(ts, ch, newDir)]
                     self.mote.tsch.addCells(neighbor, cellList)
 
@@ -665,10 +678,17 @@ class SixP(object):
                             '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
                             (ts, ch, self.mote.id, neighbor.id, cellDir),
                         )
-                        self.engine.log(SimEngine.SimLog.LOG_6TOP_RX_ACK,
-                                        {"source_id": neighbor.id, "destination_id": self.mote.id,
-                                         "ts": ts, "channel": ch, "direction": cellDir,
-                                         "rc": code})
+                        self.engine.log(
+                            SimEngine.SimLog.LOG_6TOP_RX_ACK,
+                            {
+                                "source_id": neighbor.id,
+                                "destination_id": self.mote.id,
+                                "ts": ts,
+                                "channel": ch,
+                                "direction": cellDir,
+                                "rc": code,
+                            }
+                        )
                     self.mote.tsch.addCells(neighbor, confirmedCellList)
 
                     # update counters
@@ -776,7 +796,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -810,7 +830,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
         else:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
@@ -842,7 +862,7 @@ class SixP(object):
 
         if not isEnqueued:
             # update mote stats
-            self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # misc
 

@@ -38,16 +38,14 @@ class Rpl(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.propagation                    = SimEngine.Propagation.Propagation()
 
         # local variables
         self.rank                      = None
         self.dagRank                   = None
         self.parentSet                 = []
-        self.daoParents                = {}      # dictionary containing parents of each node from whom DAG root received a DAO
         self.preferredParent           = None
         self.oldPreferredParent        = None    # preserve old preferred parent upon a change
-        self.rplRxDIO                  = {}      # indexed by neighbor, contains int
+        self.daoParents                = {}      # dictionary containing parents of each node from whom DAG root received a DAO
         self.neighborRank              = {}      # indexed by neighbor
         self.neighborDagRank           = {}      # indexed by neighbor
 
@@ -85,12 +83,9 @@ class Rpl(object):
         Initialize the RPL layer
         """
 
-        # all nodes send DIOs
+        # start sending DIOs and DAOs
         self._schedule_sendDIO()
-
-        # only non-root nodes send DAOs
-        if not self.mote.dagRoot:
-            self._schedule_sendDAO(firstDAO=True)
+        self._schedule_sendDAO(firstDAO=True)
 
     # DIO
 
@@ -112,7 +107,7 @@ class Rpl(object):
         )
 
         # update my mote stats
-        self.mote._stats_incrementMoteStats('rplRxDIO')
+        self.mote._stats_incrementMoteStats('statsNumRxDIO')
 
         sender = smac
 
@@ -125,11 +120,6 @@ class Rpl(object):
         # update rank/DAGrank with sender
         self.neighborDagRank[sender]    = rank / d.RPL_MIN_HOP_RANK_INCREASE
         self.neighborRank[sender]       = rank
-
-        # update number of DIOs received from sender
-        if sender not in self.rplRxDIO:
-            self.rplRxDIO[sender]       = 0
-        self.rplRxDIO[sender]          += 1
 
         # trigger RPL housekeeping
         self._housekeeping()
@@ -215,25 +205,10 @@ class Rpl(object):
         Send a DIO sometimes in the future.
         """
 
-        # stop if DIOs disabled
-        if self.settings.rpl_dioPeriod == 0:
-            return
-
-        asnNow    = self.engine.getAsn()
-
-        if self.settings.tsch_probBcast_enabled:
-            asnDiff = int(self.settings.tsch_slotframeLength)
-        else:
-            asnDiff = int(math.ceil(
-                random.uniform(
-                    0.8 * self.settings.rpl_dioPeriod,
-                    1.2 * self.settings.rpl_dioPeriod
-                ) / self.settings.tsch_slotDuration)
-            )
-
-        # schedule at start of next cycle
+        # schedule to send a DIO every slotframe
+        # _action_sendDIO() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
-            asn         = asnNow + asnDiff,
+            asn         = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
             cb          = self._action_sendDIO,
             uniqueTag   = (self.mote.id, '_action_sendDIO'),
             priority    = 3,
@@ -244,25 +219,23 @@ class Rpl(object):
         decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
         """
 
-        # decide whether to enqueue a DIO
-        if self.settings.tsch_probBcast_enabled:
-            dioProb =   (                                                           \
-                            float(self.settings.tsch_probBcast_dioProb)             \
-                            /                                                       \
-                            float(len(self.mote.secjoin.areAllNeighborsJoined()))   \
-                        )                                                           \
-                        if                                                          \
-                        len(self.mote.secjoin.areAllNeighborsJoined())              \
-                        else                                                        \
-                        float(self.settings.tsch_probBcast_dioProb)
-            sendDio = True if random.random() < dioProb else False
-        else:
-            sendDio = True
+        # compute probability to send a DIO
+        dioProb =   (                                                           \
+                        float(self.settings.tsch_probBcast_dioProb)             \
+                        /                                                       \
+                        float(len(self.mote.secjoin.areAllNeighborsJoined()))   \
+                    )                                                           \
+                    if                                                          \
+                    len(self.mote.secjoin.areAllNeighborsJoined())              \
+                    else                                                        \
+                    float(self.settings.tsch_probBcast_dioProb)
+        sendDio =(random.random() < dioProb)
 
-        # enqueue DIO
+        # enqueue DIO, if appropriate
         if sendDio:
+            # probability passes
             self._action_enqueueDIO()
-
+        
         # schedule next DIO
         self._schedule_sendDIO()
 
@@ -271,15 +244,15 @@ class Rpl(object):
         enqueue DIO in TSCH queue
         """
 
-        # only send DIOs if I'm a DAGroot, or I have a preferred parent and dedicated cells to it
         if self.mote.dagRoot or (self.preferredParent and self.mote.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
-
+            # I am the root, or I have a preferred parent with dedicated cells to it
+            
             self.mote._stats_incrementMoteStats('rplTxDIO')
 
             # create new packet
-            newPacket = {
-                'asn':            self.engine.getAsn(),
+            newDIO = {
                 'type':           d.RPL_TYPE_DIO,
+                'asn':            self.engine.getAsn(),
                 'code':           None,
                 'payload':        [self.rank], # the payload is the rpl rank
                 'retriesLeft':    1,           # do not retransmit (broadcast)
@@ -289,8 +262,8 @@ class Rpl(object):
             }
 
             # enqueue packet in TSCH queue
-            if not self.mote.tsch.enqueue(newPacket):
-                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            if not self.mote.tsch.enqueue(newDIO):
+                self.mote.radio.drop_packet(newDIO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # DAO
 
@@ -298,7 +271,11 @@ class Rpl(object):
         """
         Schedule to send a DAO sometimes in the future.
         """
-
+        
+        # abort it I'm the root
+        if self.mote.dagRoot:
+            return
+        
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
             return
@@ -347,9 +324,9 @@ class Rpl(object):
             self.mote._stats_incrementMoteStats('rplTxDAO')
 
             # create new packet
-            newPacket = {
-                'asn':            self.engine.getAsn(),
+            newDAO = {
                 'type':           d.RPL_TYPE_DAO,
+                'asn':            self.engine.getAsn(),
                 'code':           None,
                 'payload':        [
                     self.mote.id,
@@ -362,8 +339,8 @@ class Rpl(object):
             }
 
             # enqueue packet in TSCH queue
-            if not self.mote.tsch.enqueue(newPacket):
-                self.mote._radio_drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            if not self.mote.tsch.enqueue(newDAO):
+                self.mote.radio.drop_packet(newDAO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
     # source route
 

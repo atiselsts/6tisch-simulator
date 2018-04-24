@@ -21,10 +21,17 @@ def test_create_linear_topology(sim):
     sim(**{'top_type': 'linear'})
     assert isinstance(Topology.Topology([]), Topology.LinearTopology)
 
+'''
 def test_create_trace_topology(sim):
-    sim(**{'top_type': 'trace', 'prop_type': 'trace',
-           'prop_trace': 'traces/grenoble.k7.gz'})
+    sim(
+        **{
+            'top_type':   'trace',
+            'prop_type':  'trace',
+            'prop_trace': 'traces/grenoble.k7.gz',
+        }
+    )
     assert isinstance(Topology.Topology([]), Topology.TraceTopology)
+'''
 
 def test_linear_topology_with_3_motes(sim):
     sim = sim(**{'exec_numMotes': 3, 'top_type': 'linear'})

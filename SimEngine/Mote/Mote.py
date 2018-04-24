@@ -25,6 +25,8 @@ import sf
 import sixp
 import secjoin
 import tsch
+import radio
+import batt
 
 import MoteDefines as d
 
@@ -68,7 +70,6 @@ class Mote(object):
         # singletons (to access quicker than recreate every time)
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
-        self.propagation               = SimEngine.Propagation.Propagation()
 
         # stack
         self.app                       = app.App(self)
@@ -78,19 +79,13 @@ class Mote(object):
         self.sixp                      = sixp.SixP(self)
         self.secjoin                   = secjoin.SecJoin(self)
         self.tsch                      = tsch.Tsch(self)
-        # radio
-        self.txPower                   = 0       # dBm
-        self.antennaGain               = 0       # dBi
-        self.noisepower                = -105    # dBm
-        self.drift                     = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
-        self.backoffBroadcast          = 0
+        self.radio                     = radio.Radio(self)
+        self.batt                      = batt.Batt(self)
+        
         # wireless
         self.RSSI                      = {}      # indexed by neighbor
         self.PDR                       = {}      # indexed by neighbor
-        # location
-        # battery
-        self.chargeConsumed            = 0
-
+        
         # stats
         self.motestats                 = {}
         self._stats_resetMoteStats()
@@ -133,27 +128,7 @@ class Mote(object):
                 self.app.schedule_mote_sendPacketBurstToDAGroot()
             else:
                 self.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-
-    #===== radio
-
-    def _radio_drop_packet(self, pkt, reason):
-        # remove all the element of pkt so that it won't be processed further
-        for k in pkt.keys():
-            del pkt[k]
-
-        # increment mote stat
-        self._stats_incrementMoteStats(reason)
-
-    def radio_txDone(self, isACKed, isNACKed):
-        """end of tx slot"""
-        
-        self.tsch.txDone(  isACKed, isNACKed)
-
-    def radio_rxDone(self,      type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
-        """end of RX radio activity"""
-        
-        return self.tsch.rxDone(type,      code,      smac,      dmac,      srcIp,      dstIp,      srcRoute,      payload)
-
+    
     #===== wireless
 
     def getCellPDR(self, cell):
@@ -224,14 +199,6 @@ class Mote(object):
             self.tsch.add_minimal_cell()
             self._stack_init_synced()
 
-    def _logChargeConsumed(self, charge):
-        with self.dataLock:
-            self.chargeConsumed  += charge
-            self.engine.log(
-                SimEngine.SimLog.LOG_CHARGE_CONSUMED,
-                {"mote_id": self.id, "charge": charge}
-            )
-
     #======================== private =========================================
     
     #===== stats
@@ -257,7 +224,7 @@ class Mote(object):
             returnVal['aveHops']            = self._stats_getAveHops()
             returnVal['probableCollisions'] = self._stats_getRadioStats('probableCollisions')
             returnVal['txQueueFill']        = len(self.tsch.getTxQueue())
-            returnVal['chargeConsumed']     = self.chargeConsumed
+            returnVal['chargeConsumed']     = self.batt.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_, cell) in self.tsch.getSchedule().items()])
             returnVal['dataQueueFill']      = dataPktQueues
             returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
@@ -304,40 +271,6 @@ class Mote(object):
                         'numRx':          cell['numRx'],
                     }
                     break
-        return returnVal
-
-    def stats_sharedCellCollisionSignal(self):
-        asn = self.engine.getAsn()
-        ts = asn % self.settings.tsch_slotframeLength
-
-        assert self.tsch.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
-
-        with self.dataLock:
-            self.tsch.getSchedule()[ts]['sharedCellCollision'] = 1
-
-    def stats_sharedCellSuccessSignal(self):
-        asn = self.engine.getAsn()
-        ts = asn % self.settings.tsch_slotframeLength
-
-        assert self.tsch.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
-
-        with self.dataLock:
-            self.tsch.getSchedule()[ts]['sharedCellSuccess'] = 1
-
-    def getSharedCellStats(self):
-        returnVal = {}
-        # gather statistics
-        with self.dataLock:
-            for (ts, cell) in self.tsch.getSchedule().items():
-                if cell['dir'] == d.DIR_TXRX_SHARED:
-
-                    returnVal['sharedCellCollision_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellCollision']
-                    returnVal['sharedCellSuccess_{0}_{1}'.format(ts, cell['ch'])] = cell['sharedCellSuccess']
-
-                    # reset the statistics
-                    cell['sharedCellCollision'] = 0
-                    cell['sharedCellSuccess']   = 0
-
         return returnVal
 
     # queue stats

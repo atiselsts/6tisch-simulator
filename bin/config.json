@@ -18,7 +18,6 @@
             "app_burstNumPackets":          0,
             "app_e2eAck":                   false,
 
-            "rpl_dioPeriod":                10,
             "rpl_daoPeriod":                60,
 
             "frag_numFragments":            1,
@@ -44,8 +43,6 @@
 
             "tsch_slotDuration":            0.010,
             "tsch_slotframeLength":         101,
-            "tsch_ebPeriod_sec":            2,
-            "tsch_probBcast_enabled":       1,
             "tsch_probBcast_ebProb":        0.33,
             "tsch_probBcast_dioProb":       0.33,
 

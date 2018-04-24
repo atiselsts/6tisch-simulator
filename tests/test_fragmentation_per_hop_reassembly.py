@@ -494,7 +494,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 0
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(
+        assert hop1.radio.rxDone(
             d.APP_TYPE_FRAG,
             None,
             hop2,
@@ -508,7 +508,7 @@ class TestPacketFowarding:
         assert len(hop1.app.reassQueue) == 1
 
         hop1.tsch.waitingFor = d.DIR_RX
-        assert hop1.radio_rxDone(
+        assert hop1.radio.rxDone(
             type        = d.APP_TYPE_FRAG,
             code        = None,
             smac        = hop2,
@@ -524,8 +524,8 @@ class TestPacketFowarding:
     def test_e2e(self, sim):
         one_second = 1
         params = {'frag_numFragments': 2,
-                  'exec_numMotes': 3,
-                  'top_type': 'linear',
+                  'exec_numMotes':     3,
+                  'top_type':         'linear',
                   'sf_type': 'SSF-cascading',
                   'app_pkPeriod': 0,
                   'app_pkPeriodVar': 0,
@@ -537,7 +537,7 @@ class TestPacketFowarding:
 
         hop2.app.pkPeriod = one_second
         hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-        assert len(sim.events) == 5
+        assert len(sim.events) == 11
         assert sim.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
 
         cb = None
