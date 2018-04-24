@@ -22,23 +22,30 @@ class TestNumFragmentsVsTxQueue:
         (10, 10),
     ])
     def test_num_frag(self, sim, test_input, expected):
-        m = sim(**{'frag_ff_enable': True,
-                   'frag_numFragments': test_input,
-                   'exec_numMotes': 2,
-                   'top_type': 'linear',
-                   'sf_type': 'SSF-symmetric'}).motes[1]
+        m = sim(
+            **{
+                'frag_ff_enable':      True,
+                'frag_numFragments':   test_input,
+                'exec_numMotes':       2,
+                'top_type':            'linear',
+                'sf_type':             'SSF-symmetric',
+            }
+        ).motes[1]
         assert len(m.tsch.getTxQueue()) == 0
         m.app._action_mote_enqueueDataForDAGroot()
         assert len(m.tsch.getTxQueue()) == expected
 
-
 class TestFragmentForwarding:
     def test_app_frag_ff_forward_fragment_frag_order(self, sim):
-        sim = sim(**{'frag_ff_enable': True,
-                     'frag_numFragments': 2,
-                     'exec_numMotes': 3,
-                     'top_type': 'linear',
-                     'sf_type': 'SSF-symmetric'})
+        sim = sim(
+            **{
+                'frag_ff_enable':      True,
+                'frag_numFragments':   2,
+                'exec_numMotes':       3,
+                'top_type':            'linear',
+                'sf_type':             'SSF-symmetric',
+            }
+        )
         root = sim.motes[0]
         node = sim.motes[1]
         leaf = sim.motes[2]
@@ -69,11 +76,15 @@ class TestFragmentForwarding:
 
     def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim):
         # no size limit for vrbtable
-        sim = sim(**{'frag_ff_enable': True,
-                     'frag_numFragments': 2,
-                     'exec_numMotes': 5,
-                     'top_type': 'linear',
-                     'sf_type': 'SSF-symmetric'})
+        sim = sim(
+            **{
+                'frag_ff_enable':      True,
+                'frag_numFragments':   2,
+                'exec_numMotes':       5,
+                'top_type':            'linear',
+                'sf_type':             'SSF-symmetric',
+            }
+        )
         root = sim.motes[0]
         node = sim.motes[1]
         leaf1 = sim.motes[2]
@@ -453,7 +464,7 @@ class TestPacketFowarding:
         # send a packet from hop2
         hop2.app.pkPeriod = one_second
         hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-        assert len(sim.events) == 5
+        assert len(sim.events) == 11
         assert sim.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
         
         # execute all events

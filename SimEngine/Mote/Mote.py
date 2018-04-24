@@ -82,9 +82,6 @@ class Mote(object):
         self.radio                     = radio.Radio(self)
         self.batt                      = batt.Batt(self)
         
-        # radio
-        self.drift                     = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
-        self.backoffBroadcast          = 0
         # wireless
         self.RSSI                      = {}      # indexed by neighbor
         self.PDR                       = {}      # indexed by neighbor

@@ -16,8 +16,6 @@ def test_app_schedule_transmit(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'tsch_ebPeriod_sec':       0,
-            'rpl_dioPeriod':           0,
             'rpl_daoPeriod':           0,
             'top_type':                'linear',
             'sf_type':                 'SSF-cascading'
@@ -28,12 +26,12 @@ def test_app_schedule_transmit(sim):
 
     # active TX cell event for node, active RX cell event for root, and
     # propagation event
-    assert len(sim.events) == 3
+    assert len(sim.events) == 7
     node.app.pkPeriod = 100
     node.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-    assert len(sim.events) == 4
-    print sim.events[3][2]
-    assert sim.events[3][2] == node.app._action_mote_sendSinglePacketToDAGroot
+    assert len(sim.events) == 8
+    print sim.events[7][2]
+    assert sim.events[7][2] == node.app._action_mote_sendSinglePacketToDAGroot
 
 def test_drop_join_packet_tx_queue_full(sim):
     sim = sim(
@@ -195,16 +193,19 @@ def test_drop_eb_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
             'sf_type':                 'SSF-cascading',
-            'tsch_probBcast_enabled':  0,
+            'tsch_probBcast_ebProb':   1, # force EBs to be sent at each slotframe
+            'top_type':                'linear',
         }
     )
 
     root = sim.motes[0]
     node = sim.motes[1]
 
-    packet = {'dstIp': root, 'type': d.APP_TYPE_DATA}
+    packet = {
+        'type':    d.APP_TYPE_DATA,
+        'dstIp':   root,
+    }
 
     for i in range(0, 10):
         # fill txQueue, whose size is 10

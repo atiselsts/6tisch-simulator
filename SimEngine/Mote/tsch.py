@@ -47,6 +47,8 @@ class Tsch(object):
         self.waitingFor                     = None
         self.asnLastSync                    = None
         self.isSync                         = False
+        self.backoffBroadcast               = 0
+        self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
         self._resetBroadcastBackoff()
         self.backoffPerNeigh                = {}
         self.backoffExponentPerNeigh        = {}
@@ -100,7 +102,7 @@ class Tsch(object):
             for m in self.mote._myNeighbors():
                 self._resetBackoffPerNeigh(m)
     
-    # listening for EBs
+    # listening for EBs (when joining the network)
     
     def listenEBs(self):
         
@@ -635,8 +637,8 @@ class Tsch(object):
             while True:
                 secSinceSync     = (asn-child.tsch.asnLastSync)*self.settings.tsch_slotDuration  # sec
                 # FIXME: for ppm, should we not /10^6?
-                relDrift         = child.drift - parent.drift                                # ppm
-                offset          += relDrift * secSinceSync                                   # us
+                relDrift         = child.tsch.drift - parent.tsch.drift                          # ppm
+                offset          += relDrift * secSinceSync                                       # us
                 if parent.dagRoot:
                     break
                 else:
@@ -893,65 +895,58 @@ class Tsch(object):
     # EBs
     
     def _tsch_schedule_sendEB(self):
-
-        if self.settings.tsch_ebPeriod_sec == 0:
-            # disable periodic EB transmission
-            return
-
-        asn = self.engine.getAsn()
-
-        if self.settings.tsch_probBcast_enabled:
-            futureAsn = int(self.settings.tsch_slotframeLength)
-        else:
-            futureAsn = int(math.ceil(
-                random.uniform(
-                    0.8 * self.settings.tsch_ebPeriod_sec,
-                    1.2 * self.settings.tsch_ebPeriod_sec,
-                ) / self.settings.tsch_slotDuration
-            ))
-
-        # schedule at start of next cycle
+        
+        # schedule to send an EB every slotframe
+        # _tsch_action_sendEB() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
-            asn=asn + futureAsn,
-            cb=self._tsch_action_sendEB,
-            uniqueTag=(self.mote.id, '_tsch_action_sendEB'),
-            priority=3,
+            asn         = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
+            cb          = self._tsch_action_sendEB,
+            uniqueTag   = (self.mote.id, '_tsch_action_sendEB'),
+            priority    = 3,
         )
 
     def _tsch_action_sendEB(self):
-
-        if self.settings.tsch_probBcast_enabled:
-            beaconProb = float(self.settings.tsch_probBcast_ebProb) / float(len(self.mote.secjoin.areAllNeighborsJoined())) if len(self.mote.secjoin.areAllNeighborsJoined()) else float(self.settings.tsch_probBcast_ebProb)
-            sendBeacon = True if random.random() < beaconProb else False
-        else:
-            sendBeacon = True
-        if self.mote.rpl.getPreferredParent() or self.mote.dagRoot:
+        
+        # compute probability to send an EB
+        ebProb     = float(self.settings.tsch_probBcast_ebProb)            \
+                     /                                                     \
+                     float(len(self.mote.secjoin.areAllNeighborsJoined())) \
+                     if                                                    \
+                     len(self.mote.secjoin.areAllNeighborsJoined())        \
+                     else                                                  \
+                     float(self.settings.tsch_probBcast_ebProb)
+        sendEB = (random.random() < ebProb)
+        
+        # enqueue EB, if appropriate
+        if sendEB:
+            # probability passes
             if self.mote.secjoin.isJoined() or not self.settings.secjoin_enabled:
-                if sendBeacon:
-                    
-                    # only start sending EBs if: I am a DAG root OR (I have a preferred parent AND dedicated cells to that parent)
+                # I have joined
                     if self.mote.dagRoot or (self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) != 0):
-
+                        # I am the root, or I have a preferred parent with dedicated cells to it
+                        
                         # create new packet
-                        newPacket = {
-                            'asn': self.engine.getAsn(),
-                            'type': d.TSCH_TYPE_EB,
-                            'code': None,
-                            'payload': [self.mote.rpl.getDagRank()],  # the payload is the rpl rank
-                            'retriesLeft': 1,  # do not retransmit broadcast
-                            'srcIp': self.mote,
-                            'dstIp': d.BROADCAST_ADDRESS,
-                            'sourceRoute': []
+                        newEB = {
+                            'type':         d.TSCH_TYPE_EB,
+                            'asn':          self.engine.getAsn(),
+                            'code':         None,
+                            'payload':      [self.mote.rpl.getDagRank()],  # the payload is the rpl rank
+                            'retriesLeft':  1,  # do not retransmit broadcast
+                            'srcIp':        self.mote,
+                            'dstIp':        d.BROADCAST_ADDRESS,
+                            'sourceRoute':  [],
                         }
 
                         # enqueue packet in TSCH queue
-                        if not self.enqueue(newPacket):
+                        if not self.enqueue(newEB):
                             # update mote stats
-                            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-                    
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
-
-        self._tsch_schedule_sendEB()  # schedule next EB
+                            self.mote.radio.drop_packet(newEB, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+                        
+                        # stats
+                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
+        
+        # schedule next EB
+        self._tsch_schedule_sendEB()
 
     def _tsch_action_receiveEB(self, type, smac, payload):
 
