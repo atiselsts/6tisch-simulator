@@ -80,7 +80,7 @@ class Radio(object):
         assert self.onGoingBroadcast in [True,False]
         
         # log charge consumed
-        if isACKed or isNACKed:
+        if   isACKed or isNACKed:
             # ACK of NACK received (both consume same amount of charge)
             self.mote._logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
         elif self.onGoingBroadcast:
