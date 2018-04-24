@@ -202,11 +202,6 @@ class Mote(object):
             self.tsch.add_minimal_cell()
             self._stack_init_synced()
 
-    def _logChargeConsumed(self, charge):
-        with self.dataLock:
-            self.chargeConsumed  += charge
-            
-
     #======================== private =========================================
     
     #===== stats
@@ -232,7 +227,7 @@ class Mote(object):
             returnVal['aveHops']            = self._stats_getAveHops()
             returnVal['probableCollisions'] = self._stats_getRadioStats('probableCollisions')
             returnVal['txQueueFill']        = len(self.tsch.getTxQueue())
-            returnVal['chargeConsumed']     = self.chargeConsumed
+            returnVal['chargeConsumed']     = self.batt.chargeConsumed
             returnVal['numTx']              = sum([cell['numTx'] for (_, cell) in self.tsch.getSchedule().items()])
             returnVal['dataQueueFill']      = dataPktQueues
             returnVal['aveSixtopLatency']   = self._stats_getAveSixTopLatency()
