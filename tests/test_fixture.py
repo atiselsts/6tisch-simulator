@@ -11,11 +11,10 @@ from SimEngine import SimConfig
 def test_sim_engine_runs(sim_engine, dummycounter):
     pass
 
-'''
 #=== error test which verifies exception at initialization propagates up
 
 @pytest.mark.parametrize("diff_config", [
-    {'exec_numMotes': 'dummy'},
+    {'app_pkPeriod': 'dummy'},
 ])
 def test_exception_at_initialization(sim_engine, diff_config):
     """test if an exception raised in a SimEngine thread is propagated here
@@ -28,7 +27,7 @@ def test_exception_at_initialization(sim_engine, diff_config):
 #=== error test which verifies exception during runtime propagates up
 
 @pytest.mark.parametrize("diff_config", [
-    {'app_pkPeriod': 'dummy'},
+    {'secjoin_enabled': None},
 ])
 def test_exception_at_runtime(sim_engine, diff_config):
     """test if an exception raised in a SimEngine thread is propagated here
@@ -43,7 +42,6 @@ def test_exception_at_runtime(sim_engine, diff_config):
             sim_engine,
             target_asn=1, # duration doesn't matter, simulation just need to be started
         )
-'''
 
 #=== testing force_initial_routing_and_schedule options
 
