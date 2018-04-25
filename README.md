@@ -1,9 +1,14 @@
-# The 6TiSCH Simulator - [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/develop/)
+# The 6TiSCH Simulator
+
+Branch    | Build Status
+--------- | -------------
+`master`  | https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/master
+`develop` | https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop
 
 Core Developers:
 
 * Mališa Vučinić (malisa.vucinic@inria.fr)
-* Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr) - Sensei
+* Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr)
 * Keoma Brun-Laguna (keoma.brun@inria.fr)
 * Thomas Watteyne (thomas.watteyne@inria.fr)
 
