@@ -87,8 +87,10 @@ TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 2
 TSCH_MAX_BACKOFF_EXPONENT                   = 4
+
 # === radio
 RADIO_MAXDRIFT                              = 30 # in ppm
+
 # === battery
 # see A Realistic Energy Consumption Model for TSCH Networks.
 # Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei

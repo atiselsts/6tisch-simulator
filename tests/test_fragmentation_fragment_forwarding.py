@@ -26,8 +26,7 @@ class TestNumFragmentsVsTxQueue:
             **{'fragmentation': 'FragmentForwarding',
                'app_pkLength' : test_input,
                'exec_numMotes': 2,
-               'top_type'     : 'linear',
-               'sf_type'      : 'SSF-symmetric',
+               'sf_type'      : 'SSFSymmetric',
             }
         ).motes[1]
         assert len(m.tsch.getTxQueue()) == 0
@@ -42,8 +41,7 @@ class TestFragmentForwarding:
                'fragmentation_ff_vrb_table_size'          : 50,
                'app_pkLength'                             : 180,
                'exec_numMotes'                            : 3,
-               'top_type'                                 : 'linear',
-               'sf_type'                                  : 'SSF-symmetric'
+               'sf_type'                                  : 'SSFSymmetric'
             }
         )
         root = sim.motes[0]
@@ -86,8 +84,7 @@ class TestFragmentForwarding:
                'fragmentation_ff_vrb_table_size'          : 50,
                'app_pkLength'                             : 180,
                'exec_numMotes'                            : 5,
-               'top_type'                                 : 'linear',
-               'sf_type'                                  : 'SSF-symmetric'
+               'sf_type'                                  : 'SSFSymmetric'
             }
         )
         root = sim.motes[0]
@@ -140,8 +137,7 @@ class TestFragmentForwarding:
                 'fragmentation_ff_discard_vrb_entry_policy': [],
                 'app_pkLength'                             : 180,
                 'exec_numMotes'                            : 2,
-                'top_type'                                 : 'linear',
-                'sf_type'                                  : 'SSF-symmetric',
+                'sf_type'                                  : 'SSFSymmetric',
                 'app_e2eAck'                               : False,
             }
         )
@@ -190,8 +186,7 @@ class TestFragmentation:
         sim = sim(**{'fragmentation': 'FragmentForwarding',
                      'app_pkLength' : 180,
                      'exec_numMotes': 2,
-                     'top_type'     : 'linear',
-                     'sf_type'      : 'SSF-symmetric'})
+                     'sf_type'      : 'SSFSymmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -249,7 +244,7 @@ class TestFragmentation:
         sim = sim(**{'fragmentation'           : 'FragmentForwarding',
                      'app_pkLength'            : 270,
                      'exec_numMotes'           : 3,
-                     'top_type'                : 'linear'})
+                     'conn_type'                : 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -327,8 +322,7 @@ class TestReassembly:
                      'app_pkLength'                             : 270,
                      'app_e2eAck'                               : False,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear',
-                     'sf_type'                                  : 'SSF-symmetric'})
+                     'sf_type'                                  : 'SSFSymmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -393,8 +387,7 @@ class TestReassembly:
                      'app_pkLength'                             : 270,
                      'app_e2eAck'                               : False,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear',
-                     'sf_type'                                  : 'SSF-symmetric'})
+                     'sf_type'                                  : 'SSFSymmetric'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -456,7 +449,7 @@ class TestPacketFowarding:
             'fragmentation_ff_vrb_table_size'          : 50,
             'app_pkLength'                             : 180,
             'exec_numMotes'                            : 3,
-            'top_type'                                 : 'linear',
+            'conn_type'                                 : 'linear',
             'app_pkPeriod'                             : 0,
             'app_pkPeriodVar'                          : 0,
             'app_e2eAck'                               : False,
@@ -515,8 +508,8 @@ class TestPacketFowarding:
             'fragmentation_ff_vrb_table_size'          : 50,
             'app_pkLength'                             : 180,
             'exec_numMotes'                            : 3,
-            'top_type'                                 : 'linear',
-            'sf_type'                                  : 'SSF-symmetric',
+            'conn_type'                                 : 'linear',
+            'sf_type'                                  : 'SSFSymmetric',
             'app_pkPeriod'                             : 0,
             'app_pkPeriodVar'                          : 0,
             'app_e2eAck'                               : False,
@@ -536,7 +529,7 @@ class TestPacketFowarding:
         cb = None
         asn0 = sim.asn
         while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
-            (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
+            (asn, priority, cb, tag) = sim.events.pop(0)
             sim.asn = asn
 
             if cb == hop2.app._action_mote_sendSinglePacketToDAGroot:
@@ -545,7 +538,7 @@ class TestPacketFowarding:
                 hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
                 break
             else:
-                cb(**kwargs)
+                cb()
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with app.pkPeriod==1
         assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
@@ -559,10 +552,10 @@ class TestPacketFowarding:
         assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
         # two fragments should reach to the root within two slotframes
         while len(sim.events) > 0:
-            (asn, priority, cb, tag, kwargs) = sim.events.pop(0)
+            (asn, priority, cb, tag) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
-            cb(**kwargs)
+            cb()
             if(len(hop1.tsch.getTxQueue()) == 2):
                 break
             if asn > (asn0 + (2 * sim.settings.tsch_slotframeLength)):
@@ -581,7 +574,7 @@ class TestPacketFowarding:
                   'fragmentation_ff_vrb_table_size'          : 50,
                   'app_pkLength'                             : 180,
                   'exec_numMotes'                            : 3,
-                  'top_type'                                 : 'linear',
+                  'conn_type'                                 : 'linear',
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False,
@@ -642,7 +635,7 @@ class TestPacketFowarding:
                   'fragmentation_ff_vrb_table_size'          : vrb_table_size,
                   'app_pkLength'                             : 180,
                   'exec_numMotes'                            : 3,
-                  'top_type'                                 : 'linear',
+                  'conn_type'                                 : 'linear',
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
@@ -682,7 +675,7 @@ class TestDatagramTag:
                      'fragmentation_ff_vrb_table_size': 50,
                      'app_pkLength'                   : 180,
                      'exec_numMotes'                  : 2,
-                     'top_type'                       : 'linear'})
+                     'conn_type'                       : 'linear'})
         root = sim.motes[0]
         node = sim.motes[1]
         packet = {
@@ -728,8 +721,7 @@ class TestDatagramTag:
                   'fragmentation_ff_vrb_table_size'          : 50,
                   'app_pkLength'                             : 180,
                   'exec_numMotes'                            : 3,
-                  'top_type'                                 : 'linear',
-                  'sf_type'                                  : 'SSF-symmetric',
+                  'sf_type'                                  : 'SSFSymmetric',
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
@@ -794,8 +786,7 @@ class TestDatagramTag:
                   'fragmentation_ff_vrb_table_size'          : 50,
                   'app_pkLength'                             : 180,
                   'exec_numMotes'                            : 3,
-                  'top_type'                                 : 'linear',
-                  'sf_type'                                  : 'SSF-symmetric',
+                  'sf_type'                                  : 'SSFSymmetric',
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
@@ -860,7 +851,7 @@ class TestOptimization:
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear'})
+                     'conn_type'                                 : 'linear'})
 
         root = sim.motes[0]
         node = sim.motes[1]
@@ -904,7 +895,7 @@ class TestOptimization:
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 270,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear',
+                     'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -943,7 +934,7 @@ class TestOptimization:
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear',
+                     'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['missing_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
@@ -987,7 +978,7 @@ class TestOptimization:
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
-                     'top_type'                                 : 'linear',
+                     'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment', 'missing_fragment']})
         root = sim.motes[0]
         node = sim.motes[1]
