@@ -14,13 +14,18 @@ def print_matrix(matrix):
             print "{0}\t|".format(matrix[source][dest][11]['pdr']),
         print "\n"
 
-def test_fill_connectivity_matrix_static_linear(sim):
+def test_fill_connectivity_matrix_static_linear(sim_engine):
     """ creates a static connectivity linear path
         0 <-- 1 <-- 2 <-- ... <-- num_motes
     """
 
     num_motes = 6
-    engine = sim(**{'exec_numMotes': num_motes, 'conn_type': 'linear'})
+    engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': num_motes,
+            'conn_type':     'linear',
+        }
+    )
     motes = engine.motes
     matrix = engine.connectivity.connectivity_matrix
 
@@ -35,6 +40,6 @@ def test_fill_connectivity_matrix_static_linear(sim):
             assert matrix[src][dst][ch]['pdr'] == 100
             assert matrix[src][dst][ch]['rssi'] == -10
 
-def test_propagate(sim):
-    engine = sim()
+def test_propagate(sim_engine):
+    engine = sim_engine()
     engine.connectivity.propagate()
