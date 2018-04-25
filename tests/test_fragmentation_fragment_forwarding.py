@@ -14,29 +14,34 @@ import SimEngine.Mote.MoteDefines as d
 import SimEngine
 
 class TestNumFragmentsVsTxQueue:
-    @pytest.mark.parametrize('test_input, expected', [
-        (45, 1),
-        (90, 1),
+    @pytest.mark.parametrize('num_bytes_in, num_frags_out', [
+        (45,  1),
+        (90,  1),
         (135, 2),
         (270, 3),
         (900, 10),
     ])
-    def test_num_frag(self, sim, test_input, expected):
-        m = sim(
-            **{'fragmentation': 'FragmentForwarding',
-               'app_pkLength' : test_input,
+    def test_num_frag(self, sim_engine, num_bytes_in, num_frags_out):
+        sim_engine = sim_engine(
+            diff_config = {
+               'fragmentation': 'FragmentForwarding',
+               'app_pkLength' : num_bytes_in,
                'exec_numMotes': 2,
                'sf_type'      : 'SSFSymmetric',
-            }
-        ).motes[1]
-        assert len(m.tsch.getTxQueue()) == 0
-        m.app._action_mote_enqueueDataForDAGroot()
-        assert len(m.tsch.getTxQueue()) == expected
+            },
+            force_initial_routing_and_schedule = True,
+        )
+        
+        child = sim_engine.motes[1]
+        assert len(child.tsch.getTxQueue()) == 0
+        child.app._action_mote_enqueueDataForDAGroot()
+        assert len(child.tsch.getTxQueue()) == num_frags_out
 
 class TestFragmentForwarding:
-    def test_app_frag_ff_forward_fragment_frag_order(self, sim):
-        sim = sim(
-            **{'fragmentation'                            : 'FragmentForwarding',
+    def test_app_frag_ff_forward_fragment_frag_order(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                'fragmentation_ff_discard_vrb_entry_policy': [],
                'fragmentation_ff_vrb_table_size'          : 50,
                'app_pkLength'                             : 180,
@@ -44,9 +49,9 @@ class TestFragmentForwarding:
                'sf_type'                                  : 'SSFSymmetric'
             }
         )
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf = sim.motes[2]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf = sim_engine.motes[2]
 
         packet = {
             'asn':                0,
@@ -55,7 +60,7 @@ class TestFragmentForwarding:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
@@ -76,10 +81,11 @@ class TestFragmentForwarding:
         assert len(node.tsch.getTxQueue()) == 1
         assert node.tsch.getTxQueue()[0] == frag0
 
-    def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim):
+    def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim_engine):
         # no size limit for vrbtable
-        sim = sim(
-            **{'fragmentation'                            : 'FragmentForwarding',
+        sim_engine = sim_engine(
+            diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                'fragmentation_ff_discard_vrb_entry_policy': [],
                'fragmentation_ff_vrb_table_size'          : 50,
                'app_pkLength'                             : 180,
@@ -87,11 +93,11 @@ class TestFragmentForwarding:
                'sf_type'                                  : 'SSFSymmetric'
             }
         )
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf1 = sim.motes[2]
-        leaf2 = sim.motes[3]
-        leaf3 = sim.motes[4]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf1 = sim_engine.motes[2]
+        leaf2 = sim_engine.motes[3]
+        leaf3 = sim_engine.motes[4]
 
         packet = {
             'asn':                0,
@@ -100,7 +106,7 @@ class TestFragmentForwarding:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': leaf1,
@@ -130,9 +136,10 @@ class TestFragmentForwarding:
         node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
         assert len(node.tsch.getTxQueue()) == 4
 
-    def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim):
-        sim = sim(
-            **{
+    def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+               
                 'fragmentation'                            : 'FragmentForwarding',
                 'fragmentation_ff_discard_vrb_entry_policy': [],
                 'app_pkLength'                             : 180,
@@ -141,8 +148,8 @@ class TestFragmentForwarding:
                 'app_e2eAck'                               : False,
             }
         )
-        root = sim.motes[0]
-        leaf = sim.motes[1]
+        root = sim_engine.motes[0]
+        leaf = sim_engine.motes[1]
 
         packet = {
             'asn':                0,
@@ -151,7 +158,7 @@ class TestFragmentForwarding:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft':        d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
@@ -167,28 +174,29 @@ class TestFragmentForwarding:
 
         itag  = frag0['payload']['datagram_tag']
 
-        sim.asn = 100
+        sim_engine.asn = 100
         root.sixlowpan.recv(leaf, frag0)
         assert root.sixlowpan.fragmentation.vrb_table[leaf][itag]['expiration'] == 6100
 
-        sim.asn += int(60.0 / sim.settings.tsch_slotDuration)
+        sim_engine.asn += int(60.0 / sim_engine.settings.tsch_slotDuration)
         root.sixlowpan.recv(leaf, frag0) # duplicate
         assert itag in root.sixlowpan.fragmentation.vrb_table[leaf]
 
-        sim.asn += 1
+        sim_engine.asn += 1
         root.sixlowpan.recv(leaf, frag1)
 
         assert leaf not in root.sixlowpan.fragmentation.vrb_table
 
 
 class TestFragmentation:
-    def test_app_fragment_and_enqueue_packet_2(self, sim):
-        sim = sim(**{'fragmentation': 'FragmentForwarding',
+    def test_app_fragment_and_enqueue_packet_2(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation': 'FragmentForwarding',
                      'app_pkLength' : 180,
                      'exec_numMotes': 2,
                      'sf_type'      : 'SSFSymmetric'})
-        root = sim.motes[0]
-        node = sim.motes[1]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -196,7 +204,7 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -240,13 +248,14 @@ class TestFragmentation:
         assert frag1['dstIp'] == packet['dstIp']
         assert frag1['sourceRoute'] == packet['sourceRoute']
 
-    def test_app_fragment_and_enqueue_packet_3(self, sim):
-        sim = sim(**{'fragmentation'           : 'FragmentForwarding',
+    def test_app_fragment_and_enqueue_packet_3(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'           : 'FragmentForwarding',
                      'app_pkLength'            : 270,
                      'exec_numMotes'           : 3,
                      'conn_type'                : 'linear'})
-        root = sim.motes[0]
-        node = sim.motes[1]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -254,7 +263,7 @@ class TestFragmentation:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -316,15 +325,16 @@ class TestFragmentation:
 
 
 class TestReassembly:
-    def test_app_reass_packet_in_order(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_app_reass_packet_in_order(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
                      'app_pkLength'                             : 270,
                      'app_e2eAck'                               : False,
                      'exec_numMotes'                            : 3,
                      'sf_type'                                  : 'SSFSymmetric'})
-        root = sim.motes[0]
-        node = sim.motes[1]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -332,7 +342,7 @@ class TestReassembly:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -381,15 +391,16 @@ class TestReassembly:
         assert node not in root.sixlowpan.reassembly_buffers
 
 
-    def test_app_reass_packet_out_of_order(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_app_reass_packet_out_of_order(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
                      'app_pkLength'                             : 270,
                      'app_e2eAck'                               : False,
                      'exec_numMotes'                            : 3,
                      'sf_type'                                  : 'SSFSymmetric'})
-        root = sim.motes[0]
-        node = sim.motes[1]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -397,7 +408,7 @@ class TestReassembly:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -442,8 +453,9 @@ class TestReassembly:
 
 
 class TestPacketFowarding:
-    def test_forwarder(self, sim):
-        sim = sim(**{
+    def test_forwarder(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               
             'fragmentation'                            : 'FragmentForwarding',
             'fragmentation_ff_discard_vrb_entry_policy': [],
             'fragmentation_ff_vrb_table_size'          : 50,
@@ -455,9 +467,9 @@ class TestPacketFowarding:
             'app_e2eAck'                               : False,
         })
 
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
 
         hop2.sixlowpan.send({
             'asn':           0,
@@ -466,7 +478,7 @@ class TestPacketFowarding:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft':   d.TSCH_MAXTXRETRIES,
             'srcIp':         hop2,
@@ -500,9 +512,10 @@ class TestPacketFowarding:
         assert len(hop1.tsch.getTxQueue()) == 2
         assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
-    def test_e2e(self, sim):
+    def test_e2e(self, sim_engine):
         one_second = 1
-        sim = sim(**{
+        sim_engine = sim_engine(diff_config = {
+               
             'fragmentation'                            : 'FragmentForwarding',
             'fragmentation_ff_discard_vrb_entry_policy': [],
             'fragmentation_ff_vrb_table_size'          : 50,
@@ -515,22 +528,22 @@ class TestPacketFowarding:
             'app_e2eAck'                               : False,
         })
 
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
 
         # send a packet from hop2
         hop2.app.pkPeriod = one_second
         hop2.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-        assert len(sim.events) == 11
-        assert sim.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
+        assert len(sim_engine.events) == 11
+        assert sim_engine.events[4][2] == hop2.app._action_mote_sendSinglePacketToDAGroot
 
         # execute all events
         cb = None
-        asn0 = sim.asn
-        while len(sim.events) > 0 or asn > (asn0 + (one_second / sim.settings.tsch_slotDuration)):
-            (asn, priority, cb, tag) = sim.events.pop(0)
-            sim.asn = asn
+        asn0 = sim_engine.asn
+        while len(sim_engine.events) > 0 or asn > (asn0 + (one_second / sim_engine.settings.tsch_slotDuration)):
+            (asn, priority, cb, tag) = sim_engine.events.pop(0)
+            sim_engine.asn = asn
 
             if cb == hop2.app._action_mote_sendSinglePacketToDAGroot:
                 # not let the mote schedule another transmission
@@ -541,24 +554,24 @@ class TestPacketFowarding:
                 cb()
 
         # application packet is scheduled to be sent [next asn, next asn + 1 sec] with app.pkPeriod==1
-        assert asn <= (asn0 + (one_second / sim.settings.tsch_slotDuration))
+        assert asn <= (asn0 + (one_second / sim_engine.settings.tsch_slotDuration))
 
         # make sure there are two fragments added by app._action_mote_sendSinglePacketToDAGroot
         assert len(hop2.tsch.getTxQueue()) == 0
         hop2.app._action_mote_sendSinglePacketToDAGroot()
         assert len(hop2.tsch.getTxQueue()) == 2
 
-        asn0 = sim.asn
+        asn0 = sim_engine.asn
         assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
         # two fragments should reach to the root within two slotframes
-        while len(sim.events) > 0:
-            (asn, priority, cb, tag) = sim.events.pop(0)
-            if sim.asn != asn:
-                sim.asn = asn
+        while len(sim_engine.events) > 0:
+            (asn, priority, cb, tag) = sim_engine.events.pop(0)
+            if sim_engine.asn != asn:
+                sim_engine.asn = asn
             cb()
             if(len(hop1.tsch.getTxQueue()) == 2):
                 break
-            if asn > (asn0 + (2 * sim.settings.tsch_slotframeLength)):
+            if asn > (asn0 + (2 * sim_engine.settings.tsch_slotframeLength)):
                 # timeout
                 break
 
@@ -568,7 +581,7 @@ class TestPacketFowarding:
         print root.motestats
         assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
-    def test_drop_fragment(self, sim):
+    def test_drop_fragment(self, sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -579,10 +592,10 @@ class TestPacketFowarding:
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False,
         }
-        sim = sim(**params)
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        sim_engine = sim_engine(**params)
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -590,7 +603,7 @@ class TestPacketFowarding:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
@@ -629,7 +642,7 @@ class TestPacketFowarding:
 
     @pytest.mark.parametrize("vrb_table_size",
                              [10, 50])
-    def test_vrb_table_size_limit_1(self, sim, vrb_table_size):
+    def test_vrb_table_size_limit_1(self, sim_engine, vrb_table_size):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : vrb_table_size,
@@ -639,21 +652,21 @@ class TestPacketFowarding:
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
-        sim = sim(**params)
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        sim_engine = sim_engine(**params)
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
         frag0 = {
             'type'             : d.APP_TYPE_FRAG,
             'dstIp'            : root,
             'payload'          : {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 'original_type': d.APP_TYPE_DATA,
                 },
         }
-        frag0['payload']['datagram_size'] = sim.settings.app_pkLength
+        frag0['payload']['datagram_size'] = sim_engine.settings.app_pkLength
         frag0['payload']['datagram_offset'] = 0
         assert hop2 not in hop1.sixlowpan.fragmentation.vrb_table
         for i in range(0, vrb_table_size):
@@ -670,14 +683,15 @@ class TestPacketFowarding:
 
 
 class TestDatagramTag:
-    def test_tag_on_its_fragments_1(self, sim):
-        sim = sim(**{'fragmentation'                  : 'FragmentForwarding',
+    def test_tag_on_its_fragments_1(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                  : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size': 50,
                      'app_pkLength'                   : 180,
                      'exec_numMotes'                  : 2,
                      'conn_type'                       : 'linear'})
-        root = sim.motes[0]
-        node = sim.motes[1]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -685,7 +699,7 @@ class TestDatagramTag:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': node,
@@ -715,7 +729,7 @@ class TestDatagramTag:
         assert tag2 == 65535
         assert tag3 == 0
 
-    def test_tag_on_its_fragments_2(self, sim):
+    def test_tag_on_its_fragments_2(self, sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -725,10 +739,10 @@ class TestDatagramTag:
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
-        sim = sim(**params)
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        sim_engine = sim_engine(**params)
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -736,7 +750,7 @@ class TestDatagramTag:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
@@ -780,7 +794,7 @@ class TestDatagramTag:
         assert tag2 == 65535
         assert tag3 == 0
 
-    def test_tag_on_its_fragments_3(self, sim):
+    def test_tag_on_its_fragments_3(self, sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -790,10 +804,10 @@ class TestDatagramTag:
                   'app_pkPeriod'                             : 0,
                   'app_pkPeriodVar'                          : 0,
                   'app_e2eAck'                               : False}
-        sim = sim(**params)
-        root = sim.motes[0]
-        hop1 = sim.motes[1]
-        hop2 = sim.motes[2]
+        sim_engine = sim_engine(**params)
+        root = sim_engine.motes[0]
+        hop1 = sim_engine.motes[1]
+        hop2 = sim_engine.motes[2]
         packet1 = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -801,7 +815,7 @@ class TestDatagramTag:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop1,
@@ -815,7 +829,7 @@ class TestDatagramTag:
             'payload': {
                 'asn_at_source':  0,
                 'hops':           1,
-                'length':         sim.settings.app_pkLength,
+                'length':         sim_engine.settings.app_pkLength,
             },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': hop2,
@@ -845,17 +859,18 @@ class TestDatagramTag:
         assert tag2 == (tag1 + 1) % 65536
 
 class TestOptimization:
-    def test_remove_vrb_table_entry_by_expiration(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_remove_vrb_table_entry_by_expiration(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
                      'conn_type'                                 : 'linear'})
 
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf = sim.motes[2]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf = sim_engine.motes[2]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -863,7 +878,7 @@ class TestOptimization:
             'payload'          : {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 'original_type': d.APP_TYPE_DATA,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
@@ -885,21 +900,22 @@ class TestOptimization:
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
         node.sixlowpan.recv(leaf, frag3)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 1
-        sim.asn += (60 / sim.settings.tsch_slotDuration) + 1
+        sim_engine.asn += (60 / sim_engine.settings.tsch_slotDuration) + 1
         # VRB Table entry expires
         node.sixlowpan.recv(leaf, frag2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-    def test_remove_vrb_table_entry_on_last_frag(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_remove_vrb_table_entry_on_last_frag(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 270,
                      'exec_numMotes'                            : 3,
                      'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment']})
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf = sim.motes[2]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf = sim_engine.motes[2]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -907,7 +923,7 @@ class TestOptimization:
             'payload'          : {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 'original_type': d.APP_TYPE_DATA,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
@@ -929,16 +945,17 @@ class TestOptimization:
         # the VRB entry is removed by frag2 (last)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-    def test_remove_vrb_table_entry_on_missing_frag(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_remove_vrb_table_entry_on_missing_frag(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
                      'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['missing_fragment']})
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf = sim.motes[2]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf = sim_engine.motes[2]
         packet = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -946,7 +963,7 @@ class TestOptimization:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
@@ -973,16 +990,17 @@ class TestOptimization:
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
 
-    def test_remove_vrb_table_entry_on_last_and_missing(self, sim):
-        sim = sim(**{'fragmentation'                            : 'FragmentForwarding',
+    def test_remove_vrb_table_entry_on_last_and_missing(self, sim_engine):
+        sim_engine = sim_engine(diff_config = {
+               'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
                      'app_pkLength'                             : 360,
                      'exec_numMotes'                            : 3,
                      'conn_type'                                 : 'linear',
                      'fragmentation_ff_discard_vrb_entry_policy': ['last_fragment', 'missing_fragment']})
-        root = sim.motes[0]
-        node = sim.motes[1]
-        leaf = sim.motes[2]
+        root = sim_engine.motes[0]
+        node = sim_engine.motes[1]
+        leaf = sim_engine.motes[2]
         packet1 = {
             'asn': 0,
             'type': d.APP_TYPE_DATA,
@@ -990,7 +1008,7 @@ class TestOptimization:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,
@@ -1005,7 +1023,7 @@ class TestOptimization:
             'payload': {
                 'asn_at_source': 0,
                 'hops'         : 1,
-                'length'       : sim.settings.app_pkLength,
+                'length'       : sim_engine.settings.app_pkLength,
                 },
             'retriesLeft': d.TSCH_MAXTXRETRIES,
             'srcIp': leaf,

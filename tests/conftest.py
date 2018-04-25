@@ -84,7 +84,9 @@ def sim_engine(request):
                         root.rpl.updateDaoParents({child:parent})
                         # add a cell from child to parent
                         child.tsch.addCells(parent,[(cur_slot,0,d.DIR_TX)])
+                        child.numCellsToNeighbors[parent] = 1
                         parent.tsch.addCells(child,[(cur_slot,0,d.DIR_RX)])
+                        parent.numCellsFromNeighbors[child] = 1
                         cur_slot += 1
                         # mark child as active
                         state[child]  = 'active'
