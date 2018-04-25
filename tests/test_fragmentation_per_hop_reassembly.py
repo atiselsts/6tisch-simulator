@@ -25,8 +25,7 @@ class TestNumFragmentsVsTxQueue:
             **{
                 'fragmentation': 'PerHopReassembly',
                 'exec_numMotes': 2,
-                'top_type'     : 'linear',
-                'sf_type'      : 'SSF-symmetric',
+                'sf_type'      : 'SSFSymmetric',
                 'app_pkLength' : test_recv
             }
         ).motes[1]
@@ -42,8 +41,7 @@ class TestFragmentation:
                 'fragmentation': 'PerHopReassembly',
                 'app_pkLength' : 180,
                 'exec_numMotes': 2,
-                'top_type'     : 'linear',
-                'sf_type'      : 'SSF-symmetric',
+                'sf_type'      : 'SSFSymmetric',
             }
         )
         root = sim.motes[0]
@@ -97,8 +95,7 @@ class TestFragmentation:
                 'fragmentation'    : 'PerHopReassembly',
                 'app_pkLength'     : 270,
                 'exec_numMotes'    : 3,
-                'top_type'         : 'linear',
-                'sf_type'          : 'SSF-symmetric',
+                'sf_type'          : 'SSFSymmetric',
             }
         )
         root = sim.motes[0]
@@ -156,8 +153,7 @@ class TestReassembly:
                 'fragmentation'                  : 'PerHopReassembly',
                 'app_pkLength'                   : 270,
                 'exec_numMotes'                  : 3,
-                'top_type'                       : 'linear',
-                'sf_type'                        : 'SSF-symmetric',
+                'sf_type'                        : 'SSFSymmetric',
                 'app_e2eAck'                     : False,
             }
         )
@@ -229,8 +225,7 @@ class TestReassembly:
                 'fragmentation_ff_options'       : [],
                 'app_pkLength'                   : 270,
                 'exec_numMotes'                  : 3,
-                'top_type'                       : 'linear',
-                'sf_type'                        : 'SSF-symmetric',
+                'sf_type'                        : 'SSFSymmetric',
                 'app_e2eAck'                     : False,
             }
         )
@@ -302,8 +297,7 @@ class TestReassembly:
                 'sixlowpan_reassembly_buffers_num': 1,
                 'app_pkLength'                    : 180,
                 'exec_numMotes'                   : 4,
-                'top_type'                        : 'linear',
-                'sf_type'                         : 'SSF-symmetric',
+                'sf_type'                         : 'SSFSymmetric',
                 'app_e2eAck'                      : False,
             }
         )
@@ -350,8 +344,7 @@ class TestReassembly:
                 'sixlowpan_reassembly_buffers_num': 2,
                 'app_pkLength'                    : 180,
                 'exec_numMotes'                   : 4,
-                'top_type'                        : 'linear',
-                'sf_type'                         : 'SSF-symmetric',
+                'sf_type'                         : 'SSFSymmetric',
                 'app_e2eAck'                      : False,
             }
         )
@@ -389,7 +382,6 @@ class TestReassembly:
         node.sixlowpan.recv(leaf2, frag0_2)
         assert len(node.sixlowpan.reassembly_buffers) == 2
 
-
     def test_app_reass_packet_root_queue_num(self, sim):
         sim = sim(
             **{
@@ -398,8 +390,7 @@ class TestReassembly:
                 'sixlowpan_reassembly_buffers_num': 1,
                 'app_pkLength'                    : 180,
                 'exec_numMotes'                   : 3,
-                'top_type'                        : 'linear',
-                'sf_type'                         : 'SSF-symmetric',
+                'sf_type'                         : 'SSFSymmetric',
                 'app_e2eAck'                      : False,
             }
         )
@@ -446,8 +437,7 @@ class TestPacketFowarding:
                   'sixlowpan_reassembly_buffers_num': 1,
                   'app_pkLength'                    : 180,
                   'exec_numMotes'                   : 3,
-                  'top_type'                        : 'linear',
-                  'sf_type'                         : 'SSF-symmetric',
+                  'sf_type'                         : 'SSFSymmetric',
                   'app_e2eAck'                      : False}
 
         sim = sim(**params)
@@ -512,8 +502,7 @@ class TestPacketFowarding:
                   'sixlowpan_reassembly_buffers_num': 1,
                   'app_pkLength'                    : 180,
                   'exec_numMotes'                   : 3,
-                  'top_type'                        : 'linear',
-                  'sf_type'                         : 'SSF-symmetric',
+                  'sf_type'                         : 'SSFSymmetric',
                   'app_e2eAck'                      : False}
         sim = sim(**params)
         root = sim.motes[0]
@@ -594,8 +583,7 @@ class TestDatagramTag:
                 'fragmentation': 'PerHopReassembly',
                 'app_pkLength' : 180,
                 'exec_numMotes': 2,
-                'top_type'     : 'linear',
-                'sf_type'      : 'SSF-symmetric',
+                'sf_type'      : 'SSFSymmetric',
             }
         )
         root = sim.motes[0]

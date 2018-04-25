@@ -57,11 +57,11 @@ This section details the format of that configuration file.
 * `post` lists the post-processing routines to call after the end of the simulation.
     * here calls `post_func1(param1,param2)` and `post_func2(param1,param2)`
 
-### more on propagation models
+### more on connectivity models
 
-#### using a `k7` propagation model
+#### using a `k7` connectivity model
 
-`k7` is a popular format for connectivity traces, see TODO. 
+`k7` is a popular format for connectivity traces, see TODO.
 
 ```
 {
@@ -110,7 +110,7 @@ This propagation model allows you to directly specify the PDR matrix used intern
 * the `nummotes` parameter MUST NOT be present
 * the diagonal MUST contain the `null` value in all cells
 * the PDR matrix is read as follows (reading line-by-line):
-    * the left-most column specifies the transmitter, the top row the receiver    
+    * the left-most column specifies the transmitter, the top row the receiver
     * when `mote1` transmits, only `mote3` receives with probability 55%
     * when `mote2` transmits, no mote receives
     * when `mote3` transmits, only `mote4` receives with probability 30%

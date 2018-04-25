@@ -6,7 +6,6 @@
 
 import types
 
-import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
 from   SimEngine import SimSettings
 from   SimEngine import SimLog
@@ -17,8 +16,7 @@ def test_app_schedule_transmit(sim):
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
             'rpl_daoPeriod':           0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading'
+            'sf_type':                 'SSFCascading'
         }
     )
 
@@ -38,8 +36,7 @@ def test_drop_join_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
             'secjoin_joinTimeout':     0,
         }
     )
@@ -77,8 +74,7 @@ def test_drop_data_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
         }
     )
 
@@ -116,8 +112,7 @@ def test_drop_frag_packet_tx_queue_full(sim):
             'app_pkLength' :           180,
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
             'frag_numFragments':       2,
         }
     )
@@ -152,8 +147,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
             'app_e2eAck':              True,
         }
     )
@@ -195,9 +189,9 @@ def test_drop_eb_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
             'tsch_probBcast_ebProb':   1, # force EBs to be sent at each slotframe
-            'top_type':                'linear',
+            'conn_type':                'linear',
         }
     )
 
@@ -237,8 +231,7 @@ def test_drop_dio_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
         }
     )
 
@@ -275,8 +268,7 @@ def test_drop_dao_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':            2,
             'app_pkPeriod':             0,
-            'top_type':                 'linear',
-            'sf_type':                  'SSF-cascading',
+            'sf_type':                  'SSFCascading',
         }
     )
 
@@ -312,8 +304,7 @@ def test_drop_sixtop_request_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
         }
     )
 
@@ -354,8 +345,7 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
         **{
             'exec_numMotes':           2,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
         }
     )
 
@@ -393,8 +383,7 @@ def test_drop_forwarding_frag_tx_queue_full(sim):
         **{
             'exec_numMotes':           3,
             'app_pkPeriod':            0,
-            'top_type':                'linear',
-            'sf_type':                 'SSF-cascading',
+            'sf_type':                 'SSFCascading',
             'app_pkLength':            180,
             'fragmentation':           'FragmentForwarding',
             'fragmentation_ff_options': [],
@@ -448,8 +437,7 @@ def test_drop_forwarding_frag_vrb_table_full(sim):
         **{
             'exec_numMotes':                   3,
             'app_pkPeriod':                    0,
-            'top_type':                        'linear',
-            'sf_type':                         'SSF-cascading',
+            'sf_type':                         'SSFCascading',
             'app_pkLength':                    180,
             'fragmentation':                   'FragmentForwarding',
             'fragmentation_ff_options':        [],
@@ -498,8 +486,7 @@ def test_drop_forwarding_frag_no_vrb_entry(sim):
         **{
             'exec_numMotes':                   3,
             'app_pkPeriod':                    0,
-            'top_type':                        'linear',
-            'sf_type':                         'SSF-cascading',
+            'sf_type':                         'SSFCascading',
             'app_pkLength':                    180,
             'fragmentation':                   'FragmentForwarding',
             'fragmentation_ff_options':        [],
@@ -545,8 +532,7 @@ def test_drop_forwarding_data_tx_queue_full(sim):
         **{
             'exec_numMotes':                   3,
             'app_pkPeriod':                    0,
-            'top_type':                        'linear',
-            'sf_type':                         'SSF-cascading',
+            'sf_type':                         'SSFCascading',
             'app_pkLength':                    180,
             'fragmentation':                   'FragmentForwarding',
             'fragmentation_ff_options':        [],
@@ -599,8 +585,7 @@ def test_drop_frag_reassembly_queue_full(sim):
             'fragmentation'                   : 'PerHopReassembly',
             'app_pkLength'                    : 180,
             'exec_numMotes'                   : 4,
-            'top_type'                        : 'linear',
-            'sf_type'                         : 'SSF-symmetric',
+            'sf_type'                         : 'SSFSymmetric',
             'sixlowpan_reassembly_buffers_num': 1,
         }
     )

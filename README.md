@@ -1,9 +1,14 @@
-# The 6TiSCH Simulator - [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/develop/)
+# The 6TiSCH Simulator
+
+Branch    | Build Status
+--------- | -------------
+`master`  | [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/master)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/master/)
+`develop` | [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/develop/)
 
 Core Developers:
 
 * Mališa Vučinić (malisa.vucinic@inria.fr)
-* Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr) - Sensei
+* Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr)
 * Keoma Brun-Laguna (keoma.brun@inria.fr)
 * Thomas Watteyne (thomas.watteyne@inria.fr)
 
@@ -33,9 +38,9 @@ Simulated protocol stack
 | [draft-ietf-6tisch-6top-protocol-11](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-11)         | 6TiSCH 6top Protocol (6P)                |
 | [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/)                                           | IEEE802.15.4 TSCH                        |
 
-* propagation models
+* connectivity models
     * Pister-hack
-    * k7: trace-based propagation
+    * k7: trace-based connectivity
 * miscellaneous
     * Energy Consumption model taken from
         * [A Realistic Energy Consumption Model for TSCH Networks](http://ieeexplore.ieee.org/xpl/login.jsp?tp=&arnumber=6627960&url=http%3A%2F%2Fieeexplore.ieee.org%2Fiel7%2F7361%2F4427201%2F06627960.pdf%3Farnumber%3D6627960). Xavier Vilajosana, Qin Wang, Fabien Chraim, Thomas Watteyne, Tengfei Chang, Kris Pister. IEEE Sensors, Vol. 14, No. 2, February 2014.
@@ -72,7 +77,7 @@ Simulated protocol stack
 * `example/`: example plots, shown in the documentation
 * `SimEngine/`: the simulator
     * `Mote.py`: Models a 6TiSCH mote running the different standards listed above.
-    * `Propagation.py`: Wireless propagation model.
+    * `Connectivity.py`: Simulates wireless connectivity.
     * `sf.py`: The scheduling function.
     * `SimConfig.py`: The overall configuration of running a simulation campaign.
     * `SimEngine.py`: Event-driven simulation engine at the core of this simulator.

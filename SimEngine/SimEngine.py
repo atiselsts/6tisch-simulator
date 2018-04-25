@@ -14,11 +14,10 @@ import threading
 import json
 import traceback
 
-from Propagation import Propagation
-import Topology
 import Mote
 import SimSettings
 import SimLog
+import Connectivity
 
 #=========================== logging =========================================
 
@@ -76,15 +75,11 @@ class SimEngine(threading.Thread):
 
         # init singletons
         self.settings                       = SimSettings.SimSettings()
-        self.propagation                    = Propagation()
-
         self.motes                          = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
+        self.connectivity                   = Connectivity.Connectivity()
 
-        self.topology                       = Topology.Topology(self.motes)
-        self.topology.createTopology()
-
-        # init schedule
-        Mote.sf.init(self.topology, self.settings.sf_type)
+        # select first mote as dagRoot
+        self.motes[0].role_setDagRoot()
 
         # boot all motes
         for i in range(len(self.motes)):
@@ -98,8 +93,8 @@ class SimEngine(threading.Thread):
         self.name                           = 'SimEngine'
 
     def destroy(self):
-        # destroy the propagation singleton
-        self.propagation.destroy()
+        # destroy the Connectivity singleton
+        self.connectivity.destroy()
 
         # destroy my own instance
         cls = type(self)
@@ -110,7 +105,6 @@ class SimEngine(threading.Thread):
 
     def run(self):
         """ event driven simulator, this thread manages the events """
-
         try:
             # log
             log.info("thread {0} starting".format(self.name))
@@ -146,7 +140,7 @@ class SimEngine(threading.Thread):
                         break
 
                     # make sure we are in the future
-                    (a, b, cb, c, kwargs) = self.events[0]
+                    (a, b, cb, c) = self.events[0]
                     if c[1] != '_actionPauseSim':
                         assert self.events[0][0] >= self.asn
 
@@ -157,8 +151,8 @@ class SimEngine(threading.Thread):
                     while True:
                         if self.events[0][0] != self.asn:
                             break
-                        (_, _, cb, _, kwargs) = self.events.pop(0)
-                        cb(**kwargs)
+                        (_, _, cb, _) = self.events.pop(0)
+                        cb()
 
             # call the end callbacks
             for cb in self.endCb:
@@ -187,15 +181,15 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.startCb    += [cb]
 
-    def scheduleIn(self, delay, cb, uniqueTag=None, priority=0, exceptCurrentASN=True, kwargs={}):
+    def scheduleIn(self, delay, cb, uniqueTag=None, priority=0, exceptCurrentASN=True):
         """ used to generate events. Puts an event to the queue """
 
         with self.dataLock:
             asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
 
-            self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN, kwargs)
+            self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN)
 
-    def scheduleAtAsn(self, asn, cb, uniqueTag=None, priority=0, exceptCurrentASN=True, kwargs={}):
+    def scheduleAtAsn(self, asn, cb, uniqueTag=None, priority=0, exceptCurrentASN=True):
         """ schedule an event at specific ASN """
 
         # make sure we are scheduling in the future
@@ -213,7 +207,7 @@ class SimEngine(threading.Thread):
                 i +=1
 
             # add to schedule
-            self.events.insert(i, (asn, priority, cb, uniqueTag, kwargs))
+            self.events.insert(i, (asn, priority, cb, uniqueTag))
 
     def removeEvent(self, uniqueTag, exceptCurrentASN=True):
         with self.dataLock:
@@ -247,16 +241,16 @@ class SimEngine(threading.Thread):
 
     # === misc
 
-    #delay in asn
+    # delay in asn
     def terminateSimulation(self,delay):
-        self.asnEndExperiment=self.asn+delay
+        self.asnEndExperiment = self.asn+delay
         self.scheduleAtAsn(
                 asn         = self.asn+delay,
                 cb          = self._actionEndSim,
                 uniqueTag   = (None,'_actionEndSim'),
         )
 
-    #=== play/pause
+    # === play/pause
 
     def play(self):
         self._actionResumeSim()
@@ -269,12 +263,12 @@ class SimEngine(threading.Thread):
                 uniqueTag   = ('SimEngine','_actionPauseSim'),
             )
 
-    #=== getters/setters
+    # === getters/setters
 
     def getAsn(self):
         return self.asn
 
-    #======================== private =========================================
+    # ======================== private ========================================
 
     def _init_log(self):
         if self.run_id == 0: # Fixme, run_id 1 might start before run_id 0

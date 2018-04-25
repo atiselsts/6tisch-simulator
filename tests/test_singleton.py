@@ -4,7 +4,7 @@ import pytest
 
 from SimEngine.SimEngine import SimEngine
 from SimEngine.SimSettings import SimSettings
-from SimEngine.Propagation import Propagation
+from SimEngine.Connectivity import Connectivity
 
 
 @pytest.fixture
@@ -15,24 +15,23 @@ def sim_settings():
                                   'app_pkLength'        : 90,
                                   'rpl_daoPeriod'       : 0,
                                   'fragmentation'       : 'FragmentForwarding',
-                                  'sf_type'             : 'SSF-symmetric',
+                                  'sf_type'             : 'SSFSymmetric',
                                   'secjoin_enabled'     : False,
                                   'tsch_slotDuration'   : 0.010,
                                   'tsch_slotframeLength': 101,
                                   'tsch_max_payload_len': 90,
-                                  'top_type'            : 'linear',
-                                  'top_squareSide'      : 2.000,
-                                  'top_fullyMeshed'     : False,
-                                  'prop_type'           : 'pisterhack',
+                                  'conn_type'           : 'linear',
                                   'phy_noInterference'  : True,
+                                  'phy_numChans'        : 16,
                                   'phy_minRssi'         : -97})
+
     sim_settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
     sim_settings.setCombinationKeys([])
     yield
 
     # make sure a SimEngine instance created during a test is destroyed.
     engine = SimEngine()
-    # Propagation instance is also destroyed in engine.destroy()
+    # Connectivity instance is also destroyed in engine.destroy()
     engine.destroy()
 
     settings = SimSettings()
@@ -40,7 +39,7 @@ def sim_settings():
 
 
 @pytest.mark.parametrize("singleton_class",
-                         [SimSettings, SimEngine, Propagation])
+                         [SimSettings, SimEngine, Connectivity])
 def test_instantiate(sim_settings, singleton_class):
     # the first SimSettings instance is created during setup
     instance_1 = singleton_class()
@@ -49,7 +48,7 @@ def test_instantiate(sim_settings, singleton_class):
 
 
 @pytest.mark.parametrize("singleton_class",
-                         [SimSettings, SimEngine, Propagation])
+                         [SimSettings, SimEngine, Connectivity])
 def test_destroy(sim_settings, singleton_class):
     # the first SimSettings instance is created during setup
     instance_1 = SimEngine()

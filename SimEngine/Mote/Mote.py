@@ -60,6 +60,7 @@ class Mote(object):
         # identifiers
         self.dagRoot                   = False
         self.dagRootAddress            = None
+
         # stats
         self.firstBeaconAsn            = 0
 
@@ -76,17 +77,17 @@ class Mote(object):
         self.app                       = app.App(self)
         self.sixlowpan                 = sixlowpan.Sixlowpan(self)
         self.rpl                       = rpl.Rpl(self)
-        self.sf                        = sf.SchedulingFunction.get_sf(self.settings.sf_type)
         self.sixp                      = sixp.SixP(self)
         self.secjoin                   = secjoin.SecJoin(self)
         self.tsch                      = tsch.Tsch(self)
+        self.sf                        = sf.SchedulingFunction.get_sf(self)
         self.radio                     = radio.Radio(self)
         self.batt                      = batt.Batt(self)
-        
+
         # wireless
         self.RSSI                      = {}      # indexed by neighbor
         self.PDR                       = {}      # indexed by neighbor
-        
+
         # stats
         self.motestats                 = {}
         self._stats_resetMoteStats()
@@ -113,7 +114,7 @@ class Mote(object):
         for mote in self.engine.motes:
             mote.dagRootAddress = self
 
-    #===== stack
+    # ==== stack
 
     def _stack_init_synced(self):
         # start the stack layer by layer, we are sync'ed and joined
@@ -121,16 +122,16 @@ class Mote(object):
         # activate different layers
         self.tsch.activate()
         self.rpl.activate()
-        self.sf.activate(self)
-        
+        self.sf.activate()
+
         # app
         if not self.dagRoot:
             if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
                 self.app.schedule_mote_sendPacketBurstToDAGroot()
             else:
                 self.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-    
-    #===== wireless
+
+    # ==== wireless
 
     def getCellPDR(self, cell):
         """ returns the pdr of the cell """
@@ -153,20 +154,10 @@ class Mote(object):
         with self.dataLock:
             return self.PDR[neighbor]
 
-    def setRSSI(self, neighbor, rssi):
-        """ sets the RSSI to that neighbor"""
-        with self.dataLock:
-            self.RSSI[neighbor.id] = rssi
-
-    def getRSSI(self, neighbor):
-        """ returns the RSSI to that neighbor"""
-        with self.dataLock:
-            return self.RSSI[neighbor.id]
-
     def _myNeighbors(self):
         return [n for n in self.PDR.keys() if self.PDR[n] > 0]
-    
-    #===== location
+
+    # ==== location
 
     def setLocation(self, x, y):
         with self.dataLock:
@@ -177,21 +168,21 @@ class Mote(object):
         with self.dataLock:
             return self.x, self.y
 
-    #==== battery
+    # ==== battery
 
     def boot(self):
         if self.settings.secjoin_enabled:
             if self.dagRoot:
                 # I'm the DAG root
-                
+
                 # install minimal cell
                 self.tsch.add_minimal_cell()
-                
+
                 # activate the stack
                 self._stack_init_synced()
             else:
                 # I'm NOT the DAG root
-                
+
                 # listen for EBs
                 self.tsch.listenEBs()
         else:
@@ -201,7 +192,7 @@ class Mote(object):
             self._stack_init_synced()
 
     #======================== private =========================================
-    
+
     #===== stats
 
     # mote state

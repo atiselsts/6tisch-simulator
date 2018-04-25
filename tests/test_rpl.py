@@ -1,92 +1,22 @@
 """
-\brief Tests for TopologyCreator Factory
-
-\author Yasuyuki Tanaka <yasuyuki.tanaka@inria.fr>
+Tests for SimEngine.Mote.rpl
 """
 
-
-import SimEngine.Topology as Topology
-import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
 
-def test_create_random_topology_1(sim):
-    sim()
-    assert isinstance(Topology.Topology([]), Topology.RandomTopology)
-
-def test_create_random_topology_2(sim):
-    sim(**{'top_type': 'random'})
-    assert isinstance(Topology.Topology([]), Topology.RandomTopology)
-
-def test_create_linear_topology(sim):
-    sim(**{'top_type': 'linear'})
-    assert isinstance(Topology.Topology([]), Topology.LinearTopology)
-
-'''
-def test_create_trace_topology(sim):
-    sim(
-        **{
-            'top_type':   'trace',
-            'prop_type':  'trace',
-            'prop_trace': 'traces/grenoble.k7.gz',
-        }
-    )
-    assert isinstance(Topology.Topology([]), Topology.TraceTopology)
-'''
-
-def test_linear_topology_with_3_motes(sim):
-    sim = sim(**{'exec_numMotes': 3, 'top_type': 'linear'})
-    motes = sim.motes
-
-    assert len(motes) == 3
-    assert motes[0].x == 0 and motes[0].y == 0
-    assert motes[1].x == 0.03 and motes[0].y == 0
-    assert motes[2].x == 0.06 and motes[0].y == 0
-    assert motes[0].PDR == {motes[1]: 1.0}
-    assert motes[1].PDR == {motes[0]: 1.0, motes[2]: 1.0}
-    assert motes[2].PDR == {motes[1]: 1.0}
-    assert motes[1].id in motes[0].RSSI
-    assert motes[2].id in motes[0].RSSI
-    assert motes[0].id in motes[1].RSSI
-    assert motes[2].id in motes[1].RSSI
-    assert motes[0].id in motes[2].RSSI
-    assert motes[1].id in motes[2].RSSI
-
-def test_linear_topology_4_motes(sim):
-    sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})
-    motes = sim.motes
-
-    assert len(motes) == 4
-    assert motes[0].x == 0 and motes[0].y == 0
-    assert motes[1].x == 0.03 and motes[0].y == 0
-    assert motes[2].x == 0.06 and motes[0].y == 0
-    assert motes[3].x == 0.09 and motes[0].y == 0
-    assert motes[0].PDR == {motes[1]: 1.0}
-    assert motes[2].PDR == {motes[1]: 1.0, motes[3]: 1.0}
-    assert motes[3].PDR == {motes[2]: 1.0}
-    assert motes[1].id in motes[0].RSSI
-    assert motes[2].id in motes[0].RSSI
-    assert motes[3].id in motes[0].RSSI
-    assert motes[0].id in motes[1].RSSI
-    assert motes[2].id in motes[1].RSSI
-    assert motes[3].id in motes[1].RSSI
-    assert motes[0].id in motes[2].RSSI
-    assert motes[1].id in motes[2].RSSI
-    assert motes[3].id in motes[2].RSSI
-    assert motes[0].id in motes[3].RSSI
-    assert motes[1].id in motes[3].RSSI
-    assert motes[2].id in motes[3].RSSI
-
 def test_linear_rpl_tree_builder(sim):
-    sim = sim(**{'exec_numMotes': 4, 'top_type': 'linear'})
+    sim = sim(**{'exec_numMotes': 4,
+                 'conn_type': 'linear',
+                 'tsch_probBcast_ebProb': 0.33,
+                 'tsch_probBcast_dioProb': 0.33,
+                 'secjoin_enabled': True,
+                 })
     motes = sim.motes
 
     assert motes[0].dagRoot is True
     assert motes[0].rpl.getPreferredParent() is None
-    assert motes[0].rpl.daoParents[(1,)] == [[0]]
-    assert motes[0].rpl.daoParents[(2,)] == [[1]]
-    assert motes[0].rpl.daoParents[(3,)] == [[2]]
-    assert motes[0].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE
-    assert motes[0].rpl.getDagRank() == 1
+    assert motes[0].rpl.getRank() == 0
+    assert motes[0].rpl.getDagRank() == 0
 
     assert motes[1].dagRoot is False
     assert motes[1].rpl.getPreferredParent() == motes[0]
@@ -103,8 +33,8 @@ def test_linear_rpl_tree_builder(sim):
     assert motes[3].rpl.getRank() == d.RPL_MIN_HOP_RANK_INCREASE * 22
     assert motes[3].rpl.getDagRank() == 22
 
-def test_two_branch_topology_with_6_motes(sim):
-    sim = sim(**{'exec_numMotes': 6, 'top_type': 'twoBranch'})
+def test_two_branches_topology_with_6_motes(sim):
+    sim = sim(**{'exec_numMotes': 6, 'conn_type': 'two_branches'})
     motes = sim.motes
 
     assert len(motes) == 6
@@ -152,8 +82,8 @@ def test_two_branch_topology_with_6_motes(sim):
     assert motes[4].id in motes[5].RSSI
 
 
-def test_two_branch_topology_with_9_motes(sim):
-    sim = sim(**{'exec_numMotes': 9, 'top_type': 'twoBranch'})
+def test_two_branches_topology_with_9_motes(sim):
+    sim = sim(**{'exec_numMotes': 9, 'conn_type': 'two_branches'})
     motes = sim.motes
 
     assert len(motes) == 9
@@ -177,8 +107,8 @@ def test_two_branch_topology_with_9_motes(sim):
     assert motes[8].PDR == {motes[7]: 1.0}
 
 
-def test_two_branch_rpl_tree_builder(sim):
-    sim = sim(**{'exec_numMotes': 6, 'top_type': 'twoBranch'})
+def test_two_branches_rpl_tree_builder(sim):
+    sim = sim(**{'exec_numMotes': 6, 'conn_type': 'two_branches'})
     motes = sim.motes
 
     assert motes[0].dagRoot is True

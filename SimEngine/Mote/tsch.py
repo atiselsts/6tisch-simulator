@@ -57,18 +57,18 @@ class Tsch(object):
     #======================== public ==========================================
 
     # getters/setters
-    
+
     def getSchedule(self):
         return self.schedule
-    
+
     def getTxQueue(self):
         return self.txQueue
-    
+
     def getIsSync(self):
         return self.isSync
     def setIsSync(self,val):
         self.isSync = val
-    
+
     def getTxCells(self, neighbor = None):
         if neighbor is None:
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_TX]
@@ -89,44 +89,44 @@ class Tsch(object):
         else:
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                     c['dir'] == d.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
-    
+
     # admin
-    
+
     def activate(self):
-        
+
         # start sending EBs
         self._tsch_schedule_sendEB()
-        
+
         # if not join, set the neighbor variables when initializing stack.
         # with join this is done when the nodes become synced. If root, initialize here anyway
         if (not self.settings.secjoin_enabled) or self.mote.dagRoot:
             for m in self.mote._myNeighbors():
                 self._resetBackoffPerNeigh(m)
-    
+
     # listening for EBs (when joining the network)
-    
+
     def listenEBs(self):
-        
+
         self.engine.scheduleAtAsn(
             asn         = self.engine.getAsn() + 1,
             cb          = self._action_listenEBs,
             uniqueTag   = (self.mote.id, '_action_listenEBs'),
             priority    = 3,
         )
-    
+
     # minimal
-    
+
     def add_minimal_cell(self):
-        
+
         self.addCells(
             self.mote._myNeighbors(),
             [
                 (0, 0, d.DIR_TXRX_SHARED)
             ],
         )
-    
+
     # schedule interface
-    
+
     def addCells(self, neighbor, cellList):
         """ Adds cell(s) to the schedule
 
@@ -182,7 +182,7 @@ class Tsch(object):
         self._tsch_schedule_activeCell()
 
     # data interface with upper layers
-    
+
     def enqueue(self, packet):
 
         if not self.mote.rpl.findNextHop(packet):
@@ -229,12 +229,12 @@ class Tsch(object):
             self.txQueue    += [packet]
 
             return True
-    
+
     # interface with radio
-    
+
     def txDone(self, isACKed, isNACKed):
         """end of tx slot"""
-        
+
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
 
@@ -378,15 +378,15 @@ class Tsch(object):
                     self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
                 else:
                     self._resetBroadcastBackoff()
-        
+
         elif self.pktToSend['dstIp'] == d.BROADCAST_ADDRESS:
-            
+
             self.getTxQueue().remove(self.pktToSend)
-            
+
             self._resetBroadcastBackoff()
 
         else:
-            
+
             # increment backoffExponent and get new backoff value
             if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED:
                 if self.getSchedule()[ts]['neighbor'] == self.mote._myNeighbors():
@@ -443,7 +443,7 @@ class Tsch(object):
                             self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
         # end of radio activity, not waiting for anything
         self.waitingFor = None
-    
+
     def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
@@ -452,7 +452,7 @@ class Tsch(object):
             assert ts in self.getSchedule()
             assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
             assert self.waitingFor == d.DIR_RX
-        
+
         if smac and (self.mote in dmac):  # layer 2 addressing
             # I received a packet
 
@@ -464,15 +464,15 @@ class Tsch(object):
                     d.DIR_RX,
                     type,
                 )
-            
+
             if self.isSync:
                 # update schedule stats
                 self.getSchedule()[ts]['numRx'] += 1
-            
+
             # time correction
             if smac == self.mote.rpl.getPreferredParent():
                 self.asnLastSync = asn
-            
+
             if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
                 self.waitingFor = None
                 self.mote.sixlowpan.recv(smac, {
@@ -562,13 +562,13 @@ class Tsch(object):
 
         else:
             # this was an idle listen
-            
+
             (isACKed, isNACKed) = (False, False)
 
         self.waitingFor = None
 
         return (isACKed,isNACKed)
-    
+
     def getOffsetToDagRoot(self):
         """
         calculate time offset compared to the DAGroot
@@ -595,11 +595,11 @@ class Tsch(object):
                     parent       = child.rpl.getPreferredParent()
 
         return offset
-    
+
     #======================== private ==========================================
-    
+
     # active cell
-    
+
     def _tsch_schedule_activeCell(self):
 
         asn        = self.engine.getAsn()
@@ -657,9 +657,9 @@ class Tsch(object):
         )
 
         if  cell['dir'] == d.DIR_RX:
-            
+
             # =============== RX cell
-            
+
             # start listening
             self.mote.radio.startRx(
                 channel       = cell['ch'],
@@ -669,9 +669,9 @@ class Tsch(object):
             self.waitingFor   = d.DIR_RX
 
         elif cell['dir'] == d.DIR_TX:
-            
+
             # =============== TX cell
-            
+
             # find packet to send
             self.pktToSend = None
             for pkt in self.txQueue:
@@ -717,7 +717,7 @@ class Tsch(object):
                         pass
                     else:
                         raise SystemError()
-                
+
                 # send packet to the radio
                 self.mote.radio.startTx(
                     channel   = cell['ch'],
@@ -812,7 +812,7 @@ class Tsch(object):
                         pass
                     else:
                         assert False
-                
+
                 # send packet to the radio
                 self.mote.radio.startTx(
                     channel   = cell['ch'],
@@ -825,7 +825,7 @@ class Tsch(object):
                     srcRoute  = self.pktToSend['sourceRoute'],
                     payload   = self.pktToSend['payload'],
                 )
-                
+
                 # indicate that we're waiting for the TX operation to finish
                 self.waitingFor   = d.DIR_TX
 
@@ -834,7 +834,7 @@ class Tsch(object):
                 self.mote.radio.startRx(
                      channel       = cell['ch'],
                 )
-                
+
                 # indicate that we're waiting for the RX operation to finish
                 self.waitingFor = d.DIR_RX
 
@@ -842,9 +842,9 @@ class Tsch(object):
         self._tsch_schedule_activeCell()
 
     # EBs
-    
+
     def _tsch_schedule_sendEB(self):
-        
+
         # schedule to send an EB every slotframe
         # _tsch_action_sendEB() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
@@ -855,7 +855,7 @@ class Tsch(object):
         )
 
     def _tsch_action_sendEB(self):
-        
+
         # compute probability to send an EB
         ebProb     = float(self.settings.tsch_probBcast_ebProb)            \
                      /                                                     \
@@ -865,7 +865,7 @@ class Tsch(object):
                      else                                                  \
                      float(self.settings.tsch_probBcast_ebProb)
         sendEB = (random.random() < ebProb)
-        
+
         # enqueue EB, if appropriate
         if sendEB:
             # probability passes
@@ -873,7 +873,7 @@ class Tsch(object):
                 # I have joined
                     if self.mote.dagRoot or (self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) != 0):
                         # I am the root, or I have a preferred parent with dedicated cells to it
-                        
+
                         # create new packet
                         newEB = {
                             'type':         d.TSCH_TYPE_EB,
@@ -890,10 +890,10 @@ class Tsch(object):
                         if not self.enqueue(newEB):
                             # update mote stats
                             self.mote.radio.drop_packet(newEB, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-                        
+
                         # stats
                         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
-        
+
         # schedule next EB
         self._tsch_schedule_sendEB()
 
@@ -932,7 +932,7 @@ class Tsch(object):
             self.mote.secjoin.scheduleJoinProcess()  # trigger the join process
 
     # back-off
-    
+
     def _resetBroadcastBackoff(self):
         self.backoffBroadcast = 0
         self.backoffBroadcastExponent = d.TSCH_MIN_BACKOFF_EXPONENT - 1
@@ -940,20 +940,20 @@ class Tsch(object):
     def _resetBackoffPerNeigh(self, neigh):
         self.backoffPerNeigh[neigh] = 0
         self.backoffExponentPerNeigh[neigh] = d.TSCH_MIN_BACKOFF_EXPONENT - 1
-    
+
     # listening for EBs
-    
+
     def _action_listenEBs(self):
 
         if not self.isSync:
-            
+
             # choose random channel
             channel = random.randint(0, self.settings.phy_numChans-1)
-            
+
             # start listening
             self.mote.radio.startRx(
                 channel = channel,
             )
-            
+
             # indicate that we're waiting for the RX operation to finish
             self.waitingFor = d.DIR_RX

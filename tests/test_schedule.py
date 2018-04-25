@@ -1,4 +1,3 @@
-import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
 
 def test_linear_symmetric_schedule_1(sim):
@@ -6,8 +5,7 @@ def test_linear_symmetric_schedule_1(sim):
     sim = sim(
         **{
             'exec_numMotes': 3,
-            'sf_type':       'SSF-symmetric',
-            'top_type':      'linear',
+            'sf_type':       'SSFSymmetric',
         }
     )
     motes = sim.motes
@@ -52,8 +50,8 @@ def test_linear_symmetric_schedule_2(sim):
     sim = sim(
         **{
             'exec_numMotes': 8,
-            'sf_type':       'SSF-symmetric',
-            'top_type':      'linear',
+            'sf_type':       'SSFSymmetric',
+            'conn_type':     'linear',
         }
     )
     motes = sim.motes
@@ -113,8 +111,8 @@ def test_linear_cascading_schedule_installation(sim):
     sim = sim(
         **{
             'exec_numMotes': 8,
-            'top_type':      'linear',
-            'sf_type':       'SSF-cascading',
+            'conn_type':      'linear',
+            'sf_type':       'SSFCascading',
         }
     )
     motes = sim.motes
@@ -322,10 +320,10 @@ def test_linear_cascading_schedule_installation(sim):
     assert motes[0].tsch.getSchedule()[28]['dir'] == d.DIR_RX
     assert motes[0].tsch.getSchedule()[28]['neighbor'] == motes[1]
 
-def test_two_branch_symmetric_schedule_installation(sim):
+def test_two_branches_symmetric_schedule_installation(sim):
     sim = sim(**{'exec_numMotes': 7,
-                 'top_type': 'twoBranch',
-                 'sf_type': 'SSF-symmetric'})
+                 'conn_type': 'two_branches',
+                 'sf_type': 'SSFSymmetric'})
     motes = sim.motes
 
     assert motes[4].tsch.getSchedule()[1]['ch'] == 0
@@ -372,11 +370,11 @@ def test_two_branch_symmetric_schedule_installation(sim):
     assert motes[0].tsch.getSchedule()[6]['neighbor'] == motes[1]
 
 
-def test_two_branch_cascading_schedule_installation_1(sim):
+def test_two_branches_cascading_schedule_installation_1(sim):
     # un-event tree
     sim = sim(**{'exec_numMotes': 7,
-                 'top_type': 'twoBranch',
-                 'sf_type': 'SSF-cascading'})
+                 'conn_type': 'two_branches',
+                 'sf_type': 'SSFCascading'})
     motes = sim.motes
 
     assert motes[6].tsch.getSchedule()[1]['ch'] == 0
@@ -491,11 +489,11 @@ def test_two_branch_cascading_schedule_installation_1(sim):
     assert motes[0].tsch.getSchedule()[15]['neighbor'] == motes[1]
 
 
-def test_two_branch_cascading_schedule_installation_2(sim):
+def test_two_branches_cascading_schedule_installation_2(sim):
     # even tree
     sim = sim(**{'exec_numMotes': 8,
-                 'top_type': 'twoBranch',
-                 'sf_type': 'SSF-cascading'})
+                 'conn_type': 'two_branches',
+                 'sf_type': 'SSFCascading'})
     motes = sim.motes
 
     assert motes[7].tsch.getSchedule()[1]['ch'] == 0
@@ -638,18 +636,18 @@ def test_two_branch_cascading_schedule_installation_2(sim):
     assert motes[0].tsch.getSchedule()[19]['dir'] == d.DIR_RX
     assert motes[0].tsch.getSchedule()[19]['neighbor'] == motes[1]
 
-def test_two_branch_cascading_schedule_installation(sim):
+def test_two_branches_cascading_schedule_installation(sim):
     # even tree *without* random pick
     sim1 = sim(**{
-        'top_type': 'twoBranch',
-        'sf_type': 'SSF-cascading'})
+        'conn_type': 'two_branches',
+        'sf_type': 'SSFCascading'})
 
     motes1 = sim1.motes
     sim1.destroy()
 
     sim2 = sim(**{
-        'top_type': 'twoBranch',
-        'sf_type': 'SSF-cascading'})
+        'conn_type': 'two_branches',
+        'sf_type': 'SSFCascading'})
     motes2 = sim2.motes
 
     assert len(motes1) == len(motes2)
@@ -674,16 +672,16 @@ def test_two_branch_cascading_schedule_installation(sim):
             assert ret is True
 
 
-def test_two_branch_cascading_schedule_installation_4(sim):
+def test_two_branches_cascading_schedule_installation_4(sim):
     # even tree with random pick
-    sim1 = sim(**{'top_type': 'twoBranch',
-                  'sf_type': 'SSF-cascading',
+    sim1 = sim(**{'conn_type': 'two_branches',
+                  'sf_type': 'SSFCascading',
                   'sf_ssf_initMethod': 'random-pick'})
     motes1 = sim1.motes
     sim1.destroy()
 
-    sim2 = sim(**{'top_type': 'twoBranch',
-                  'sf_type': 'SSF-cascading',
+    sim2 = sim(**{'conn_type': 'two_branches',
+                  'sf_type': 'SSFCascading',
                   'sf_ssf_initMethod': 'random-pick'})
     motes2 = sim2.motes
 
