@@ -10,6 +10,7 @@
 
 # ========================== imports =========================================
 
+import sys
 import threading
 import traceback
 
@@ -168,6 +169,7 @@ class SimEngine(threading.Thread):
             print 'poipoipoipoipoi'
             traceback.print_exc()
             print 'poipoipoipoipoi'
+            sys.exc_info()
             self.exc = e
         else:
             self.exc = None
