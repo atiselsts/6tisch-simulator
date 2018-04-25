@@ -1,21 +1,25 @@
-"""Provides helper methods for tests
+"""Provides helper functions for tests
 """
 
 import time
 
-
 POLLING_INTERVAL = 0.100
 
-
-def run_until_at_asn(sim_engine, target_asn):
+def run_until_asn(sim_engine, target_asn):
+    '''
+    (re)start the simulator, run until some ASN, pause
+    '''
+    
+    # arm a pause at the target ASN
     sim_engine.pauseAtAsn(target_asn)
 
     if sim_engine.is_alive():
-        sim_engine.play() # resume
+        # resume
+        sim_engine.play()
     else:
-        # state of sim_engine becomes Alive after calling start()
+        # start for the first time
         sim_engine.start()
 
-    # wait for sim_engine to get paused
+    # wait until simulator paused
     while not sim_engine.simPaused:
         time.sleep(POLLING_INTERVAL)

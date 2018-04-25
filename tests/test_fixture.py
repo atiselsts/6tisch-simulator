@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from test_utils import run_until_at_asn
+import test_utils as u
 from SimEngine import SimConfig
 
 #=== error test which verifies exception at initialization propagates up
@@ -28,28 +28,28 @@ def test_exception_at_runtime(sim_engine, diff_config):
     """
     sim_engine = sim_engine(diff_config)
     with pytest.raises(Exception):
-        run_until_at_asn(
+        u.run_until_asn(
             sim_engine,
             target_asn=1, # duration doesn't matter, simulation just need to be started
         )
 
-#=== testing all combination of initial_rpl_state initial_tsch_scheduling
+#=== testing all combination of force_initial_routing_state force_initial_schedule
 
-INITIAL_RPL_STATE_VALS = [True,False]
-@pytest.fixture(params=INITIAL_RPL_STATE_VALS)
-def initial_rpl_state(request):
+FORCE_INITIAL_ROUTING_STATE = [True,False]
+@pytest.fixture(params=FORCE_INITIAL_ROUTING_STATE)
+def force_initial_routing_state(request):
     return request.param
 
-INITIAL_TSCH_SCHEDULING = [True,False]
-@pytest.fixture(params=INITIAL_TSCH_SCHEDULING)
-def initial_tsch_scheduling(request):
+FORCE_INITIAL_SCHEDULE = [True,False]
+@pytest.fixture(params=FORCE_INITIAL_SCHEDULE)
+def force_initial_schedule(request):
     return request.param
 
-def test_instantiation(sim_engine, initial_rpl_state, initial_tsch_scheduling):
+def test_instantiation(sim_engine, force_initial_routing_state, force_initial_schedule):
     sim_engine = sim_engine(
-        diff_configs            = {},
-        initial_rpl_state       = initial_rpl_state,
-        initial_tsch_scheduling = initial_tsch_scheduling,
+        diff_config                    = {},
+        force_initial_routing_state    = force_initial_routing_state,
+        force_initial_schedule         = force_initial_schedule,
     )
 
 #=== test verify default configs from bin/config.json are loaded correctly
@@ -65,7 +65,7 @@ def test_sim_config(sim_engine):
     for (k,v) in sim_config.config['settings']['regular'].items():
         assert getattr(sim_engine.settings,k) == v
 
-#=== test run_until_at_asn() util works
+#=== test run_until_asn() util works
 
 TARGET_ASN_TO_PAUSE = range(1,100,10)
 @pytest.fixture(params=TARGET_ASN_TO_PAUSE)
@@ -76,5 +76,5 @@ def test_run_until_at_asn(sim_engine, target_asn_to_pause):
     sim_engine = sim_engine()
 
     assert sim_engine.getAsn() == 0
-    run_until_at_asn(sim_engine, target_asn_to_pause)
+    u.run_until_asn(sim_engine, target_asn_to_pause)
     assert sim_engine.getAsn() == target_asn_to_pause

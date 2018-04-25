@@ -13,30 +13,43 @@ CONFIG_FILE_PATH = os.path.join(ROOT_DIR, 'bin/config.json')
 @pytest.fixture(scope="function")
 def sim_engine(request):
 
-    def create_sim_engine(diff_configs={}, initial_rpl_state=None, initial_tsch_scheduling=None):
-
+    def create_sim_engine(diff_config={}, force_initial_routing_state=None, force_initial_schedule=None):
+        
+        # get default configuration
         sim_config = SimConfig.SimConfig(CONFIG_FILE_PATH)
-
         configs = sim_config.settings['regular']
-        # retrieve exec_numMotes which is supposed to be in "combination"
         assert 'exec_numMotes' not in configs
         configs['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
-        configs.update(**diff_configs)
-
+        
+        # update default configuration with parameters
+        configs.update(**diff_config)
+        
+        # create sim settings
         sim_settings = SimSettings.SimSettings(**configs)
         sim_settings.setStartTime(time.strftime('%Y%m%d-%H%M%S'))
         sim_settings.setCombinationKeys([])
-
+        
+        # create sim log
         sim_log = SimEngine.SimLog.SimLog()
         sim_log.set_log_filters('all') # do not log
-
+        
+        # create sim engine
         sim_engine = SimEngine.SimEngine()
-
+        
+        # force initial routing state, if appropriate
+        if force_initial_routing_state == 'poipoi':
+            pass
+        
+        # force initial schedule, if appropriate
+        if force_initial_schedule == 'poipoi':
+            pass
+        
+        # add a finalizer
         def fin():
             try:
                 need_terminate_sim_engine_thread = sim_engine.is_alive()
             except AssertionError:
-                # sim_engine thread is not initialized for some reason.
+                # sim_engine thread is not initialized for some reason
                 need_terminate_sim_engine_thread = False
 
             if need_terminate_sim_engine_thread:
