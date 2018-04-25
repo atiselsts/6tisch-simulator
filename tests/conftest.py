@@ -54,10 +54,14 @@ def sim(request):
 
         start_time = time.strftime("%Y%m%d-%H%M%S")
         combination_key = []
+        log_filters = [] # do not log
 
+        # init singletons
         settings = SimEngine.SimSettings.SimSettings(**params)
         settings.setStartTime(start_time)
         settings.setCombinationKeys(combination_key)
+        log = SimEngine.SimLog.SimLog()
+        log.set_log_filters(log_filters)
         engine   = SimEngine.SimEngine(1)
 
         # start simulation run
@@ -69,6 +73,7 @@ def sim(request):
         def fin():
             engine.destroy()
             settings.destroy()
+            log.destroy()
 
         request.addfinalizer(fin)
 

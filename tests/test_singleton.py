@@ -4,11 +4,13 @@ import pytest
 
 from SimEngine.SimEngine import SimEngine
 from SimEngine.SimSettings import SimSettings
+from SimEngine.SimLog import SimLog
 from SimEngine.Connectivity import Connectivity
 
 
 @pytest.fixture
 def sim_settings():
+    # SimSettings
     sim_settings = SimSettings(**{'exec_numMotes'       : 1,
                                   'exec_simDataDir'     : "simData",
                                   'app_pkPeriod'        : 0,
@@ -27,6 +29,11 @@ def sim_settings():
 
     sim_settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
     sim_settings.setCombinationKeys([])
+
+    # SimLog
+    log = SimLog()
+    log.set_log_filters([])
+
     yield
 
     # make sure a SimEngine instance created during a test is destroyed.
@@ -37,9 +44,12 @@ def sim_settings():
     settings = SimSettings()
     settings.destroy()
 
+    log = SimLog()
+    log.destroy()
+
 
 @pytest.mark.parametrize("singleton_class",
-                         [SimSettings, SimEngine, Connectivity])
+                         [SimSettings, SimEngine, Connectivity, SimLog])
 def test_instantiate(sim_settings, singleton_class):
     # the first SimSettings instance is created during setup
     instance_1 = singleton_class()
@@ -48,11 +58,11 @@ def test_instantiate(sim_settings, singleton_class):
 
 
 @pytest.mark.parametrize("singleton_class",
-                         [SimSettings, SimEngine, Connectivity])
+                         [SimSettings, SimEngine, Connectivity, SimLog])
 def test_destroy(sim_settings, singleton_class):
     # the first SimSettings instance is created during setup
-    instance_1 = SimEngine()
+    instance_1 = singleton_class()
     instance_1_id = id(instance_1)
     instance_1.destroy()
-    instance_2 = SimEngine()
+    instance_2 = singleton_class()
     assert instance_1_id != id(instance_2)

@@ -14,16 +14,6 @@ import SimEngine
 import Mote
 import MoteDefines as d
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('sf')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
-
 # =========================== defines =========================================
 
 SF_TYPE_ALL = ['MSF', 'SSFSymmetric', 'SSFCascading']
@@ -74,8 +64,9 @@ class SchedulingFunction(object):
 
     def __init__(self, mote):
 
-        self.settings = SimEngine.SimSettings.SimSettings()
-        self.engine = SimEngine.SimEngine.SimEngine()
+        self.settings   = SimEngine.SimSettings.SimSettings()
+        self.engine     = SimEngine.SimEngine.SimEngine()
+        self.log        = SimEngine.SimLog.SimLog().log
 
         self.numCellsElapsed                = 0
         self.numCellsUsed                   = 0
@@ -162,10 +153,6 @@ class MSF(SchedulingFunction):
 
             timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
 
-            log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.settings.sf_msf_numCellsToAddRemove, celloptions,
-                        mote.rpl.getPreferredParent().id, timeout))
-
             mote.sixp.issue_ADD_REQUEST(
                 mote.rpl.getPreferredParent(),
                 mote.numCellsToNeighbors.get(
@@ -183,8 +170,16 @@ class MSF(SchedulingFunction):
 
             timeout = self.get_sixtop_timeout(mote, mote.rpl.getOldPreferredParent())
 
-            log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.settings.sf_msf_numCellsToAddRemove, celloptions, mote.rpl.getOldPreferredParent().id, timeout))
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_6TOP_ADD_CELL,
+                {
+                    'cell_count': self.settings.sf_msf_numCellsToAddRemove,
+                    'cell_options': celloptions,
+                    'neighbor': mote.rpl.getOldPreferredParent().id,
+                    'timeout': timeout
+                }
+            )
 
             mote.sixp.issue_DELETE_REQUEST(
                 mote.rpl.getOldPreferredParent(),
@@ -218,7 +213,13 @@ class MSF(SchedulingFunction):
                     (cell['dir'] == d.DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
                 cellPDR.append(mote.getCellPDR(cell))
 
-        log.info('[sixtop] timeout() cellPDR = {0}'.format(cellPDR))
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_6TOP_TIMEOUT,
+            {
+                'cell_pdr': cellPDR
+            }
+        )
 
         if len(cellPDR) > 0:
             meanPDR = sum(cellPDR) / float(len(cellPDR))
@@ -237,8 +238,16 @@ class MSF(SchedulingFunction):
 
         # MSF: updating numCellsUsed
         if cellOptions == d.DIR_TXRX_SHARED and neighbor == mote.rpl.getPreferredParent():
-            log.info('[msf] signal_cell_used: neighbor {0} direction {1} type {2} preferredParent = {3}'.format(
-                        neighbor.id, direction, celltype, mote.rpl.getPreferredParent().id))
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_6TOP_CELL_USED,
+                {
+                    'neighbor': neighbor.id,
+                    'direction': direction,
+                    'cell_type': celltype,
+                    'prefered_parent': mote.rpl.getPreferredParent().id
+                }
+            )
             mote.sf.numCellsUsed += 1
 
     def signal_cell_elapsed(self, mote, neighbor, direction):
@@ -251,8 +260,14 @@ class MSF(SchedulingFunction):
             mote.sf.numCellsElapsed += 1
 
             if mote.sf.numCellsElapsed == self.settings.sf_msf_maxNumCells:
-                log.info('[msf] signal_cell_elapsed: numCellsElapsed = {0}, numCellsUsed = {1}'.format(
-                             mote.sf.numCellsElapsed, mote.sf.numCellsUsed))
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_6TOP_CELL_ELAPSED,
+                    {
+                        'cell_elapsed_count': mote.sf.numCellsElapsed,
+                        'cell_used_count': mote.sf.numCellsUsed
+                    }
+                )
 
                 if   mote.sf.numCellsUsed > self.settings.sf_msf_highUsageThres:
                     self.schedule_bandwidth_increment(mote)
@@ -300,8 +315,7 @@ class MSF(SchedulingFunction):
         """
         timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
         celloptions = d.DIR_TXRX_SHARED
-        log.info("[msf] triggering 6P ADD of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                 self.settings.sf_msf_numCellsToAddRemove, d.DIR_TXRX_SHARED, mote.rpl.getPreferredParent().id, timeout))
+
         mote.sixp.issue_ADD_REQUEST(
             mote.rpl.getPreferredParent(),
             self.settings.sf_msf_numCellsToAddRemove,
@@ -328,9 +342,17 @@ class MSF(SchedulingFunction):
         if mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) > 1:
             timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
             celloptions = d.DIR_TXRX_SHARED
-            log.info("[msf] triggering 6P REMOVE of {0} cells, dir {1}, to mote {2}, 6P timeout {3}".format(
-                        self.settings.sf_msf_numCellsToAddRemove,
-                        d.DIR_TXRX_SHARED, mote.rpl.getPreferredParent().id, timeout))
+
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_6TOP_DEL_CELL,
+                {
+                    'cell_count': self.settings.sf_msf_numCellsToAddRemove,
+                    'cell_options': celloptions,
+                    'neighbor': mote.rpl.getPreferredParent().id,
+                    'timeout': timeout
+                }
+            )
 
             # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
             mote.sixp.issue_DELETE_REQUEST(
@@ -380,10 +402,6 @@ class SSFSymmetric(SchedulingFunction):
         # ignore housekeeping
         pass
 
-    def _ssf_linear_symmetric_schedule(self):
-        assert self.mote.rpl.getPreferredParent()
-        _alloc_cell(self.mote, self.mote.rpl.getPreferredParent(), self.mote.id, 0)
-
 class SSFCascading(SchedulingFunction):
     def __init__(self, mote):
         super(SSFCascading, self).__init__(mote)
@@ -402,42 +420,3 @@ class SSFCascading(SchedulingFunction):
     def housekeeping(self):
         # ignore housekeeping
         pass
-
-    def _ssf_linear_cascading_schedule(self):
-        alloc_pointer = 1  # start allocating with slot-1
-
-        for mote in self.engine.motes[::-1]:  # loop in the reverse order
-            child = mote
-            while child and child.rpl.getPreferredParent():
-                _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
-                alloc_pointer += 1
-                child = child.rpl.getPreferredParent()
-
-    def _ssf_twobranch_cascading_schedule(self):
-        # allocate TX cells and RX cells in a cascading bandwidth manner.
-
-        alloc_pointer = 0
-        for mote in self.engine.motes[::-1]:  # loop in the reverse order
-            child = mote
-            while child and child.rpl.getPreferredParent():
-                if self.settings.sf_ssf_initMethod == 'random-pick':
-                    if 'alloc_table' not in locals():
-                        alloc_table = set()
-
-                    if len(alloc_table) >= self.settings.tsch_slotframeLength:
-                        raise ValueError('slotframe is too small')
-
-                    while True:
-                        # we don't use slot-0 since it's designated for a shared cell
-                        alloc_pointer = random.randint(1, self.settings.tsch_slotframeLength - 1)
-                        if alloc_pointer not in alloc_table:
-                            alloc_table.add(alloc_pointer)
-                            break
-                else:
-                    alloc_pointer += 1
-
-                    if alloc_pointer > self.settings.tsch_slotframeLength:
-                        raise ValueError('slotframe is too small')
-
-                _alloc_cell(child, child.rpl.getPreferredParent(), alloc_pointer, 0)
-                child = child.rpl.getPreferredParent()
