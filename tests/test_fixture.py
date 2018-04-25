@@ -61,7 +61,8 @@ def test_sim_config(sim_engine):
 
 
 @pytest.mark.parametrize('target_asn_to_pause', [
-    1
+    1,
+    50,
 ])
 def test_run_until_at_asn(sim_engine, target_asn_to_pause):
     sim_engine = sim_engine()
