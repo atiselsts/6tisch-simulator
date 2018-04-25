@@ -2,8 +2,8 @@
 
 Branch    | Build Status
 --------- | -------------
-`master`  |  ![master](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/master)
-`develop` | ![develop](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)
+`master`  | [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/master)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/master/)
+`develop` | [![Build Status](https://openwsn-builder.paris.inria.fr/buildStatus/icon?job=6TiSCH%20Simulator/develop)](https://openwsn-builder.paris.inria.fr/job/6TiSCH%20Simulator/job/develop/)
 
 Core Developers:
 
