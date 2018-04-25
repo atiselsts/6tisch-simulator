@@ -13,16 +13,6 @@ import MoteDefines as d
 # Simulator-wide modules
 import SimEngine
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('secjoin')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
-
 # =========================== defines =========================================
 
 # =========================== helpers =========================================
@@ -39,6 +29,7 @@ class SecJoin(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
         self._isJoined                      = False
@@ -78,10 +69,12 @@ class SecJoin(object):
         )
 
         # log
-        self.mote._log(
-            d.INFO,
-            "[join] Received join packet from {0} with token {1}",
-            (srcIp.id, payload[0])
+        self.log(
+            SimEngine.SimLog.LOG_JOIN_RX,
+            {
+                'source': srcIp.id,
+                "token": payload[0]
+            }
         )
 
         # this is a hack to allow downward routing of join packets before node has sent a DAO
@@ -162,10 +155,12 @@ class SecJoin(object):
 
             if isEnqueued:
                 # increment traffic
-                self.mote._log(
-                    d.INFO,
-                    "[join] Enqueued join packet for mote {0} with token = {1}",
-                    (destination.id, token),
+                self.log(
+                    SimEngine.SimLog.LOG_JOIN_TX,
+                    {
+                        'destination': destination.id,
+                        "token": token
+                    }
                 )
             else:
                 # update mote stats
@@ -194,13 +189,10 @@ class SecJoin(object):
             self._joinAsn  = self.engine.getAsn()
 
             # log
-            self.mote_log(
-                d.INFO,
-                "[join] Mote joined",
-            )
+            self.log(SimEngine.SimLog.LOG_MOTE_STATE)
 
             # schedule bootstrap of the preferred parent
-            self.sf.schedule_parent_change(self)
+            self.mote.sf.schedule_parent_change(self)
 
             # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
             if self.settings.secjoin_enabled and all(mote.secjoin.isJoined is True for mote in self.engine.motes):

@@ -15,23 +15,13 @@ of settings.
 \author Thomas Watteyne <thomas.watteyne@inria.fr>
 """
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('SimConfig')
-log.setLevel(logging.ERROR)
-log.addHandler(NullHandler())
-
-#============================ imports =========================================
+# =========================== imports =========================================
 
 import json
 
-#============================ defines =========================================
+# =========================== defines =========================================
 
-#============================ body ============================================
+# =========================== body ============================================
 
 class DotableDict(dict):
 
@@ -51,15 +41,15 @@ class DotableDict(dict):
             return v
 
 class SimConfig(dict):
-    
+
     def __init__(self, configfile=None):
-        
+
         # store params
         self.configfile = configfile
-        
+
         # read config file
-        with open(self.configfile,'r') as file:
+        with open(self.configfile, 'r') as file:
             self.config = DotableDict(json.loads(file.read()))
-    
+
     def __getattr__(self, name):
-        return getattr(self.config,name)
+        return getattr(self.config, name)

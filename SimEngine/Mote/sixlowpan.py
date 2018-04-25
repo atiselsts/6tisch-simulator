@@ -13,16 +13,6 @@ import random
 import SimEngine
 import MoteDefines as d
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('app')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
-
 # =========================== defines =========================================
 
 # =========================== helpers =========================================

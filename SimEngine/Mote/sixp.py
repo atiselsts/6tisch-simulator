@@ -5,23 +5,12 @@
 
 import random
 import threading
-import math
 
 # Mote sub-modules
 import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
-
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('sixp')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
@@ -42,6 +31,7 @@ class SixP(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
 
@@ -115,19 +105,21 @@ class SixP(object):
                     self._enqueue_ADD_REQUEST(neighbor, cellList, numCells, dir,
                                                      self.sixtopStates[neighbor.id]['tx']['seqNum'])
                 else:
-                    self.mote._log(
-                        d.DEBUG,
-                        "[6top] can not send 6top ADD request to {0} because timer still did not fire on mote {1}.",
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": "[6top] can not send 6top ADD request to {0} because timer "
+                                    "still did not fire on mote {1}."
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
-
             else:
                 cells = neighbor._cell_reservation_response(self, numCells, dir)
 
                 cellList = []
                 for (ts, ch) in cells.iteritems():
                     # log
-                    self.engine.log(
+                    self.log(
                         SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                         {
                             "ts": ts,
@@ -159,10 +151,17 @@ class SixP(object):
 
                 if len(cells) != numCells:
                     # log
-                    self.mote._log(
-                        d.ERROR,
-                        '[6top] scheduled {0} cells out of {1} required between motes {2} and {3}. cells={4}',
-                        (len(cells), numCells, self.mote.id, neighbor.id, cells),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_ERROR,
+                        {
+                            'error': '[6top] scheduled {0} cells out of {1} required between motes '
+                                     '{2} and {3}. cells={4}'
+                                     .format(len(cells),
+                                             numCells,
+                                             self.mote.id,
+                                             neighbor.id,
+                                             cells)
+                        }
                     )
 
     def receive_ADD_REQUEST(self, type, smac, payload):
@@ -182,10 +181,12 @@ class SixP(object):
                 for pkt in self.mote.tsch.getTxQueue():
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
                         self.mote.tsch.getTxQueue().remove(pkt)
-                        self.mote._log(
-                            d.INFO,
-                            "[6top] removed a 6TOP_TYPE_RESPONSE packet (seqNum = {0}) in the queue of mote {1} to neighbor {2}, because a new TYPE_REQUEST (add, seqNum = {3}) was received.",
-                            (pkt['payload'][3], self.mote.id, smac.id, seq),
+                        self.log(
+                            SimEngine.SimLog.LOG_6TOP_QUEUE_DEL,
+                            {
+                                'pkt_type': pkt['type'],
+                                'neighbor': smac.id
+                            }
                         )
                 returnCode = d.IANA_6TOP_RC_RESET  # error, neighbor has to abort transaction
                 if smac.id not in self.sixtopStates:
@@ -270,7 +271,7 @@ class SixP(object):
         for (ts, cell) in self.mote.tsch.getSchedule().iteritems():
             if (cell['neighbor'] == neighbor and cell['dir'] == d.DIR_TX) or (
                     cell['dir'] == d.DIR_TXRX_SHARED and cell['neighbor'] == neighbor):
-                cellPDR = self.getCellPDR(cell)
+                cellPDR = self.mote.getCellPDR(cell)
                 scheduleList += [(ts, cell['numTxAck'], cell['numTx'], cellPDR)]
 
         if self.settings.sixtop_removeRandomCell:
@@ -297,10 +298,12 @@ class SixP(object):
         tsList = []
         for tscell in scheduleList[:numCellsToRemove]:
             # log
-            self.mote._log(
-                d.INFO,
-                "[6top] remove cell ts={0} to {1} (pdr={2:.3f})",
-                (tscell[0], neighbor.id, tscell[3]),
+            self.log(
+                SimEngine.SimLog.LOG_6TOP_INFO,
+                {
+                    "info": "[6top] remove cell ts={0} to {1} (pdr={2:.3f})"
+                            .format(tscell[0], neighbor.id, tscell[3])
+                }
             )
             tsList += [tscell[0]]
 
@@ -328,11 +331,6 @@ class SixP(object):
                 for pkt in self.mote.tsch.getTxQueue():
                     if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE and pkt['dstIp'].id == smac.id:
                         self.mote.tsch.getTxQueue().remove(pkt)
-                        self.mote._log(
-                            d.INFO,
-                            "[6top] removed a 6TOP_TYPE_RESPONSE packet in the queue of mote {0} to neighbor {1}, because a new TYPE_REQUEST (delete) was received.",
-                            (self.mote.id, smac.id),
-                        )
                 returnCode = d.IANA_6TOP_RC_RESET  # error, neighbor has to abort transaction
                 if smac.id not in self.sixtopStates:
                     self.sixtopStates[smac.id] = {}
@@ -380,9 +378,15 @@ class SixP(object):
     def receive_RESPONSE(self, type, code, smac, payload):
         """ receive a 6P response messages """
 
-        self.engine.log(SimEngine.SimLog.LOG_6TOP_RX_RESP,
-                        {"mote_id": self.mote.id, "rc": code,
-                         "type": type, "neighbor_id": smac.id})
+        self.log(
+            SimEngine.SimLog.LOG_6TOP_RX_RESP,
+            {
+                "mote_id": self.mote.id,
+                "rc": code,
+                "type": type,
+                "neighbor_id": smac.id
+            }
+        )
 
         with self.dataLock:
             if self.sixtopStates[smac.id]['tx']['state'] == d.SIX_STATE_WAIT_ADDRESPONSE:
@@ -400,10 +404,12 @@ class SixP(object):
                 # seqNum mismatch, transaction failed, ignore packet
                 if seq != self.sixtopStates[neighbor.id]['tx']['seqNum']:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {'info': '[6top] The node {1} has received a wrong seqNum in a sixtop '
+                                 'operation with mote {0}'
+                                 .format(neighbor.id, self.mote.id)
+                         }
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -413,10 +419,13 @@ class SixP(object):
                 # transaction is considered as failed since the timeout has already scheduled for this ASN. Too late for removing the event, ignore packet
                 if self.sixtopStates[neighbor.id]['tx']['timer']['asn'] == self.engine.getAsn():
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {1} has received a ADD response from mote {0} too late',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {1} has received a ADD response from mote {0} '
+                                    'too late'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -430,11 +439,22 @@ class SixP(object):
 
                 # remove the pending retransmission event for the scheduling function
                 self.engine.removeEvent((self.mote.id, 'action_parent_change_retransmission'))
-                self.mote._log(
-                    d.INFO,
-                    "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
-                    (self.mote.id, neighbor.id, self.sixtopStates[neighbor.id]['tx']['timer']['asn'], str(uniqueTag)),
+
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_6TOP_INFO,
+                    {
+                        'info': "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag"
+                                " {3}"
+                                .format(
+                                    self.mote.id,
+                                    neighbor.id,
+                                    self.sixtopStates[neighbor.id]['tx']['timer']['asn'],
+                                    str(uniqueTag)
+                                )
+                    }
                 )
+
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
                 self.sixtopStates[smac.id]['tx']['seqNum'] += 1
@@ -453,12 +473,7 @@ class SixP(object):
 
                     for (ts, ch, cellDir) in receivedCellList:
                         # log
-                        self.mote._log(
-                            d.INFO,
-                            '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-                            (ts, ch, self.mote.id, neighbor.id, newDir),
-                        )
-                        self.engine.log(
+                        self.log(
                             SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                             {
                                 "ts": ts,
@@ -494,10 +509,13 @@ class SixP(object):
                     return True
                 elif code == d.IANA_6TOP_RC_NORES:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {0} do not have available resources to allocate for node {0}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {0} do not have available resources to '
+                                    'allocate for node {0}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -506,10 +524,14 @@ class SixP(object):
                 # only when devices are not powerfull enough. Not used in the simulator
                 elif code == d.IANA_6TOP_RC_BUSY:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {0} is busy and do not have available resources for perform another 6top add operation with mote {1}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {0} is busy and do not have available '
+                                    'resources for perform another 6top add operation with '
+                                    'mote {1}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
@@ -518,11 +540,15 @@ class SixP(object):
                     # TODO: increase stats of RC_BUSY
                 elif code == d.IANA_6TOP_RC_RESET:  # should not happen
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {0} has detected an state inconsistency in a 6top add operation with mote {1}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {0} has detected an state inconsistency in a '
+                                    '6top add operation with mote {1}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -546,11 +572,15 @@ class SixP(object):
                 # seqNum mismatch, transaction failed, ignore packet
                 if seq != self.sixtopStates[neighbor.id]['tx']['seqNum']:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {1} has received a wrong seqNum in a sixtop operation with mote {0}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {1} has received a wrong seqNum in a sixtop '
+                                    'operation with mote {0}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -559,11 +589,15 @@ class SixP(object):
                 # transaction is considered as failed since the timeout has already scheduled for this ASN. Too late for removing the event, ignore packet
                 if self.sixtopStates[neighbor.id]['tx']['timer']['asn'] == self.engine.getAsn():
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {1} has received a DELETE response from mote {0} too late',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            'info': '[6top] The node {1} has received a DELETE response from mote '
+                                    '{0} too late'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -575,10 +609,20 @@ class SixP(object):
                 self.engine.removeEvent(uniqueTag=uniqueTag)
                 # remove the pending retransmission event for the scheduling function
                 self.engine.removeEvent((self.mote.id, 'action_parent_change_retransmission'))
-                self.mote._log(
-                    d.INFO,
-                    "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, tag {3}",
-                    (self.mote.id, neighbor.id, self.sixtopStates[neighbor.id]['tx']['timer']['asn'], str(uniqueTag)),
+
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_6TOP_INFO,
+                    {
+                        'info': "[6top] removed timer for mote {0} to neighbor {1} on asn {2}, "
+                                "tag {3}"
+                                .format(
+                                    self.mote.id,
+                                    neighbor.id,
+                                    self.sixtopStates[neighbor.id]['tx']['timer']['asn'],
+                                    str(uniqueTag)
+                                )
+                    }
                 )
                 del self.sixtopStates[neighbor.id]['tx']['timer']
 
@@ -595,14 +639,6 @@ class SixP(object):
                     else:
                         newDir = d.DIR_TXRX_SHARED
 
-                    for ts in receivedCellList:
-                        # log
-                        self.mote._log(
-                            d.INFO,
-                            '[6top] Delete {4} cell ts={0},ch={1} from {2} to {3}',
-                            (ts, self.mote.id, self.mote.id, neighbor.id, newDir),
-                        )
-
                     self.mote.tsch.removeCells(neighbor, receivedCellList)
 
                     self.mote.numCellsFromNeighbors[neighbor] -= len(receivedCellList)
@@ -614,11 +650,15 @@ class SixP(object):
                     return True
                 elif code == d.IANA_6TOP_RC_NORES:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The resources requested for delete were not available for {1} in {0}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": '[6top] The resources requested for delete were not available '
+                                    'for {1} in {0}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -627,11 +667,15 @@ class SixP(object):
                 # only when devices are not powerfull enough. Not used in the simulator
                 elif code == d.IANA_6TOP_RC_BUSY:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {0} is busy and has not available resources for perform another 6top deletion operation with mote {1}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": '[6top] The node {0} is busy and has not available resources for perform '
+                                    'another 6top deletion operation with mote {1}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -639,11 +683,15 @@ class SixP(object):
                     # TODO: increase stats of RC_BUSY
                 elif code == d.IANA_6TOP_RC_RESET:
                     # log
-                    self.mote._log(
-                        d.INFO,
-                        '[6top] The node {0} has detected an state inconsistency in a 6top deletion operation with mote {1}',
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": '[6top] The node {0} has detected an state inconsistency in a '
+                                    '6top deletion operation with mote {1}'
+                                    .format(neighbor.id, self.mote.id)
+                        }
                     )
+
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
@@ -673,12 +721,7 @@ class SixP(object):
                 if code == d.IANA_6TOP_RC_SUCCESS:
                     for (ts, ch, cellDir) in confirmedCellList:
                         # log
-                        self.mote._log(
-                            d.INFO,
-                            '[6top] add {4} cell ts={0},ch={1} from {2} to {3}',
-                            (ts, ch, self.mote.id, neighbor.id, cellDir),
-                        )
-                        self.engine.log(
+                        self.log(
                             SimEngine.SimLog.LOG_6TOP_RX_ACK,
                             {
                                 "source_id": neighbor.id,
@@ -727,10 +770,12 @@ class SixP(object):
                 if code == d.IANA_6TOP_RC_SUCCESS:
                     for ts in confirmedCellList:
                         # log
-                        self.mote._log(
-                            d.INFO,
-                            '[6top] delete {3} cell ts={0} from {1} to {2}',
-                            (ts, self.mote.id, neighbor.id, receivedDir),
+                        self.log(
+                            SimEngine.SimLog.LOG_6TOP_INFO,
+                            {
+                                "info": '[6top] delete {3} cell ts={0} from {1} to {2}'
+                                        .format(ts, self.mote.id, neighbor.id, receivedDir)
+                            }
                         )
                     self.mote.tsch.removeCells(neighbor, confirmedCellList)
 
@@ -757,10 +802,12 @@ class SixP(object):
                 del self.sixtopStates[n]['tx']['timer']
                 found = True
                 # log
-                self.mote._log(
-                    d.INFO,
-                    "[6top] fired timer on mote {0} for neighbor {1}.",
-                    (self.mote.id, n),
+                self.log(
+                    SimEngine.SimLog.LOG_6TOP_INFO,
+                    {
+                        "info": "[6top] fired timer on mote {0} for neighbor {1}."
+                            .format(self.mote.id, n)
+                    }
                 )
 
         if not found: # if we did not find it, assert
@@ -772,12 +819,6 @@ class SixP(object):
 
     def _enqueue_ADD_REQUEST(self, neighbor, cellList, numCells, dir, seq):
         """ enqueue a new 6P ADD request """
-
-        self.mote._log(
-            d.INFO,
-            '[6top] enqueueing a new 6P ADD message (seqNum = {0}) cellList={1}, numCells={2} from {3} to {4}',
-            (seq, cellList, numCells, self.mote.id, neighbor.id),
-        )
 
         # create new packet
         newPacket = {
@@ -807,12 +848,6 @@ class SixP(object):
     def _enqueue_DELETE_REQUEST(self, neighbor, cellList, numCells, dir, seq):
         """ enqueue a new 6P DELETE request """
 
-        self.mote._log(
-            d.INFO,
-            '[6top] enqueueing a new 6P DEL message cellList={0}, numCells={1} from {2} to {3}',
-            (cellList, numCells, self.mote.id, neighbor.id),
-        )
-
         # create new packet
         newPacket = {
             'asn': self.engine.getAsn(),
@@ -840,11 +875,6 @@ class SixP(object):
     def _enqueue_RESPONSE(self, neighbor, cellList, returnCode, dir, seq):
         """ enqueue a new 6P ADD or DELETE response """
 
-        self.mote._log(
-            d.INFO,
-            '[6top] enqueueing a new 6P RESPONSE message cellList={0}, numCells={1}, returnCode={2}, seqNum={3} from {4} to {5}',
-            (cellList, len(cellList), returnCode, seq, self.mote.id, neighbor.id),
-        )
         # create new packet
         newPacket = {
             'asn': self.engine.getAsn(),
@@ -886,12 +916,6 @@ class SixP(object):
             cellList = []
 
             for ts, ch in cells.iteritems():
-                # log
-                self.mote._log(
-                    d.INFO,
-                    '[6top] add RX cell ts={0},ch={1} from {2} to {3}',
-                    (ts, ch, self.mote.id, neighbor.id),
-                )
                 cellList += [(ts, ch, newDir)]
             self.mote.tsch.addCells(neighbor, cellList)
 
@@ -934,18 +958,14 @@ class SixP(object):
                     self._enqueue_DELETE_REQUEST(neighbor, tsList, len(tsList), dir,
                                                         self.sixtopStates[neighbor.id]['tx']['seqNum'])
                 else:
-                    self.mote._log(
-                        d.DEBUG,
-                        "[6top] can not send 6top DELETE request to {0} because timer still did not fire on mote {1}.",
-                        (neighbor.id, self.mote.id),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {"info": "[6top] can not send 6top DELETE request to {0} because timer "
+                                 "still did not fire on mote {1}."
+                                 .format(neighbor.id, self.mote.id)
+                         }
                     )
             else:
-                # log
-                self.mote._log(
-                    d.INFO,
-                    "[6top] remove timeslots={0} with {1}",
-                    (tsList, neighbor.id),
-                )
                 self.mote.tsch.removeCells(
                     neighbor=neighbor,
                     tsList=tsList,

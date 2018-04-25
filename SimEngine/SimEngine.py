@@ -8,10 +8,9 @@
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
 
-#=========================== imports =========================================
+# ========================== imports =========================================
 
 import threading
-import json
 import traceback
 
 import Mote
@@ -19,19 +18,9 @@ import SimSettings
 import SimLog
 import Connectivity
 
-#=========================== logging =========================================
+# =========================== defines =========================================
 
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('SimEngine')
-log.setLevel(logging.ERROR)
-log.addHandler(NullHandler())
-
-#============================ defines =========================================
-
-#============================ body ============================================
+# =========================== body ============================================
 
 class SimEngine(threading.Thread):
 
@@ -45,7 +34,7 @@ class SimEngine(threading.Thread):
         return cls._instance
     #===== end singleton
 
-    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, verbose=False, log_types='all'):
+    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, verbose=False):
 
         if failIfNotInit and not cls._init:
             raise EnvironmentError('SimEngine singleton not initialized.')
@@ -61,7 +50,6 @@ class SimEngine(threading.Thread):
         self.cpuID                          = cpuID
         self.run_id                         = run_id
         self.verbose                        = verbose
-        self.log_types                      = log_types
 
         # local variables
         self.dataLock                       = threading.RLock()
@@ -74,9 +62,13 @@ class SimEngine(threading.Thread):
         self.events                         = []
 
         # init singletons
+        self.log                            = SimLog.SimLog().log
         self.settings                       = SimSettings.SimSettings()
         self.motes                          = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
         self.connectivity                   = Connectivity.Connectivity()
+
+        # pass SimEngine to SimLog
+        SimLog.SimLog().set_simengine(self)
 
         # select first mote as dagRoot
         self.motes[0].role_setDagRoot()
@@ -85,16 +77,11 @@ class SimEngine(threading.Thread):
         for i in range(len(self.motes)):
             self.motes[i].boot()
 
-        # init log
-        self._init_log()
-
         # initialize parent class
         threading.Thread.__init__(self)
         self.name                           = 'SimEngine'
 
     def destroy(self):
-        # destroy the Connectivity singleton
-        self.connectivity.destroy()
 
         # destroy my own instance
         cls = type(self)
@@ -106,8 +93,13 @@ class SimEngine(threading.Thread):
     def run(self):
         """ event driven simulator, this thread manages the events """
         try:
-            # log
-            log.info("thread {0} starting".format(self.name))
+            self.log(
+                SimLog.LOG_THREAD_STATE,
+                {
+                    "name": self.name,
+                    "state": "started"
+                }
+            )
 
             # schedule the endOfSimulation event if we are not simulating the join process
             if not self.settings.secjoin_enabled:
@@ -136,7 +128,13 @@ class SimEngine(threading.Thread):
 
                     # abort simulation when no more events
                     if not self.events:
-                        log.info("end of simulation at ASN={0}".format(self.asn))
+                        self.log(
+                            SimLog.LOG_THREAD_STATE,
+                            {
+                                "name": self.name,
+                                "state": "stopped"
+                            }
+                        )
                         break
 
                     # make sure we are in the future
@@ -159,7 +157,13 @@ class SimEngine(threading.Thread):
                 cb()
 
             # log
-            log.info("thread {0} ends".format(self.name))
+            self.log(
+                SimLog.LOG_THREAD_STATE,
+                {
+                    "name": self.name,
+                    "state": "stopped"
+                }
+            )
         except Exception as e:
             print 'poipoipoipoipoi'
             traceback.print_exc()
@@ -222,23 +226,6 @@ class SimEngine(threading.Thread):
         with self.dataLock:
             self.endCb      += [cb]
 
-    #=== log
-
-    def log(self, simlog, content):
-        """
-        :param dict simlog:
-        :param dict content:
-        """
-        if self.log_types != 'all' and simlog['type'] not in self.log_types:
-            return
-        SimLog.check_log_format(simlog, content)
-
-        content.update({"asn": self.asn, "type": simlog["type"], "run_id": self.run_id})
-
-        with open(self.settings.getOutputFile(), 'a') as f:
-            json.dump(content, f)
-            f.write('\n')
-
     # === misc
 
     # delay in asn
@@ -247,7 +234,7 @@ class SimEngine(threading.Thread):
         self.scheduleAtAsn(
                 asn         = self.asn+delay,
                 cb          = self._actionEndSim,
-                uniqueTag   = (None,'_actionEndSim'),
+                uniqueTag   = (None, '_actionEndSim'),
         )
 
     # === play/pause
@@ -260,7 +247,7 @@ class SimEngine(threading.Thread):
             self.scheduleAtAsn(
                 asn         = asn,
                 cb          = self._actionPauseSim,
-                uniqueTag   = ('SimEngine','_actionPauseSim'),
+                uniqueTag   = ('SimEngine', '_actionPauseSim'),
             )
 
     # === getters/setters
@@ -269,13 +256,6 @@ class SimEngine(threading.Thread):
         return self.asn
 
     # ======================== private ========================================
-
-    def _init_log(self):
-        if self.run_id == 0: # Fixme, run_id 1 might start before run_id 0
-            config = self.settings.__dict__
-            with open(self.settings.getOutputFile(), 'w') as f:
-                json.dump(config, f)
-                f.write('\n')
 
     def _actionPauseSim(self):
         if not self.simPaused:
@@ -300,8 +280,6 @@ class SimEngine(threading.Thread):
         if self.verbose:
             print('   cycle: {0}/{1}'.format(cycle, self.settings.exec_numSlotframesPerRun-1))
 
-        self._collectSumMoteStats()
-
         # schedule next statistics collection
         self.scheduleAtAsn(
             asn         = self.asn + self.settings.tsch_slotframeLength,
@@ -310,12 +288,3 @@ class SimEngine(threading.Thread):
             priority    = 10,
         )
 
-    def _collectSumMoteStats(self):
-        returnVal = {}
-
-        for mote in self.motes:
-            mote_stats = mote.getMoteStats()
-            mote_stats["mote_id"] = mote.id
-            self.log(SimLog.LOG_MOTE_STAT, mote_stats)
-
-        return returnVal

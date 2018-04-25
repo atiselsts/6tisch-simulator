@@ -14,17 +14,6 @@ if __name__ == '__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..'))
 
-# =========================== logging =========================================
-
-import logging
-
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('runSim')
-log.setLevel(logging.ERROR)
-log.addHandler(NullHandler())
-
 # =========================== imports =========================================
 
 import time
@@ -41,7 +30,7 @@ import shutil
 
 from SimEngine import SimConfig,   \
                       SimEngine,   \
-                      SimSettings, \
+                      SimLog, \
                       SimSettings
 
 # =========================== helpers =========================================
@@ -126,8 +115,10 @@ def runSimCombinations(params):
             settings         = SimSettings.SimSettings(cpuID=cpuID, run_id=run_id, **simParam)
             settings.setStartTime(start_time)
             settings.setCombinationKeys(combinationKeys)
-            simengine        = SimEngine.SimEngine(run_id=run_id, verbose=verbose,
-                                                   log_types=simconfig.logging)
+            simlog           = SimLog.SimLog()
+            simlog.set_log_filters(simconfig.logging)
+            simengine        = SimEngine.SimEngine(run_id=run_id, verbose=verbose)
+
 
             # start simulation run
             simengine.start()
@@ -136,6 +127,7 @@ def runSimCombinations(params):
             simengine.join()
 
             # destroy singletons
+            simlog.destroy()
             simengine.destroy()
             settings.destroy()
 

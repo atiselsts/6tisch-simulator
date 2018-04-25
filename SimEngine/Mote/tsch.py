@@ -4,7 +4,6 @@
 # =========================== imports =========================================
 
 import random
-import threading
 import copy
 
 # Mote sub-modules
@@ -12,17 +11,6 @@ import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
-import sixlowpan
-
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('tsch')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
@@ -40,6 +28,7 @@ class Tsch(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
         self.schedule                       = {}      # indexed by ts, contains cell
@@ -145,14 +134,16 @@ class Tsch(object):
                 'numTxAck':                  0,
                 'numRx':                     0,
             }
+
             # log
-            self.engine.log(
+            self.log(
                 SimEngine.SimLog.LOG_TSCH_ADD_CELL,
-                {"ts": cell[0],
-                 "channel": cell[1],
-                 "direction": cell[2],
-                 "source_id": self.mote.id,
-                 "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                {
+                    "ts": cell[0],
+                    "channel": cell[1],
+                    "direction": cell[2],
+                    "source_id": self.mote.id,
+                    "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
                 }
             )
         self._tsch_schedule_activeCell()
@@ -163,17 +154,16 @@ class Tsch(object):
         for cell in tsList:
             assert type(cell) == int
             # log
-            self.mote._log(
-                d.INFO,
-                "[tsch] remove cell=({0}) with {1}",
-                (cell, neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS),
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
+                {
+                    "ts": cell[0],
+                    "channel": cell[1],
+                    "direction": cell[2],
+                    "source_id": self.mote.id,
+                    "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                }
             )
-            self.engine.log(SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
-                            {"ts": cell[0],
-                             "channel": cell[1],
-                             "direction": cell[2],
-                             "source_id": self.mote.id,
-                             "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS})
 
             assert cell in self.schedule.keys()
             assert self.schedule[cell]['neighbor'] == neighbor
@@ -273,10 +263,17 @@ class Tsch(object):
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
-                    self.mote._log(
-                        d.DEBUG,
-                        "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}",
-                        (self.mote.id, self.pktToSend['dstIp'].id, fireASN, str((self.mote.id, uniqueTag))),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}"
+                            .format(
+                                self.mote.id,
+                                self.pktToSend['dstIp'].id,
+                                fireASN,
+                                str(self.mote.id, uniqueTag)
+                            )
+                        }
                     )
                 elif self.pktToSend['code'] == d.IANA_6TOP_CMD_DELETE:
                     assert self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] == d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
@@ -294,10 +291,18 @@ class Tsch(object):
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
-                    self.mote._log(
-                        d.DEBUG,
-                        "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}",
-                        (self.mote.id, self.pktToSend['dstIp'].id, fireASN, str((self.mote.id, uniqueTag))),
+                    self.log(
+                        SimEngine.SimLog.LOG_6TOP_INFO,
+                        {
+                            "info": "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}"
+                            .format(
+                                self.mote.id,
+                                self.pktToSend['dstIp'].id,
+                                fireASN,
+                                str(self.mote.id),
+                                str(uniqueTag)
+                            )
+                        }
                     )
                 else:
                     assert False
@@ -912,10 +917,11 @@ class Tsch(object):
             assert self.settings.secjoin_enabled
 
             # log
-            self.mote._log(
-                d.INFO,
-                "[tsch] synced on EB received from mote {0}.",
-                (smac.id,),
+            self.log(
+                SimEngine.SimLog.LOG_6TOP_INFO,
+                {
+                    "info": "[tsch] synced on EB received from mote {0}.".format(smac.id)
+                }
             )
 
             self.firstBeaconAsn = self.engine.getAsn()

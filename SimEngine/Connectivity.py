@@ -154,6 +154,7 @@ class Connectivity(object):
         # get singletons
         self.settings = SimSettings.SimSettings()
         self.engine   = SimEngine.SimEngine()
+        self.log      = SimEngine.SimLog.SimLog().log
 
         # local variables
         self.connectivity_matrix = {} # described at the top of the file
@@ -224,9 +225,13 @@ class Connectivity(object):
 
                     # log
                     if len(interferers) > 0:
-                        self.engine.log(SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
-                                        {"source_id": transmission['smac'].id,
-                                         "channel": transmission['channel']})
+                        self.log(
+                            SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
+                            {
+                                 "source_id": transmission['smac'].id,
+                                 "channel": transmission['channel']
+                             }
+                        )
 
                     # lock on the first transmission
                     sender_locked_on = transmission['smac']
