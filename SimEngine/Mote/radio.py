@@ -16,16 +16,6 @@ import MoteDefines as d
 # Simulator-wide modules
 import SimEngine
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('radio')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
-
 # =========================== defines =========================================
 
 RADIO_STATE_IDLE    = 'idle'

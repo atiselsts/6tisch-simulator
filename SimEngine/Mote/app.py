@@ -6,24 +6,12 @@ It sends (data) packets to the root
 # =========================== imports =========================================
 
 import random
-import copy
 
 # Mote sub-modules
 import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
-import sixlowpan
-
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('app')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 

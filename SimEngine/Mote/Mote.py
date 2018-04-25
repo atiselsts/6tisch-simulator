@@ -14,9 +14,7 @@
 # =========================== imports =========================================
 
 import copy
-import random
 import threading
-import math
 
 # Mote sub-modules
 import app
@@ -33,16 +31,6 @@ import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
-
-# =========================== logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('Mote')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
 
 # =========================== defines =========================================
 
@@ -70,6 +58,7 @@ class Mote(object):
         self.numCellsFromNeighbors     = {}      # indexed by neighbor, contains int
 
         # singletons (to access quicker than recreate every time)
+        self.log                       = SimEngine.SimLog.SimLog().log
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
 
@@ -270,7 +259,14 @@ class Mote(object):
     def _stats_logQueueDelay(self, delay):
         with self.dataLock:
             self.queuestats['delay'] += [delay]
-        self.engine.log(SimEngine.SimLog.LOG_QUEUE_DELAY, {"delay": delay})
+
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_QUEUE_DELAY,
+            {
+                "delay": delay
+            }
+        )
 
     def _stats_getAveQueueDelay(self):
         d = self.queuestats['delay']
@@ -342,32 +338,3 @@ class Mote(object):
             self.radiostats = {
                 'probableCollisions':      0,  # number of packets that can collide with another packets
             }
-
-    #===== log
-
-    def _log(self, severity, template, params=()):
-
-        if   severity == d.DEBUG:
-            if not log.isEnabledFor(logging.DEBUG):
-                return
-            logfunc = log.debug
-        elif severity == d.INFO:
-            if not log.isEnabledFor(logging.INFO):
-                return
-            logfunc = log.info
-        elif severity == d.WARNING:
-            if not log.isEnabledFor(logging.WARNING):
-                return
-            logfunc = log.warning
-        elif severity == d.ERROR:
-            if not log.isEnabledFor(logging.ERROR):
-                return
-            logfunc = log.error
-        else:
-            raise NotImplementedError()
-
-        output  = []
-        output += ['[ASN={0:>6} id={1:>4}] '.format(self.engine.getAsn(), self.id)]
-        output += [template.format(*params)]
-        output  = ''.join(output)
-        logfunc(output)

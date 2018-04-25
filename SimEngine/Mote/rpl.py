@@ -12,16 +12,6 @@ import MoteDefines as d
 # Simulator-wide modules
 import SimEngine
 
-#============================ logging =========================================
-
-import logging
-class NullHandler(logging.Handler):
-    def emit(self, record):
-        pass
-log = logging.getLogger('rpl')
-log.setLevel(logging.DEBUG)
-log.addHandler(NullHandler())
-
 # =========================== defines =========================================
 
 # =========================== helpers =========================================
@@ -33,11 +23,12 @@ class Rpl(object):
     def __init__(self, mote):
 
         # store params
-        self.mote                           = mote
+        self.mote                      = mote
 
         # singletons (to access quicker than recreate every time)
-        self.engine                         = SimEngine.SimEngine.SimEngine()
-        self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.engine                    = SimEngine.SimEngine.SimEngine()
+        self.settings                  = SimEngine.SimSettings.SimSettings()
+        self.log                       = SimEngine.SimLog.SimLog().log
 
         # local variables
         self.rank                      = None
@@ -100,10 +91,11 @@ class Rpl(object):
             return
 
         # log
-        self.mote._log(
-            d.INFO,
-            "[rpl] Received DIO from mote {0}",
-            (smac.id,)
+        self.log(
+            SimEngine.SimLog.LOG_RPL_RX_DIO,
+            {
+                "source": smac.id
+            }
         )
 
         # update my mote stats
@@ -132,6 +124,14 @@ class Rpl(object):
         """
 
         assert self.mote.dagRoot
+
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_RX_DAO,
+            {
+                "source": smac.id
+            }
+        )
 
         # increment stats
         self.mote._stats_incrementMoteStats('rplRxDAO')
@@ -427,10 +427,12 @@ class Rpl(object):
             if self.rank and newrank != self.rank:
                 self.mote._stats_incrementMoteStats('rplChurnRank')
                 # log
-                self.mote._log(
-                    d.INFO,
-                    "[rpl] churn: rank {0}->{1}",
-                    (self.rank, newrank),
+                self.log(
+                    SimEngine.SimLog.LOG_RPL_CHURN_RANK,
+                    {
+                        "old_rank": self.rank,
+                        "new_rank": newrank
+                    }
                 )
             if (self.preferredParent is None) and (newPreferredParent is not None):
                 if not self.settings.secjoin_enabled:
@@ -442,10 +444,12 @@ class Rpl(object):
                 self.mote._stats_incrementMoteStats('rplChurnPrefParent')
 
                 # log
-                self.mote._log(
-                    d.INFO,
-                    "[rpl] churn: preferredParent {0}->{1}",
-                    (self.preferredParent.id, newPreferredParent.id),
+                self.log(
+                    SimEngine.SimLog.LOG_RPL_CHURN_PREF_PARENT,
+                    {
+                        "old_parent": self.preferredParent.id,
+                        "new_parent": newPreferredParent.id
+                    }
                 )
                 # trigger 6P add to the new parent
                 self.oldPreferredParent = self.preferredParent
