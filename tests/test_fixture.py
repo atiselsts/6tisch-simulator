@@ -20,16 +20,18 @@ def test_exception_in_instantiation(sim_engine, diff_configs):
 
 # diff_configs should have a configuration which causes an exception when a
 # simulation starts
-@pytest.mark.skip(reason='need keoma\'s PR merged')
 @pytest.mark.parametrize("diff_configs", [
     {'secjoin_enabled': None},
 ])
 def test_exception_in_thread(sim_engine, diff_configs):
     """test if an exception raised in a SimEngine thread is propagated here
+
+    Run a simulation in one slotframe
     """
     sim_engine = sim_engine(diff_configs)
     with pytest.raises(Exception):
-        pass
+        run_until_at_asn(sim_engine,
+                         target_asn=sim_engine.settings.tsch_slotframeLength)
 
 
 @pytest.mark.parametrize('initial_rpl_state, initial_tsch_scheduling', [
@@ -58,15 +60,14 @@ def test_sim_config(sim_engine):
         assert getattr(sim_engine.settings, key) == value
 
 
-@pytest.mark.parametrize('target_asn', [
+@pytest.mark.parametrize('target_asn_to_pause', [
     1
 ])
-def test_run_until_at_asn(sim_engine, target_asn):
+def test_run_until_at_asn(sim_engine, target_asn_to_pause):
     sim_engine = sim_engine()
     print sim_engine.is_alive()
 
     assert sim_engine.getAsn() == 0
-    run_until_at_asn(sim_engine, target_asn)
+    run_until_at_asn(sim_engine, target_asn_to_pause)
     print sim_engine.is_alive()
-    assert False
-    assert sim_engine.getAsn() == target_asn
+    assert sim_engine.getAsn() == target_asn_to_pause
