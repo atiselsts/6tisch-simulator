@@ -5,51 +5,57 @@ import pytest
 import test_utils as u
 from SimEngine import SimConfig
 
+#=== test to verify sim_engine is created/destroyed well
+
+@pytest.mark.parametrize("dummycounter", [1,2,3,4])
+def test_sim_engine_runs(sim_engine, dummycounter):
+    pass
+
+'''
 #=== error test which verifies exception at initialization propagates up
+
 @pytest.mark.parametrize("diff_config", [
-    {'exec_numMotes': None},
+    {'exec_numMotes': 'dummy'},
 ])
 def test_exception_at_initialization(sim_engine, diff_config):
     """test if an exception raised in a SimEngine thread is propagated here
     """
     with pytest.raises(Exception):
-        sim_engine(diff_config)
+        sim_engine = sim_engine(
+            diff_config     = diff_config,
+        )
 
-
-#=== test which verifies exception during runtime propagates up
+#=== error test which verifies exception during runtime propagates up
 
 @pytest.mark.parametrize("diff_config", [
-    {'secjoin_enabled': None},
+    {'app_pkPeriod': 'dummy'},
 ])
 def test_exception_at_runtime(sim_engine, diff_config):
     """test if an exception raised in a SimEngine thread is propagated here
 
     Run a simulation in one slotframe
     """
-    sim_engine = sim_engine(diff_config)
+    sim_engine = sim_engine(
+        diff_config     = diff_config,
+    )
     with pytest.raises(Exception):
         u.run_until_asn(
             sim_engine,
             target_asn=1, # duration doesn't matter, simulation just need to be started
         )
+'''
 
-#=== testing all combination of force_initial_routing_state force_initial_schedule
+#=== testing force_initial_routing_and_schedule options
 
-FORCE_INITIAL_ROUTING_STATE = [True,False]
-@pytest.fixture(params=FORCE_INITIAL_ROUTING_STATE)
-def force_initial_routing_state(request):
+FORCE_INITIAL_ROUTING_AND_SCHEDULE = [False,True]
+@pytest.fixture(params=FORCE_INITIAL_ROUTING_AND_SCHEDULE)
+def force_initial_routing_and_schedule(request):
     return request.param
 
-FORCE_INITIAL_SCHEDULE = [True,False]
-@pytest.fixture(params=FORCE_INITIAL_SCHEDULE)
-def force_initial_schedule(request):
-    return request.param
-
-def test_instantiation(sim_engine, force_initial_routing_state, force_initial_schedule):
+def test_instantiation(sim_engine, force_initial_routing_and_schedule):
     sim_engine = sim_engine(
-        diff_config                    = {},
-        force_initial_routing_state    = force_initial_routing_state,
-        force_initial_schedule         = force_initial_schedule,
+        diff_config                         = {},
+        force_initial_routing_and_schedule  = force_initial_routing_and_schedule,
     )
 
 #=== test verify default configs from bin/config.json are loaded correctly
