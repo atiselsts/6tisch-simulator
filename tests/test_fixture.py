@@ -43,29 +43,29 @@ def test_exception_at_runtime(sim_engine, diff_config):
             target_asn=1, # duration doesn't matter, simulation just need to be started
         )
 
-#=== testing force_initial_routing_and_schedule options
+#=== testing force_initial_routing_and_scheduling_state options
 
-FORCE_INITIAL_ROUTING_AND_SCHEDULE = [False,True]
-@pytest.fixture(params=FORCE_INITIAL_ROUTING_AND_SCHEDULE)
-def force_initial_routing_and_schedule(request):
+FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE = [None, 'linear']
+@pytest.fixture(params=FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE)
+def force_initial_routing_and_scheduling_state(request):
     return request.param
 
-def test_instantiation(sim_engine, force_initial_routing_and_schedule):
+def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
+    print force_initial_routing_and_scheduling_state
     sim_engine = sim_engine(
         diff_config                         = {},
-        force_initial_routing_and_schedule  = force_initial_routing_and_schedule,
+        force_initial_routing_and_scheduling_state  = force_initial_routing_and_scheduling_state,
     )
 
 #=== test verify default configs from bin/config.json are loaded correctly
 
 def test_sim_config(sim_engine):
-    
+
     root_dir    = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
     config_file = os.path.join(root_dir, 'bin/config.json')
     sim_config  = SimConfig.SimConfig(config_file)
 
     sim_engine = sim_engine()
-    sim_engine.is_alive()
     for (k,v) in sim_config.config['settings']['regular'].items():
         assert getattr(sim_engine.settings,k) == v
 
