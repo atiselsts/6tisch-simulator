@@ -360,7 +360,11 @@ class Connectivity(object):
         ):
             self._update_connectivity_matrix_from_trace()
 
-        return self.connectivity_matrix[source.id][destination.id][channel]["pdr"]
+        pdr = self.connectivity_matrix[source.id][destination.id][channel]["pdr"]
+        if pdr is None:
+            pdr = 0
+
+        return pdr
 
     def get_rssi(self, source, destination, channel=0): # TODO which default channel to use ?
         """
@@ -378,7 +382,12 @@ class Connectivity(object):
         ):
             self._update_connectivity_matrix_from_trace()
 
-        return self.connectivity_matrix[source.id][destination.id][channel]["rssi"]
+        rssi = self.connectivity_matrix[source.id][destination.id][channel]["rssi"]
+
+        if rssi is None:
+            rssi = -1000
+
+        return rssi
 
     # ======================= private =========================================
 
