@@ -59,7 +59,7 @@ def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
         force_initial_routing_and_scheduling_state  = force_initial_routing_and_scheduling_state,
     )
 
-#=== test verify default configs from bin/config.json are loaded correctly
+#=== verify default configs from bin/config.json are loaded correctly
 
 def test_sim_config(sim_engine):
 
@@ -69,7 +69,7 @@ def test_sim_config(sim_engine):
     for (k,v) in sim_config.config['settings']['regular'].items():
         assert getattr(sim_engine.settings,k) == v
 
-#=== test run_until_asn() works
+#=== test that run_until_asn() works
 
 TARGET_ASN_TO_PAUSE = range(1,100,10)
 @pytest.fixture(params=TARGET_ASN_TO_PAUSE)

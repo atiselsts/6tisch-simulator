@@ -23,6 +23,6 @@ def run_until_asn(sim_engine, target_asn):
         # start for the first time
         sim_engine.start()
 
-    # wait until simulator pauses or simulator dies
-    while not (sim_engine.simPaused or sim_engine.is_alive()):
+    # wait until simulator pauses
+    while not sim_engine.simPaused:
         time.sleep(POLLING_INTERVAL)
