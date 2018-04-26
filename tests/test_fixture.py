@@ -61,9 +61,7 @@ def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
 
 def test_sim_config(sim_engine):
 
-    root_dir    = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-    config_file = os.path.join(root_dir, 'bin/config.json')
-    sim_config  = SimConfig.SimConfig(config_file)
+    sim_config  = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
 
     sim_engine = sim_engine()
     for (k,v) in sim_config.config['settings']['regular'].items():
@@ -76,8 +74,8 @@ TARGET_ASN_TO_PAUSE = range(1,100,10)
 def target_asn_to_pause(request):
     return request.param
 
-def test_run_until_at_asn(sim_engine, target_asn_to_pause):
-    sim_engine = sim_engine()
+def test_run_until_asn(sim_engine, target_asn_to_pause):
+    sim_engine = sim_engine({'exec_numMotes': 1})
 
     assert sim_engine.getAsn() == 0
     u.run_until_asn(sim_engine, target_asn_to_pause)

@@ -3,32 +3,24 @@ import time
 import pytest
 
 from SimEngine.SimEngine import SimEngine
+from SimEngine.SimConfig import SimConfig
 from SimEngine.SimSettings import SimSettings
 from SimEngine.SimLog import SimLog
 from SimEngine.Connectivity import Connectivity
-
+import test_utils as u
 
 @pytest.fixture
 def sim_settings():
-    # SimSettings
-    sim_settings = SimSettings(**{'exec_numMotes'       : 1,
-                                  'exec_simDataDir'     : "simData",
-                                  'app_pkPeriod'        : 0,
-                                  'app_pkLength'        : 90,
-                                  'rpl_daoPeriod'       : 0,
-                                  'fragmentation'       : 'FragmentForwarding',
-                                  'sf_type'             : 'SSFSymmetric',
-                                  'secjoin_enabled'     : False,
-                                  'tsch_slotDuration'   : 0.010,
-                                  'tsch_slotframeLength': 101,
-                                  'tsch_max_payload_len': 90,
-                                  'conn_type'           : 'linear',
-                                  'phy_noInterference'  : True,
-                                  'phy_numChans'        : 16,
-                                  'phy_minRssi'         : -97})
+    # get default configuration
+    sim_config = SimConfig(u.CONFIG_FILE_PATH)
+    config = sim_config.settings['regular']
+    assert 'exec_numMotes' not in config
+    config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
 
-    sim_settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
-    sim_settings.setCombinationKeys([])
+    settings = SimSettings(**config)
+    print settings.exec_numMotes
+    settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
+    settings.setCombinationKeys([])
 
     # SimLog
     log = SimLog()
@@ -36,13 +28,20 @@ def sim_settings():
 
     yield
 
+    # SimEngine() in the next line may need a SimSettings instance having the
+    # default configuration. The instance created above could be destroyed in a
+    # test code. To make sure a meaningful SimSettigs instance is newly
+    # created, call destroy() to an instance returned by SimSettings(), which
+    # could be one created in a test code.
+    SimSettings().destroy()
+    settings = SimSettings(**config)
+
     # make sure a SimEngine instance created during a test is destroyed.
     engine = SimEngine()
-    # Connectivity instance is also destroyed in engine.destroy()
-    engine.destroy()
 
-    settings = SimSettings()
+    engine.destroy()
     settings.destroy()
+    Connectivity().destroy()
 
     log = SimLog()
     log.destroy()

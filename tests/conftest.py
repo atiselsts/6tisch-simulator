@@ -1,15 +1,13 @@
-import os
 import pytest
 import time
 
 from SimEngine import SimConfig,   \
                       SimSettings, \
                       SimLog,      \
-                      SimEngine
+                      SimEngine,   \
+                      Connectivity
 import SimEngine.Mote.MoteDefines as d
-
-ROOT_DIR         = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-CONFIG_FILE_PATH = os.path.join(ROOT_DIR, 'bin/config.json')
+import test_utils                 as u
 
 def pdr_not_null(c,p,engine):
     returnVal = False
@@ -24,7 +22,7 @@ def sim_engine(request):
     def create_sim_engine(diff_config={}, force_initial_routing_and_scheduling_state=None):
 
         # get default configuration
-        sim_config = SimConfig.SimConfig(CONFIG_FILE_PATH)
+        sim_config = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
         config = sim_config.settings['regular']
         assert 'exec_numMotes' not in config
         config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
@@ -46,7 +44,7 @@ def sim_engine(request):
 
         # force initial routing and schedule, if appropriate
         if force_initial_routing_and_scheduling_state:
-            hoge(engine)
+            set_initial_routing_and_scheduling_state(engine)
 
         # add a finalizer
         def fin():
@@ -64,9 +62,11 @@ def sim_engine(request):
                 engine.terminateSimulation(1)
                 engine.join()
 
+            # destroy all the singletons
             engine.destroy()
             sim_settings.destroy()
             sim_log.destroy()
+            Connectivity.Connectivity().destroy()
 
         request.addfinalizer(fin)
 
@@ -75,7 +75,7 @@ def sim_engine(request):
     return create_sim_engine
 
 
-def hoge(engine):
+def set_initial_routing_and_scheduling_state(engine):
 
     # root is mote
     root = engine.motes[0]

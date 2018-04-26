@@ -1,9 +1,12 @@
 """Provides helper functions for tests
 """
-
+import os
 import time
 
 POLLING_INTERVAL = 0.100
+
+ROOT_DIR         = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+CONFIG_FILE_PATH = os.path.join(ROOT_DIR, 'bin/config.json')
 
 def run_until_asn(sim_engine, target_asn):
     """
