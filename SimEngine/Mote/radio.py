@@ -6,10 +6,6 @@ Also accounts for charge consumed.
 
 # =========================== imports =========================================
 
-import random
-import threading
-import copy
-
 # Mote sub-modules
 import MoteDefines as d
 
@@ -18,9 +14,7 @@ import SimEngine
 
 # =========================== defines =========================================
 
-RADIO_STATE_IDLE    = 'idle'
-RADIO_STATE_TX      = 'tx'
-RADIO_STATE_RX      = 'rx'
+
 
 # =========================== helpers =========================================
 
@@ -43,7 +37,7 @@ class Radio(object):
         self.txPower                        = 0       # dBm
         self.antennaGain                    = 0       # dBi
         self.noisepower                     = -105    # dBm
-        self.state                          = RADIO_STATE_IDLE  # idle, tx or rx
+        self.state                          = d.RADIO_STATE_IDLE  # idle, tx or rx
         self.channel                        = None
 
     # ======================= public ==========================================
@@ -51,7 +45,7 @@ class Radio(object):
     # TX
 
     def startTx(self, channel, type, code, smac, dmac, srcIp, dstIp, srcRoute, payload):
-        self.state = RADIO_STATE_TX
+        self.state = d.RADIO_STATE_TX
         self.channel = channel
 
         assert self.onGoingBroadcast is None
@@ -75,7 +69,8 @@ class Radio(object):
 
     def txDone(self, isACKed, isNACKed):
         """end of tx slot"""
-        self.state = RADIO_STATE_IDLE
+        self.state = d.RADIO_STATE_IDLE
+        self.channel = None
 
         assert self.onGoingBroadcast in [True, False]
         assert self.onGoingTransmission
@@ -101,12 +96,12 @@ class Radio(object):
     # RX
 
     def startRx(self, channel):
-        self.state = RADIO_STATE_RX
+        self.state = d.RADIO_STATE_RX
         self.channel = channel
 
-    def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
+    def rxDone(self, channel=None, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         """end of RX radio activity"""
-        self.state = RADIO_STATE_IDLE
+        self.state = d.RADIO_STATE_IDLE
         self.channel = None
 
         # log charge consumed

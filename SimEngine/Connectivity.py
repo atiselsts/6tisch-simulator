@@ -24,6 +24,7 @@ import math
 import SimSettings
 import SimEngine
 from Mote.Mote import Mote
+from Mote import MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -182,24 +183,12 @@ class Connectivity(object):
         for channel in range(self.settings.phy_numChans):
             arrivalTime = {} # dict of frame reception time
             transmissions = [] # list of transmission in the current slot
-            senders = [] # list of motes in tx state
-            receivers = [] # list of motes in rx state
 
             # transmissions
             for mote in self.engine.motes:
                 if mote.radio.onGoingTransmission:
                     if mote.radio.onGoingTransmission['channel'] == channel:
                         transmissions.append(mote.radio.onGoingTransmission)
-
-            # senders
-            for mote in self.engine.motes:
-                if (mote.radio.state == 'tx') and (mote.radio.channel == channel):
-                    senders.append(mote)
-
-            # receivers
-            for mote in self.engine.motes:
-                if (mote.radio.state == 'rx') and (mote.radio.channel == channel):
-                    receivers.append(mote)
 
             # store arrival times of transmitted packets
             for transmission in transmissions:
@@ -209,6 +198,9 @@ class Connectivity(object):
             for transmission in transmissions:
                 isACKed = False
                 isNACKed = False
+                senders = self._get_senders(channel)  # list of motes in tx state
+                receivers = self._get_receivers(channel)  # list of motes in rx state
+
                 for receiver in receivers:
                     # get interferers
                     # i.e motes that:
@@ -219,7 +211,7 @@ class Connectivity(object):
                     for sender in senders:
                         if (
                             self.settings.phy_minRssi < self.get_rssi(receiver, sender)
-                            and sender.id != transmission['smac']
+                            and sender.id != transmission['smac'].id
                         ):
                             interferers.append(sender)
 
@@ -249,7 +241,7 @@ class Connectivity(object):
                         # calculate pdr, including interference
                         pdr = self.compute_pdr(transmission['smac'],
                                                receiver,
-                                               interferers=senders,
+                                               interferers=interferers,
                                                channel=transmission['channel'])
 
                         # try to send
@@ -283,10 +275,14 @@ class Connectivity(object):
                 # indicate to source packet was sent
                 transmission['smac'].radio.txDone(isACKed, isNACKed)
 
-            # remaining receivers that do not receive a desired packet
+            # get remaining senders and receivers
+            senders = self._get_senders(channel)  # list of motes in tx state
+            receivers = self._get_receivers(channel)  # list of motes in rx state
+
+            # remaining receivers that did not receive a packet
             for receiver in receivers:
                 # ignore mote that are not in rx state
-                if receiver.radio.state != 'rx':
+                if receiver.radio.state != d.RADIO_STATE_RX:
                     continue
 
                 # get interferers
@@ -340,6 +336,7 @@ class Connectivity(object):
         :return: The link PDR
         :rtype: float
         """
+
         matrix_pdr = self.get_pdr(source, destination, channel)
 
         sinr = self._compute_sinr(source, destination, interferers)
@@ -540,3 +537,23 @@ class Connectivity(object):
         pdr = _rssi_to_pdr(equivalentRSSI)
 
         return pdr
+
+    # === senders and receivers
+
+    def _get_senders(self, channel):
+        """Returns a list of motes transmitting on a given channel in the current ASN"""
+        senders = []  # list of motes in tx state
+        for mote in self.engine.motes:
+            if (mote.radio.state == d.RADIO_STATE_TX) and (mote.radio.channel == channel):
+                senders.append(mote)
+
+        return senders
+
+    def _get_receivers(self, channel):
+        """Returns a list of motes listening on a given channel in the current ASN"""
+        receivers = []  # list of motes in rx state
+        for mote in self.engine.motes:
+            if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
+                receivers.append(mote)
+
+        return receivers
