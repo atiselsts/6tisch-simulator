@@ -90,6 +90,9 @@ TSCH_MAX_BACKOFF_EXPONENT                   = 4
 
 # === radio
 RADIO_MAXDRIFT                              = 30 # in ppm
+RADIO_STATE_IDLE                            = 'idle'
+RADIO_STATE_TX                              = 'tx'
+RADIO_STATE_RX                              = 'rx'
 
 # === battery
 # see A Realistic Energy Consumption Model for TSCH Networks.
