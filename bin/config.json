@@ -1,7 +1,7 @@
 {
     "version":                                             0,
     "execution": {
-        "numCores":                                        1,
+        "numCPUs":                                         1,
         "numRuns":                                         2
     },
     "settings": {
@@ -10,7 +10,7 @@
         },
         "regular": {
             "exec_simDataDir":                             "simData",
-            "exec_numSlotframesPerRun":                    101,
+            "exec_numSlotframesPerRun":                    10,
 
             "app_pkPeriod":                                10,
             "app_pkPeriodVar":                             0.05,
