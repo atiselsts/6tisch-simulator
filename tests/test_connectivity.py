@@ -14,7 +14,8 @@ def print_matrix(matrix):
             print "{0}\t|".format(matrix[source][dest][11]['pdr']),
         print "\n"
 
-def test_fill_connectivity_matrix_static_linear(sim_engine):
+# verify the connectivity matrix for the 'linear' is correct
+def test_linear_matrix(sim_engine):
     """ creates a static connectivity linear path
         0 <-- 1 <-- 2 <-- ... <-- num_motes
     """
@@ -26,20 +27,25 @@ def test_fill_connectivity_matrix_static_linear(sim_engine):
             'conn_type':     'linear',
         }
     )
-    motes = engine.motes
+    motes  = engine.motes
     matrix = engine.connectivity.connectivity_matrix
 
     print_matrix(matrix)
 
     assert motes[0].dagRoot is True
 
-    for i in range(0, num_motes-1):
-        src = i
-        dst = i+1
-        for ch in range(engine.settings.phy_numChans):
-            assert matrix[src][dst][ch]['pdr'] == 100
-            assert matrix[src][dst][ch]['rssi'] == -10
+    for c in range(0, num_motes):
+        for p in range(0, num_motes):
+            if (c == p+1) or (c+1 == p):
+                for ch in range(engine.settings.phy_numChans):
+                    assert matrix[c][p][ch]['pdr']  == 100
+                    assert matrix[c][p][ch]['rssi'] == -10
+            else:
+                for ch in range(engine.settings.phy_numChans):
+                    assert matrix[c][p][ch]['pdr']  == None
+                    assert matrix[c][p][ch]['rssi'] == None
 
+# verify propagate function doesn't raise exception
 def test_propagate(sim_engine):
     engine = sim_engine()
     engine.connectivity.propagate()
