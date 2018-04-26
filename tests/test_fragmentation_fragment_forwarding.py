@@ -13,321 +13,392 @@ import SimEngine.Mote.Mote as Mote
 import SimEngine.Mote.MoteDefines as d
 import SimEngine
 
-pytestmark = pytest.mark.skip('all tests needs to be updated')
+#pytestmark = pytest.mark.skip('all tests needs to be updated')
 
-class TestNumFragmentsVsTxQueue:
-    @pytest.mark.parametrize('num_bytes_in, num_frags_out', [
-        (45,  1),
-        (90,  1),
-        (135, 2),
-        (270, 3),
-        (900, 10),
-    ])
-    def test_num_frag(self, sim_engine, num_bytes_in, num_frags_out):
-        sim_engine = sim_engine(
-            diff_config = {
-               'fragmentation': 'FragmentForwarding',
-               'app_pkLength' : num_bytes_in,
-               'exec_numMotes': 2,
-               'sf_type'      : 'SSFSymmetric',
+# number of fragments generated is correct
+@pytest.mark.parametrize('num_bytes_in, exp_num_frags_out', [
+    (45,  1),
+    (90,  1),
+    (135, 2),
+    (270, 3),
+    (900, 10),
+])
+def test_num_frags(sim_engine, num_bytes_in, exp_num_frags_out):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 2,
+            'app_pkLength' : num_bytes_in,
+            'fragmentation': 'FragmentForwarding',
+        },
+        force_initial_routing_and_scheduling_state = True,
+    )
+    
+    # root <- hop1
+    root = sim_engine.motes[0]
+    hop1 = sim_engine.motes[1]
+    
+    # verify that the expected number of fragments are created
+    assert len(hop1.tsch.getTxQueue()) == 0
+    hop1.app._action_mote_enqueueDataForDAGroot()
+    assert len(hop1.tsch.getTxQueue()) == exp_num_frags_out
+
+# in-order fragments are forwarded
+def test_ff_frag_out_of_order(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes':                             3,
+            'conn_type':                                 'linear',
+            'app_pkLength':                              180, # 2 frags per packet
+            'fragmentation':                             'FragmentForwarding',
+        },
+        force_initial_routing_and_scheduling_state = True,
+    )
+    
+    # root <- hop1 <- hop2
+    root = sim_engine.motes[0]
+    hop1 = sim_engine.motes[1]
+    hop2 = sim_engine.motes[2]
+
+    # send a long packet from hop2
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_DATA,
+        'code':               None,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'length':         sim_engine.settings.app_pkLength,
+        },
+        'retriesLeft':        d.TSCH_MAXTXRETRIES,
+        'smac':               hop2,
+        'dmac':               hop1,
+        'srcIp':              hop2,
+        'dstIp':              root,
+        'sourceRoute':        [],
+    }
+    hop2.sixlowpan.send(packet)
+
+    frag0 = hop2.tsch.getTxQueue()[0]
+    frag1 = hop2.tsch.getTxQueue()[1]
+    
+    # if frag0 is received, verify it is forwarded by hop1
+    hop1.sixlowpan.recv(hop2, frag0)
+    assert len(hop1.tsch.getTxQueue()) == 1
+    assert hop1.tsch.getTxQueue()[0] == frag0
+    
+    # if frag1 is received, verify it is forwarded by hop1
+    hop1.sixlowpan.recv(hop2, frag1)
+    assert len(hop1.tsch.getTxQueue()) == 2
+    assert hop1.tsch.getTxQueue()[0] == frag0
+    assert hop1.tsch.getTxQueue()[1] == frag1
+
+# out-of-order fragments are discarded
+def test_ff_frag_out_of_order(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes':                             3,
+            'conn_type':                                 'linear',
+            'app_pkLength':                              180, # 2 frags per packet
+            'fragmentation':                             'FragmentForwarding',
+        },
+        force_initial_routing_and_scheduling_state = True,
+    )
+    
+    # root <- hop1 <- hop2
+    root = sim_engine.motes[0]
+    hop1 = sim_engine.motes[1]
+    hop2 = sim_engine.motes[2]
+
+    # send a long packet from hop2
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_DATA,
+        'code':               None,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'length':         sim_engine.settings.app_pkLength,
+        },
+        'retriesLeft':        d.TSCH_MAXTXRETRIES,
+        'smac':               hop2,
+        'dmac':               hop1,
+        'srcIp':              hop2,
+        'dstIp':              root,
+        'sourceRoute':        [],
+    }
+    hop2.sixlowpan.send(packet)
+
+    frag0 = hop2.tsch.getTxQueue()[0]
+    frag1 = hop2.tsch.getTxQueue()[1]
+    
+    # if frag1 is received first, verify it is discarded by hop1
+    hop1.sixlowpan.recv(hop2, frag1)
+    assert len(hop1.tsch.getTxQueue()) == 0
+    
+    # if frag0 is received, verify it is received and forwarded by hop1
+    hop1.sixlowpan.recv(hop2, frag0)
+    assert len(hop1.tsch.getTxQueue()) == 1
+    assert hop1.tsch.getTxQueue()[0] == frag0
+
+def test_app_frag_ff_forward_fragment_vrbtable_len(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+           'exec_numMotes'                            : 5,
+           'app_pkLength'                             : 180, # 2 frags per packet
+           'fragmentation'                            : 'FragmentForwarding',
+           'sf_type'                                  : 'SSFSymmetric'
+        },
+        force_initial_routing_and_scheduling_state = True,
+    )
+    
+    #              <- leaf1
+    # root <- node <- leaf2
+    #              <- leaf3
+    root  = sim_engine.motes[0]
+    node  = sim_engine.motes[1]
+    leaf1 = sim_engine.motes[2]
+    leaf2 = sim_engine.motes[3]
+    leaf3 = sim_engine.motes[4]
+    
+    # send frame leaf1->node
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_DATA,
+        'code':               None,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'length':         sim_engine.settings.app_pkLength,
+        },
+        'retriesLeft':        d.TSCH_MAXTXRETRIES,
+        'smac':               leaf1,
+        'dmac':               node,
+        'srcIp':              leaf1,
+        'dstIp':              root,
+        'sourceRoute':        [],
+    }
+    leaf1.sixlowpan.send(packet)
+    assert len(leaf1.tsch.getTxQueue()) == 2 # 2 frags
+    
+    # send frame leaf2->node
+    packet['srcIp'] = leaf2
+    packet['smac']  = leaf2
+    leaf2.sixlowpan.send(packet)
+    assert len(leaf2.tsch.getTxQueue()) == 2 # 2 frags
+    
+    # send frame leaf3->node
+    packet['srcIp'] = leaf3
+    packet['smac']  = leaf3
+    leaf3.sixlowpan.send(packet)
+    assert len(leaf3.tsch.getTxQueue()) == 2 # 2 frags
+    
+    # make sure node hasn't received anything yet
+    assert len(node.tsch.getTxQueue()) == 0
+    
+    
+    node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
+    assert len(node.tsch.getTxQueue()) == 1
+    
+    node.sixlowpan.recv(leaf2, leaf2.tsch.getTxQueue()[0])
+    assert len(node.tsch.getTxQueue()) == 2
+    
+    node.sixlowpan.recv(leaf3, leaf3.tsch.getTxQueue()[0])
+    assert len(node.tsch.getTxQueue()) == 3
+    
+    leaf1.tsch.getTxQueue()[0]['payload']['datagram_tag'] += 1
+    node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
+    assert len(node.tsch.getTxQueue()) == 4
+
+
+def test_app_frag_ff_forward_fragment_vrbtable_expiration(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+           
+            'fragmentation'                            : 'FragmentForwarding',
+            'fragmentation_ff_discard_vrb_entry_policy': [],
+            'app_pkLength'                             : 180,
+            'exec_numMotes'                            : 2,
+            'sf_type'                                  : 'SSFSymmetric',
+            'app_e2eAck'                               : False,
+        }
+    )
+    root = sim_engine.motes[0]
+    leaf = sim_engine.motes[1]
+
+    packet = {
+        'asn':                0,
+        'type':               d.APP_TYPE_DATA,
+        'code':               None,
+        'payload': {
+            'asn_at_source':  0,
+            'hops':           1,
+            'length':         sim_engine.settings.app_pkLength,
+        },
+        'retriesLeft':        d.TSCH_MAXTXRETRIES,
+        'srcIp': leaf,
+        'dstIp': root,
+        'smac': leaf,
+        'dmac': root,
+        'sourceRoute':        [],
+    }
+
+    leaf.sixlowpan.send(packet)
+    frag0 = leaf.tsch.getTxQueue()[0]
+    frag1 = leaf.tsch.getTxQueue()[1]
+
+    itag  = frag0['payload']['datagram_tag']
+
+    sim_engine.asn = 100
+    root.sixlowpan.recv(leaf, frag0)
+    assert root.sixlowpan.fragmentation.vrb_table[leaf][itag]['expiration'] == 6100
+
+    sim_engine.asn += int(60.0 / sim_engine.settings.tsch_slotDuration)
+    root.sixlowpan.recv(leaf, frag0) # duplicate
+    assert itag in root.sixlowpan.fragmentation.vrb_table[leaf]
+
+    sim_engine.asn += 1
+    root.sixlowpan.recv(leaf, frag1)
+
+    assert leaf not in root.sixlowpan.fragmentation.vrb_table
+
+
+def test_app_fragment_and_enqueue_packet_2(sim_engine):
+    sim_engine = sim_engine(diff_config = {
+           'fragmentation': 'FragmentForwarding',
+                 'app_pkLength' : 180,
+                 'exec_numMotes': 2,
+                 'sf_type'      : 'SSFSymmetric'})
+    root = sim_engine.motes[0]
+    node = sim_engine.motes[1]
+    packet = {
+        'asn': 0,
+        'type': d.APP_TYPE_DATA,
+        'code': None,
+        'payload': {
+            'asn_at_source': 0,
+            'hops'         : 1,
+            'length'       : sim_engine.settings.app_pkLength,
             },
-            force_initial_routing_and_schedule = True,
-        )
-        
-        child = sim_engine.motes[1]
-        assert len(child.tsch.getTxQueue()) == 0
-        child.app._action_mote_enqueueDataForDAGroot()
-        assert len(child.tsch.getTxQueue()) == num_frags_out
+        'retriesLeft': d.TSCH_MAXTXRETRIES,
+        'srcIp': node,
+        'dstIp': root,
+        'sourceRoute': []
+    }
+    assert len(node.tsch.getTxQueue()) == 0
+    node.sixlowpan.send(packet)
+    assert len(node.tsch.getTxQueue()) == 2
 
-class TestFragmentForwarding:
-    def test_app_frag_ff_forward_fragment_frag_order(self, sim_engine):
-        sim_engine = sim_engine(
-            diff_config = {
-               'fragmentation'                            : 'FragmentForwarding',
-               'fragmentation_ff_discard_vrb_entry_policy': [],
-               'fragmentation_ff_vrb_table_size'          : 50,
-               'app_pkLength'                             : 180,
-               'exec_numMotes'                            : 3,
-               'sf_type'                                  : 'SSFSymmetric'
-            }
-        )
-        root = sim_engine.motes[0]
-        node = sim_engine.motes[1]
-        leaf = sim_engine.motes[2]
+    frag0 = node.tsch.getTxQueue()[0]
+    frag1 = node.tsch.getTxQueue()[1]
 
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-                'length':         sim_engine.settings.app_pkLength,
+    assert frag0['asn'] == packet['asn']
+    assert frag0['type'] == d.APP_TYPE_FRAG
+    assert frag0['code'] == packet['code']
+    assert frag0['payload']['length'] == 90
+    assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+    assert frag0['payload']['hops'] == packet['payload']['hops']
+    assert frag0['payload']['datagram_offset'] == 0
+    assert frag0['payload']['datagram_size'] == 180
+    assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
+    assert 'datagram_tag' in frag0['payload']
+    assert frag0['retriesLeft'] == packet['retriesLeft']
+    assert frag0['srcIp'] == packet['srcIp']
+    assert frag0['dstIp'] == packet['dstIp']
+    assert frag0['sourceRoute'] == packet['sourceRoute']
+
+    assert frag1['asn'] == packet['asn']
+    assert frag1['type'] == d.APP_TYPE_FRAG
+    assert frag1['code'] == packet['code']
+    assert frag1['payload']['length'] == 90
+    assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+    assert frag1['payload']['hops'] == packet['payload']['hops']
+    assert frag1['payload']['datagram_offset'] == 90
+    assert frag1['payload']['datagram_size'] == 180
+    assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
+    assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
+    assert frag1['retriesLeft'] == packet['retriesLeft']
+    assert frag1['srcIp'] == packet['srcIp']
+    assert frag1['dstIp'] == packet['dstIp']
+    assert frag1['sourceRoute'] == packet['sourceRoute']
+
+def test_app_fragment_and_enqueue_packet_3(sim_engine):
+    sim_engine = sim_engine(diff_config = {
+           'fragmentation'           : 'FragmentForwarding',
+                 'app_pkLength'            : 270,
+                 'exec_numMotes'           : 3,
+                 'conn_type'                : 'linear'})
+    root = sim_engine.motes[0]
+    node = sim_engine.motes[1]
+    packet = {
+        'asn': 0,
+        'type': d.APP_TYPE_DATA,
+        'code': None,
+        'payload': {
+            'asn_at_source': 0,
+            'hops'         : 1,
+            'length'       : sim_engine.settings.app_pkLength,
             },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp': leaf,
-            'dstIp': root,
-            'smac': leaf,
-            'dmac': node,
-            'sourceRoute':        [],
-        }
+        'retriesLeft': d.TSCH_MAXTXRETRIES,
+        'srcIp': node,
+        'dstIp': root,
+        'sourceRoute': []
+    }
+    assert len(node.tsch.getTxQueue()) == 0
+    node.sixlowpan.send(packet)
+    assert len(node.tsch.getTxQueue()) == 3
 
-        leaf.sixlowpan.send(packet)
+    frag0 = node.tsch.getTxQueue()[0]
+    frag1 = node.tsch.getTxQueue()[1]
+    frag2 = node.tsch.getTxQueue()[2]
 
-        frag0 = leaf.tsch.getTxQueue()[0]
-        frag1 = leaf.tsch.getTxQueue()[1]
+    assert frag0['asn'] == packet['asn']
+    assert frag0['type'] == d.APP_TYPE_FRAG
+    assert frag0['code'] == packet['code']
+    assert frag0['payload']['length'] == 90
+    assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+    assert frag0['payload']['hops'] == packet['payload']['hops']
+    assert frag0['payload']['datagram_offset'] == 0
+    assert frag0['payload']['datagram_size'] == 270
+    assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
+    assert 'datagram_tag' in frag0['payload']
+    assert frag0['retriesLeft'] == packet['retriesLeft']
+    assert frag0['srcIp'] == packet['srcIp']
+    assert frag0['dstIp'] == packet['dstIp']
+    assert frag0['sourceRoute'] == packet['sourceRoute']
 
-        node.sixlowpan.recv(leaf, frag1)
-        assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.recv(leaf, frag0)
-        assert len(node.tsch.getTxQueue()) == 1
-        assert node.tsch.getTxQueue()[0] == frag0
+    assert frag1['asn'] == packet['asn']
+    assert frag1['type'] == d.APP_TYPE_FRAG
+    assert frag1['code'] == packet['code']
+    assert frag1['payload']['length'] == 90
+    assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+    assert frag1['payload']['hops'] == packet['payload']['hops']
+    assert frag1['payload']['datagram_offset'] == 90
+    assert frag1['payload']['datagram_size'] == 270
+    assert frag1['payload']['original_type'] == d.APP_TYPE_DATA
+    assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
+    assert frag1['retriesLeft'] == packet['retriesLeft']
+    assert frag1['srcIp'] == packet['srcIp']
+    assert frag1['dstIp'] == packet['dstIp']
+    assert frag1['sourceRoute'] == packet['sourceRoute']
 
-    def test_app_frag_ff_forward_fragment_vrbtable_len(self, sim_engine):
-        # no size limit for vrbtable
-        sim_engine = sim_engine(
-            diff_config = {
-               'fragmentation'                            : 'FragmentForwarding',
-               'fragmentation_ff_discard_vrb_entry_policy': [],
-               'fragmentation_ff_vrb_table_size'          : 50,
-               'app_pkLength'                             : 180,
-               'exec_numMotes'                            : 5,
-               'sf_type'                                  : 'SSFSymmetric'
-            }
-        )
-        root = sim_engine.motes[0]
-        node = sim_engine.motes[1]
-        leaf1 = sim_engine.motes[2]
-        leaf2 = sim_engine.motes[3]
-        leaf3 = sim_engine.motes[4]
-
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-                'length':         sim_engine.settings.app_pkLength,
-            },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp': leaf1,
-            'dstIp': root,
-            'smac': leaf1,
-            'dmac': node,
-            'sourceRoute':        [],
-        }
-        leaf1.sixlowpan.send(packet)
-
-        packet['srcIp'] = leaf2
-        packet['smac'] = leaf2
-        leaf2.sixlowpan.send(packet)
-
-        packet['srcIp'] = leaf3
-        packet['smac'] = leaf3
-        leaf3.sixlowpan.send(packet)
-
-        assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
-        assert len(node.tsch.getTxQueue()) == 1
-        node.sixlowpan.recv(leaf2, leaf2.tsch.getTxQueue()[0])
-        assert len(node.tsch.getTxQueue()) == 2
-        node.sixlowpan.recv(leaf3, leaf3.tsch.getTxQueue()[0])
-        assert len(node.tsch.getTxQueue()) == 3
-        leaf1.tsch.getTxQueue()[0]['payload']['datagram_tag'] += 1
-        node.sixlowpan.recv(leaf1, leaf1.tsch.getTxQueue()[0])
-        assert len(node.tsch.getTxQueue()) == 4
-
-    def test_app_frag_ff_forward_fragment_vrbtable_expiration(self, sim_engine):
-        sim_engine = sim_engine(
-            diff_config = {
-               
-                'fragmentation'                            : 'FragmentForwarding',
-                'fragmentation_ff_discard_vrb_entry_policy': [],
-                'app_pkLength'                             : 180,
-                'exec_numMotes'                            : 2,
-                'sf_type'                                  : 'SSFSymmetric',
-                'app_e2eAck'                               : False,
-            }
-        )
-        root = sim_engine.motes[0]
-        leaf = sim_engine.motes[1]
-
-        packet = {
-            'asn':                0,
-            'type':               d.APP_TYPE_DATA,
-            'code':               None,
-            'payload': {
-                'asn_at_source':  0,
-                'hops':           1,
-                'length':         sim_engine.settings.app_pkLength,
-            },
-            'retriesLeft':        d.TSCH_MAXTXRETRIES,
-            'srcIp': leaf,
-            'dstIp': root,
-            'smac': leaf,
-            'dmac': root,
-            'sourceRoute':        [],
-        }
-
-        leaf.sixlowpan.send(packet)
-        frag0 = leaf.tsch.getTxQueue()[0]
-        frag1 = leaf.tsch.getTxQueue()[1]
-
-        itag  = frag0['payload']['datagram_tag']
-
-        sim_engine.asn = 100
-        root.sixlowpan.recv(leaf, frag0)
-        assert root.sixlowpan.fragmentation.vrb_table[leaf][itag]['expiration'] == 6100
-
-        sim_engine.asn += int(60.0 / sim_engine.settings.tsch_slotDuration)
-        root.sixlowpan.recv(leaf, frag0) # duplicate
-        assert itag in root.sixlowpan.fragmentation.vrb_table[leaf]
-
-        sim_engine.asn += 1
-        root.sixlowpan.recv(leaf, frag1)
-
-        assert leaf not in root.sixlowpan.fragmentation.vrb_table
-
-
-class TestFragmentation:
-    def test_app_fragment_and_enqueue_packet_2(self, sim_engine):
-        sim_engine = sim_engine(diff_config = {
-               'fragmentation': 'FragmentForwarding',
-                     'app_pkLength' : 180,
-                     'exec_numMotes': 2,
-                     'sf_type'      : 'SSFSymmetric'})
-        root = sim_engine.motes[0]
-        node = sim_engine.motes[1]
-        packet = {
-            'asn': 0,
-            'type': d.APP_TYPE_DATA,
-            'code': None,
-            'payload': {
-                'asn_at_source': 0,
-                'hops'         : 1,
-                'length'       : sim_engine.settings.app_pkLength,
-                },
-            'retriesLeft': d.TSCH_MAXTXRETRIES,
-            'srcIp': node,
-            'dstIp': root,
-            'sourceRoute': []
-        }
-        assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.send(packet)
-        assert len(node.tsch.getTxQueue()) == 2
-
-        frag0 = node.tsch.getTxQueue()[0]
-        frag1 = node.tsch.getTxQueue()[1]
-
-        assert frag0['asn'] == packet['asn']
-        assert frag0['type'] == d.APP_TYPE_FRAG
-        assert frag0['code'] == packet['code']
-        assert frag0['payload']['length'] == 90
-        assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
-        assert frag0['payload']['hops'] == packet['payload']['hops']
-        assert frag0['payload']['datagram_offset'] == 0
-        assert frag0['payload']['datagram_size'] == 180
-        assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
-        assert 'datagram_tag' in frag0['payload']
-        assert frag0['retriesLeft'] == packet['retriesLeft']
-        assert frag0['srcIp'] == packet['srcIp']
-        assert frag0['dstIp'] == packet['dstIp']
-        assert frag0['sourceRoute'] == packet['sourceRoute']
-
-        assert frag1['asn'] == packet['asn']
-        assert frag1['type'] == d.APP_TYPE_FRAG
-        assert frag1['code'] == packet['code']
-        assert frag1['payload']['length'] == 90
-        assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
-        assert frag1['payload']['hops'] == packet['payload']['hops']
-        assert frag1['payload']['datagram_offset'] == 90
-        assert frag1['payload']['datagram_size'] == 180
-        assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
-        assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
-        assert frag1['retriesLeft'] == packet['retriesLeft']
-        assert frag1['srcIp'] == packet['srcIp']
-        assert frag1['dstIp'] == packet['dstIp']
-        assert frag1['sourceRoute'] == packet['sourceRoute']
-
-    def test_app_fragment_and_enqueue_packet_3(self, sim_engine):
-        sim_engine = sim_engine(diff_config = {
-               'fragmentation'           : 'FragmentForwarding',
-                     'app_pkLength'            : 270,
-                     'exec_numMotes'           : 3,
-                     'conn_type'                : 'linear'})
-        root = sim_engine.motes[0]
-        node = sim_engine.motes[1]
-        packet = {
-            'asn': 0,
-            'type': d.APP_TYPE_DATA,
-            'code': None,
-            'payload': {
-                'asn_at_source': 0,
-                'hops'         : 1,
-                'length'       : sim_engine.settings.app_pkLength,
-                },
-            'retriesLeft': d.TSCH_MAXTXRETRIES,
-            'srcIp': node,
-            'dstIp': root,
-            'sourceRoute': []
-        }
-        assert len(node.tsch.getTxQueue()) == 0
-        node.sixlowpan.send(packet)
-        assert len(node.tsch.getTxQueue()) == 3
-
-        frag0 = node.tsch.getTxQueue()[0]
-        frag1 = node.tsch.getTxQueue()[1]
-        frag2 = node.tsch.getTxQueue()[2]
-
-        assert frag0['asn'] == packet['asn']
-        assert frag0['type'] == d.APP_TYPE_FRAG
-        assert frag0['code'] == packet['code']
-        assert frag0['payload']['length'] == 90
-        assert frag0['payload']['asn_at_source'] == packet['payload']['asn_at_source']
-        assert frag0['payload']['hops'] == packet['payload']['hops']
-        assert frag0['payload']['datagram_offset'] == 0
-        assert frag0['payload']['datagram_size'] == 270
-        assert frag0['payload']['original_type'] == d.APP_TYPE_DATA
-        assert 'datagram_tag' in frag0['payload']
-        assert frag0['retriesLeft'] == packet['retriesLeft']
-        assert frag0['srcIp'] == packet['srcIp']
-        assert frag0['dstIp'] == packet['dstIp']
-        assert frag0['sourceRoute'] == packet['sourceRoute']
-
-        assert frag1['asn'] == packet['asn']
-        assert frag1['type'] == d.APP_TYPE_FRAG
-        assert frag1['code'] == packet['code']
-        assert frag1['payload']['length'] == 90
-        assert frag1['payload']['asn_at_source'] == packet['payload']['asn_at_source']
-        assert frag1['payload']['hops'] == packet['payload']['hops']
-        assert frag1['payload']['datagram_offset'] == 90
-        assert frag1['payload']['datagram_size'] == 270
-        assert frag1['payload']['original_type'] == d.APP_TYPE_DATA
-        assert frag1['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
-        assert frag1['retriesLeft'] == packet['retriesLeft']
-        assert frag1['srcIp'] == packet['srcIp']
-        assert frag1['dstIp'] == packet['dstIp']
-        assert frag1['sourceRoute'] == packet['sourceRoute']
-
-        assert frag2['asn'] == packet['asn']
-        assert frag2['type'] == d.APP_TYPE_FRAG
-        assert frag2['code'] == packet['code']
-        assert frag2['payload']['length'] == 90
-        assert frag2['payload']['asn_at_source'] == packet['payload']['asn_at_source']
-        assert frag2['payload']['hops'] == packet['payload']['hops']
-        assert frag2['payload']['datagram_offset'] == 180
-        assert frag2['payload']['datagram_size'] == 270
-        assert frag2['payload']['original_type'] == d.APP_TYPE_DATA
-        assert frag2['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
-        assert frag2['retriesLeft'] == packet['retriesLeft']
-        assert frag2['srcIp'] == packet['srcIp']
-        assert frag2['dstIp'] == packet['dstIp']
-        assert frag2['sourceRoute'] == packet['sourceRoute']
+    assert frag2['asn'] == packet['asn']
+    assert frag2['type'] == d.APP_TYPE_FRAG
+    assert frag2['code'] == packet['code']
+    assert frag2['payload']['length'] == 90
+    assert frag2['payload']['asn_at_source'] == packet['payload']['asn_at_source']
+    assert frag2['payload']['hops'] == packet['payload']['hops']
+    assert frag2['payload']['datagram_offset'] == 180
+    assert frag2['payload']['datagram_size'] == 270
+    assert frag2['payload']['original_type'] == d.APP_TYPE_DATA
+    assert frag2['payload']['datagram_tag'] == frag0['payload']['datagram_tag']
+    assert frag2['retriesLeft'] == packet['retriesLeft']
+    assert frag2['srcIp'] == packet['srcIp']
+    assert frag2['dstIp'] == packet['dstIp']
+    assert frag2['sourceRoute'] == packet['sourceRoute']
 
 
 class TestReassembly:
-    def test_app_reass_packet_in_order(self, sim_engine):
+    def test_app_reass_packet_in_order(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
@@ -393,7 +464,7 @@ class TestReassembly:
         assert node not in root.sixlowpan.reassembly_buffers
 
 
-    def test_app_reass_packet_out_of_order(self, sim_engine):
+    def test_app_reass_packet_out_of_order(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
@@ -455,7 +526,7 @@ class TestReassembly:
 
 
 class TestPacketFowarding:
-    def test_forwarder(self, sim_engine):
+    def test_forwarder(sim_engine):
         sim_engine = sim_engine(diff_config = {
                
             'fragmentation'                            : 'FragmentForwarding',
@@ -514,7 +585,7 @@ class TestPacketFowarding:
         assert len(hop1.tsch.getTxQueue()) == 2
         assert len(hop1.sixlowpan.reassembly_buffers) == 0
 
-    def test_e2e(self, sim_engine):
+    def test_e2e(sim_engine):
         one_second = 1
         sim_engine = sim_engine(diff_config = {
                
@@ -583,7 +654,7 @@ class TestPacketFowarding:
         print root.motestats
         assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
 
-    def test_drop_fragment(self, sim_engine):
+    def test_drop_fragment(sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -644,7 +715,7 @@ class TestPacketFowarding:
 
     @pytest.mark.parametrize("vrb_table_size",
                              [10, 50])
-    def test_vrb_table_size_limit_1(self, sim_engine, vrb_table_size):
+    def test_vrb_table_size_limit_1(sim_engine, vrb_table_size):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : vrb_table_size,
@@ -685,7 +756,7 @@ class TestPacketFowarding:
 
 
 class TestDatagramTag:
-    def test_tag_on_its_fragments_1(self, sim_engine):
+    def test_tag_on_its_fragments_1(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                  : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size': 50,
@@ -731,7 +802,7 @@ class TestDatagramTag:
         assert tag2 == 65535
         assert tag3 == 0
 
-    def test_tag_on_its_fragments_2(self, sim_engine):
+    def test_tag_on_its_fragments_2(sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -796,7 +867,7 @@ class TestDatagramTag:
         assert tag2 == 65535
         assert tag3 == 0
 
-    def test_tag_on_its_fragments_3(self, sim_engine):
+    def test_tag_on_its_fragments_3(sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',
                   'fragmentation_ff_discard_vrb_entry_policy': [],
                   'fragmentation_ff_vrb_table_size'          : 50,
@@ -861,7 +932,7 @@ class TestDatagramTag:
         assert tag2 == (tag1 + 1) % 65536
 
 class TestOptimization:
-    def test_remove_vrb_table_entry_by_expiration(self, sim_engine):
+    def test_remove_vrb_table_entry_by_expiration(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_discard_vrb_entry_policy': [],
@@ -907,7 +978,7 @@ class TestOptimization:
         node.sixlowpan.recv(leaf, frag2)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-    def test_remove_vrb_table_entry_on_last_frag(self, sim_engine):
+    def test_remove_vrb_table_entry_on_last_frag(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
@@ -947,7 +1018,7 @@ class TestOptimization:
         # the VRB entry is removed by frag2 (last)
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
-    def test_remove_vrb_table_entry_on_missing_frag(self, sim_engine):
+    def test_remove_vrb_table_entry_on_missing_frag(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
@@ -992,7 +1063,7 @@ class TestOptimization:
         assert len(node.sixlowpan.fragmentation.vrb_table) == 0
 
 
-    def test_remove_vrb_table_entry_on_last_and_missing(self, sim_engine):
+    def test_remove_vrb_table_entry_on_last_and_missing(sim_engine):
         sim_engine = sim_engine(diff_config = {
                'fragmentation'                            : 'FragmentForwarding',
                      'fragmentation_ff_vrb_table_size'          : 50,
