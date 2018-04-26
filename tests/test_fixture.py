@@ -69,7 +69,7 @@ def test_sim_config(sim_engine):
     for (k,v) in sim_config.config['settings']['regular'].items():
         assert getattr(sim_engine.settings,k) == v
 
-#=== test run_until_asn() util works
+#=== test run_until_asn() works
 
 TARGET_ASN_TO_PAUSE = range(1,100,10)
 @pytest.fixture(params=TARGET_ASN_TO_PAUSE)
