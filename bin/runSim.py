@@ -191,7 +191,7 @@ def main():
     # record run start time
     start_time = time.strftime("%Y%m%d-%H%M%S")
     
-    # decide number of CPUs to tun on
+    # decide number of CPUs to run on
     multiprocessing.freeze_support()
     max_numCPUs = multiprocessing.cpu_count()
     if simconfig.execution.numCPUs == -1:
@@ -201,7 +201,7 @@ def main():
     assert numCPUs <= max_numCPUs
 
     if numCPUs == 1:
-        # run on single core
+        # run on single CPU
 
         runSimCombinations({
             'cpuID':          0,
@@ -213,22 +213,22 @@ def main():
         })
 
     else:
-        # distribute runs on different cores
-        runsPerCore = [
+        # distribute runs on different CPUs
+        runsPerCPU = [
             int(
                 math.floor(float(simconfig.execution.numRuns) / float(numCPUs))
             )
         ]*numCPUs
         idx         = 0
-        while sum(runsPerCore) < simconfig.execution.numRuns:
-            runsPerCore[idx] += 1
+        while sum(runsPerCPU) < simconfig.execution.numRuns:
+            runsPerCPU[idx] += 1
             idx              += 1
 
-        # distribute run ids on different cores (transform runsPerCore into a list of tuples)
+        # distribute run ids on different CPUs (transform runsPerCPU into a list of tuples)
         first_run = 0
         for cpuID in range(numCPUs):
-            runs = runsPerCore[cpuID]
-            runsPerCore[cpuID] = (runs, first_run)
+            runs = runsPerCPU[cpuID]
+            runsPerCPU[cpuID] = (runs, first_run)
             first_run += runs
 
         pool = multiprocessing.Pool(numCPUs)
@@ -242,7 +242,7 @@ def main():
                     'configfile': cliparams['config'],
                     'verbose':    False,
                     'start_time': start_time,
-                } for [cpuID, (runs, first_run)] in enumerate(runsPerCore)
+                } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
             ]
         )
         
