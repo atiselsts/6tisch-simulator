@@ -1,9 +1,11 @@
-import os
-
 import pytest
 
 import test_utils as u
 from SimEngine import SimConfig
+
+#============================ helpers =========================================
+
+#============================ tests ===========================================
 
 #=== test to verify sim_engine is created/destroyed well
 
