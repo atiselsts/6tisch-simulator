@@ -21,6 +21,8 @@ import Connectivity
 
 # =========================== defines =========================================
 
+DAGROOT_ID = 0 # select first mote as DagRoot
+
 # =========================== body ============================================
 
 class SimEngine(threading.Thread):
@@ -72,7 +74,7 @@ class SimEngine(threading.Thread):
         SimLog.SimLog().set_simengine(self)
 
         # select first mote as dagRoot
-        self.motes[0].role_setDagRoot()
+        self.motes[DAGROOT_ID].role_setDagRoot()
 
         # boot all motes
         for i in range(len(self.motes)):
