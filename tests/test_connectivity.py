@@ -2,6 +2,8 @@
 Tests for SimEngine.Connectivity
 """
 
+#============================ helpers =========================================
+
 def print_matrix(matrix):
     # header
     print "\t",
@@ -14,7 +16,10 @@ def print_matrix(matrix):
             print "{0}\t|".format(matrix[source][dest][11]['pdr']),
         print "\n"
 
-# verify the connectivity matrix for the 'linear' is correct
+#============================ tests ===========================================
+
+#=== verify the connectivity matrix for the 'linear' is expected
+
 def test_linear_matrix(sim_engine):
     """ creates a static connectivity linear path
         0 <-- 1 <-- 2 <-- ... <-- num_motes
@@ -45,7 +50,8 @@ def test_linear_matrix(sim_engine):
                     assert matrix[c][p][ch]['pdr']  == None
                     assert matrix[c][p][ch]['rssi'] == None
 
-# verify propagate function doesn't raise exception
+#=== verify propagate function doesn't raise exception
+
 def test_propagate(sim_engine):
     engine = sim_engine()
     engine.connectivity.propagate()
