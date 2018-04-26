@@ -1,58 +1,58 @@
 {
-    "version":                                  0,
+    "version":                                             0,
     "execution": {
-        "numCores":                             1,
-        "numRuns":                              2
+        "numCores":                                        1,
+        "numRuns":                                         2
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                    [50]
+            "exec_numMotes":                               [50]
         },
         "regular": {
-            "exec_simDataDir":                  "simData",
-            "exec_numSlotframesPerRun":         101,
+            "exec_simDataDir":                             "simData",
+            "exec_numSlotframesPerRun":                    101,
 
-            "app_pkPeriod":                     10,
-            "app_pkPeriodVar":                  0.05,
-            "app_pkLength":                     90,
-            "app_burstTimestamp":               null,
-            "app_burstNumPackets":              0,
-            "app_e2eAck":                       false,
+            "app_pkPeriod":                                10,
+            "app_pkPeriodVar":                             0.05,
+            "app_pkLength":                                90,
+            "app_burstTimestamp":                          null,
+            "app_burstNumPackets":                         0,
+            "app_e2eAck":                                  false,
 
-            "rpl_daoPeriod":                    60,
+            "rpl_daoPeriod":                               60,
 
-            "sixlowpan_reassembly_buffers_num": 1,
-            "fragmentation":                    "FragmentForwarding",
-            "fragmentation_ff_options":         [],
-            "fragmentation_ff_vrb_table_size":  50,
-            "tsch_max_payload_len":             90,
+            "sixlowpan_reassembly_buffers_num":            1,
+            "fragmentation":                               "FragmentForwarding",
+            "fragmentation_ff_discard_vrb_entry_policy":   [],
+            "fragmentation_ff_vrb_table_size":             50,
+            "tsch_max_payload_len":                        90,
 
-            "sf_type":                          "MSF",
-            "sf_msf_housekeepingPeriod":        60.0,
-            "sf_msf_maxNumCells":               16,
-            "sf_msf_highUsageThres":            12,
-            "sf_msf_lowUsageThres":             4,
-            "sf_msf_numCellsToAddRemove":       1,
-            "sf_ssf_initMethod":                null,
+            "sf_type":                                     "MSF",
+            "sf_msf_housekeepingPeriod":                   60.0,
+            "sf_msf_maxNumCells":                          16,
+            "sf_msf_highUsageThres":                       12,
+            "sf_msf_lowUsageThres":                        4,
+            "sf_msf_numCellsToAddRemove":                  1,
+            "sf_ssf_initMethod":                           null,
 
-            "sixtop_messaging":                 1,
-            "sixtop_removeRandomCell":          false,
+            "sixtop_messaging":                            1,
+            "sixtop_removeRandomCell":                     false,
 
-            "secjoin_enabled":                  false,
-            "secjoin_numExchanges":             2,
-            "secjoin_joinTimeout":              60,
+            "secjoin_enabled":                             false,
+            "secjoin_numExchanges":                        2,
+            "secjoin_joinTimeout":                         60,
 
-            "tsch_slotDuration":                0.010,
-            "tsch_slotframeLength":             101,
-            "tsch_probBcast_ebProb":            0.33,
-            "tsch_probBcast_dioProb":           0.33,
+            "tsch_slotDuration":                           0.010,
+            "tsch_slotframeLength":                        101,
+            "tsch_probBcast_ebProb":                       0.33,
+            "tsch_probBcast_dioProb":                      0.33,
 
-            "conn_type":                       "fully_meshed",
-            "conn_trace":                      "../traces/grenoble.k7",
+            "conn_type":                                  "fully_meshed",
+            "conn_trace":                                 "../traces/grenoble.k7",
 
-            "phy_numChans":                     16,
-            "phy_minRssi":                      -97,
-            "phy_noInterference":               false
+            "phy_numChans":                                16,
+            "phy_minRssi":                                 -97,
+            "phy_noInterference":                          false
         }
     },
     "logging": "all",

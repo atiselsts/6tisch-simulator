@@ -6,9 +6,13 @@
 
 import types
 
+import pytest
+
 import SimEngine.Mote.MoteDefines as d
 from   SimEngine import SimSettings
 from   SimEngine import SimLog
+
+pytestmark = pytest.mark.skip('all tests needs to be updated')
 
 def test_app_schedule_transmit(sim):
     sim = sim(
