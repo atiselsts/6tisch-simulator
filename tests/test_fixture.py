@@ -87,8 +87,8 @@ def test_run_until_asn(sim_engine, target_asn_to_pause):
 #=== test that run_until_asn() raises an exception happened in run
 def test_exception_during_run(sim_engine):
     sim_engine = sim_engine({'exec_numMotes': 1})
+
     def raise_exception():
-        print 'hoge'
         raise Exception()
 
     sim_engine.scheduleAtStart(raise_exception)

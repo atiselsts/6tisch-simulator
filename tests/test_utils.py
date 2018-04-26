@@ -25,4 +25,6 @@ def run_until_asn(sim_engine, target_asn):
 
     # wait until simulator pauses
     while not sim_engine.simPaused:
+        if not sim_engine.is_alive():
+            raise Exception('SimEngine thread died during its execution')
         time.sleep(POLLING_INTERVAL)
