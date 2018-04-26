@@ -31,7 +31,8 @@ import shutil
 from SimEngine import SimConfig,   \
                       SimEngine,   \
                       SimLog, \
-                      SimSettings
+                      SimSettings, \
+                      Connectivity
 
 # =========================== helpers =========================================
 
@@ -130,6 +131,7 @@ def runSimCombinations(params):
             simlog.destroy()
             simengine.destroy()
             settings.destroy()
+            Connectivity.Connectivity().destroy()
 
         # print
         output  = 'simulation ended after {0:.0f}s ({1} runs).'.format(

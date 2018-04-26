@@ -10,6 +10,7 @@
 
 # ========================== imports =========================================
 
+import sys
 import threading
 import traceback
 
@@ -168,6 +169,7 @@ class SimEngine(threading.Thread):
             print 'poipoipoipoipoi'
             traceback.print_exc()
             print 'poipoipoipoipoi'
+            sys.exc_info()
             self.exc = e
         else:
             self.exc = None
@@ -230,12 +232,13 @@ class SimEngine(threading.Thread):
 
     # delay in asn
     def terminateSimulation(self,delay):
-        self.asnEndExperiment = self.asn+delay
-        self.scheduleAtAsn(
-                asn         = self.asn+delay,
-                cb          = self._actionEndSim,
-                uniqueTag   = (None, '_actionEndSim'),
-        )
+        with self.dataLock:
+            self.asnEndExperiment = self.asn+delay
+            self.scheduleAtAsn(
+                    asn         = self.asn+delay,
+                    cb          = self._actionEndSim,
+                    uniqueTag   = (None, '_actionEndSim'),
+            )
 
     # === play/pause
 

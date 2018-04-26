@@ -1,82 +1,126 @@
 import pytest
 import time
 
-from SimEngine import SimEngine
+from SimEngine import SimConfig,   \
+                      SimSettings, \
+                      SimLog,      \
+                      SimEngine,   \
+                      Connectivity
+import SimEngine.Mote.MoteDefines as d
+import test_utils                 as u
+
+def pdr_not_null(c,p,engine):
+    returnVal = False
+    for channel in range(engine.settings.phy_numChans):
+        if engine.connectivity.get_pdr(c,p,channel)>0:
+            returnVal = True
+    return returnVal
 
 @pytest.fixture(scope="function")
-def sim(request):
+def sim_engine(request):
 
-    def create_sim(**kwargs):
+    def create_sim_engine(diff_config={}, force_initial_routing_and_scheduling_state=None):
 
-        params = {
-            'exec_numMotes':                             15,
-            'exec_simDataDir':                           "simData",
-            "exec_numSlotframesPerRun":                  101,
+        # get default configuration
+        sim_config = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
+        config = sim_config.settings['regular']
+        assert 'exec_numMotes' not in config
+        config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
 
-            'app_pkPeriod':                              0,
-            'app_pkLength':                              90,
-            'app_burstNumPackets':                       0,
+        # update default configuration with parameters
+        config.update(**diff_config)
 
-            'rpl_dioPeriod':                             0,
-            'rpl_daoPeriod':                             0,
+        # create sim settings
+        sim_settings = SimSettings.SimSettings(**config)
+        sim_settings.setStartTime(time.strftime('%Y%m%d-%H%M%S'))
+        sim_settings.setCombinationKeys([])
 
-            'fragmentation':                             'FragmentForwarding',
-            'fragmentation_ff_vrb_table_size':           50,
-            'fragmentation_ff_discard_vrb_entry_policy': [],
-            'tsch_max_payload_len':                      90,
+        # create sim log
+        sim_log = SimEngine.SimLog.SimLog()
+        sim_log.set_log_filters('all') # do not log
 
-            'sf_type':                                   "MSF",
-            'sf_msf_housekeepingPeriod':                 60,
-            'sf_msf_maxNumCells':                        16,
-            'sf_msf_highUsageThres':                     12,
-            'sf_msf_lowUsageThres':                      4,
-            'sf_msf_numCellsToAddRemove':                1,
-            'sf_ssf_initMethod':                         None,
+        # create sim engine
+        engine = SimEngine.SimEngine()
 
-            'secjoin_enabled':                           False,
-            "secjoin_numExchanges":                      2,
-            "secjoin_joinTimeout":                       60,
+        # force initial routing and schedule, if appropriate
+        if force_initial_routing_and_scheduling_state:
+            set_initial_routing_and_scheduling_state(engine)
 
-            'tsch_slotDuration':                         0.010,
-            'tsch_slotframeLength':                      101,
-            'tsch_probBcast_ebProb':                     0.33,
-            'tsch_probBcast_dioProb':                    0.33,
-
-            'conn_type':                                 'fully_meshed',
-
-            'phy_noInterference':                        True,
-            'phy_minRssi':                               -97,
-            'phy_numChans':                              16
-        }
-
-        if kwargs:
-            params.update(kwargs)
-
-        start_time = time.strftime("%Y%m%d-%H%M%S")
-        combination_key = []
-        log_filters = [] # do not log
-
-        # init singletons
-        settings = SimEngine.SimSettings.SimSettings(**params)
-        settings.setStartTime(start_time)
-        settings.setCombinationKeys(combination_key)
-        log = SimEngine.SimLog.SimLog()
-        log.set_log_filters(log_filters)
-        engine   = SimEngine.SimEngine(1)
-
-        # start simulation run
-        engine.start()
-
-        # wait for simulation run to end
-        engine.join()
-
+        # add a finalizer
         def fin():
+            try:
+                need_terminate_sim_engine_thread = engine.is_alive()
+            except AssertionError:
+                # engine thread is not initialized for some reason
+                need_terminate_sim_engine_thread = False
+
+            if need_terminate_sim_engine_thread:
+                if engine.simPaused:
+                    # if the thread is paused, resume it so that an event for
+                    # termination is scheduled; otherwise deadlock happens
+                    engine.play()
+                engine.terminateSimulation(1)
+                engine.join()
+
+            # destroy all the singletons
             engine.destroy()
-            settings.destroy()
-            log.destroy()
+            sim_settings.destroy()
+            sim_log.destroy()
+            Connectivity.Connectivity().destroy()
 
         request.addfinalizer(fin)
 
         return engine
 
-    return create_sim
+    return create_sim_engine
+
+
+def set_initial_routing_and_scheduling_state(engine):
+
+    # root is mote
+    root = engine.motes[0]
+
+    # start scheduling from slot offset 1 upwards
+    cur_slot = 1
+
+    # list all motes, indicate state as 'unseen' for all
+    state = dict(zip(engine.motes, ['unseen']*len(engine.motes)))
+
+    # start by having the root as 'active' mote
+    state[root] = 'active'
+
+    # loop over the motes, until all are 'seen'
+    while state.values().count('seen')<len(state):
+
+        # find an active mote, this is the 'parent' in this iteration
+        parent = None
+        for (k,v) in state.items():
+            if v == 'active':
+                parent = k
+                break
+        assert parent
+
+        # for each of its children, set initial routing state and schedule
+        for child in state.keys():
+            if child == parent:
+                continue
+            if state[child] != 'unseen':
+                continue
+            if pdr_not_null(child,parent,engine):
+                # there is a non-zero PDR on the child->parent link
+
+                # set child's preferredparent to parent
+                child.rpl.setPreferredParent(parent)
+                # record the child->parent relationship at the root (for source routing)
+                root.rpl.updateDaoParents({child:parent})
+                # add a cell from child to parent
+                child.tsch.addCells(parent,[(cur_slot,0,d.DIR_TX)])
+                child.numCellsToNeighbors[parent] = 1
+                parent.tsch.addCells(child,[(cur_slot,0,d.DIR_RX)])
+                parent.numCellsFromNeighbors[child] = 1
+                cur_slot += 1
+                # mark child as active
+                state[child]  = 'active'
+
+        # mark parent as seen
+        state[parent] = 'seen'
