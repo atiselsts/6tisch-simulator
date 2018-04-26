@@ -23,6 +23,7 @@ class TestFragmentDelivery:
             {
                 'exec_numMotes'           : 3,
                 'sf_type'                 : 'SSFSymmetric',
+                'conn_type'               : 'linear',
                 'app_pkPeriod'            : 1,
                 'app_pkPeriodVar'         : 0,
                 'app_pkLength'            : app_pkLength,
@@ -37,3 +38,12 @@ class TestFragmentDelivery:
         # one packet from each mote, two packets in total, at least should
         # reach the root during 1000 timeslots
         # this will be checked by seeing logs
+        senders = []
+        for log in u.read_log_file(filter=['app_reaches_dagroot']):
+            if log['id'] not in senders:
+                senders.append(log['id'])
+            if len(senders) == 2:
+                # root should receive packets from both of the two motes
+                assert True
+
+        assert False
