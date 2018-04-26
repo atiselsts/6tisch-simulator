@@ -19,7 +19,6 @@ if __name__ == '__main__':
 import time
 import subprocess
 import itertools
-import logging.config
 import threading
 import math
 import multiprocessing
@@ -40,13 +39,6 @@ def parseCliParams():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        '--gui',
-        dest       = 'gui',
-        action     = 'store_true',
-        default    = False,
-        help       = 'Display the GUI.',
-    )
     parser.add_argument(
         '--config',
         dest       = 'config',
@@ -69,7 +61,7 @@ def printOrLog(cpuID, output, verbose):
 def runSimCombinations(params):
     """
     Runs simulations for all combinations of simulation settings.
-    This function may run independently on different cores.
+    This function may run independently on different CPUs.
     """
 
     cpuID = params['cpuID']
@@ -79,7 +71,7 @@ def runSimCombinations(params):
     verbose = params['verbose']
     start_time = params['start_time']
 
-    # sim config (need to re-load, as executing on different cores)
+    # sim config (need to re-load, as executing on different CPUs)
     simconfig = SimConfig.SimConfig(configfile)
 
     # record simulation start time
@@ -140,7 +132,7 @@ def runSimCombinations(params):
         )
         printOrLog(cpuID, output, verbose)
 
-def printProgress(cpuIDs):
+def printProgressPerCpu(cpuIDs):
     while True:
         time.sleep(1)
         output     = []
@@ -162,7 +154,7 @@ def printProgress(cpuIDs):
 
 def merge_output_files(folder_path):
     """
-    Read the dataset folders and merge the datasets (usefull when using multiple cores).
+    Read the dataset folders and merge the datasets (usefull when using multiple CPUs).
     :param string folder_path:
     """
 
@@ -184,10 +176,9 @@ def merge_output_files(folder_path):
 # =========================== main ============================================
 
 def main():
-    # initialize logging
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    logging.config.fileConfig(os.path.join(dir_path, 'logging.conf'))
-
+    
+    #=== initialize
+    
     # cli params
     cliparams = parseCliParams()
 
@@ -195,107 +186,90 @@ def main():
     simconfig = SimConfig.SimConfig(cliparams['config'])
     assert simconfig.version == 0
 
+    #=== run simulations
+
     # record run start time
     start_time = time.strftime("%Y%m%d-%H%M%S")
+    
+    # decide number of CPUs to run on
+    multiprocessing.freeze_support()
+    max_numCPUs = multiprocessing.cpu_count()
+    if simconfig.execution.numCPUs == -1:
+        numCPUs = max_numCPUs
+    else:
+        numCPUs = simconfig.execution.numCPUs
+    assert numCPUs <= max_numCPUs
 
-    if cliparams['gui']:
-        # with GUI, on a single core
+    if numCPUs == 1:
+        # run on single CPU
 
-        from SimGui import SimGui
-
-        # create the GUI, single core
-        gui        = SimGui.SimGui()
-
-        # run simulation (in separate thread)
-        simThread  = threading.Thread(
-            target = runSimCombinations,
-            args   = ((0, simconfig.execution.numRuns, simconfig.settings, False),)
-        )
-        simThread.start()
-
-        # start GUI's mainloop (in main thread)
-        gui.mainloop()
+        runSimCombinations({
+            'cpuID':          0,
+            'numRuns':        simconfig.execution.numRuns,
+            'first_run':      0,
+            'configfile':     cliparams['config'],
+            'verbose':        True,
+            'start_time':     start_time,
+        })
 
     else:
-        # headless, on multiple cores
-
-        # === run simulations
-
-        # decide on number of cores
-        multiprocessing.freeze_support()
-        max_numCores = multiprocessing.cpu_count()
-        if simconfig.execution.numCores == -1:
-            numCores = max_numCores
-        else:
-            numCores = simconfig.execution.numCores
-        assert numCores <= max_numCores
-
-        if numCores == 1:
-            # run on single core
-
-            runSimCombinations({
-                'cpuID':          0,
-                'numRuns':        simconfig.execution.numRuns,
-                'first_run':      0,
-                'configfile':     cliparams['config'],
-                'verbose':        True,
-                'start_time':     start_time,
-            })
-
-        else:
-            # distribute runs on different cores
-            runsPerCore = [int(math.floor(float(simconfig.execution.numRuns)
-                                          / float(numCores)))]*numCores
-            idx         = 0
-            while sum(runsPerCore) < simconfig.execution.numRuns:
-                runsPerCore[idx] += 1
-                idx              += 1
-
-            # distribute run ids on different cores (transform runsPerCore into a list of tuples)
-            first_run = 0
-            for cpuID in range(numCores):
-                runs = runsPerCore[cpuID]
-                runsPerCore[cpuID] = (runs, first_run)
-                first_run += runs
-
-            pool = multiprocessing.Pool(numCores)
-            async_result = pool.map_async(
-                runSimCombinations,
-                [
-                    {
-                        'cpuID':      cpuID,
-                        'numRuns':    runs,
-                        'first_run':  first_run,
-                        'configfile': cliparams['config'],
-                        'verbose':    False,
-                        'start_time': start_time,
-                    } for [cpuID, (runs, first_run)] in enumerate(runsPerCore)
-                ]
+        # distribute runs on different CPUs
+        runsPerCPU = [
+            int(
+                math.floor(float(simconfig.execution.numRuns) / float(numCPUs))
             )
-            # get() raises an exception raised by a thread if any
-            async_result.get()
+        ]*numCPUs
+        idx         = 0
+        while sum(runsPerCPU) < simconfig.execution.numRuns:
+            runsPerCPU[idx] += 1
+            idx              += 1
 
-            # print progress, wait until done
-            printProgress([i for i in range(numCores)])
+        # distribute run ids on different CPUs (transform runsPerCPU into a list of tuples)
+        first_run = 0
+        for cpuID in range(numCPUs):
+            runs = runsPerCPU[cpuID]
+            runsPerCPU[cpuID] = (runs, first_run)
+            first_run += runs
 
-            # cleanup
-            for i in range(numCores):
-                os.remove('cpu{0}.templog'.format(i))
+        pool = multiprocessing.Pool(numCPUs)
+        async_result = pool.map_async(
+            runSimCombinations,
+            [
+                {
+                    'cpuID':      cpuID,
+                    'numRuns':    runs,
+                    'first_run':  first_run,
+                    'configfile': cliparams['config'],
+                    'verbose':    False,
+                    'start_time': start_time,
+                } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
+            ]
+        )
+        
+        # get() raises an exception raised by a thread if any
+        async_result.get()
 
-        # merge output files
-        folder_path = os.path.join(simconfig.settings.regular.exec_simDataDir, start_time)
-        merge_output_files(folder_path)
+        # print progress, wait until done
+        printProgressPerCpu([i for i in range(numCPUs)])
 
-        # copy config file
-        shutil.copy(cliparams['config'], folder_path)
+        # cleanup
+        for i in range(numCPUs):
+            os.remove('cpu{0}.templog'.format(i))
 
-        #=== post-simulation actions
+    # merge output files
+    folder_path = os.path.join(simconfig.settings.regular.exec_simDataDir, start_time)
+    merge_output_files(folder_path)
 
-        for c in simconfig.post:
-            print 'calling "{0}"'.format(c)
-            subprocess.call(c, shell=True)
+    # copy config file into output directory
+    shutil.copy(cliparams['config'], folder_path)
 
-        #raw_input("Done. Press Enter to exit.")
+    #=== post-simulation actions
+
+    for c in simconfig.post:
+        print 'calling "{0}"'.format(c)
+        subprocess.call(c, shell=True)
+
+    #raw_input("Done. Press Enter to exit.")
 
 if __name__ == '__main__':
     main()
