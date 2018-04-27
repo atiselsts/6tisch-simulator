@@ -51,7 +51,66 @@ LOG_6TOP_INFO = {"type": "6top_info"}
 LOG_6TOP_LATENCY = {"type": "6top_latency"}
 
 # === 6LoWPAN
-LOG_SIXLOWPAN_FRAGMENT_RELAYED = {"type": "fragment_relayed"}
+LOG_SIXLOWPAN_SEND_PACKET = {
+    "type": "sixlowpan_send_packet",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "packet_type"
+    ]
+}
+LOG_SIXLOWPAN_RECV_PACKET = {
+    "type": "sixlowpan_recv_packet",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "packet_type"
+    ]
+}
+LOG_SIXLOWPAN_FORWARD_PACKET = {
+    "type": "sixlowpan_forward_packet",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "packet_type"
+    ]
+}
+LOG_SIXLOWPAN_SEND_FRAGMENT = {
+    "type": "sixlowpan_send_fragment",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "datagram_size",
+        "datagram_offset",
+        "datagram_tag",
+        "length",
+        "original_packet_type",
+    ]
+}
+LOG_SIXLOWPAN_RECV_FRAGMENT = {
+    "type": "sixlowpan_recv_fragment",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "datagram_size",
+        "datagram_offset",
+        "datagram_tag",
+        "length",
+        "original_packet_type",
+    ]
+}
+LOG_SIXLOWPAN_FORWARD_FRAGMENT = {
+    "type": "sixlowpan_forward_fragment",
+    "keys": [
+        "srcIp",
+        "dstIp",
+        "datagram_size",
+        "datagram_offset",
+        "datagram_tag",
+        "length",
+        "original_packet_type",
+    ]
+}
 
 # === RPL
 LOG_RPL_TX_DIO = {"type": "rpl_tx_dio"}

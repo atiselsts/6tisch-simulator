@@ -29,6 +29,7 @@ class App(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
         self.pkPeriod                       = self.settings.app_pkPeriod
@@ -58,7 +59,7 @@ class App(object):
         self.engine.scheduleIn(
             delay            = delay,
             cb               = self._action_mote_sendSinglePacketToDAGroot,
-            uniqueTag        = (self.mote.numCellsToNeighbors, '_action_mote_sendSinglePacketToDAGroot'),
+            uniqueTag        = (self.mote.id, '_action_mote_sendSinglePacketToDAGroot'),
             priority         = 2,
         )
 
@@ -72,7 +73,7 @@ class App(object):
             self.engine.scheduleIn(
                 delay        = self.settings.app_burstTimestamp,
                 cb           = self._action_mote_enqueueDataForDAGroot,
-                uniqueTag    = (self.mote.numCellsToNeighbors, '_app_action_enqueueData_burst_{0}'.format(i)),
+                uniqueTag    = (self.mote.id, '_app_action_enqueueData_burst_{0}'.format(i)),
                 priority     = 2,
             )
 
@@ -106,6 +107,14 @@ class App(object):
 
         assert self.mote.dagRoot
 
+        # FIXME: srcIp is not an address instance but a mote instance
+        self.log(
+            SimEngine.SimLog.LOG_APP_REACHES_DAGROOT,
+            {
+                'mote_id': srcIp.id,
+            }
+        )
+
         # update mote stats
         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'])
 
@@ -130,7 +139,7 @@ class App(object):
                     'code':            None,
                     'payload':         {},
                     'retriesLeft':     d.TSCH_MAXTXRETRIES,
-                    'srcIp':           self,          # from DAGroot
+                    'srcIp':           self.mote,     # from DAGroot
                     'dstIp':           destination,   # to mote
                     'sourceRoute':     sourceRoute
                 }
@@ -160,8 +169,8 @@ class App(object):
                     'length':          self.pkLength,
                 },
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
-                'srcIp':          self,               # from mote
-                'dstIp':          self.mote.dagRootAddress,# to DAGroot
+                'srcIp':          self.mote,                    # from mote
+                'dstIp':          self.mote.dagRootAddress,     # to DAGroot
                 'sourceRoute':    [],
             }
 
