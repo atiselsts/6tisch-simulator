@@ -8,7 +8,7 @@ import test_utils as u
 def fixture_data_flow(request):
     return request.param
 
-@pytest.fixture(params=[10, 100, 1000])
+@pytest.fixture(params=[10, 100, 200])
 def fixture_app_pkLength(request):
     return request.param
 
@@ -97,7 +97,7 @@ def test_vanilla_scenario(
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes':                               2,
-            'exec_numSlotframesPerRun':                    5000,
+            'exec_numSlotframesPerRun':                    10000,
             'app_pkLength' :                               fixture_app_pkLength,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
@@ -106,7 +106,7 @@ def test_vanilla_scenario(
     )
 
     # give the network time to form
-    u.run_until_asn(sim_engine, 1000)
+    u.run_until_asn(sim_engine, 5000)
 
     # verify the network has formed
     rpl_check_prefered_parents(sim_engine.motes)
@@ -122,14 +122,15 @@ def test_vanilla_scenario(
 
     # send data upstream (datamote->root)
     if fixture_data_flow.find("up")!=-1:
+        
         # inject data at the datamote
         datamote.app._action_mote_sendSinglePacketToDAGroot()
 
         # give the data time to reach the root
-        u.run_until_asn(sim_engine, sim_engine.getAsn() + 1000)
+        u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
         # verify it got to the root
-        assert dagroot.getMoteStats()['numRxCells'] == 1
+        assert len(u.read_log_file(['app_reaches_dagroot']))>0
 
     '''
     # send data downstream (root->datamote)

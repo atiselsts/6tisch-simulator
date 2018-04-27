@@ -129,9 +129,6 @@ LOG_APP_GENERATED = {"type": "app_generated", "keys": ["mote_id"]}
 LOG_APP_RELAYED = {"type": "app_relayed"}
 LOG_APP_VRB_TABLE_FULL = {"type": "app_vrb_table_full"}
 
-# === CHARGE
-LOG_CHARGE_CONSUMED = {"type": "charge_consumed", "keys": ["mote_id", "charge"]}
-
 # === QUEUE
 LOG_QUEUE_DELAY = {"type": "queue_delay"}
 

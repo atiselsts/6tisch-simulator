@@ -47,7 +47,12 @@ def sim_engine(request):
 
         # create sim settings
         sim_settings = SimSettings.SimSettings(**config)
-        sim_settings.setStartTime(time.strftime('%Y%m%d-%H%M%S'))
+        sim_settings.setStartTime(
+            '{0}-{1}'.format(
+                time.strftime('%Y%m%d-%H%M%S'),
+                int(round(time.time() * 1000))%1000
+            )
+        )
         sim_settings.setCombinationKeys([])
 
         # create sim log

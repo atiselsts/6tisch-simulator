@@ -214,7 +214,7 @@ class Tsch(object):
 
         else:
             # all is good
-
+            
             # enqueue packet
             self.txQueue    += [packet]
 
@@ -741,30 +741,28 @@ class Tsch(object):
                 self.waitingFor   = d.DIR_TX
 
         elif cell['dir'] == d.DIR_TXRX_SHARED:
-
+            
             if cell['neighbor'] == self.mote._myNeighbors():
                 self.pktToSend = None
                 if self.txQueue and self.backoffBroadcast == 0:
                     for pkt in self.txQueue:
-                        # send join packets on the shared cell only on first hop
-                        if pkt['type'] == d.APP_TYPE_JOIN and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
+                        if  (
+                                # DIOs and EBs always on minimal cell
+                                (
+                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                                )
+                                or
+                                # other frames on the minimal cell if no dedicated cells to the nextHop
+                                (
+                                    self.getTxCells(pkt['nextHop'][0])==[]
+                                    and
+                                    self.getSharedCells(pkt['nextHop'][0])==[]
+                                )
+                            ):
                             self.pktToSend = pkt
                             break
-                        # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
-                        elif pkt['type'] == d.IANA_6TOP_TYPE_REQUEST and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
-                            self.pktToSend = pkt
-                            break
-                        # send 6P messages on the shared broadcast cell only if there is no dedicated cells to that neighbor
-                        elif pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE and len(self.getTxCells(pkt['nextHop'][0]))+len(self.getSharedCells(pkt['nextHop'][0])) == 0:
-                            self.pktToSend = pkt
-                            break
-                        # DIOs and EBs always go on the shared broadcast cell
-                        elif pkt['type'] == d.RPL_TYPE_DIO or pkt['type'] == d.TSCH_TYPE_EB:
-                            self.pktToSend = pkt
-                            break
-                        else:
-                            continue
-                # Decrement backoff
+                
+                # decrement back-off
                 if self.backoffBroadcast > 0:
                     self.backoffBroadcast -= 1
             else:

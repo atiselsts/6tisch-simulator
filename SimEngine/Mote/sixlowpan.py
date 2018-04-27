@@ -114,8 +114,10 @@ class Sixlowpan(object):
             # packet doesn't fit into a single frame; needs fragmentation
             self.fragment(packet)
         elif not self.mote.tsch.enqueue(packet):
-            self.mote.radio.drop_packet(packet,
-                                         SimEngine.SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type'])
+            self.mote.radio.drop_packet(
+                packet,
+                SimEngine.SimLog.LOG_TSCH_DROP_DATA_FAIL_ENQUEUE['type'],
+            )
 
     def reassemble(self, smac, fragment):
         datagram_size         = fragment['payload']['datagram_size']
