@@ -247,20 +247,20 @@ class DiscreteEventEngine(threading.Thread):
         with self.dataLock:
             self.goOn = False
 
-    def _actionEndCycle(self):
-        """Called at each end of cycle."""
+    def _actionEndSlotframe(self):
+        """Called at each end of slotframe_iteration."""
 
-        cycle = int(self.asn / self.settings.tsch_slotframeLength)
+        slotframe_iteration = int(self.asn / self.settings.tsch_slotframeLength)
 
         # print
         if self.verbose:
-            print('   cycle: {0}/{1}'.format(cycle, self.settings.exec_numSlotframesPerRun-1))
+            print('   slotframe_iteration: {0}/{1}'.format(slotframe_iteration, self.settings.exec_numSlotframesPerRun-1))
 
         # schedule next statistics collection
         self.scheduleAtAsn(
             asn              = self.asn + self.settings.tsch_slotframeLength,
-            cb               = self._actionEndCycle,
-            uniqueTag        = ('DiscreteEventEngine', '_actionEndCycle'),
+            cb               = self._actionEndSlotframe,
+            uniqueTag        = ('DiscreteEventEngine', '_actionEndSlotframe'),
             intraSlotOrder   = 10,
         )
     
@@ -313,11 +313,11 @@ class SimEngine(DiscreteEventEngine):
                 uniqueTag   = ('SimEngine','_actionEndSim'),
             )
 
-        # schedule action at every end of cycle
+        # schedule action at every end of slotframe_iteration
         self.scheduleAtAsn(
             asn              = self.asn + self.settings.tsch_slotframeLength - 1,
-            cb               = self._actionEndCycle,
-            uniqueTag        = ('SimEngine', '_actionEndCycle'),
+            cb               = self._actionEndSlotframe,
+            uniqueTag        = ('SimEngine', '_actionEndSlotframe'),
             intraSlotOrder   = 10,
         )
 

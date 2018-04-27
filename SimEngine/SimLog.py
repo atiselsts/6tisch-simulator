@@ -243,7 +243,7 @@ class SimLog(object):
         return returnVal
 
     def _action_collect_stats(self):
-        """Called at each end of cycle."""
+        """Called at each end of slotframe_iteration."""
 
         self._collectSumMoteStats()
 
