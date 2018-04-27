@@ -77,7 +77,7 @@ def parse_args():
                         '--xparam',
                         help='The x-axis parameter',
                         type=str,
-                        default='cycle')
+                        default='slotframe_iteration')
     parser.add_argument('-y',
                         '--yparam',
                         help='The y-axis parameter',

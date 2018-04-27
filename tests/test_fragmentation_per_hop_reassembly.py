@@ -519,7 +519,7 @@ class TestPacketFowarding:
         cb = None
         asn0 = sim.asn
         while len(sim.events) > 0:
-            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
+            (asn, intraSlotOrder, cb, tag, kwarg) = sim.events.pop(0)
             sim.asn = asn
 
             if cb == hop2.app._action_mote_sendSinglePacketToDAGroot:
@@ -547,7 +547,7 @@ class TestPacketFowarding:
         # two fragments should be sent within two slotframes. In each of them,
         # hop2 has one TX cell to hop2
         while len(sim.events) > 0:
-            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
+            (asn, intraSlotOrder, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 # sync all the motes
                 hop1.tsch.asnLastSync = sim.asn
@@ -570,7 +570,7 @@ class TestPacketFowarding:
         asn0 = sim.asn
         # two fragments should be sent to the final destination within the next two timeslots.
         while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration))):
-            (asn, priority, cb, tag, kwarg) = sim.events.pop(0)
+            (asn, intraSlotOrder, cb, tag, kwarg) = sim.events.pop(0)
             if sim.asn != asn:
                 sim.asn = asn
             cb(**kwarg)
