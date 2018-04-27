@@ -9,54 +9,65 @@ from SimEngine import SimConfig
 
 #=== test to verify sim_engine is created/destroyed well
 
-@pytest.mark.parametrize("dummycounter", [1,2,3,4])
-def test_sim_engine_runs(sim_engine, dummycounter):
+def test_sim_engine_created(sim_engine, repeat4times):
     pass
 
-#=== error test which verifies exception at initialization propagates up
+#=== test to verify sim_engine is created/init/destroyed well
 
-@pytest.mark.parametrize("diff_config", [
-    {'app_pkPeriod': 'dummy'},
-])
-def test_exception_at_initialization(sim_engine, diff_config):
-    """test if an exception raised in a SimEngine thread is propagated here
-    """
-    with pytest.raises(Exception):
+def test_sim_engine_created_and_init(sim_engine, repeat4times):
+    s = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1,
+        }
+    )
+
+#=== exception during initialization
+
+def test_exception_at_intialization(sim_engine, repeat4times):
+    with pytest.raises(TypeError):
         sim_engine = sim_engine(
-            diff_config     = diff_config,
+            diff_config = {
+                'exec_numMotes': 'dummy', # 'dummy' not int, causes exception
+            }
         )
 
-#=== error test which verifies exception during runtime propagates up
+#=== runtime exception propagates past run_until_asn()
 
-@pytest.mark.parametrize("diff_config", [
-    {'secjoin_enabled': None},
-])
-def test_exception_at_runtime(sim_engine, diff_config):
+class MyException(Exception):
+    pass
+
+def _raiseException():
+    raise MyException()
+
+def test_exception_at_runtime(sim_engine, repeat4times):
     """test if an exception raised in a SimEngine thread is propagated here
 
     Run a simulation in one slotframe
     """
-    sim_engine = sim_engine(
-        diff_config     = diff_config,
+    sim_engine = sim_engine()
+    sim_engine.scheduleAtAsn(
+        asn         = 10,
+        cb          = _raiseException,
+        uniqueTag   = ('engine','_raiseException'),
     )
-    with pytest.raises(Exception):
+    
+    with pytest.raises(MyException):
         u.run_until_asn(
             sim_engine,
-            target_asn=1, # duration doesn't matter, simulation just need to be started
+            target_asn = 20, # past the _raiseException event
         )
 
 #=== testing force_initial_routing_and_scheduling_state options
 
-FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE = [None, 'linear']
+FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE = [False]
 @pytest.fixture(params=FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE)
 def force_initial_routing_and_scheduling_state(request):
     return request.param
 
 def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
-    print force_initial_routing_and_scheduling_state
     sim_engine = sim_engine(
-        diff_config                         = {},
-        force_initial_routing_and_scheduling_state  = force_initial_routing_and_scheduling_state,
+        diff_config                                   = {},
+        force_initial_routing_and_scheduling_state    = force_initial_routing_and_scheduling_state,
     )
 
 #=== verify default configs from bin/config.json are loaded correctly
@@ -71,14 +82,19 @@ def test_sim_config(sim_engine):
 
 #=== test that run_until_asn() works
 
-TARGET_ASN_TO_PAUSE = range(1,100,10)
-@pytest.fixture(params=TARGET_ASN_TO_PAUSE)
-def target_asn_to_pause(request):
-    return request.param
-
-def test_run_until_asn(sim_engine, target_asn_to_pause):
-    sim_engine = sim_engine({'exec_numMotes': 1})
-
+def test_run_until_asn(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes':            1,
+            'exec_numSlotframesPerRun': 1,
+        }
+    )
+    
     assert sim_engine.getAsn() == 0
-    u.run_until_asn(sim_engine, target_asn_to_pause)
-    assert sim_engine.getAsn() == target_asn_to_pause
+    
+    for target_asn in range(1,10,5):
+        u.run_until_asn(
+            sim_engine,
+            target_asn = target_asn,
+        )
+        assert sim_engine.getAsn() == target_asn

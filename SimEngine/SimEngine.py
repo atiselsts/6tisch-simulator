@@ -1,11 +1,5 @@
-#!/usr/bin/python
 """
 \brief Discrete-event simulation engine.
-
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
-\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
-\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
 
 # ========================== imports =========================================
@@ -35,75 +29,92 @@ class SimEngine(threading.Thread):
         return cls._instance
     #===== end singleton
 
-    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, verbose=False):
+    def __init__(self, cpuID=None, run_id=None, verbose=False, init_motes=True):
 
-        if failIfNotInit and not cls._init:
-            raise EnvironmentError('SimEngine singleton not initialized.')
-
-        #===== start singleton
+        #===== singleton
         cls = type(self)
         if cls._init:
             return
         cls._init = True
-        #===== end singleton
+        #===== singleton
+        
+        try:
+            # store params
+            self.cpuID                          = cpuID
+            self.run_id                         = run_id
+            self.verbose                        = verbose
+            self.init_motes                     = init_motes
 
-        # store params
-        self.cpuID                          = cpuID
-        self.run_id                         = run_id
-        self.verbose                        = verbose
+            # local variables
+            self.dataLock                       = threading.RLock()
+            self.pauseSem                       = threading.Semaphore(0)
+            self.simPaused                      = False
+            self.goOn                           = True
+            self.asn                            = 0
+            self.exc                            = None
+            self.events                         = []
+            
+            if self.init_motes:
+                self.settings                   = SimSettings.SimSettings()
+                self.motes                      = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
+                self.connectivity               = Connectivity.Connectivity()
+                self.log                        = SimLog.SimLog().log
+                SimLog.SimLog().set_simengine(self)
+                
+                # select first mote as dagRoot
+                self.motes[0].role_setDagRoot()
 
-        # local variables
-        self.dataLock                       = threading.RLock()
-        self.pauseSem                       = threading.Semaphore(0)
-        self.simPaused                      = False
-        self.goOn                           = True
-        self.asn                            = 0
-        self.startCb                        = []
-        self.endCb                          = []
-        self.events                         = []
+                # boot all motes
+                for i in range(len(self.motes)):
+                    self.motes[i].boot()
 
-        # init singletons
-        self.log                            = SimLog.SimLog().log
-        self.settings                       = SimSettings.SimSettings()
-        self.motes                          = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
-        self.connectivity                   = Connectivity.Connectivity()
-
-        # pass SimEngine to SimLog
-        SimLog.SimLog().set_simengine(self)
-
-        # select first mote as dagRoot
-        self.motes[0].role_setDagRoot()
-
-        # boot all motes
-        for i in range(len(self.motes)):
-            self.motes[i].boot()
-
-        # initialize parent class
-        threading.Thread.__init__(self)
-        self.name                           = 'SimEngine'
+            # initialize parent class
+            threading.Thread.__init__(self)
+            self.name                           = 'SimEngine'
+        except:
+            # an exception happened when initializing the instance
+            
+            # destroy the singleton
+            cls._instance         = None
+            cls._init             = False
+            raise
 
     def destroy(self):
-
-        # destroy my own instance
-        cls = type(self)
-        cls._instance                      = None
-        cls._init                          = False
+        if self._Thread__initialized:
+            # initialization finished without exception
+            
+            if self.is_alive():
+                # thread is start'ed
+                self.play()           # cause one more loop in thread
+                self._actionEndSim()  # causes self.gOn to be set to False
+                self.join()           # wait until thread is dead
+            else:
+                # thread NOT start'ed yet, or crashed
+                
+                # destroy the singleton
+                cls = type(self)
+                cls._instance         = None
+                cls._init             = False
+        else:
+            # initialization failed
+            pass # do nothing, singleton already destroyed
 
     #======================== thread ==========================================
 
     def run(self):
-        """ event driven simulator, this thread manages the events """
+        """ loop through events """
         try:
-            self.log(
-                SimLog.LOG_THREAD_STATE,
-                {
-                    "name": self.name,
-                    "state": "started"
-                }
-            )
+            if self.init_motes:
+                self.log(
+                    SimLog.LOG_THREAD_STATE,
+                    {
+                        "name":   self.name,
+                        "state":  "started"
+                    }
+                )
 
             # schedule the endOfSimulation event if we are not simulating the join process
-            if not self.settings.secjoin_enabled:
+            if self.init_motes and (not self.settings.secjoin_enabled):
                 self.scheduleAtAsn(
                     asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
                     cb          = self._actionEndSim,
@@ -111,68 +122,87 @@ class SimEngine(threading.Thread):
                 )
 
             # schedule action at every end of cycle
-            self.scheduleAtAsn(
-                asn=self.asn + self.settings.tsch_slotframeLength - 1,
-                cb=self._actionEndCycle,
-                uniqueTag=(None, '_actionEndCycle'),
-                priority=10,
-            )
-
-            # call the start callbacks
-            for cb in self.startCb:
-                cb()
+            if self.init_motes:
+                self.scheduleAtAsn(
+                    asn          = self.asn + self.settings.tsch_slotframeLength - 1,
+                    cb           = self._actionEndCycle,
+                    uniqueTag    = (None, '_actionEndCycle'),
+                    priority     = 10,
+                )
 
             # consume events until self.goOn is False
             while self.goOn:
 
                 with self.dataLock:
-
+                    
                     # abort simulation when no more events
                     if not self.events:
-                        self.log(
-                            SimLog.LOG_THREAD_STATE,
-                            {
-                                "name": self.name,
-                                "state": "stopped"
-                            }
-                        )
+                        if self.init_motes:
+                            self.log(
+                                SimLog.LOG_THREAD_STATE,
+                                {
+                                    "name": self.name,
+                                    "state": "stopped"
+                                }
+                            )
                         break
-
+                    
                     # make sure we are in the future
                     (a, b, cb, c) = self.events[0]
                     if c[1] != '_actionPauseSim':
                         assert self.events[0][0] >= self.asn
-
+                    
                     # update the current ASN
                     self.asn = self.events[0][0]
-
-                    # call callbacks at this ASN
+                    
+                    # find callbacks for this ASN
+                    cbs = []
                     while True:
-                        if self.events[0][0] != self.asn:
+                        if (not self.events) or (self.events[0][0] != self.asn):
                             break
                         (_, _, cb, _) = self.events.pop(0)
-                        cb()
+                        cbs += [cb]
+                        
+                # call the callbacks (outside the dataLock)
+                
+                for cb in cbs:
+                    cb()
 
-            # call the end callbacks
-            for cb in self.endCb:
-                cb()
-
-            # log
-            self.log(
-                SimLog.LOG_THREAD_STATE,
-                {
-                    "name": self.name,
-                    "state": "stopped"
-                }
-            )
         except Exception as e:
-            print 'poipoipoipoipoi'
-            traceback.print_exc()
-            print 'poipoipoipoipoi'
-            sys.exc_info()
+            # no exception
             self.exc = e
+            
+            # log
+            if self.init_motes:
+                self.log(
+                    SimLog.LOG_THREAD_STATE,
+                    {
+                        "name": self.name,
+                        "state": "crash"
+                    }
+                )
+            print 'CRASH in SimEngine!'
+            traceback.print_exc()
+            
         else:
+            # no exception
             self.exc = None
+            
+            # log
+            if self.init_motes:
+                self.log(
+                    SimLog.LOG_THREAD_STATE,
+                    {
+                        "name": self.name,
+                        "state": "stopped"
+                    }
+                )
+        finally:
+            
+            # destroy this singleton
+            cls = type(self)
+            cls._instance                      = None
+            cls._init                          = False
 
     def join(self):
         super(SimEngine, self).join()
@@ -180,13 +210,14 @@ class SimEngine(threading.Thread):
             raise self.exc
 
     #======================== public ==========================================
+    
+    # === getters/setters
 
+    def getAsn(self):
+        return self.asn
+    
     #=== scheduling
-
-    def scheduleAtStart(self,cb):
-        with self.dataLock:
-            self.startCb    += [cb]
-
+    
     def scheduleIn(self, delay, cb, uniqueTag=None, priority=0, exceptCurrentASN=True):
         """ used to generate events. Puts an event to the queue """
 
@@ -215,6 +246,20 @@ class SimEngine(threading.Thread):
             # add to schedule
             self.events.insert(i, (asn, priority, cb, uniqueTag))
 
+    # === play/pause
+
+    def play(self):
+        self._actionResumeSim()
+
+    def pauseAtAsn(self,asn):
+        self.scheduleAtAsn(
+            asn         = asn,
+            cb          = self._actionPauseSim,
+            uniqueTag   = ('SimEngine', '_actionPauseSim'),
+        )
+
+    # === misc
+
     def removeEvent(self, uniqueTag, exceptCurrentASN=True):
         with self.dataLock:
             i = 0
@@ -224,13 +269,6 @@ class SimEngine(threading.Thread):
                 else:
                     i += 1
 
-    def scheduleAtEnd(self,cb):
-        with self.dataLock:
-            self.endCb      += [cb]
-
-    # === misc
-
-    # delay in asn
     def terminateSimulation(self,delay):
         with self.dataLock:
             self.asnEndExperiment = self.asn+delay
@@ -240,30 +278,12 @@ class SimEngine(threading.Thread):
                     uniqueTag   = (None, '_actionEndSim'),
             )
 
-    # === play/pause
-
-    def play(self):
-        self._actionResumeSim()
-
-    def pauseAtAsn(self,asn):
-        if not self.simPaused:
-            self.scheduleAtAsn(
-                asn         = asn,
-                cb          = self._actionPauseSim,
-                uniqueTag   = ('SimEngine', '_actionPauseSim'),
-            )
-
-    # === getters/setters
-
-    def getAsn(self):
-        return self.asn
-
     # ======================== private ========================================
 
     def _actionPauseSim(self):
-        if not self.simPaused:
-            self.simPaused = True
-            self.pauseSem.acquire()
+        assert self.simPaused==False
+        self.simPaused = True
+        self.pauseSem.acquire()
 
     def _actionResumeSim(self):
         if self.simPaused:
