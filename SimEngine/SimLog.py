@@ -90,6 +90,7 @@ LOG_SIXLOWPAN_SEND_FRAGMENT = {
 LOG_SIXLOWPAN_RECV_FRAGMENT = {
     "type": "sixlowpan_recv_fragment",
     "keys": [
+        "mote_id",
         "srcIp",
         "dstIp",
         "datagram_size",
