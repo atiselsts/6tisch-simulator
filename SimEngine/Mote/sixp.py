@@ -435,10 +435,10 @@ class SixP(object):
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.mote.id, uniqueTag)
-                self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeFutureEvents(uniqueTag=uniqueTag)
 
                 # remove the pending retransmission event for the scheduling function
-                self.engine.removeEvent((self.mote.id, 'action_parent_change_retransmission'))
+                self.engine.removeFutureEvents((self.mote.id, 'action_parent_change_retransmission'))
 
                 # log
                 self.log(
@@ -606,9 +606,9 @@ class SixP(object):
                 # delete the timer.
                 uniqueTag = '_sixtop_timer_fired_dest_%s' % neighbor.id
                 uniqueTag = (self.mote.id, uniqueTag)
-                self.engine.removeEvent(uniqueTag=uniqueTag)
+                self.engine.removeFutureEvents(uniqueTag=uniqueTag)
                 # remove the pending retransmission event for the scheduling function
-                self.engine.removeEvent((self.mote.id, 'action_parent_change_retransmission'))
+                self.engine.removeFutureEvents((self.mote.id, 'action_parent_change_retransmission'))
 
                 # log
                 self.log(

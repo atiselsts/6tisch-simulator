@@ -166,23 +166,17 @@ class DiscreteEventEngine(threading.Thread):
     
     #=== scheduling
     
-    def scheduleIn(self, delay, cb, uniqueTag=None, priority=0, exceptCurrentASN=True):
-        """ used to generate events. Puts an event to the queue """
-
-        with self.dataLock:
-            asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
-
-            self.scheduleAtAsn(asn, cb, uniqueTag, priority, exceptCurrentASN)
-
-    def scheduleAtAsn(self, asn, cb, uniqueTag=None, priority=0, exceptCurrentASN=True):
-        """ schedule an event at specific ASN """
+    def scheduleAtAsn(self, asn, cb, uniqueTag, priority=0):
+        """
+        Schedule an event at a particular ASN in the future.
+        Also removed all future events with the same uniqueTag.
+        """
 
         # make sure we are scheduling in the future
         assert asn > self.asn
 
         # remove all events with same uniqueTag (the event will be rescheduled)
-        if uniqueTag:
-            self.removeEvent(uniqueTag, exceptCurrentASN)
+        self.removeFutureEvents(uniqueTag)
 
         with self.dataLock:
 
@@ -193,6 +187,17 @@ class DiscreteEventEngine(threading.Thread):
 
             # add to schedule
             self.events.insert(i, (asn, priority, cb, uniqueTag))
+    
+    def scheduleIn(self, delay, cb, uniqueTag, priority=0):
+        """
+        Schedule an event 'delay' ASNs into the future.
+        Also removed all future events with the same uniqueTag.
+        """
+
+        with self.dataLock:
+            asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
+
+            self.scheduleAtAsn(asn, cb, uniqueTag, priority)
 
     # === play/pause
 
@@ -208,11 +213,11 @@ class DiscreteEventEngine(threading.Thread):
 
     # === misc
 
-    def removeEvent(self, uniqueTag, exceptCurrentASN=True):
+    def removeFutureEvents(self, uniqueTag):
         with self.dataLock:
             i = 0
             while i<len(self.events):
-                if self.events[i][3]==uniqueTag and not (exceptCurrentASN and self.events[i][0]==self.asn):
+                if (self.events[i][3]==uniqueTag) and (self.events[i][0]!=self.asn):
                     self.events.pop(i)
                 else:
                     i += 1
@@ -223,7 +228,7 @@ class DiscreteEventEngine(threading.Thread):
             self.scheduleAtAsn(
                     asn         = self.asn+delay,
                     cb          = self._actionEndSim,
-                    uniqueTag   = (None, '_actionEndSim'),
+                    uniqueTag   = ('DiscreteEventEngine', '_actionEndSim'),
             )
 
     # ======================== private ========================================
@@ -255,7 +260,7 @@ class DiscreteEventEngine(threading.Thread):
         self.scheduleAtAsn(
             asn         = self.asn + self.settings.tsch_slotframeLength,
             cb          = self._actionEndCycle,
-            uniqueTag   = (None, '_actionEndCycle'),
+            uniqueTag   = ('DiscreteEventEngine', '_actionEndCycle'),
             priority    = 10,
         )
     
@@ -305,17 +310,17 @@ class SimEngine(DiscreteEventEngine):
             self.scheduleAtAsn(
                 asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
                 cb          = self._actionEndSim,
-                uniqueTag   = (None,'_actionEndSim'),
+                uniqueTag   = ('SimEngine','_actionEndSim'),
             )
 
         # schedule action at every end of cycle
         self.scheduleAtAsn(
             asn          = self.asn + self.settings.tsch_slotframeLength - 1,
             cb           = self._actionEndCycle,
-            uniqueTag    = (None, '_actionEndCycle'),
+            uniqueTag    = ('SimEngine', '_actionEndCycle'),
             priority     = 10,
         )
-        
+
     def _routine_thread_crashed(self):
         # log
         self.log(
@@ -325,7 +330,7 @@ class SimEngine(DiscreteEventEngine):
                 "state": "crash"
             }
         )
-    
+
     def _routine_thread_ended(self):
         # log
         self.log(
