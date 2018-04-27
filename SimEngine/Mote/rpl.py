@@ -32,7 +32,6 @@ class Rpl(object):
 
         # local variables
         self.rank                      = None
-        self.dagRank                   = None
         self.parentSet                 = []
         self.preferredParent           = None
         self.oldPreferredParent        = None    # preserve old preferred parent upon a change
@@ -44,16 +43,13 @@ class Rpl(object):
 
     # getters/setters
 
-    def getRank(self):
-        return self.rank
     def setRank(self, newVal):
         self.rank = newVal
-
+    def getRank(self):
+        return self.rank
     def getDagRank(self):
-        return self.dagRank
-    def setDagRank(self, newVal):
-        self.dagRank = newVal
-
+        return self._rankToDagrank(self.rank)
+    
     def updateDaoParents(self, newVal):
         self.daoParents.update(newVal)
 
@@ -110,8 +106,8 @@ class Rpl(object):
             return
 
         # update rank/DAGrank with sender
-        self.neighborDagRank[sender]    = rank / d.RPL_MIN_HOP_RANK_INCREASE
         self.neighborRank[sender]       = rank
+        self.neighborDagRank[sender]    = self._rankToDagrank(rank)
 
         # trigger RPL housekeeping
         self._housekeeping()
@@ -381,7 +377,6 @@ class Rpl(object):
         This routine refreshes
         - self.preferredParent
         - self.rank
-        - self.dagRank
         - self.parentSet
         """
 
@@ -458,9 +453,6 @@ class Rpl(object):
             # store new preferred parent and rank
             (self.preferredParent, self.rank) = (newPreferredParent, newrank)
 
-            # calculate my DAGrank
-            self.dagRank = int(self.rank/d.RPL_MIN_HOP_RANK_INCREASE)
-
             # pick my parent set
             self.parentSet = [n for (n, _) in sorted_potentialRanks if self.neighborRank[n] < self.rank][:d.RPL_PARENT_SET_SIZE]
             assert self.preferredParent in self.parentSet
@@ -511,3 +503,6 @@ class Rpl(object):
         etx = float(numTx)/float(numTxAck)
 
         return etx
+    
+    def _rankToDagrank(self,r):
+        return int(r/d.RPL_MIN_HOP_RANK_INCREASE)

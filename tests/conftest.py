@@ -68,8 +68,9 @@ def sim_engine(request):
 
 def set_initial_routing_and_scheduling_state(engine):
 
-    # root is mote
+    # root is mote 0
     root = engine.motes[0]
+    root.rpl.setRank(256)
 
     # start scheduling from slot offset 1 upwards
     cur_slot = 1
@@ -102,6 +103,8 @@ def set_initial_routing_and_scheduling_state(engine):
 
                 # set child's preferredparent to parent
                 child.rpl.setPreferredParent(parent)
+                # set child's rank
+                child.rpl.setRank(parent.rpl.getRank()+512)
                 # record the child->parent relationship at the root (for source routing)
                 root.rpl.updateDaoParents({child:parent})
                 # add a cell from child to parent
