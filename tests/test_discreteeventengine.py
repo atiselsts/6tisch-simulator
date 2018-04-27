@@ -33,21 +33,21 @@ def test_event_execution_order(repeat4times):
 
     # schedule events (out of order)
     engine.scheduleAtAsn(
-        asn         = 1,
-        cb          = stateoftest._cb_asn_1_1,
-        uniqueTag   = ('stateoftest','_cb_asn_1_1'),
-        priority    = 1,
+        asn             = 1,
+        cb              = stateoftest._cb_asn_1_1,
+        uniqueTag       = ('stateoftest','_cb_asn_1_1'),
+        intraSlotOrder  = 1,
     )
     engine.scheduleAtAsn(
-        asn         = 2,
-        cb          = stateoftest._cb_asn_2,
-        uniqueTag   = ('stateoftest','_cb_asn_2'),
+        asn             = 1,
+        cb              = stateoftest._cb_asn_1_2,
+        uniqueTag       = ('stateoftest','_cb_asn_1_2'),
+        intraSlotOrder  = 2,
     )
     engine.scheduleAtAsn(
-        asn         = 1,
-        cb          = stateoftest._cb_asn_1_2,
-        uniqueTag   = ('stateoftest','_cb_asn_1_2'),
-        priority    = 2,
+        asn             = 2,
+        cb              = stateoftest._cb_asn_2,
+        uniqueTag       = ('stateoftest','_cb_asn_2'),
     )
 
     # run engine, run until done

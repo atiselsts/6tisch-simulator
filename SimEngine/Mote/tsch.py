@@ -97,10 +97,10 @@ class Tsch(object):
     def listenEBs(self):
 
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn() + 1,
-            cb          = self._action_listenEBs,
-            uniqueTag   = (self.mote.id, '_action_listenEBs'),
-            priority    = 3,
+            asn              = self.engine.getAsn() + 1,
+            cb               = self._action_listenEBs,
+            uniqueTag        = (self.mote.id, '_action_listenEBs'),
+            intraSlotOrder   = 3,
         )
 
     # minimal
@@ -255,10 +255,10 @@ class Tsch(object):
                                 float(self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                     uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                     self.engine.scheduleAtAsn(
-                        asn=fireASN,
-                        cb=self.mote.sixp.timer_fired,
-                        uniqueTag=(self.mote.id, uniqueTag),
-                        priority=5,
+                        asn            = fireASN,
+                        cb             = self.mote.sixp.timer_fired,
+                        uniqueTag      = (self.mote.id, uniqueTag),
+                        intraSlotOrder = 5,
                     )
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
@@ -283,10 +283,10 @@ class Tsch(object):
                     fireASN = int(self.engine.getAsn() + (float(self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
                     uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
                     self.engine.scheduleAtAsn(
-                        asn=fireASN,
-                        cb=self.mote.sixp.timer_fired,
-                        uniqueTag=(self.mote.id, uniqueTag),
-                        priority=5,
+                        asn            = fireASN,
+                        cb             = self.mote.sixp.timer_fired,
+                        uniqueTag      = (self.mote.id, uniqueTag),
+                        intraSlotOrder = 5,
                     )
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
                     self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
@@ -633,10 +633,10 @@ class Tsch(object):
 
         # schedule at that ASN
         self.engine.scheduleAtAsn(
-            asn         = asn+tsDiffMin,
-            cb          = self._tsch_action_activeCell,
-            uniqueTag   = (self.mote.id, '_tsch_action_activeCell'),
-            priority    = 0,
+            asn              = asn+tsDiffMin,
+            cb               = self._tsch_action_activeCell,
+            uniqueTag        = (self.mote.id, '_tsch_action_activeCell'),
+            intraSlotOrder   = 0,
         )
 
     def _tsch_action_activeCell(self):
@@ -853,10 +853,10 @@ class Tsch(object):
         # schedule to send an EB every slotframe
         # _tsch_action_sendEB() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
-            cb          = self._tsch_action_sendEB,
-            uniqueTag   = (self.mote.id, '_tsch_action_sendEB'),
-            priority    = 3,
+            asn              = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
+            cb               = self._tsch_action_sendEB,
+            uniqueTag        = (self.mote.id, '_tsch_action_sendEB'),
+            intraSlotOrder   = 3,
         )
 
     def _tsch_action_sendEB(self):

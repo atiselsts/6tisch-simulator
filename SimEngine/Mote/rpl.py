@@ -208,10 +208,10 @@ class Rpl(object):
         # schedule to send a DIO every slotframe
         # _action_sendDIO() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
-            cb          = self._action_sendDIO,
-            uniqueTag   = (self.mote.id, '_action_sendDIO'),
-            priority    = 3,
+            asn              = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
+            cb               = self._action_sendDIO,
+            uniqueTag        = (self.mote.id, '_action_sendDIO'),
+            intraSlotOrder   = 3,
         )
 
     def _action_sendDIO(self):
@@ -294,10 +294,10 @@ class Rpl(object):
 
         # schedule sending a DAO
         self.engine.scheduleAtAsn(
-            asn          = asnNow + asnDiff,
-            cb           = self._action_sendDAO,
-            uniqueTag    = (self.mote.id, '_action_sendDAO'),
-            priority     = 3,
+            asn              = asnNow + asnDiff,
+            cb               = self._action_sendDAO,
+            uniqueTag        = (self.mote.id, '_action_sendDAO'),
+            intraSlotOrder   = 3,
         )
 
     def _action_sendDAO(self):

@@ -166,7 +166,7 @@ class DiscreteEventEngine(threading.Thread):
     
     #=== scheduling
     
-    def scheduleAtAsn(self, asn, cb, uniqueTag, priority=0):
+    def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder=0):
         """
         Schedule an event at a particular ASN in the future.
         Also removed all future events with the same uniqueTag.
@@ -182,13 +182,13 @@ class DiscreteEventEngine(threading.Thread):
 
             # find correct index in schedule
             i = 0
-            while i<len(self.events) and (self.events[i][0] < asn or (self.events[i][0] == asn and self.events[i][1] <= priority)):
+            while i<len(self.events) and (self.events[i][0] < asn or (self.events[i][0] == asn and self.events[i][1] <= intraSlotOrder)):
                 i +=1
 
             # add to schedule
-            self.events.insert(i, (asn, priority, cb, uniqueTag))
+            self.events.insert(i, (asn, intraSlotOrder, cb, uniqueTag))
     
-    def scheduleIn(self, delay, cb, uniqueTag, priority=0):
+    def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder=0):
         """
         Schedule an event 'delay' ASNs into the future.
         Also removed all future events with the same uniqueTag.
@@ -197,7 +197,7 @@ class DiscreteEventEngine(threading.Thread):
         with self.dataLock:
             asn = int(self.asn + (float(delay) / float(self.settings.tsch_slotDuration)))
 
-            self.scheduleAtAsn(asn, cb, uniqueTag, priority)
+            self.scheduleAtAsn(asn, cb, uniqueTag, intraSlotOrder)
 
     # === play/pause
 
@@ -258,10 +258,10 @@ class DiscreteEventEngine(threading.Thread):
 
         # schedule next statistics collection
         self.scheduleAtAsn(
-            asn         = self.asn + self.settings.tsch_slotframeLength,
-            cb          = self._actionEndCycle,
-            uniqueTag   = ('DiscreteEventEngine', '_actionEndCycle'),
-            priority    = 10,
+            asn              = self.asn + self.settings.tsch_slotframeLength,
+            cb               = self._actionEndCycle,
+            uniqueTag        = ('DiscreteEventEngine', '_actionEndCycle'),
+            intraSlotOrder   = 10,
         )
     
     # ======================== abstract =======================================
@@ -315,10 +315,10 @@ class SimEngine(DiscreteEventEngine):
 
         # schedule action at every end of cycle
         self.scheduleAtAsn(
-            asn          = self.asn + self.settings.tsch_slotframeLength - 1,
-            cb           = self._actionEndCycle,
-            uniqueTag    = ('SimEngine', '_actionEndCycle'),
-            priority     = 10,
+            asn              = self.asn + self.settings.tsch_slotframeLength - 1,
+            cb               = self._actionEndCycle,
+            uniqueTag        = ('SimEngine', '_actionEndCycle'),
+            intraSlotOrder   = 10,
         )
 
     def _routine_thread_crashed(self):
