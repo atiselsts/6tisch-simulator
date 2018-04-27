@@ -50,10 +50,10 @@ class SecJoin(object):
         Schedule to start the join process sometimes in the future
         """
         self.engine.scheduleIn(
-            delay       = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
-            cb          = self._initiateJoinProcess,
-            uniqueTag   = (self.mote.id, 'secjoin._initiateJoinProcess'),
-            priority    = 2,
+            delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
+            cb               = self._initiateJoinProcess,
+            uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
+            intraSlotOrder   = 2,
         )
 
     def receiveJoinPacket(self, srcIp, payload, timestamp):
@@ -64,7 +64,7 @@ class SecJoin(object):
         """
 
         # remove pending retransmission event
-        self.engine.removeEvent(
+        self.engine.removeFutureEvent(
             (self.mote.id, '_join_action_retransmission')
         )
 
@@ -172,10 +172,10 @@ class SecJoin(object):
             # schedule retransmission (will be canceled if response received)
             if not self.mote.dagRoot:
                 self.engine.scheduleIn(
-                    delay         = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
-                    cb            = self._retransmitJoinPacket,
-                    uniqueTag     = (self.mote.id, '_join_action_retransmission'),
-                    priority      = 2,
+                    delay              = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
+                    cb                 = self._retransmitJoinPacket,
+                    uniqueTag          = (self.mote.id, '_join_action_retransmission'),
+                    intraSlotOrder     = 2,
                 )
 
     def _setJoined(self):

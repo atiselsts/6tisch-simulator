@@ -615,7 +615,7 @@ class TestPacketFowarding:
         cb = None
         asn0 = sim_engine.asn
         while len(sim_engine.events) > 0 or asn > (asn0 + (one_second / sim_engine.settings.tsch_slotDuration)):
-            (asn, priority, cb, tag) = sim_engine.events.pop(0)
+            (asn, intraSlotOrder, cb, tag) = sim_engine.events.pop(0)
             sim_engine.asn = asn
 
             if cb == hop2.app._action_mote_sendSinglePacketToDAGroot:
@@ -638,7 +638,7 @@ class TestPacketFowarding:
         assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
         # two fragments should reach to the root within two slotframes
         while len(sim_engine.events) > 0:
-            (asn, priority, cb, tag) = sim_engine.events.pop(0)
+            (asn, intraSlotOrder, cb, tag) = sim_engine.events.pop(0)
             if sim_engine.asn != asn:
                 sim_engine.asn = asn
             cb()

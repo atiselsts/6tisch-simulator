@@ -60,7 +60,7 @@ class App(object):
             delay            = delay,
             cb               = self._action_mote_sendSinglePacketToDAGroot,
             uniqueTag        = (self.mote.id, '_action_mote_sendSinglePacketToDAGroot'),
-            priority         = 2,
+            intraSlotOrder   = 2,
         )
 
     def schedule_mote_sendPacketBurstToDAGroot(self):
@@ -71,10 +71,10 @@ class App(object):
         # schedule app_burstNumPackets packets at app_burstTimestamp
         for i in xrange(self.settings.app_burstNumPackets):
             self.engine.scheduleIn(
-                delay        = self.settings.app_burstTimestamp,
-                cb           = self._action_mote_enqueueDataForDAGroot,
-                uniqueTag    = (self.mote.id, '_app_action_enqueueData_burst_{0}'.format(i)),
-                priority     = 2,
+                delay             = self.settings.app_burstTimestamp,
+                cb                = self._action_mote_enqueueDataForDAGroot,
+                uniqueTag         = (self.mote.id, '_app_action_enqueueData_burst_{0}'.format(i)),
+                intraSlotOrder    = 2,
             )
 
     def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
