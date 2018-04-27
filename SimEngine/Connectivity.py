@@ -487,10 +487,10 @@ class Connectivity(object):
 
     def _schedule_propagate(self):
         self.engine.scheduleAtAsn(
-            asn         = self.engine.getAsn() + 1, # so propagation happens in next slot
-            cb          = self.propagate,
-            uniqueTag   = (None, 'propagation'),
-            priority    = 1,
+            asn              = self.engine.getAsn() + 1, # so propagation happens in next slot
+            cb               = self.propagate,
+            uniqueTag        = (None, 'propagation'),
+            intraSlotOrder   = 1,
         )
 
     # === sinr and pdr

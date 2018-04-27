@@ -16,11 +16,26 @@ def pdr_not_null(c,p,engine):
             returnVal = True
     return returnVal
 
+@pytest.fixture(params=[1,2,3,4,])
+def repeat4times(request):
+    return request.param
+
 @pytest.fixture(scope="function")
 def sim_engine(request):
 
-    def create_sim_engine(diff_config={}, force_initial_routing_and_scheduling_state=None):
-
+    def create_sim_engine(diff_config={}, force_initial_routing_and_scheduling_state=False):
+        
+        engine = None
+        
+        # add a finalizer
+        def fin():
+            if engine:
+                engine.connectivity.destroy()
+                engine.destroy()
+            sim_log.destroy()
+            sim_settings.destroy()
+        request.addfinalizer(fin)
+        
         # get default configuration
         sim_config = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
         config = sim_config.settings['regular']
@@ -41,39 +56,15 @@ def sim_engine(request):
 
         # create sim engine
         engine = SimEngine.SimEngine()
-
+        
         # force initial routing and schedule, if appropriate
         if force_initial_routing_and_scheduling_state:
             set_initial_routing_and_scheduling_state(engine)
 
-        # add a finalizer
-        def fin():
-            try:
-                need_terminate_sim_engine_thread = engine.is_alive()
-            except AssertionError:
-                # engine thread is not initialized for some reason
-                need_terminate_sim_engine_thread = False
-
-            if need_terminate_sim_engine_thread:
-                if engine.simPaused:
-                    # if the thread is paused, resume it so that an event for
-                    # termination is scheduled; otherwise deadlock happens
-                    engine.play()
-                engine.terminateSimulation(1)
-                engine.join()
-
-            # destroy all the singletons
-            engine.destroy()
-            sim_settings.destroy()
-            sim_log.destroy()
-            Connectivity.Connectivity().destroy()
-
-        request.addfinalizer(fin)
-
         return engine
 
     return create_sim_engine
-
+    
 
 def set_initial_routing_and_scheduling_state(engine):
 

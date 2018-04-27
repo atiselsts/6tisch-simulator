@@ -130,10 +130,10 @@ class MSF(SchedulingFunction):
           Schedule MSF parent change
         """
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
-            cb          = self.action_parent_change,
-            uniqueTag   = (mote.id, 'action_parent_change'),
-            priority    = 4,
+            asn              = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
+            cb               = self.action_parent_change,
+            uniqueTag        = (mote.id, 'action_parent_change'),
+            intraSlotOrder   = 4,
         )
 
     def action_parent_change(self, mote):
@@ -193,10 +193,10 @@ class MSF(SchedulingFunction):
 
         if armTimeout:
             self.engine.scheduleIn(
-                delay       = 300,
-                cb          = self.action_parent_change,
-                uniqueTag   = (mote.id, 'action_parent_change_retransmission'),
-                priority    = 4,
+                delay             = 300,
+                cb                = self.action_parent_change,
+                uniqueTag         = (mote.id, 'action_parent_change_retransmission'),
+                intraSlotOrder    = 4,
             )
         else:
             assert mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0)
@@ -303,10 +303,10 @@ class MSF(SchedulingFunction):
           Schedule MSF bandwidth increment
         """
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + 1),
-            cb          = self.action_bandwidth_increment,
-            uniqueTag   = (mote.id, 'action_bandwidth_increment'),
-            priority    = 4,
+            asn              = int(self.engine.asn + 1),
+            cb               = self.action_bandwidth_increment,
+            uniqueTag        = (mote.id, 'action_bandwidth_increment'),
+            intraSlotOrder   = 4,
         )
 
     def action_bandwidth_increment(self, mote):
@@ -328,10 +328,10 @@ class MSF(SchedulingFunction):
           Schedule MSF bandwidth decrement
         """
         self.engine.scheduleAtAsn(
-            asn         = int(self.engine.asn + 1),
-            cb          = self.action_bandwidth_decrement,
-            uniqueTag   = (mote.id, 'action_bandwidth_decrement'),
-            priority    = 4,
+            asn              = int(self.engine.asn + 1),
+            cb               = self.action_bandwidth_decrement,
+            uniqueTag        = (mote.id, 'action_bandwidth_decrement'),
+            intraSlotOrder   = 4,
         )
 
     def action_bandwidth_decrement(self, mote):
@@ -365,10 +365,10 @@ class MSF(SchedulingFunction):
     def housekeeping(self):
 
         self.engine.scheduleIn(
-            delay       = self.settings.sf_msf_housekeepingPeriod*(0.9+0.2*random.random()),
-            cb          = self.action_housekeeping,
-            uniqueTag   = (self.mote.id, 'action_housekeeping'),
-            priority    = 4,
+            delay            = self.settings.sf_msf_housekeepingPeriod*(0.9+0.2*random.random()),
+            cb               = self.action_housekeeping,
+            uniqueTag        = (self.mote.id, 'action_housekeeping'),
+            intraSlotOrder   = 4,
         )
 
     def action_housekeeping(self):

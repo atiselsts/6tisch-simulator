@@ -249,8 +249,8 @@ class SimLog(object):
 
         # schedule next statistics collection
         self.engine.scheduleAtAsn(
-            asn         = self.engine.asn + self.settings.tsch_slotframeLength,
-            cb          = self._action_collect_stats,
-            uniqueTag   = (None, '_action_collect_stats'),
-            priority    = 10,
+            asn              = self.engine.asn + self.settings.tsch_slotframeLength,
+            cb               = self._action_collect_stats,
+            uniqueTag        = (None, '_action_collect_stats'),
+            intraSlotOrder   = 10,
         )
