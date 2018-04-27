@@ -121,9 +121,9 @@ def test_vanilla_scenario(
     dagroot  = sim_engine.motes[sim_engine.DAGROOT_ID]
 
     # send data upstream (datamote->root)
-    if fixture_data_flow.find("up"):
+    if fixture_data_flow.find("up")!=-1:
         # inject data at the datamote
-        datamote.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
+        datamote.app._action_mote_sendSinglePacketToDAGroot()
 
         # give the data time to reach the root
         u.run_until_asn(sim_engine, sim_engine.getAsn() + 1000)
@@ -133,7 +133,7 @@ def test_vanilla_scenario(
 
     '''
     # send data downstream (root->datamote)
-    if fixture_data_flow.find("down"):
+    if fixture_data_flow.find("down")!=-1:
         # inject data at the root
         dagroot.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
 

@@ -8,10 +8,11 @@ It sends (data) packets to the root
 import random
 
 # Mote sub-modules
-import MoteDefines as d
+import sf
 
 # Simulator-wide modules
 import SimEngine
+import MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -93,7 +94,15 @@ class App(object):
         """
         send a single packet, and reschedule next one
         """
-
+        
+        # mote
+        self.log(
+            SimEngine.SimLog.LOG_APP_GENERATED,
+            {
+                'mote_id': self.mote.id,
+            }
+        )
+        
         # enqueue data
         self._action_mote_enqueueDataForDAGroot()
 
@@ -155,9 +164,23 @@ class App(object):
 
         assert not self.mote.dagRoot
 
-        # only send data if I have a preferred parent and dedicated cells to that parent
-        if self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0:
-
+        # only send data if I have a preferred parent and dedicated cells to that parent in case of MSF
+        if  (
+                self.mote.rpl.getPreferredParent()
+                and
+                (
+                    (
+                        type(self.mote.sf)==sf.MSF
+                        and
+                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
+                    )
+                    or
+                    (
+                        type(self.mote.sf)!=sf.MSF
+                    )
+                )
+            ):
+            
             # create new data packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
