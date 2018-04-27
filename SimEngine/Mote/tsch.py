@@ -82,7 +82,7 @@ class Tsch(object):
     # admin
 
     def activate(self):
-
+        
         # start sending EBs
         self._tsch_schedule_sendEB()
 
@@ -174,7 +174,7 @@ class Tsch(object):
     # data interface with upper layers
 
     def enqueue(self, packet):
-
+        
         if not self.mote.rpl.findNextHop(packet):
             # I don't have a route
 
@@ -224,7 +224,7 @@ class Tsch(object):
 
     def txDone(self, isACKed, isNACKed):
         """end of tx slot"""
-
+        
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
 
@@ -457,10 +457,19 @@ class Tsch(object):
             assert ts in self.getSchedule()
             assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
             assert self.waitingFor == d.DIR_RX
-
-        if smac and (self.mote in dmac):  # layer 2 addressing
-            # I received a packet
-
+        
+        if smac and ((self.mote in dmac) or (d.BROADCAST_ADDRESS in dmac)):
+            # I received a packet, either unicast for me, or broadcast
+            
+            # time correction
+            if smac == self.mote.rpl.getPreferredParent():
+                self.asnLastSync = asn
+            
+            # update schedule stats
+            if self.isSync:
+                self.getSchedule()[ts]['numRx'] += 1
+            
+            # signal activity to SF
             if self.isSync:
                 self.mote.sf.signal_cell_used(
                     self.mote,
@@ -469,14 +478,6 @@ class Tsch(object):
                     d.DIR_RX,
                     type,
                 )
-
-            if self.isSync:
-                # update schedule stats
-                self.getSchedule()[ts]['numRx'] += 1
-
-            # time correction
-            if smac == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
 
             if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
                 self.waitingFor = None
@@ -860,7 +861,7 @@ class Tsch(object):
         )
 
     def _tsch_action_sendEB(self):
-
+        
         # compute probability to send an EB
         ebProb     = float(self.settings.tsch_probBcast_ebProb)            \
                      /                                                     \
@@ -876,28 +877,28 @@ class Tsch(object):
             # probability passes
             if self.mote.secjoin.isJoined() or not self.settings.secjoin_enabled:
                 # I have joined
-                    if self.mote.dagRoot or (self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) != 0):
-                        # I am the root, or I have a preferred parent with dedicated cells to it
+                if self.mote.dagRoot or (self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) != 0):
+                    # I am the root, or I have a preferred parent with dedicated cells to it
+                    
+                    # create new packet
+                    newEB = {
+                        'type':         d.TSCH_TYPE_EB,
+                        'asn':          self.engine.getAsn(),
+                        'code':         None,
+                        'payload':      [self.mote.rpl.getDagRank()],  # the payload is the rpl rank
+                        'retriesLeft':  1,  # do not retransmit broadcast
+                        'srcIp':        self.mote,
+                        'dstIp':        d.BROADCAST_ADDRESS,
+                        'sourceRoute':  [],
+                    }
 
-                        # create new packet
-                        newEB = {
-                            'type':         d.TSCH_TYPE_EB,
-                            'asn':          self.engine.getAsn(),
-                            'code':         None,
-                            'payload':      [self.mote.rpl.getDagRank()],  # the payload is the rpl rank
-                            'retriesLeft':  1,  # do not retransmit broadcast
-                            'srcIp':        self.mote,
-                            'dstIp':        d.BROADCAST_ADDRESS,
-                            'sourceRoute':  [],
-                        }
+                    # enqueue packet in TSCH queue
+                    if not self.enqueue(newEB):
+                        # update mote stats
+                        self.mote.radio.drop_packet(newEB, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
-                        # enqueue packet in TSCH queue
-                        if not self.enqueue(newEB):
-                            # update mote stats
-                            self.mote.radio.drop_packet(newEB, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-
-                        # stats
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
+                    # stats
+                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
 
         # schedule next EB
         self._tsch_schedule_sendEB()

@@ -15,7 +15,8 @@ import Connectivity
 
 # =========================== defines =========================================
 
-DAGROOT_ID = 0 # select first mote as DagRoot# =========================== body ============================================
+DAGROOT_ID = 0
+# =========================== body ============================================
 
 class DiscreteEventEngine(threading.Thread):
     
@@ -133,8 +134,17 @@ class DiscreteEventEngine(threading.Thread):
             self._routine_thread_crashed()
             
             # print
-            print 'CRASH in DiscreteEventEngine!'
-            traceback.print_exc()
+            output  = []
+            output += ['']
+            output += ['==============================']
+            output += ['']
+            output += ['CRASH in {0}!'.format(self.name)]
+            output += ['']
+            output += [traceback.format_exc()]
+            output += ['==============================']
+            output += ['']
+            output  = '\n'.join(output)
+            print output
             
         else:
             # thread ended (gracefully)

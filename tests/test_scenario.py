@@ -89,6 +89,7 @@ def test_vanilla_scenario(
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes':                               5,
+            'exec_numSlotframesPerRun':                    5000,
             'app_pkLength' :                               fixture_app_pkLength,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,

@@ -78,11 +78,11 @@ class Rpl(object):
 
     def action_receiveDIO(self, type, smac, payload):
 
-        # DAGroot doesn't use DIOs
+        # abort if I'm the DAGroot
         if self.mote.dagRoot:
             return
 
-        # non sync'ed mote don't use DIO
+        # abort if I'm not sync'ed
         if not self.mote.tsch.getIsSync():
             return
 
@@ -96,18 +96,17 @@ class Rpl(object):
 
         # update my mote stats
         self.mote._stats_incrementMoteStats('statsNumRxDIO')
-
-        sender = self.engine(smac)
-
+        
+        # 'parse' the DIO
         rank = payload[0]
 
         # don't update poor link
-        if self._calcRankIncrease(sender) > d.RPL_MAX_RANK_INCREASE:
+        if self._calcRankIncrease(smac) > d.RPL_MAX_RANK_INCREASE:
             return
 
         # update rank/DAGrank with sender
-        self.neighborRank[sender]       = rank
-        self.neighborDagRank[sender]    = self._rankToDagrank(rank)
+        self.neighborRank[smac]         = rank
+        self.neighborDagRank[smac]      = self._rankToDagrank(rank)
 
         # trigger RPL housekeeping
         self._housekeeping()
@@ -464,10 +463,10 @@ class Rpl(object):
         """
         calculate the RPL rank increase with a particular neighbor.
         """
-
+        
         # estimate the ETX to that neighbor
         etx = self._estimateETX(neighbor)
-
+        
         # return if that failed
         if not etx:
             return
@@ -481,7 +480,7 @@ class Rpl(object):
         pdr                   = self.mote.getPDR(neighbor)
         numTx                 = d.NUM_SUFFICIENT_TX
         numTxAck              = math.floor(pdr*numTx)
-
+        
         for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (                                          \
                     cell['neighbor'] == neighbor and       \
@@ -494,7 +493,7 @@ class Rpl(object):
                 ):
                 numTx        += cell['numTx']
                 numTxAck     += cell['numTxAck']
-
+        
         # abort if about to divide by 0
         if not numTxAck:
             return

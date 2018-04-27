@@ -63,14 +63,16 @@ class SchedulingFunction(object):
     """
 
     def __init__(self, mote):
-
-        self.settings   = SimEngine.SimSettings.SimSettings()
-        self.engine     = SimEngine.SimEngine.SimEngine()
-        self.log        = SimEngine.SimLog.SimLog().log
-
-        self.numCellsElapsed                = 0
-        self.numCellsUsed                   = 0
-        self.mote                           = mote
+        
+        # store params
+        self.numCellsElapsed = 0
+        self.numCellsUsed    = 0
+        self.mote            = mote
+        
+        # singletons (to access quicker than recreate every time)
+        self.settings        = SimEngine.SimSettings.SimSettings()
+        self.engine          = SimEngine.SimEngine.SimEngine()
+        self.log             = SimEngine.SimLog.SimLog().log
 
     def activate(self):
         self.housekeeping()
@@ -131,12 +133,12 @@ class MSF(SchedulingFunction):
         """
         self.engine.scheduleAtAsn(
             asn              = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
-            cb               = self.action_parent_change,
-            uniqueTag        = (mote.id, 'action_parent_change'),
+            cb               = self._action_parent_change,
+            uniqueTag        = (mote.id, '_action_parent_change'),
             intraSlotOrder   = 4,
         )
 
-    def action_parent_change(self, mote):
+    def _action_parent_change(self, mote):
         """
           Trigger MSF parent change:
               Add the same number of cells to the new parent as we had with the old one.
@@ -194,7 +196,7 @@ class MSF(SchedulingFunction):
         if armTimeout:
             self.engine.scheduleIn(
                 delay             = 300,
-                cb                = self.action_parent_change,
+                cb                = self._action_parent_change,
                 uniqueTag         = (mote.id, 'action_parent_change_retransmission'),
                 intraSlotOrder    = 4,
             )

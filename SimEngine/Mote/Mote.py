@@ -91,16 +91,20 @@ class Mote(object):
 
     def role_setDagRoot(self):
         self.dagRoot              = True
+        # secjoin
+        self.secjoin.setIsJoined(True)
+        # rpl
         self.rpl.setRank(256)
         self.daoParents           = {}  # dictionary containing parents of each node from whom DAG root received a DAO
+        # tsch
+        self.tsch.setIsSync(True)
+        # stats
         self.packetLatencies      = []  # in slots
         self.packetHops           = []
-        self.secjoin.setIsJoined(True)
-        self.tsch.setIsSync(True)
-
-        # imprint DAG root's ID at each mote
+        
+        # HACK: give DAGroot's ID to each mote
         for mote in self.engine.motes:
-            mote.dagRootAddress = self
+            mote.dagRootAddress  = self
 
     # ==== stack
 
@@ -140,7 +144,11 @@ class Mote(object):
     def getPDR(self, neighbor):
         """ returns the pdr to that neighbor"""
         with self.dataLock:
-            return self.PDR[neighbor]
+            return self.engine.connectivity.get_pdr(
+                source       = self,
+                destination  = neighbor,
+                channel      = 0, #FIXME
+            )
 
     def _myNeighbors(self):
         return [n for n in self.PDR.keys() if self.PDR[n] > 0]
