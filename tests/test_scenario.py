@@ -113,12 +113,12 @@ def test_vanilla_scenario(
     rpl_check_rank(sim_engine.motes)
     if fixture_sf_type!='SSFSymmetric':
         tsch_check_dedicated_cells(sim_engine.motes)
-
+    
     # pick a "datamote" which will send/receive data
     datamote = sim_engine.motes[-1] # pick last mote
 
     # get the DAG root
-    dagroot = sim_engine.motes[sim_engine.DAGROOT_ID]
+    dagroot  = sim_engine.motes[sim_engine.DAGROOT_ID]
 
     # send data upstream (datamote->root)
     if fixture_data_flow.find("up"):
@@ -131,6 +131,7 @@ def test_vanilla_scenario(
         # verify it got to the root
         assert dagroot.getMoteStats()['numRxCells'] == 1
 
+    '''
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down"):
         # inject data at the root
@@ -141,3 +142,4 @@ def test_vanilla_scenario(
 
         # verify it got to the datamote
         assert datamote.getMoteStats()['numRxCells'] == 1
+    '''
