@@ -199,7 +199,7 @@ class SecJoin(object):
                 if self.settings.exec_numSlotframesPerRun != 0:
                     # experiment time in ASNs
                     simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
-                    # offset until the end of the current cycle
+                    # offset until the end of the current slotframe_iteration
                     offset = self.settings.tsch_slotframeLength - (self.engine.asn % self.settings.tsch_slotframeLength)
                     # experiment time + offset
                     delay = simTime + offset
