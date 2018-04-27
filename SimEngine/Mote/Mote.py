@@ -77,7 +77,7 @@ class Mote(object):
         self.rpl.activate()
         self.sf.activate()
         self.app.activate()
-    
+
     # ==== wireless
 
     def getCellPDR(self, cell):

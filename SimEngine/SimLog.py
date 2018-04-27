@@ -31,7 +31,6 @@ LOG_MOTE_STATE                   = {'type': 'mote.state'}
 LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','dest_id','appcounter']}
 LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','packet']}
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
-LOG_APP_VRB_TABLE_FULL           = {'type': 'app.vrb_table_full'}
 
 # === join 
 LOG_JOIN_TX                      = {'type': 'join.tx'}
