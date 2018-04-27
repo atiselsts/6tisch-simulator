@@ -1,11 +1,12 @@
 from SimEngine import SimEngine
-
-def test_create_destroy_engine():
-    engine = SimEngine.SimEngine(init_motes=False)
+'''
+def test_create_destroy_engine(repeat4times):
+    engine = SimEngine.DiscreteEventEngine()
+    print id(engine)
     engine.destroy()
-
-def test_create_start_destroy_engine():
-    engine = SimEngine.SimEngine(init_motes=False)
+'''
+def test_create_start_destroy_engine(repeat4times):
+    engine = SimEngine.DiscreteEventEngine()
     engine.start()
     engine.join()
 
@@ -19,10 +20,10 @@ class StateOfTest(object):
     def _cb_asn_2(self):
         self.events += ['2']
 
-def test_event_execution_order():
+def test_event_execution_order(repeat4times):
 
     # create engine
-    engine = SimEngine.SimEngine(init_motes=False)
+    engine = SimEngine.DiscreteEventEngine()
     engine.scheduleAtAsn(
         asn         = 10,
         cb          = engine._actionEndSim,
