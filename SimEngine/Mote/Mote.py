@@ -91,8 +91,7 @@ class Mote(object):
 
     def role_setDagRoot(self):
         self.dagRoot              = True
-        self.rpl.setRank(0)
-        self.rpl.setDagRank(0)
+        self.rpl.setRank(256)
         self.daoParents           = {}  # dictionary containing parents of each node from whom DAG root received a DAO
         self.packetLatencies      = []  # in slots
         self.packetHops           = []
