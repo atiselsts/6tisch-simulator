@@ -64,7 +64,7 @@ FORCE_INITIAL_ROUTING_AND_SCHEDULING_STATE = [False]
 def force_initial_routing_and_scheduling_state(request):
     return request.param
 
-def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
+def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state, repeat4times):
     sim_engine = sim_engine(
         diff_config                                   = {},
         force_initial_routing_and_scheduling_state    = force_initial_routing_and_scheduling_state,
@@ -72,7 +72,7 @@ def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state):
 
 #=== verify default configs from bin/config.json are loaded correctly
 
-def test_sim_config(sim_engine):
+def test_sim_config(sim_engine, repeat4times):
 
     sim_config  = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
 
@@ -82,7 +82,7 @@ def test_sim_config(sim_engine):
 
 #=== test that run_until_asn() works
 
-def test_run_until_asn(sim_engine):
+def test_run_until_asn(sim_engine, repeat4times):
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes':            1,

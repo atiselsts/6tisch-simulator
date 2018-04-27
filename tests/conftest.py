@@ -30,6 +30,7 @@ def sim_engine(request):
         # add a finalizer
         def fin():
             if engine:
+                engine.connectivity.destroy()
                 engine.destroy()
             sim_log.destroy()
             sim_settings.destroy()
