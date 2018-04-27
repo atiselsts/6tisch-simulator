@@ -613,7 +613,7 @@ class Tsch(object):
         # find closest active slot in schedule
 
         if not self.schedule:
-            self.engine.removeFutureEvents(uniqueTag=(self.mote.id, '_tsch_action_activeCell'))
+            self.engine.removeFutureEvent(uniqueTag=(self.mote.id, '_tsch_action_activeCell'))
             return
 
         tsDiffMin             = None

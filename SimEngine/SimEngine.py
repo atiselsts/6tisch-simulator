@@ -176,7 +176,7 @@ class DiscreteEventEngine(threading.Thread):
         assert asn > self.asn
 
         # remove all events with same uniqueTag (the event will be rescheduled)
-        self.removeFutureEvents(uniqueTag)
+        self.removeFutureEvent(uniqueTag)
 
         with self.dataLock:
 
@@ -213,7 +213,7 @@ class DiscreteEventEngine(threading.Thread):
 
     # === misc
 
-    def removeFutureEvents(self, uniqueTag):
+    def removeFutureEvent(self, uniqueTag):
         with self.dataLock:
             i = 0
             while i<len(self.events):

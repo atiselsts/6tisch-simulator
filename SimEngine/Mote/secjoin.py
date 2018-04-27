@@ -64,7 +64,7 @@ class SecJoin(object):
         """
 
         # remove pending retransmission event
-        self.engine.removeFutureEvents(
+        self.engine.removeFutureEvent(
             (self.mote.id, '_join_action_retransmission')
         )
 
