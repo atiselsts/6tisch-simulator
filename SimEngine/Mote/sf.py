@@ -138,27 +138,27 @@ class MSF(SchedulingFunction):
             intraSlotOrder   = 4,
         )
 
-    def _action_parent_change(self, mote):
+    def _action_parent_change(self):
         """
           Trigger MSF parent change:
               Add the same number of cells to the new parent as we had with the old one.
           In the case of bootstrap, add one cell to the preferred parent.
         """
-
-        assert mote.rpl.getPreferredParent()
+        
+        assert self.mote.rpl.getPreferredParent()
 
         armTimeout = False
 
         celloptions = d.DIR_TXRX_SHARED
 
-        if mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) == 0:
+        if self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) == 0:
 
-            timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
+            timeout = self.get_sixtop_timeout(self.mote, self.mote.rpl.getPreferredParent())
 
-            mote.sixp.issue_ADD_REQUEST(
-                mote.rpl.getPreferredParent(),
-                mote.numCellsToNeighbors.get(
-                    mote.rpl.getOldPreferredParent(),
+            self.mote.sixp.issue_ADD_REQUEST(
+                self.mote.rpl.getPreferredParent(),
+                self.mote.numCellsToNeighbors.get(
+                    self.mote.rpl.getOldPreferredParent(),
                     1, # request at least one cell
                 ),
                 celloptions,
@@ -167,10 +167,10 @@ class MSF(SchedulingFunction):
 
             armTimeout = True
 
-        if mote.numCellsToNeighbors.get(mote.rpl.getOldPreferredParent(), 0) > 0 and \
-                mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) > 0:
+        if self.mote.numCellsToNeighbors.get(self.mote.rpl.getOldPreferredParent(), 0) > 0 and \
+                self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0:
 
-            timeout = self.get_sixtop_timeout(mote, mote.rpl.getOldPreferredParent())
+            timeout = self.get_sixtop_timeout(self.mote, self.mote.rpl.getOldPreferredParent())
 
             # log
             self.log(
@@ -178,15 +178,15 @@ class MSF(SchedulingFunction):
                 {
                     'cell_count': self.settings.sf_msf_numCellsToAddRemove,
                     'cell_options': celloptions,
-                    'neighbor': mote.rpl.getOldPreferredParent().id,
+                    'neighbor': self.mote.rpl.getOldPreferredParent().id,
                     'timeout': timeout
                 }
             )
 
-            mote.sixp.issue_DELETE_REQUEST(
-                mote.rpl.getOldPreferredParent(),
-                mote.numCellsToNeighbors.get(
-                    mote.rpl.getOldPreferredParent(),
+            self.mote.sixp.issue_DELETE_REQUEST(
+                self.mote.rpl.getOldPreferredParent(),
+                self.mote.numCellsToNeighbors.get(
+                    self.mote.rpl.getOldPreferredParent(),
                     0),
                 celloptions,
                 timeout)
@@ -197,13 +197,13 @@ class MSF(SchedulingFunction):
             self.engine.scheduleIn(
                 delay             = 300,
                 cb                = self._action_parent_change,
-                uniqueTag         = (mote.id, 'action_parent_change_retransmission'),
+                uniqueTag         = (self.mote.id, 'action_parent_change_retransmission'),
                 intraSlotOrder    = 4,
             )
         else:
-            assert mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0)
+            assert self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0)
             # upon success, invalidate old parent
-            mote.rpl.setOldPreferredParent(None)
+            self.mote.rpl.setOldPreferredParent(None)
 
     def get_sixtop_timeout(self, mote, neighbor):
         """

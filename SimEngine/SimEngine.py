@@ -15,7 +15,6 @@ import Connectivity
 
 # =========================== defines =========================================
 
-DAGROOT_ID = 0
 # =========================== body ============================================
 
 class DiscreteEventEngine(threading.Thread):
@@ -290,7 +289,9 @@ class DiscreteEventEngine(threading.Thread):
 
 
 class SimEngine(DiscreteEventEngine):
-
+    
+    DAGROOT_ID = 0
+    
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
         self.motes                      = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
@@ -299,7 +300,7 @@ class SimEngine(DiscreteEventEngine):
         SimLog.SimLog().set_simengine(self)
         
         # select first mote as dagRoot
-        self.motes[DAGROOT_ID].role_setDagRoot()
+        self.motes[self.DAGROOT_ID].role_setDagRoot()
 
         # boot all motes
         for i in range(len(self.motes)):

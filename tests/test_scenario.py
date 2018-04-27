@@ -24,6 +24,10 @@ def fixture_ff_vrb_policy_missing_fragment(request):
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 
+@pytest.fixture(params=['SSFSymmetric'])
+def fixture_sf_type(request):
+    return request.param
+
 # =========================== helpers =========================================
 
 # === RPL
@@ -31,7 +35,10 @@ def fixture_ff_vrb_policy_last_fragment(request):
 def rpl_check_prefered_parents(motes):
     """ Verify that each mote has a prefered parent """
     for mote in motes:
-        assert mote.rpl.getPreferredParent() is not None
+        if mote.dagRoot:
+            continue
+        else:
+            assert mote.rpl.getPreferredParent() is not None
 
 def rpl_check_rank(motes):
     """ Verify that each mote has a rank """
@@ -74,7 +81,8 @@ def test_vanilla_scenario(
         fixture_app_pkLength,
         fixture_fragmentation,
         fixture_ff_vrb_policy_missing_fragment,
-        fixture_ff_vrb_policy_last_fragment
+        fixture_ff_vrb_policy_last_fragment,
+        fixture_sf_type,
     ):
     """
     Let the network form, send data packets up and down.
@@ -88,11 +96,12 @@ def test_vanilla_scenario(
         fragmentation_ff_discard_vrb_entry_policy += ['last_fragment']
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes':                               5,
+            'exec_numMotes':                               2,
             'exec_numSlotframesPerRun':                    5000,
             'app_pkLength' :                               fixture_app_pkLength,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
+            'sf_type':                                     fixture_sf_type,
         },
     )
 
@@ -102,7 +111,8 @@ def test_vanilla_scenario(
     # verify the network has formed
     rpl_check_prefered_parents(sim_engine.motes)
     rpl_check_rank(sim_engine.motes)
-    tsch_check_dedicated_cells(sim_engine.motes)
+    if fixture_sf_type!='SSFSymmetric':
+        tsch_check_dedicated_cells(sim_engine.motes)
 
     # pick a "datamote" which will send/receive data
     datamote = sim_engine.motes[-1] # pick last mote

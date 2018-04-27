@@ -271,7 +271,7 @@ class Tsch(object):
                                 self.mote.id,
                                 self.pktToSend['dstIp'].id,
                                 fireASN,
-                                str(self.mote.id, uniqueTag)
+                                str(uniqueTag)
                             )
                         }
                     )
