@@ -128,19 +128,6 @@ class Sixlowpan(object):
         incoming_datagram_tag = fragment['payload']['datagram_tag']
         buffer_lifetime  = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
 
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
-            {
-                'srcIp'               : fragment['srcIp'].id,
-                'dstIp'               : fragment['dstIp'].id,
-                'datagram_size'       : fragment['payload']['datagram_size'],
-                'datagram_offset'     : fragment['payload']['datagram_offset'],
-                'datagram_tag'        : fragment['payload']['datagram_tag'],
-                'length'              : fragment['payload']['length'],
-                'original_packet_type': fragment['payload']['original_type']
-            }
-        )
-
         self._remove_expired_reassembly_buffer()
 
         # make sure we can allocate a reassembly buffer if necessary
@@ -302,6 +289,19 @@ class PerHopReassembly(Fragmentation):
     #======================== public ==========================================
 
     def recv(self, smac, fragment):
+        self.log(
+            SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
+            {
+                'mote_id'             : self.mote.id,
+                'srcIp'               : fragment['srcIp'].id,
+                'dstIp'               : fragment['dstIp'].id,
+                'datagram_size'       : fragment['payload']['datagram_size'],
+                'datagram_offset'     : fragment['payload']['datagram_offset'],
+                'datagram_tag'        : fragment['payload']['datagram_tag'],
+                'length'              : fragment['payload']['length'],
+                'original_packet_type': fragment['payload']['original_type']
+            }
+        )
         packet = self.sixlowpan.reassemble(smac, fragment)
         if packet:
             self.sixlowpan.recv(smac, packet)
@@ -372,6 +372,21 @@ class FragmentForwarding(Fragmentation):
             if 'missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy:
                 self.vrb_table[smac][incoming_datagram_tag]['next_offset'] = 0
 
+        # when missing_fragment is in discard_vrb_entry_policy
+        # - if the incoming fragment is the expected one, update the next_offset
+        # - otherwise, remove the corresponding VRB table entry
+        if (
+                ('missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
+                (smac in self.vrb_table) and
+                (incoming_datagram_tag in self.vrb_table[smac])
+           ):
+            if datagram_offset == self.vrb_table[smac][incoming_datagram_tag]['next_offset']:
+                self.vrb_table[smac][incoming_datagram_tag]['next_offset'] += fragment['payload']['length']
+            else:
+                del self.vrb_table[smac][incoming_datagram_tag]
+                if len(self.vrb_table[smac]) == 0:
+                    del self.vrb_table[smac]
+
         # find entry in VRB table and forward fragment
         if (smac in self.vrb_table) and (incoming_datagram_tag in self.vrb_table[smac]):
             # VRB entry found!
@@ -382,56 +397,67 @@ class FragmentForwarding(Fragmentation):
                 packet = self.sixlowpan.reassemble(smac, fragment)
                 if packet:
                     self.sixlowpan.recv(smac, packet)
-                return
+                # putting the fragment into reassembly queue is treated as
+                # enqueuing
+                isEnqueued = True
 
-            if 'missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy:
-                if datagram_offset == self.vrb_table[smac][incoming_datagram_tag]['next_offset']:
-                    self.vrb_table[smac][incoming_datagram_tag]['next_offset'] += fragment['payload']['length']
-                else:
-                    del self.vrb_table[smac][incoming_datagram_tag]
-                    if len(self.vrb_table[smac]) == 0:
-                        del self.vrb_table[smac]
-                    self.mote.radio.drop_packet(fragment, 'frag_missing_frag')
-                    return
+            else:
+                fragment['asn'] = self.engine.getAsn()
+                # update the number of hops
+                # TODO: this shouldn't be done in application payload.
+                if fragment['payload']['original_type'] == d.APP_TYPE_DATA:
+                    fragment['payload']['hops'] += 1 # update the number of hops
+                fragment['payload']['datagram_tag'] = self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag']
 
-            fragment['asn'] = self.engine.getAsn()
-            # update the number of hops
-            # TODO: this shouldn't be done in application payload.
-            if fragment['payload']['original_type'] == d.APP_TYPE_DATA:
-                fragment['payload']['hops'] += 1 # update the number of hops
-            fragment['payload']['datagram_tag'] = self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag']
+                isEnqueued = self.mote.tsch.enqueue(fragment)
 
-            isEnqueued = self.mote.tsch.enqueue(fragment)
-            if isEnqueued:
-                self.log(
-                    SimEngine.SimLog.LOG_SIXLOWPAN_FORWARD_FRAGMENT,
-                    {
-                        'srcIp'               : fragment['srcIp'].id,
-                        'dstIp'               : fragment['dstIp'].id,
-                        'datagram_size'       : fragment['payload']['datagram_size'],
-                        'datagram_offset'     : fragment['payload']['datagram_offset'],
-                        'datagram_tag'        : fragment['payload']['datagram_tag'],
-                        'length'              : fragment['payload']['length'],
-                        'original_packet_type': fragment['payload']['original_type']
-                    }
-                )
-
-            if (
-                    ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
-                    ((fragment['payload']['datagram_offset'] + fragment['payload']['length']) == fragment['payload']['datagram_size'])
-               ):
-                # this fragment is the last one
-                del self.vrb_table[smac][incoming_datagram_tag]
-                if len(self.vrb_table[smac]) == 0:
-                    del self.vrb_table[smac]
-
-            if not isEnqueued:
-                self.mote.radio.drop_packet(fragment,
-                                             SimEngine.SimLog.LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE['type'])
         else:
-            # no VRB entry found!
-            self.mote.radio.drop_packet(fragment, 'frag_no_vrb_entry')
-            return
+            # no VRB table entry is found
+            isEnqueued = False
+
+        # when last_fragment is in discard_vrb_entry_policy
+        # - if the incoming fragment is the last fragment of a packet, remove the corresponding entry
+        # - otherwise, do nothing
+        if (
+                ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
+                (smac in self.vrb_table) and
+                (incoming_datagram_tag in self.vrb_table[smac]) and
+                ((fragment['payload']['datagram_offset'] + fragment['payload']['length']) == fragment['payload']['datagram_size'])
+           ):
+            del self.vrb_table[smac][incoming_datagram_tag]
+            if len(self.vrb_table[smac]) == 0:
+                del self.vrb_table[smac]
+
+        # log the reception of a forwarding or dropping fragment
+        self.log(
+            SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
+            {
+                'mote_id'             : self.mote.id,
+                'srcIp'               : fragment['srcIp'].id,
+                'dstIp'               : fragment['dstIp'].id,
+                'datagram_size'       : fragment['payload']['datagram_size'],
+                'datagram_offset'     : fragment['payload']['datagram_offset'],
+                'datagram_tag'        : fragment['payload']['datagram_tag'],
+                'length'              : fragment['payload']['length'],
+                'original_packet_type': fragment['payload']['original_type']
+            }
+        )
+
+        if isEnqueued:
+            self.log(
+                SimEngine.SimLog.LOG_SIXLOWPAN_FORWARD_FRAGMENT,
+                {
+                    'srcIp'               : fragment['srcIp'].id,
+                    'dstIp'               : fragment['dstIp'].id,
+                    'datagram_size'       : fragment['payload']['datagram_size'],
+                    'datagram_offset'     : fragment['payload']['datagram_offset'],
+                    'datagram_tag'        : fragment['payload']['datagram_tag'],
+                    'length'              : fragment['payload']['length'],
+                    'original_packet_type': fragment['payload']['original_type']
+                }
+            )
+        else:
+            self.mote.radio.drop_packet(fragment, 'sixlowpan_fragment_drop')
 
     #======================== private ==========================================
 
