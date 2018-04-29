@@ -75,6 +75,7 @@ LOG_6TOP_LATENCY                 = {'type': '6top_latency'}
 LOG_6TOP_QUEUE_DEL               = {'type': '6top_queue_del', 'keys': ['pkt_type','neighbor']}
 
 # === tsch
+LOG_TSCH_SYNCED                  = {'type': 'tsch_synced',                  'keys': ['mote_id']}
 LOG_TSCH_ADD_CELL                = {'type': 'tsch_add_cell'}
 LOG_TSCH_REMOVE_CELL             = {'type': 'tsch_remove_cell'}
 LOG_TSCH_TX_EB                   = {'type': 'tsch_tx_eb'}

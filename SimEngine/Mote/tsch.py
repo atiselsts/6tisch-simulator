@@ -56,6 +56,15 @@ class Tsch(object):
     def getIsSync(self):
         return self.isSync
     def setIsSync(self,val):
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_SYNCED,
+            {
+                "mote_id":   self.mote.id,
+            }
+        )
+        
+        # set
         self.isSync = val
 
     def getTxCells(self, neighbor = None):
@@ -492,7 +501,7 @@ class Tsch(object):
                 }
             )
         
-        if self.isSync:
+        if self.getIsSync():
             assert ts in self.getSchedule()
             assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
             assert self.waitingFor == d.DIR_RX
@@ -505,11 +514,11 @@ class Tsch(object):
                 self.asnLastSync = asn
             
             # update schedule stats
-            if self.isSync:
+            if self.getIsSync():
                 self.getSchedule()[ts]['numRx'] += 1
             
             # signal activity to SF
-            if self.isSync:
+            if self.getIsSync():
                 self.mote.sf.signal_cell_used(
                     self.mote,
                     self.getSchedule()[ts]['neighbor'],
@@ -809,7 +818,7 @@ class Tsch(object):
                 if self.backoffBroadcast > 0:
                     self.backoffBroadcast -= 1
             else:
-                if self.isSync:
+                if self.getIsSync():
                     # check whether packet to send
                     self.pktToSend = None
                     if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
@@ -953,7 +962,7 @@ class Tsch(object):
         # got an EB, increment stats
         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_RX_EB['type'])
 
-        if not self.isSync:
+        if not self.getIsSync():
             # receiving EB while not sync'ed: sync!
 
             assert self.settings.secjoin_enabled
@@ -967,7 +976,7 @@ class Tsch(object):
             )
 
             self.firstBeaconAsn = self.engine.getAsn()
-            self.isSync         = True
+            self.setIsSync(True)
 
             # set neighbors variables before starting request cells to the preferred parent
             for m in self.mote._myNeighbors():
@@ -993,7 +1002,7 @@ class Tsch(object):
 
     def _action_listenEBs(self):
 
-        if not self.isSync:
+        if not self.getIsSync():
 
             # choose random channel
             channel = random.randint(0, self.settings.phy_numChans-1)
