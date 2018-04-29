@@ -35,6 +35,7 @@ class Tsch(object):
         self.txQueue                        = []
         self.pktToSend                      = None
         self.waitingFor                     = None
+        self.channel                        = None
         self.asnLastSync                    = None
         self.isSync                         = False
         self.backoffBroadcast               = 0
@@ -66,6 +67,12 @@ class Tsch(object):
         
         # set
         self.isSync = val
+        
+        # listeningForEB->active transition 
+        self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
+            uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
+        )
+        self.tsch_schedule_active_cell()    # schedule next active cell
 
     def getTxCells(self, neighbor = None):
         if neighbor is None:
@@ -88,9 +95,12 @@ class Tsch(object):
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
                     c['dir'] == d.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
 
-    # admin
-
     def activate(self):
+        '''
+        Active the TSCH state machine.
+        - on the dagRoot, from boot
+        - on the mote, after having received an EB
+        '''
         
         # start sending EBs
         self._tsch_schedule_sendEB()
@@ -100,18 +110,7 @@ class Tsch(object):
         if (not self.settings.secjoin_enabled) or self.mote.dagRoot:
             for m in self.mote._myNeighbors():
                 self._resetBackoffPerNeigh(m)
-
-    # listening for EBs (when joining the network)
-
-    def listenEBs(self):
-
-        self.engine.scheduleAtAsn(
-            asn              = self.engine.getAsn() + 1,
-            cb               = self._action_listenEBs,
-            uniqueTag        = (self.mote.id, '_action_listenEBs'),
-            intraSlotOrder   = 3,
-        )
-
+    
     # minimal
 
     def add_minimal_cell(self):
@@ -132,7 +131,8 @@ class Tsch(object):
         :param list cellList:
         :return:
         """
-
+        
+        # add cell
         for cell in cellList:
             assert cell[0] not in self.schedule.keys()
             self.schedule[cell[0]] = {
@@ -155,11 +155,15 @@ class Tsch(object):
                     "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
                 }
             )
-        self._tsch_schedule_activeCell()
+        
+        # reschedule the next active cell, in case it is now earlier
+        if self.getIsSync():
+            self.tsch_schedule_active_cell()
 
     def removeCells(self, neighbor, tsList):
         """ removes cell(s) from the schedule """
-
+        
+        # remove cell
         for cell in tsList:
             assert type(cell) == int
             # log
@@ -178,7 +182,9 @@ class Tsch(object):
             assert self.schedule[cell]['neighbor'] == neighbor
             self.schedule.pop(cell)
 
-        self._tsch_schedule_activeCell()
+        # reschedule the next active cell, in case it is now earlier
+        if self.getIsSync():
+            self.tsch_schedule_active_cell()
 
     # data interface with upper layers
 
@@ -253,6 +259,7 @@ class Tsch(object):
                 'nextHop':        nextHop,
                 'isACKed':        isACKed,
                 'isNACKed':       isNACKed,
+                'channel':        self.channel,
             }
         )
         
@@ -476,7 +483,7 @@ class Tsch(object):
     def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
-        
+            
         # log
         if type:
             if smac:
@@ -655,18 +662,55 @@ class Tsch(object):
         return offset
 
     #======================== private ==========================================
+    
+    # listeningForEB
+    
+    def tsch_schedule_listeningForEB_cell(self):
+        
+        assert not self.getIsSync()
 
+        # schedule at next ASN
+        self.engine.scheduleAtAsn(
+            asn              = self.engine.getAsn()+1,
+            cb               = self._tsch_action_listeningForEB_cell,
+            uniqueTag        = (self.mote.id, '_tsch_action_listeningForEB_cell'),
+            intraSlotOrder   = 0,
+        )
+    
+    def _tsch_action_listeningForEB_cell(self):
+        """
+        active slot starts, while mote is listening for EBs
+        """
+        
+        assert not self.getIsSync()
+        
+        # choose random channel
+        channel = 0 # FIXME
+
+        # start listening
+        self.mote.radio.startRx(
+            channel = channel,
+        )
+
+        # indicate that we're waiting for the RX operation to finish
+        self.waitingFor = d.DIR_RX
+        
+        # schedule next listeningForEB cell
+        self.tsch_schedule_listeningForEB_cell()
+    
     # active cell
 
-    def _tsch_schedule_activeCell(self):
-
+    def tsch_schedule_active_cell(self):
+        
+        assert self.getIsSync()
+        
         asn        = self.engine.getAsn()
         tsCurrent  = asn % self.settings.tsch_slotframeLength
 
         # find closest active slot in schedule
 
         if not self.schedule:
-            self.engine.removeFutureEvent(uniqueTag=(self.mote.id, '_tsch_action_activeCell'))
+            self.engine.removeFutureEvent(uniqueTag=(self.mote.id, '_tsch_action_active_cell'))
             return
 
         tsDiffMin             = None
@@ -687,16 +731,15 @@ class Tsch(object):
         # schedule at that ASN
         self.engine.scheduleAtAsn(
             asn              = asn+tsDiffMin,
-            cb               = self._tsch_action_activeCell,
-            uniqueTag        = (self.mote.id, '_tsch_action_activeCell'),
+            cb               = self._tsch_action_active_cell,
+            uniqueTag        = (self.mote.id, '_tsch_action_active_cell'),
             intraSlotOrder   = 0,
         )
-
-    def _tsch_action_activeCell(self):
+    
+    def _tsch_action_active_cell(self):
         """
-        active slot starts. Determine what todo, either RX or TX.
+        active slot starts, while mote is sync'ed
         """
-
         asn = self.engine.getAsn()
         ts  = asn % self.settings.tsch_slotframeLength
 
@@ -791,6 +834,7 @@ class Tsch(object):
 
                 # indicate that we're waiting for the TX operation to finish
                 self.waitingFor   = d.DIR_TX
+                self.channel      = cell['ch']
 
         elif cell['dir'] == d.DIR_TXRX_SHARED:
             
@@ -884,6 +928,7 @@ class Tsch(object):
 
                 # indicate that we're waiting for the TX operation to finish
                 self.waitingFor   = d.DIR_TX
+                self.channel      = cell['ch']
 
             else:
                 # start listening
@@ -895,7 +940,7 @@ class Tsch(object):
                 self.waitingFor = d.DIR_RX
 
         # schedule next active cell
-        self._tsch_schedule_activeCell()
+        self.tsch_schedule_active_cell()
 
     # EBs
 
@@ -954,7 +999,7 @@ class Tsch(object):
         self._tsch_schedule_sendEB()
 
     def _tsch_action_receiveEB(self, type, smac, payload):
-
+        
         # abort if I'm the root
         if self.mote.dagRoot:
             return
@@ -963,22 +1008,13 @@ class Tsch(object):
         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_RX_EB['type'])
 
         if not self.getIsSync():
-            # receiving EB while not sync'ed: sync!
-
-            assert self.settings.secjoin_enabled
-
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_6TOP_INFO,
-                {
-                    "info": "[tsch] synced on EB received from mote {0}.".format(smac.id)
-                }
-            )
-
-            self.firstBeaconAsn = self.engine.getAsn()
+            # receiving EB while not sync'ed
+            
+            # I'm now sync'ed!
             self.setIsSync(True)
 
             # set neighbors variables before starting request cells to the preferred parent
+            # FIXME
             for m in self.mote._myNeighbors():
                 self._resetBackoffPerNeigh(m)
 
@@ -997,20 +1033,3 @@ class Tsch(object):
     def _resetBackoffPerNeigh(self, neigh):
         self.backoffPerNeigh[neigh] = 0
         self.backoffExponentPerNeigh[neigh] = d.TSCH_MIN_BACKOFF_EXPONENT - 1
-
-    # listening for EBs
-
-    def _action_listenEBs(self):
-
-        if not self.getIsSync():
-
-            # choose random channel
-            channel = random.randint(0, self.settings.phy_numChans-1)
-
-            # start listening
-            self.mote.radio.startRx(
-                channel = channel,
-            )
-
-            # indicate that we're waiting for the RX operation to finish
-            self.waitingFor = d.DIR_RX

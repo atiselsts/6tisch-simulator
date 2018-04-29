@@ -50,8 +50,6 @@ class Mote(object):
         self.dagRootAddress            = None
 
         # stats
-        self.firstBeaconAsn            = 0
-
         self.packetLatencies           = []      # in slots
         self.packetHops                = []
         self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
@@ -89,22 +87,8 @@ class Mote(object):
 
     # ===== role
 
-    def role_setDagRoot(self):
+    def setDagRoot(self):
         self.dagRoot              = True
-        # secjoin
-        self.secjoin.setIsJoined(True)
-        # rpl
-        self.rpl.setRank(256)
-        self.parentChildfromDAOs  = {}  # from DAOs, {'c': 'p', ...}
-        # tsch
-        self.tsch.setIsSync(True)
-        # stats
-        self.packetLatencies      = []  # in slots
-        self.packetHops           = []
-        
-        # HACK: give DAGroot's ID to each mote
-        for mote in self.engine.motes:
-            mote.dagRootAddress  = self
 
     # ==== stack
 
@@ -167,25 +151,36 @@ class Mote(object):
     # ==== battery
 
     def boot(self):
-        if self.settings.secjoin_enabled:
-            if self.dagRoot:
-                # I'm the DAG root
-
-                # install minimal cell
-                self.tsch.add_minimal_cell()
-
-                # activate the stack
-                self._stack_init_synced()
-            else:
-                # I'm NOT the DAG root
-
-                # listen for EBs
-                self.tsch.listenEBs()
-        else:
-            self.tsch.setIsSync(True)              # without join we skip the always-on listening for EBs
-            self.secjoin.setIsJoined(True)         # we consider all nodes have joined
+        if self.dagRoot:
+            # I'm the DAG root
+            
+            # secjoin
+            self.secjoin.setIsJoined(True)
+            # rpl
+            self.rpl.setRank(256)
+            self.parentChildfromDAOs  = {}  # from DAOs, {'c': 'p', ...}
+            # tsch
             self.tsch.add_minimal_cell()
+            self.tsch.setIsSync(True)
+            # stats
+            self.packetLatencies      = []  # in slots
+            self.packetHops           = []
+            
+            # activate the stack
             self._stack_init_synced()
+            
+            # give DAGroot's ID to each mote FIXME: remove
+            for mote in self.engine.motes:
+                mote.dagRootAddress  = self
+            
+            # schedule the first active cell
+            self.tsch.tsch_schedule_active_cell()
+            
+        else:
+            # I'm NOT the DAG root
+            
+            # schedule the first listeningForE cell
+            self.tsch.tsch_schedule_listeningForEB_cell()
 
     #======================== private =========================================
 

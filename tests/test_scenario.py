@@ -4,8 +4,12 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
+@pytest.fixture(params=[2])
+def fixture_exec_numMotes(request):
+    return request.param
+
 #@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['up'])
+@pytest.fixture(params=['down'])
 def fixture_data_flow(request):
     return request.param
 
@@ -82,6 +86,7 @@ def tsch_check_dedicated_cells(motes):
 
 def test_vanilla_scenario(
         sim_engine,
+        fixture_exec_numMotes,
         fixture_data_flow,
         fixture_app_pkLength,
         fixture_fragmentation,
@@ -101,7 +106,7 @@ def test_vanilla_scenario(
         fragmentation_ff_discard_vrb_entry_policy += ['last_fragment']
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes':                               3,
+            'exec_numMotes':                               fixture_exec_numMotes,
             'exec_numSlotframesPerRun':                    10000,
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
@@ -131,7 +136,7 @@ def test_vanilla_scenario(
     dagroot  = sim_engine.motes[sim_engine.DAGROOT_ID]
     
     # verify no packets yet received by root
-    assert len(u.read_log_file(['app_rx']))==0
+    assert len(u.read_log_file(['app.rx']))==0
     
     # send data upstream (datamote->root)
     if fixture_data_flow.find("up")!=-1:
@@ -143,7 +148,7 @@ def test_vanilla_scenario(
         u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
         # verify it got to the root
-        assert len(u.read_log_file(['app_rx']))>0
+        assert len(u.read_log_file(['app.rx']))>0
     
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down")!=-1:

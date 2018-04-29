@@ -196,12 +196,14 @@ class Connectivity(object):
                 arrivalTime[transmission['smac']] = sender.tsch.getOffsetToDagRoot()
 
             for transmission in transmissions:
+            
                 isACKed = False
                 isNACKed = False
                 senders = self._get_senders(channel)  # list of motes in tx state
                 receivers = self._get_receivers(channel)  # list of motes in rx state
 
                 for receiver in receivers:
+                    
                     # get interferers
                     # i.e motes that:
                     #     - send at same time and channel
@@ -564,5 +566,5 @@ class Connectivity(object):
         for mote in self.engine.motes:
             if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
                 receivers.append(mote)
-
+        
         return receivers

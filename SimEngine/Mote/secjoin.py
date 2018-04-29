@@ -49,12 +49,18 @@ class SecJoin(object):
         """
         Schedule to start the join process sometimes in the future
         """
-        self.engine.scheduleIn(
-            delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
-            cb               = self._initiateJoinProcess,
-            uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
-            intraSlotOrder   = 2,
-        )
+        
+        if self.settings.secjoin_enabled:
+            # initiate join process
+            self.engine.scheduleIn(
+                delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
+                cb               = self._initiateJoinProcess,
+                uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
+                intraSlotOrder   = 2,
+            )
+        else:
+            # consider I'm already joined
+            self.setIsJoined(True)
 
     def receiveJoinPacket(self, srcIp, payload, timestamp):
         """
