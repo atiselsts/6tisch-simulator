@@ -5,7 +5,7 @@ import test_utils as u
 # =========================== fixtures ========================================
 
 #@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['down'])
+@pytest.fixture(params=['up'])
 def fixture_data_flow(request):
     return request.param
 
@@ -19,11 +19,13 @@ def fixture_app_pkLength(request):
 def fixture_fragmentation(request):
     return request.param
 
-@pytest.fixture(params=[True, False])
+#@pytest.fixture(params=[True, False])
+@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_missing_fragment(request):
     return request.param
 
-@pytest.fixture(params=[True, False])
+#@pytest.fixture(params=[True, False])
+@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 
@@ -99,7 +101,7 @@ def test_vanilla_scenario(
         fragmentation_ff_discard_vrb_entry_policy += ['last_fragment']
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes':                               2,
+            'exec_numMotes':                               3,
             'exec_numSlotframesPerRun':                    10000,
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
@@ -123,7 +125,7 @@ def test_vanilla_scenario(
         tsch_check_dedicated_cells(sim_engine.motes)
     
     # pick a "datamote" which will send/receive data
-    datamote = sim_engine.motes[-1] # pick last mote
+    datamote = sim_engine.motes[-1] # pick furthest mote
 
     # get the DAG root
     dagroot  = sim_engine.motes[sim_engine.DAGROOT_ID]
