@@ -51,7 +51,7 @@ def read_log_file(filter=[]):
         f.readline()
         for line in f:
             log = json.loads(line)
-            if (len(filter) == 0) or (log['type'] in filter):
+            if (len(filter) == 0) or (log['_type'] in filter):
                 logs.append(log)
 
     return logs

@@ -566,7 +566,7 @@ class TestPacketFowarding:
         assert len(hop2.tsch.getTxQueue()) == 0
         assert len(hop1.tsch.getTxQueue()) == 2
 
-        assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
+        assert SimEngine.SimLog.LOG_APP_RX['type'] not in root.motestats
         asn0 = sim.asn
         # two fragments should be sent to the final destination within the next two timeslots.
         while (len(sim.events) > 0) and (asn < (asn0 + (one_second * 2 / sim.settings.tsch_slotDuration))):
@@ -574,7 +574,7 @@ class TestPacketFowarding:
             if sim.asn != asn:
                 sim.asn = asn
             cb(**kwarg)
-        assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
+        assert root.motestats[SimEngine.SimLog.LOG_APP_RX['type']] == 1
 
 
 class TestDatagramTag:

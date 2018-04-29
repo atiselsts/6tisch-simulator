@@ -177,15 +177,15 @@ class Tsch(object):
         
         if not self.mote.rpl.findNextHop(packet):
             # I don't have a route
-
+            
             # increment mote state
             self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type'])
 
             return False
 
-        elif not (self.getTxCells() or self.getSharedCells()):
-            # I don't have any transmit cells
-
+        elif (not self.getTxCells()) and (not self.getSharedCells()):
+            # I don't have any cell to transmit
+            
             # increment mote state
             self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type'])
 
@@ -193,7 +193,7 @@ class Tsch(object):
 
         elif len(self.txQueue) >= d.TSCH_QUEUE_SIZE:
             # my TX queue is full
-
+            
             # However, I will allow to add an additional packet in some specific ocasions
             # This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
 
@@ -231,7 +231,22 @@ class Tsch(object):
         assert ts in self.getSchedule()
         assert self.getSchedule()[ts]['dir'] == d.DIR_TX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
         assert self.waitingFor == d.DIR_TX
-
+        
+        # log
+        nextHop = self.pktToSend['nextHop'][0]
+        if type(nextHop)!=int:
+            nextHop = nextHop.id # FIXME: agree on format of nextHop...
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_TXDONE,
+            {
+                'mote_id':        self.mote.id,
+                'frame_type':     self.pktToSend['type'],
+                'nextHop':        nextHop,
+                'isACKed':        isACKed,
+                'isNACKed':       isNACKed,
+            }
+        )
+        
         if isACKed:
 
             # update schedule stats
@@ -452,7 +467,31 @@ class Tsch(object):
     def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
-
+        
+        # log
+        if type:
+            if smac:
+                smac_to_print        = smac.id
+            else:
+                smac_to_print        = None
+            if dmac==None:
+                dmac_to_print        = None
+            else:
+                try:
+                    dmac_to_print    = [dm.id for dm in dmac]
+                except AttributeError:
+                    dmac_to_print    = dmac
+            
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_RXDONE,
+                {
+                    'mote_id':        self.mote.id,
+                    'frame_type':     type,
+                    'smac':           smac_to_print,
+                    'dmac':           dmac_to_print,
+                }
+            )
+        
         if self.isSync:
             assert ts in self.getSchedule()
             assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED

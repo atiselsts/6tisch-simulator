@@ -19,7 +19,6 @@ import MoteDefines as d
 
 # =========================== body ============================================
 
-
 class Sixlowpan(object):
 
     def __init__(self, mote):
@@ -34,22 +33,18 @@ class Sixlowpan(object):
         # An element of the list a dictionary consisting of two key-values:
         # "expiration" and "fragments".
         # "fragments" holds received fragments, although only their
-        # datagram_offset and lenghts are stored in the "fragments" list.
+        # datagram_offset and lengths are stored in the "fragments" list.
         self.reassembly_buffers    = {}
 
     #======================== public ==========================================
 
     def recv(self, smac, packet):
-        if packet['type'] == d.APP_TYPE_FRAG:
+        if   packet['type'] == d.APP_TYPE_FRAG:
             self.fragmentation.recv(smac, packet)
+        
         elif packet['dstIp'] == self.mote:
-            # TODO: support multiple apps
-            assert self.mote.dagRoot
-            self.mote.app._action_dagroot_receivePacketFromMote(
-                srcIp=packet['srcIp'],
-                payload=packet['payload'],
-                timestamp=self.engine.getAsn()
-            )
+            
+            # log
             self.log(
                 SimEngine.SimLog.LOG_SIXLOWPAN_RECV_PACKET,
                 {
@@ -58,6 +53,14 @@ class Sixlowpan(object):
                     'packet_type': packet['type']
                 }
             )
+            
+            # hand to app
+            self.mote.app._action_receivePacket(
+                srcIp        = packet['srcIp'],
+                payload      = packet['payload'],
+                timestamp    = self.engine.getAsn()
+            )
+            
         else:
             # this packet is to be forwarded. 'asn' and 'retriesLeft' fields
             # needs update by the forwarder.

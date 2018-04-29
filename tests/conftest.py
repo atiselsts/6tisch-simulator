@@ -111,7 +111,10 @@ def set_initial_routing_and_scheduling_state(engine):
                 # set child's rank
                 child.rpl.setRank(parent.rpl.getRank()+512)
                 # record the child->parent relationship at the root (for source routing)
-                root.rpl.updateDaoParents({child:parent})
+                root.rpl.addParentChildfromDAOs(
+                    child_id  = child.id,
+                    parent_id = parent.id,
+                )
                 # add a cell from child to parent
                 child.tsch.addCells(parent,[(cur_slot,0,d.DIR_TX)])
                 child.numCellsToNeighbors[parent] = 1

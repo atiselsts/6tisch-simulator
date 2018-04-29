@@ -635,7 +635,7 @@ class TestPacketFowarding:
         assert len(hop2.tsch.getTxQueue()) == 2
 
         asn0 = sim_engine.asn
-        assert SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'] not in root.motestats
+        assert SimEngine.SimLog.LOG_APP_RX['type'] not in root.motestats
         # two fragments should reach to the root within two slotframes
         while len(sim_engine.events) > 0:
             (asn, intraSlotOrder, cb, tag) = sim_engine.events.pop(0)
@@ -652,7 +652,7 @@ class TestPacketFowarding:
         assert len(hop2.tsch.getTxQueue()) == 0
         assert len(hop1.tsch.getTxQueue()) == 0
         print root.motestats
-        assert root.motestats[SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type']] == 1
+        assert root.motestats[SimEngine.SimLog.LOG_APP_RX['type']] == 1
 
     def test_drop_fragment(sim_engine):
         params = {'fragmentation'                            : 'FragmentForwarding',

@@ -131,7 +131,7 @@ class SecJoin(object):
 
         sourceRoute = []
         if self.mote.dagRoot:
-            sourceRoute = self.mote.rpl.getSourceRoute([destination.id])
+            sourceRoute = self.mote.rpl.computeSourceRoute([destination.id])
 
         if sourceRoute or not self.mote.dagRoot:
             # create new packet

@@ -178,7 +178,7 @@ def test_drop_app_ack_packet_tx_queue_full(sim):
         assert len(pkt) == 0
 
     root.radio.drop_packet = types.MethodType(test, root)
-    root.app._action_dagroot_receivePacketFromMote(
+    root.app._action_receivePacket(
         srcIp      = node,
         payload    = {
             'asn_at_source':  0,

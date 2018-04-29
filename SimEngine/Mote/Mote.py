@@ -95,7 +95,7 @@ class Mote(object):
         self.secjoin.setIsJoined(True)
         # rpl
         self.rpl.setRank(256)
-        self.daoParents           = {}  # dictionary containing parents of each node from whom DAG root received a DAO
+        self.parentChildfromDAOs  = {}  # from DAOs, {'c': 'p', ...}
         # tsch
         self.tsch.setIsSync(True)
         # stats
