@@ -129,7 +129,7 @@ def test_vanilla_scenario(
     dagroot  = sim_engine.motes[sim_engine.DAGROOT_ID]
     
     # verify no packets yet received by root
-    assert len(u.read_log_file(['app_reaches_dagroot']))==0
+    assert len(u.read_log_file(['app_rx']))==0
     
     # send data upstream (datamote->root)
     if fixture_data_flow.find("up")!=-1:
@@ -141,7 +141,7 @@ def test_vanilla_scenario(
         u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
         # verify it got to the root
-        assert len(u.read_log_file(['app_reaches_dagroot']))>0
+        assert len(u.read_log_file(['app_rx']))>0
     
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down")!=-1:

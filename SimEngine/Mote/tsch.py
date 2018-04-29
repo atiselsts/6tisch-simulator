@@ -520,14 +520,18 @@ class Tsch(object):
 
             if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
                 self.waitingFor = None
-                self.mote.sixlowpan.recv(smac, {
-                    'asn'        : asn,
-                    'type'       : type,
-                    'code'       : None,
-                    'payload'    : payload,
-                    'srcIp'      : srcIp,
-                    'dstIp'      : dstIp,
-                    'sourceRoute': srcRoute})
+                self.mote.sixlowpan.recv(
+                    smac,
+                    {
+                        'asn'        : asn,
+                        'type'       : type,
+                        'code'       : None,
+                        'payload'    : payload,
+                        'srcIp'      : srcIp,
+                        'dstIp'      : dstIp,
+                        'sourceRoute': srcRoute,
+                    },
+                )
                 (isACKed, isNACKed) = (True, False)
                 return isACKed, isNACKed
 

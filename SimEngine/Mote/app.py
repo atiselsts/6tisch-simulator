@@ -33,8 +33,6 @@ class App(object):
         self.log             = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.pkPeriod        = self.settings.app_pkPeriod
-        self.pkLength        = self.settings.app_pkLength
 
     #======================== public ==========================================
 
@@ -43,17 +41,17 @@ class App(object):
         schedule an event to send a single packet
         """
 
-        # disable app pkPeriod is zero
-        if self.pkPeriod == 0:
+        # disable app app_pkPeriod is zero
+        if self.settings.app_pkPeriod == 0:
             return
 
         # compute how long before transmission
         if firstPacket:
-            # compute initial time within the range of [next asn, next asn+pkPeriod]
-            delay            = self.settings.tsch_slotDuration + self.pkPeriod*random.random()
+            # compute initial time within the range of [next asn, next asn+app_pkPeriod]
+            delay            = self.settings.tsch_slotDuration + self.settings.app_pkPeriod*random.random()
         else:
             # compute random delay
-            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
+            delay            = self.settings.app_pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         assert delay > 0
 
         # schedule
@@ -87,7 +85,7 @@ class App(object):
 
     #======================== private ==========================================
 
-    #=== mote -> root
+    #=== [TX] mote -> root
 
     def _action_mote_sendSinglePacketToDAGroot(self):
         """
@@ -96,9 +94,10 @@ class App(object):
         
         # mote
         self.log(
-            SimEngine.SimLog.LOG_APP_GENERATED,
+            SimEngine.SimLog.LOG_APP_TX,
             {
-                'mote_id': self.mote.id,
+                'mote_id':        self.mote.id,
+                'destination':    self.mote.dagRootAddress.id,
             }
         )
         
@@ -140,7 +139,7 @@ class App(object):
                 'payload':        { # payload overloaded is to calculate packet stats
                     'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
                     'hops':            1,                       # number of hops, used to calculate empirical hop count
-                    'length':          self.pkLength,
+                    'length':          self.settings.app_pkLength,
                 },
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self.mote,                    # from mote
@@ -149,9 +148,52 @@ class App(object):
             }
 
             # update mote stats
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_GENERATED['type'])
+            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_TX['type'])
 
             self.mote.sixlowpan.send(newPacket)
+    
+    #=== [TX] root -> mote
+    
+    def _action_root_sendSinglePacketToMote(self,dest_mote):
+        """
+        send a single packet
+        """
+        
+        assert self.mote.dagRoot
+        
+        # mote
+        self.log(
+            SimEngine.SimLog.LOG_APP_TX,
+            {
+                'mote_id':        self.mote.id,
+                'destination':    dest_mote.id,
+            }
+        )
+        
+        # compute source route
+        sourceRoute = self.mote.rpl.computeSourceRoute(dest_mote.id)
+        
+        # create DATA packet
+        newPacket = {
+            'asn':             self.engine.getAsn(),
+            'type':            d.APP_TYPE_DATA,
+            'code':            None,
+            'payload': { # payload overloaded is to calculate packet stats
+                'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
+                'hops':            1,                       # number of hops, used to calculate empirical hop count
+                'length':          self.settings.app_pkLength,
+            },
+            'retriesLeft':     d.TSCH_MAXTXRETRIES,
+            'srcIp':           self.mote,   # from DAGroot
+            'dstIp':           dest_mote,   # to mote
+            'sourceRoute':     sourceRoute
+        }
+
+        # enqueue packet in TSCH queue
+        if not self.mote.tsch.enqueue(newPacket):
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
+    
+    #=== [RX]
     
     def _action_receivePacket(self, srcIp, payload, timestamp):
         """
@@ -162,7 +204,8 @@ class App(object):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id': srcIp.id,
+                'mote_id': self.mote.id,
+                'source':  srcIp.id,
             }
         )
 
@@ -199,42 +242,3 @@ class App(object):
                 if not self.mote.tsch.enqueue(newPacket):
                     self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
     
-    #=== root -> mote
-    
-    def _action_root_sendSinglePacketToMote(self,mote):
-        """
-        send a single packet
-        """
-        
-        assert self.mote.dagRoot
-        
-        # mote
-        self.log(
-            SimEngine.SimLog.LOG_APP_GENERATED,
-            {
-                'mote_id': self.mote.id,
-            }
-        )
-        
-        # compute source route
-        sourceRoute = self.mote.rpl.computeSourceRoute(mote.id)
-        
-        # create DATA packet
-        newPacket = {
-            'asn':             self.engine.getAsn(),
-            'type':            d.APP_TYPE_DATA,
-            'code':            None,
-            'payload': { # payload overloaded is to calculate packet stats
-                'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
-                'hops':            1,                       # number of hops, used to calculate empirical hop count
-                'length':          self.pkLength,
-            },
-            'retriesLeft':     d.TSCH_MAXTXRETRIES,
-            'srcIp':           self.mote,  # from DAGroot
-            'dstIp':           mote,       # to mote
-            'sourceRoute':     sourceRoute
-        }
-
-        # enqueue packet in TSCH queue
-        if not self.mote.tsch.enqueue(newPacket):
-            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])

@@ -220,9 +220,9 @@ class Connectivity(object):
                         self.log(
                             SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
                             {
-                                 "source_id": transmission['smac'].id,
-                                 "channel": transmission['channel']
-                             }
+                                "source_id": transmission['smac'].id,
+                                "channel": transmission['channel']
+                            }
                         )
 
                     # lock on the first transmission
