@@ -39,10 +39,10 @@ LOG_JOIN_RX                      = {'type': 'join.rx', 'keys': ['source', 'token
 LOG_JOINED                       = {'type': 'join.joined'}
 
 # === rpl
-LOG_RPL_TX_DIO                   = {'type': 'rpl.tx_dio',           'keys': ['mote_id']}
-LOG_RPL_RX_DIO                   = {'type': 'rpl.rx_dio',           'keys': ['source']}
-LOG_RPL_TX_DAO                   = {'type': 'rpl.tx_dao',           'keys': ['mote_id']}
-LOG_RPL_RX_DAO                   = {'type': 'rpl.rx_dao',           'keys': ['source']}
+LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',           'keys': ['mote_id']}
+LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',           'keys': ['source']}
+LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',           'keys': ['mote_id']}
+LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',           'keys': ['source']}
 LOG_RPL_CHURN_RANK               = {'type': 'rpl.churn_rank',       'keys': ['old_rank', 'new_rank']}
 LOG_RPL_CHURN_PREF_PARENT        = {'type': 'rpl.churn_pref_parent','keys': ['old_parent', 'new_parent']}
 LOG_RPL_CHURN_PARENT_SET         = {'type': 'rpl.churn_parent_set'}

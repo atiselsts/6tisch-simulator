@@ -8,28 +8,28 @@ import test_utils as u
 def fixture_exec_numMotes(request):
     return request.param
 
-#@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['down'])
+@pytest.fixture(params=['up', 'down', 'up-down'])
+#@pytest.fixture(params=['down'])
 def fixture_data_flow(request):
     return request.param
 
-#@pytest.fixture(params=[10, 100, 200])
-@pytest.fixture(params=[10])
+@pytest.fixture(params=[10, 100, 200])
+#@pytest.fixture(params=[10])
 def fixture_app_pkLength(request):
     return request.param
 
-#@pytest.fixture(params=["PerHopReassembly", "FragmentForwarding"])
-@pytest.fixture(params=["FragmentForwarding"])
+@pytest.fixture(params=["PerHopReassembly", "FragmentForwarding"])
+#@pytest.fixture(params=["FragmentForwarding"])
 def fixture_fragmentation(request):
     return request.param
 
-#@pytest.fixture(params=[True, False])
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True, False])
+#@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_missing_fragment(request):
     return request.param
 
-#@pytest.fixture(params=[True, False])
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True, False])
+#@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 

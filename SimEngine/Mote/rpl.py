@@ -94,7 +94,7 @@ class Rpl(object):
 
         # log
         self.log(
-            SimEngine.SimLog.LOG_RPL_RX_DIO,
+            SimEngine.SimLog.LOG_RPL_DIO_RX,
             {
                 "source": smac.id
             }
@@ -128,7 +128,7 @@ class Rpl(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_RPL_RX_DAO,
+            SimEngine.SimLog.LOG_RPL_DAO_RX,
             {
                 "source": smac.id
             }
@@ -268,7 +268,7 @@ class Rpl(object):
             
             # log
             self.log(
-                SimEngine.SimLog.LOG_RPL_TX_DIO,
+                SimEngine.SimLog.LOG_RPL_DIO_TX,
                 {
                     "mote_id": self.mote.id
                 }
@@ -364,7 +364,7 @@ class Rpl(object):
             
             # log
             self.log(
-                SimEngine.SimLog.LOG_RPL_TX_DAO,
+                SimEngine.SimLog.LOG_RPL_DAO_TX,
                 {
                     "mote_id": self.mote.id
                 }

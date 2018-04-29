@@ -92,7 +92,7 @@ class Mote(object):
 
     # ==== stack
 
-    def _stack_init_synced(self):
+    def activate_tsch_stack(self):
         # start the stack layer by layer, we are sync'ed and joined
 
         # activate different layers
@@ -166,8 +166,8 @@ class Mote(object):
             self.packetLatencies      = []  # in slots
             self.packetHops           = []
             
-            # activate the stack
-            self._stack_init_synced()
+            # activate the TSCH stack
+            self.activate_tsch_stack()
             
             # give DAGroot's ID to each mote FIXME: remove
             for mote in self.engine.motes:

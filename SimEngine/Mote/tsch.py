@@ -1017,7 +1017,10 @@ class Tsch(object):
             # FIXME
             for m in self.mote._myNeighbors():
                 self._resetBackoffPerNeigh(m)
-
+            
+            # activate the TSCH stack
+            self.mote.activate_tsch_stack()
+            
             # add the minimal cell to the schedule (read from EB)
             self.add_minimal_cell()
 

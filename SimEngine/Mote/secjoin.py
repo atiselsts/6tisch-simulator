@@ -1,8 +1,5 @@
 """
 Secure joining layer of a mote.
-
-secjoin starts after having received the first EB.
-When secjoin done, _stack_init_synced() is called.
 """
 
 # =========================== imports =========================================
@@ -102,7 +99,7 @@ class SecJoin(object):
             self._setJoined()
 
             # initialize the rest of the stack
-            self.mote._stack_init_synced()
+            self.mote.activate_tsch_stack()
 
     def areAllNeighborsJoined(self):
         """
