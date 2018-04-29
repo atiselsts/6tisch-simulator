@@ -57,6 +57,7 @@ class Tsch(object):
     def getIsSync(self):
         return self.isSync
     def setIsSync(self,val):
+        
         # log
         self.log(
             SimEngine.SimLog.LOG_TSCH_SYNCED,

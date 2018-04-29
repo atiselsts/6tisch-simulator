@@ -18,7 +18,6 @@ def sim_settings():
     config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
 
     settings = SimSettings(**config)
-    print settings.exec_numMotes
     settings.setStartTime(time.strftime("%Y%m%d-%H%M%S"))
     settings.setCombinationKeys([])
 

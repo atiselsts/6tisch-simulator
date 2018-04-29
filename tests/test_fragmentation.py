@@ -65,7 +65,7 @@ class TestPacketDelivery:
         sim_engine = sim_engine(
             {
                 'exec_numMotes'                            : 3,
-                'exec_numSlotframesPerRun'                 : 10,
+                'exec_numSlotframesPerRun'                 : 10000,
                 'sf_type'                                  : 'SSFSymmetric',
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 5,
@@ -77,7 +77,7 @@ class TestPacketDelivery:
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy
             },
-            force_initial_routing_and_scheduling_state = True
+            force_initial_routing_and_scheduling_state = True,
         )
 
         # run the simulation for 1000 timeslots (10 seconds)
@@ -90,7 +90,7 @@ class TestPacketDelivery:
         # - a packet is divided into two fragments at most in this test
         # - two fragments from the leaf need at least 4 sec to reach the root
         senders = []
-        for log in u.read_log_file(filter=['app_rx']):
+        for log in u.read_log_file(filter=['app.rx']):
             if log['source'] not in senders:
                 senders.append(log['source'])
             if len(senders) == 2:
@@ -157,7 +157,6 @@ class TestPacketDelivery:
         for fragment in fragments:
             if fragment['payload']['datagram_offset'] == target_datagram_offset:
                 leaf.tsch.txQueue.remove(fragment)
-                print leaf.tsch.txQueue
                 break
 
         # it's ready to test; run the simulation for long enough time
@@ -172,15 +171,15 @@ class TestPacketDelivery:
         # - the root should not receive the packet
         logs = u.read_log_file(
             filter=[
-                'app_rx',
-                'sixlowpan_recv_fragment'
+                'app.rx',
+                'sixlowpan.recv_fragment'
             ]
         )
 
         fragment_reception_count = 0
         for log in logs:
             if (
-                    (log['_type']   == 'sixlowpan_recv_fragment') and
+                    (log['_type']   == 'sixlowpan.recv_fragment') and
                     (log['mote_id'] == 1)
                ):
                 # count the fragment receptions by the intermediate node, whose
@@ -252,8 +251,8 @@ class TestPacketDelivery:
 
         logs = u.read_log_file(
             filter=[
-                'app_rx',
-                'sixlowpan_recv_fragment'
+                'app.rx',
+                'sixlowpan.recv_fragment'
             ]
         )
 
@@ -264,20 +263,20 @@ class TestPacketDelivery:
 
         for log in logs:
             if  (
-                    (log['_type'] == 'sixlowpan_recv_fragment') and
+                    (log['_type'] == 'sixlowpan.recv_fragment') and
                     (log['mote_id'] == 2) and
                     (log['datagram_offset'] == 0)
                 ):
                 # 'sixlowpan_send_segment' log cannot used to get asn_start
                 # since it does not have a ASN where the fragment is
-                # transmitted. instead, 'sixlowpan_recv_fragment' log of the
+                # transmitted. instead, 'sixlowpan.recv_fragment' log of the
                 # parent of the leaf is used. mote_id of the
                 # intermediate node is 2.
                 assert log['srcIp'] == leaf.id
                 asn_start = log['_asn']
 
-            if log['_type'] == 'app_rx':
-                # log 'app_rx' means the last fragment is received
+            if log['_type'] == 'app.rx':
+                # log 'app.rx' means the last fragment is received
                 # by the root
                 asn_end = log['_asn']
                 break
@@ -337,7 +336,7 @@ class TestFragmentationAndReassembly(object):
 
         # check if fragment receptions happen the expected times
         assert (
-            len(u.read_log_file(filter=['sixlowpan_recv_fragment'])) ==
+            len(u.read_log_file(filter=['sixlowpan.recv_fragment'])) ==
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
@@ -538,7 +537,6 @@ class TestDatagramTagManagement(object):
 
         leaf_initial_next_datagram_tag = 200
         leaf.sixlowpan.next_datagram_tag = leaf_initial_next_datagram_tag
-        print leaf.sixlowpan.next_datagram_tag
 
         # generate five packets, each of them is divided into two fragments
         assert len(leaf.tsch.txQueue) == 0
@@ -561,7 +559,6 @@ class TestDatagramTagManagement(object):
                 expected_datagram_tag += 1
 
         # inject the fragments to hop1
-        print hop1.tsch.txQueue
         assert len(hop1.tsch.txQueue) == 0
         for i in range(0, len(fragments_by_leaf)):
             # inject a copied fragment to hop1

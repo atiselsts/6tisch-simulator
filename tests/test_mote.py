@@ -32,7 +32,6 @@ def test_app_schedule_transmit(sim):
     node.app.pkPeriod = 100
     node.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
     assert len(sim.events) == 8
-    print sim.events[7][2]
     assert sim.events[7][2] == node.app._action_mote_sendSinglePacketToDAGroot
 
 def test_drop_join_packet_tx_queue_full(sim):
@@ -379,7 +378,6 @@ def test_drop_sixtop_response_packet_tx_queue_full(sim):
     node.sixp._enqueue_RESPONSE(root, [], d.IANA_6TOP_RC_SUCCESS, d.DIR_TX, 1)
     assert test_is_called['result'] is True
     assert SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'] in node.motestats
-    print node.motestats
     assert node.motestats[SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type']] == 1
 
 def test_drop_forwarding_frag_tx_queue_full(sim):
