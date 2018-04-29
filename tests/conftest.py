@@ -47,7 +47,12 @@ def sim_engine(request):
 
         # create sim settings
         sim_settings = SimSettings.SimSettings(**config)
-        sim_settings.setStartTime(time.strftime('%Y%m%d-%H%M%S'))
+        sim_settings.setStartTime(
+            '{0}-{1}'.format(
+                time.strftime('%Y%m%d-%H%M%S'),
+                int(round(time.time() * 1000))%1000
+            )
+        )
         sim_settings.setCombinationKeys([])
 
         # create sim log
@@ -106,7 +111,10 @@ def set_initial_routing_and_scheduling_state(engine):
                 # set child's rank
                 child.rpl.setRank(parent.rpl.getRank()+512)
                 # record the child->parent relationship at the root (for source routing)
-                root.rpl.updateDaoParents({child:parent})
+                root.rpl.addParentChildfromDAOs(
+                    child_id  = child.id,
+                    parent_id = parent.id,
+                )
                 # add a cell from child to parent
                 child.tsch.addCells(parent,[(cur_slot,0,d.DIR_TX)])
                 child.numCellsToNeighbors[parent] = 1

@@ -7,12 +7,16 @@ import random
 import math
 
 # Mote sub-modules
-import MoteDefines as d
+import sf
 
 # Simulator-wide modules
 import SimEngine
+import MoteDefines as d
 
 # =========================== defines =========================================
+
+class NoSourceRouteError(Exception):
+    pass
 
 # =========================== helpers =========================================
 
@@ -35,7 +39,7 @@ class Rpl(object):
         self.parentSet                 = []
         self.preferredParent           = None
         self.oldPreferredParent        = None    # preserve old preferred parent upon a change
-        self.daoParents                = {}      # dictionary containing parents of each node from whom DAG root received a DAO
+        self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self.neighborRank              = {}      # indexed by neighbor
         self.neighborDagRank           = {}      # indexed by neighbor
 
@@ -50,8 +54,10 @@ class Rpl(object):
     def getDagRank(self):
         return self._rankToDagrank(self.rank)
     
-    def updateDaoParents(self, newVal):
-        self.daoParents.update(newVal)
+    def addParentChildfromDAOs(self, parent_id, child_id):
+        assert type(parent_id)==int
+        assert type(child_id) ==int
+        self.parentChildfromDAOs[child_id] = parent_id
 
     def getPreferredParent(self):
         return self.preferredParent
@@ -78,11 +84,11 @@ class Rpl(object):
 
     def action_receiveDIO(self, type, smac, payload):
 
-        # DAGroot doesn't use DIOs
+        # abort if I'm the DAGroot
         if self.mote.dagRoot:
             return
 
-        # non sync'ed mote don't use DIO
+        # abort if I'm not sync'ed
         if not self.mote.tsch.getIsSync():
             return
 
@@ -96,18 +102,17 @@ class Rpl(object):
 
         # update my mote stats
         self.mote._stats_incrementMoteStats('statsNumRxDIO')
-
-        sender = self.engine(smac)
-
+        
+        # 'parse' the DIO
         rank = payload[0]
 
         # don't update poor link
-        if self._calcRankIncrease(sender) > d.RPL_MAX_RANK_INCREASE:
+        if self._calcRankIncrease(smac) > d.RPL_MAX_RANK_INCREASE:
             return
 
         # update rank/DAGrank with sender
-        self.neighborRank[sender]       = rank
-        self.neighborDagRank[sender]    = self._rankToDagrank(rank)
+        self.neighborRank[smac]         = rank
+        self.neighborDagRank[smac]      = self._rankToDagrank(rank)
 
         # trigger RPL housekeeping
         self._housekeeping()
@@ -120,7 +125,7 @@ class Rpl(object):
         """
 
         assert self.mote.dagRoot
-
+        
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_RX_DAO,
@@ -131,13 +136,16 @@ class Rpl(object):
 
         # increment stats
         self.mote._stats_incrementMoteStats('rplRxDAO')
-
+        
         # store parent/child relationship for source route calculation
-        self.daoParents.update({tuple([payload[0]]): [[payload[1]]]})
+        self.addParentChildfromDAOs(
+            parent_id   = payload['parent_id'],
+            child_id    = payload['child_id'],
+        )
 
     # source route
 
-    def getSourceRoute(self, destAddr):
+    def computeSourceRoute(self, dest_id):
         """
         Compute the source route to a given mote.
 
@@ -146,15 +154,20 @@ class Rpl(object):
         :returns: The source route, a list of EUI64 address, ordered from
             destination to source.
         """
-
+        assert type(dest_id)==int
+        
         sourceRoute = []
-
-        daoParents = self.daoParents
-        self._getSourceRoute_internal(destAddr, sourceRoute, daoParents)
-
-        if sourceRoute:
-            sourceRoute.pop()
-
+        cur_id = dest_id
+        while cur_id!=0:
+            sourceRoute += [cur_id]
+            try:
+                cur_id = self.parentChildfromDAOs[cur_id]
+            except KeyError:
+                raise NoSourceRouteError()
+        
+        # reverse (so goes from source to destination)
+        sourceRoute.reverse()
+        
         return sourceRoute
 
     # forwarding
@@ -163,31 +176,39 @@ class Rpl(object):
         """
         Determines the next hop and writes that in the packet's 'nextHop' field.
         """
-
         assert self != packet['dstIp']
+        
+        if ('sourceRoute' in packet) and (packet['sourceRoute']):
+            # downstream packet (source routed)
+            
+            # nexthop is the first item in the source route 
+            nextHop = [self.engine.motes[packet['sourceRoute'].pop(0)]]
+            
+        else:
+            # upstream packet
+            
+            # abort if no preferred parent, or root
+            if not (self.preferredParent or self.mote.dagRoot):
+                return False
 
-        # abort if no preferred parent, or root
-        if not (self.preferredParent or self.mote.dagRoot):
-            return False
+            nextHop = None
 
-        nextHop = None
-
-        if   packet['dstIp'] == d.BROADCAST_ADDRESS:
-            nextHop = [d.BROADCAST_ADDRESS]
-        elif packet['type'] == d.IANA_6TOP_TYPE_REQUEST or packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-            # 6P packet: send directly to neighbor
-            nextHop = [packet['dstIp']]
-        elif packet['dstIp'] == self.mote.dagRootAddress:
-            # upstream packet: send to preferred parent
-            nextHop = [self.preferredParent]
-        elif packet['sourceRoute']:
-            # dowstream packet: next hop read from source route
-            nextHopId = packet['sourceRoute'].pop()
-            for nei in self.mote._myNeighbors():
-                if [nei.id] == nextHopId:
-                    nextHop = [nei]
-        elif packet['dstIp'] in self.mote._myNeighbors():
-            nextHop = [packet['dstIp']]
+            if   packet['dstIp'] == d.BROADCAST_ADDRESS:
+                nextHop = [d.BROADCAST_ADDRESS]
+            elif packet['type'] == d.IANA_6TOP_TYPE_REQUEST or packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
+                # 6P packet: send directly to neighbor
+                nextHop = [packet['dstIp']]
+            elif packet['dstIp'] == self.mote.dagRootAddress:
+                # upstream packet: send to preferred parent
+                nextHop = [self.preferredParent]
+            elif packet['sourceRoute']:
+                # dowstream packet: next hop read from source route
+                nextHopId = packet['sourceRoute'].pop()
+                for nei in self.mote._myNeighbors():
+                    if [nei.id] == nextHopId:
+                        nextHop = [nei]
+            elif packet['dstIp'] in self.mote._myNeighbors():
+                nextHop = [packet['dstIp']]
 
         packet['nextHop'] = nextHop
         return True if nextHop else False
@@ -244,7 +265,15 @@ class Rpl(object):
             # I am the root, or I have a preferred parent with dedicated cells to it
 
             self.mote._stats_incrementMoteStats('rplTxDIO')
-
+            
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_RPL_TX_DIO,
+                {
+                    "mote_id": self.mote.id
+                }
+            )
+            
             # create new packet
             newDIO = {
                 'type':           d.RPL_TYPE_DIO,
@@ -275,7 +304,7 @@ class Rpl(object):
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
             return
-
+        
         asnNow = self.engine.getAsn()
 
         if firstDAO:
@@ -300,7 +329,7 @@ class Rpl(object):
         """
         Enqueue a DAO and schedule next one.
         """
-
+        
         # enqueue
         self._action_enqueueDAO()
 
@@ -313,60 +342,52 @@ class Rpl(object):
         """
 
         assert not self.mote.dagRoot
-
+        
         # only send DAOs if I have a preferred parent to which I have dedicated cells
-        if self.preferredParent and self.mote.numCellsToNeighbors.get(self.preferredParent, 0) != 0:
+        if  (
+                self.preferredParent
+                and
+                (
+                    (
+                        type(self.mote.sf)==sf.MSF
+                        and
+                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
+                    )
+                    or
+                    (
+                        type(self.mote.sf)!=sf.MSF
+                    )
+                )
+            ):
 
             self.mote._stats_incrementMoteStats('rplTxDAO')
-
+            
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_RPL_TX_DAO,
+                {
+                    "mote_id": self.mote.id
+                }
+            )
+            
             # create new packet
             newDAO = {
                 'type':           d.RPL_TYPE_DAO,
                 'asn':            self.engine.getAsn(),
                 'code':           None,
-                'payload':        [
-                    self.mote.id,
-                    self.preferredParent.id,
-                ],
+                'payload':        {
+                    'child_id':   self.mote.id,
+                    'parent_id':  self.preferredParent.id,
+                },
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self,
                 'dstIp':          self.mote.dagRootAddress,
                 'sourceRoute':    [],
             }
-
+            
             # enqueue packet in TSCH queue
             if not self.mote.tsch.enqueue(newDAO):
                 self.mote.radio.drop_packet(newDAO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-
-    # source route
-
-    def _getSourceRoute_internal(self, destAddr, sourceRoute, daoParents):
-
-        # abort if no more parents
-        if not destAddr:
-            return
-
-        # abort if I don't have a list of parents
-        if not daoParents.get(tuple(destAddr)):
-            return
-
-        # first time add destination address
-        if destAddr not in sourceRoute:
-            sourceRoute += [destAddr]
-
-        # pick a parent
-        parent = daoParents.get(tuple(destAddr))[0]
-
-        # avoid loops
-        if parent not in sourceRoute:
-            sourceRoute += [parent]
-
-            # add non empty parents recursively
-            nextparent = self._getSourceRoute_internal(parent, sourceRoute, daoParents)
-            # FIXME: _getSourceRoute_internal does return anything
-
-            if nextparent:
-                sourceRoute += [nextparent]
 
     # misc
 
@@ -464,10 +485,10 @@ class Rpl(object):
         """
         calculate the RPL rank increase with a particular neighbor.
         """
-
+        
         # estimate the ETX to that neighbor
         etx = self._estimateETX(neighbor)
-
+        
         # return if that failed
         if not etx:
             return
@@ -481,7 +502,7 @@ class Rpl(object):
         pdr                   = self.mote.getPDR(neighbor)
         numTx                 = d.NUM_SUFFICIENT_TX
         numTxAck              = math.floor(pdr*numTx)
-
+        
         for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (                                          \
                     cell['neighbor'] == neighbor and       \
@@ -494,7 +515,7 @@ class Rpl(object):
                 ):
                 numTx        += cell['numTx']
                 numTxAck     += cell['numTxAck']
-
+        
         # abort if about to divide by 0
         if not numTxAck:
             return

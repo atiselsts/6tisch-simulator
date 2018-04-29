@@ -8,10 +8,11 @@ It sends (data) packets to the root
 import random
 
 # Mote sub-modules
-import MoteDefines as d
+import sf
 
 # Simulator-wide modules
 import SimEngine
+import MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -24,16 +25,14 @@ class App(object):
     def __init__(self, mote):
 
         # store params
-        self.mote                           = mote
+        self.mote            = mote
 
         # singletons (to access quicker than recreate every time)
-        self.engine                         = SimEngine.SimEngine.SimEngine()
-        self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.log                            = SimEngine.SimLog.SimLog().log
+        self.engine          = SimEngine.SimEngine.SimEngine()
+        self.settings        = SimEngine.SimSettings.SimSettings()
+        self.log             = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.pkPeriod                       = self.settings.app_pkPeriod
-        self.pkLength                       = self.settings.app_pkLength
 
     #======================== public ==========================================
 
@@ -42,17 +41,17 @@ class App(object):
         schedule an event to send a single packet
         """
 
-        # disable app pkPeriod is zero
-        if self.pkPeriod == 0:
+        # disable app app_pkPeriod is zero
+        if self.settings.app_pkPeriod == 0:
             return
 
         # compute how long before transmission
         if firstPacket:
-            # compute initial time within the range of [next asn, next asn+pkPeriod]
-            delay            = self.settings.tsch_slotDuration + self.pkPeriod*random.random()
+            # compute initial time within the range of [next asn, next asn+app_pkPeriod]
+            delay            = self.settings.tsch_slotDuration + self.settings.app_pkPeriod*random.random()
         else:
             # compute random delay
-            delay            = self.pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
+            delay            = self.settings.app_pkPeriod*(1+random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar))
         assert delay > 0
 
         # schedule
@@ -84,39 +83,134 @@ class App(object):
 
         assert not self.mote.dagRoot
 
-
     #======================== private ==========================================
 
-    # app that periodically sends a single packet
+    #=== [TX] mote -> root
 
     def _action_mote_sendSinglePacketToDAGroot(self):
         """
         send a single packet, and reschedule next one
         """
-
+        
+        # mote
+        self.log(
+            SimEngine.SimLog.LOG_APP_TX,
+            {
+                'mote_id':        self.mote.id,
+                'destination':    self.mote.dagRootAddress.id,
+            }
+        )
+        
         # enqueue data
         self._action_mote_enqueueDataForDAGroot()
 
         # schedule sending next packet
         self.schedule_mote_sendSinglePacketToDAGroot()
-
-    def _action_dagroot_receivePacketFromMote(self, srcIp, payload, timestamp):
+    
+    def _action_mote_enqueueDataForDAGroot(self):
         """
-        dagroot received data packet
+        enqueue data packet to the DAGroot
         """
 
+        assert not self.mote.dagRoot
+
+        # only send data if I have a preferred parent and dedicated cells to that parent in case of MSF
+        if  (
+                self.mote.rpl.getPreferredParent()
+                and
+                (
+                    (
+                        type(self.mote.sf)==sf.MSF
+                        and
+                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
+                    )
+                    or
+                    (
+                        type(self.mote.sf)!=sf.MSF
+                    )
+                )
+            ):
+            
+            # create new data packet
+            newPacket = {
+                'asn':            self.engine.getAsn(),
+                'type':           d.APP_TYPE_DATA,
+                'code':           None,
+                'payload':        { # payload overloaded is to calculate packet stats
+                    'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
+                    'hops':            1,                       # number of hops, used to calculate empirical hop count
+                    'length':          self.settings.app_pkLength,
+                },
+                'retriesLeft':    d.TSCH_MAXTXRETRIES,
+                'srcIp':          self.mote,                    # from mote
+                'dstIp':          self.mote.dagRootAddress,     # to DAGroot
+                'sourceRoute':    [],
+            }
+
+            # update mote stats
+            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_TX['type'])
+
+            self.mote.sixlowpan.send(newPacket)
+    
+    #=== [TX] root -> mote
+    
+    def _action_root_sendSinglePacketToMote(self,dest_mote):
+        """
+        send a single packet
+        """
+        
         assert self.mote.dagRoot
+        
+        # mote
+        self.log(
+            SimEngine.SimLog.LOG_APP_TX,
+            {
+                'mote_id':        self.mote.id,
+                'destination':    dest_mote.id,
+            }
+        )
+        
+        # compute source route
+        sourceRoute = self.mote.rpl.computeSourceRoute(dest_mote.id)
+        
+        # create DATA packet
+        newPacket = {
+            'asn':             self.engine.getAsn(),
+            'type':            d.APP_TYPE_DATA,
+            'code':            None,
+            'payload': { # payload overloaded is to calculate packet stats
+                'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
+                'hops':            1,                       # number of hops, used to calculate empirical hop count
+                'length':          self.settings.app_pkLength,
+            },
+            'retriesLeft':     d.TSCH_MAXTXRETRIES,
+            'srcIp':           self.mote,   # from DAGroot
+            'dstIp':           dest_mote,   # to mote
+            'sourceRoute':     sourceRoute
+        }
+
+        # enqueue packet in TSCH queue
+        if not self.mote.tsch.enqueue(newPacket):
+            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
+    
+    #=== [RX]
+    
+    def _action_receivePacket(self, srcIp, payload, timestamp):
+        """
+        Receive a data packet (both DAGroot and mote)
+        """
 
         # FIXME: srcIp is not an address instance but a mote instance
         self.log(
-            SimEngine.SimLog.LOG_APP_REACHES_DAGROOT,
+            SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id': srcIp.id,
+                'mote_id': self.mote.id,
+                'source':  srcIp.id,
             }
         )
 
         # update mote stats
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_REACHES_DAGROOT['type'])
+        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RX['type'])
 
         # log end-to-end latency
         self.mote._stats_logLatencyStat(timestamp - payload['asn_at_source']) # payload[0] is the ASN when sent
@@ -128,7 +222,7 @@ class App(object):
         if self.settings.app_e2eAck:
 
             destination = srcIp
-            sourceRoute = self.mote.rpl.getSourceRoute([destination.id])
+            sourceRoute = self.mote.rpl.computeSourceRoute([destination.id])
 
             if sourceRoute:
 
@@ -147,34 +241,4 @@ class App(object):
                 # enqueue packet in TSCH queue
                 if not self.mote.tsch.enqueue(newPacket):
                     self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
-
-    def _action_mote_enqueueDataForDAGroot(self):
-        """
-        enqueue data packet to the DAGroot
-        """
-
-        assert not self.mote.dagRoot
-
-        # only send data if I have a preferred parent and dedicated cells to that parent
-        if self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0:
-
-            # create new data packet
-            newPacket = {
-                'asn':            self.engine.getAsn(),
-                'type':           d.APP_TYPE_DATA,
-                'code':           None,
-                'payload':        { # payload overloaded is to calculate packet stats
-                    'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
-                    'hops':            1,                       # number of hops, used to calculate empirical hop count
-                    'length':          self.pkLength,
-                },
-                'retriesLeft':    d.TSCH_MAXTXRETRIES,
-                'srcIp':          self.mote,                    # from mote
-                'dstIp':          self.mote.dagRootAddress,     # to DAGroot
-                'sourceRoute':    [],
-            }
-
-            # update mote stats
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_GENERATED['type'])
-
-            self.mote.sixlowpan.send(newPacket)
+    

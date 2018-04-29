@@ -220,9 +220,9 @@ class Connectivity(object):
                         self.log(
                             SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
                             {
-                                 "source_id": transmission['smac'].id,
-                                 "channel": transmission['channel']
-                             }
+                                "source_id": transmission['smac'].id,
+                                "channel": transmission['channel']
+                            }
                         )
 
                     # lock on the first transmission
@@ -413,12 +413,12 @@ class Connectivity(object):
     # === fill
 
     def _fill_connectivity_matrix_fully_meshed(self):
-        """ Fill the matrix with PDR = 100 and RSSI = -10 """
+        """ Fill the matrix with PDR = 1.00 and RSSI = -10 """
         for source in self.engine.motes:
             for destination in self.engine.motes:
                 for channel in range(self.settings.phy_numChans):
                     self.connectivity_matrix[source.id][destination.id][channel] = {
-                        "pdr": 100,
+                        "pdr":  1.00,
                         "rssi": -10}
 
     def _fill_connectivity_matrix_linear(self):
@@ -430,10 +430,10 @@ class Connectivity(object):
             if parent is not None:
                 for channel in range(self.settings.phy_numChans):
                     self.connectivity_matrix[mote.id][parent.id][channel] = {
-                        "pdr": 100,
+                        "pdr": 1.00,
                         "rssi": -10}
                     self.connectivity_matrix[parent.id][mote.id][channel] = {
-                        "pdr": 100,
+                        "pdr": 1.00,
                         "rssi": -10}
             parent = mote
 

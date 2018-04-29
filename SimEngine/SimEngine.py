@@ -15,7 +15,7 @@ import Connectivity
 
 # =========================== defines =========================================
 
-DAGROOT_ID = 0 # select first mote as DagRoot# =========================== body ============================================
+# =========================== body ============================================
 
 class DiscreteEventEngine(threading.Thread):
     
@@ -133,8 +133,17 @@ class DiscreteEventEngine(threading.Thread):
             self._routine_thread_crashed()
             
             # print
-            print 'CRASH in DiscreteEventEngine!'
-            traceback.print_exc()
+            output  = []
+            output += ['']
+            output += ['==============================']
+            output += ['']
+            output += ['CRASH in {0}!'.format(self.name)]
+            output += ['']
+            output += [traceback.format_exc()]
+            output += ['==============================']
+            output += ['']
+            output  = '\n'.join(output)
+            print output
             
         else:
             # thread ended (gracefully)
@@ -280,7 +289,9 @@ class DiscreteEventEngine(threading.Thread):
 
 
 class SimEngine(DiscreteEventEngine):
-
+    
+    DAGROOT_ID = 0
+    
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
         self.motes                      = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
@@ -289,7 +300,7 @@ class SimEngine(DiscreteEventEngine):
         SimLog.SimLog().set_simengine(self)
         
         # select first mote as dagRoot
-        self.motes[DAGROOT_ID].role_setDagRoot()
+        self.motes[self.DAGROOT_ID].role_setDagRoot()
 
         # boot all motes
         for i in range(len(self.motes)):

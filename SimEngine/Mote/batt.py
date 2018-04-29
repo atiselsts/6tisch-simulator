@@ -35,12 +35,4 @@ class Batt(object):
 
         self.chargeConsumed += charge
 
-        self.log(
-            SimEngine.SimLog.LOG_CHARGE_CONSUMED,
-            {
-                "mote_id": self.mote.id,
-                "charge": charge
-            }
-        )
-
     #======================== private =========================================

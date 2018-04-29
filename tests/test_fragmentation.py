@@ -39,7 +39,6 @@ def get_memory_usage(mote, fragmentation):
 
     return sum([len(e) for _, e in memory_structure.items()])
 
-
 class TestPacketDelivery:
     """ Behavioral Testing for Fragmentation
     """
@@ -91,9 +90,9 @@ class TestPacketDelivery:
         # - a packet is divided into two fragments at most in this test
         # - two fragments from the leaf need at least 4 sec to reach the root
         senders = []
-        for log in u.read_log_file(filter=['app_reaches_dagroot']):
-            if log['mote_id'] not in senders:
-                senders.append(log['mote_id'])
+        for log in u.read_log_file(filter=['app_rx']):
+            if log['source'] not in senders:
+                senders.append(log['source'])
             if len(senders) == 2:
                 # root should receive packets from both of the two motes
                 # if it reaches here, it means success
@@ -173,7 +172,7 @@ class TestPacketDelivery:
         # - the root should not receive the packet
         logs = u.read_log_file(
             filter=[
-                'app_reaches_dagroot',
+                'app_rx',
                 'sixlowpan_recv_fragment'
             ]
         )
@@ -181,13 +180,13 @@ class TestPacketDelivery:
         fragment_reception_count = 0
         for log in logs:
             if (
-                    (log['type']    == 'sixlowpan_recv_fragment') and
+                    (log['_type']   == 'sixlowpan_recv_fragment') and
                     (log['mote_id'] == 1)
                ):
                 # count the fragment receptions by the intermediate node, whose
                 # mote_id is 1
                 fragment_reception_count += 1
-            elif log['type'] == 'app_reached_dagroot':
+            elif log['_type'] == 'app_reached_dagroot':
                 # this should never happen; a packet never reaches the root
                 assert False
 
@@ -253,7 +252,7 @@ class TestPacketDelivery:
 
         logs = u.read_log_file(
             filter=[
-                'app_reaches_dagroot',
+                'app_rx',
                 'sixlowpan_recv_fragment'
             ]
         )
@@ -264,23 +263,23 @@ class TestPacketDelivery:
         asn_end = 0
 
         for log in logs:
-            if (
-                    (log['type'] == 'sixlowpan_recv_fragment') and
+            if  (
+                    (log['_type'] == 'sixlowpan_recv_fragment') and
                     (log['mote_id'] == 2) and
                     (log['datagram_offset'] == 0)
-               ):
+                ):
                 # 'sixlowpan_send_segment' log cannot used to get asn_start
                 # since it does not have a ASN where the fragment is
                 # transmitted. instead, 'sixlowpan_recv_fragment' log of the
                 # parent of the leaf is used. mote_id of the
                 # intermediate node is 2.
                 assert log['srcIp'] == leaf.id
-                asn_start = log['asn']
+                asn_start = log['_asn']
 
-            if log['type'] == 'app_reaches_dagroot':
-                # log 'app_reaches_dagroot' means the last fragment is received
+            if log['_type'] == 'app_rx':
+                # log 'app_rx' means the last fragment is received
                 # by the root
-                asn_end = log['asn']
+                asn_end = log['_asn']
                 break
 
         e2e_latency = int(math.ceil(float(asn_end - asn_start) / sim_settings.tsch_slotframeLength))
@@ -342,11 +341,10 @@ class TestFragmentationAndReassembly(object):
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
-
 class TestMemoryManagement:
-    """Test memory managemtn for reassembly buffer and VRB table
+    """Test memory management for reassembly buffer and VRB table
     """
-
+    
     MEMORY_LIMIT = range(1, 10, 1)
     @pytest.fixture(params=MEMORY_LIMIT)
     def memory_limit(self, request):
@@ -404,7 +402,7 @@ class TestMemoryManagement:
 
         # the memory usage should be the same as memory_limit
         assert get_memory_usage(hop1, fragmentation) == memory_limit
-
+    
     def test_entry_expiration(
             self,
             sim_engine,
@@ -445,17 +443,20 @@ class TestMemoryManagement:
         # fragment2_0: the first fragment of a different packet
         # fragment2_1: the second fragment of the different packet
         fragment1_0 = {
-            'srcIp': hop2,
-            'dstIp': root,
-            'type': d.APP_TYPE_FRAG,
+            'srcIp':         hop2,
+            'sourceRoute':   [],
+            'dstIp':         root,
+            'code':          None,
+            'retriesLeft':   5,
+            'type':          d.APP_TYPE_FRAG,
             'payload': {
                 'original_type'  : d.APP_TYPE_DATA,
                 'datagram_size'  : 270,
                 'datagram_tag'   : 1,
                 'datagram_offset': 0,
-                'length': 90,
-                'hops': 0
-                }
+                'length':          90,
+                'hops':            0,
+            }
         }
         fragment2_0 = copy.copy(fragment1_0)
         fragment2_0['payload'] = copy.deepcopy(fragment1_0['payload'])
