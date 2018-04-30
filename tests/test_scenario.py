@@ -204,7 +204,7 @@ def test_vanilla_scenario(
             
             # increment appcounter
             appcounter += 1
-    
+
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down")!=-1:
         

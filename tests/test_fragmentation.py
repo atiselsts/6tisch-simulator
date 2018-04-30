@@ -132,12 +132,13 @@ class TestPacketDelivery:
                 'exec_numSlotframesPerRun'                 : 10,
                 'sf_type'                                  : 'SSFSymmetric',
                 'conn_type'                                : 'linear',
+                'app'                                      : 'AppPeriodic',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
+                'app_pkLength'                             : 270,
                 'tsch_probBcast_ebProb'                    : 0,
                 'tsch_probBcast_dioProb'                   : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
-                'app_pkLength'                             : 270,
                 'tsch_max_payload_len'                     : 90,
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy
@@ -147,7 +148,8 @@ class TestPacketDelivery:
 
         # send a packet from the leaf mote
         leaf = sim_engine.motes[2]
-        leaf.app._action_mote_enqueueDataForDAGroot()
+        # _event_handler() causes leaf to send a packet
+        leaf.app._event_handler()
 
         # retrieve fragments in its TX queue
         fragments = []
@@ -252,7 +254,8 @@ class TestPacketDelivery:
         # send a packet; its fragments start being forwarded at the next
         # timeslot where it has a dedicated TX cell
         leaf = sim_engine.motes[3]
-        leaf.app._action_mote_enqueueDataForDAGroot()
+        # _event_handler() causes leaf to send a packet
+        leaf.app._event_handler()
 
         # run the simulation for long enough time
         u.run_until_asn(sim_engine, 1000)
@@ -336,7 +339,8 @@ class TestFragmentationAndReassembly(object):
 
         # send a packet from the leaf mote
         leaf = sim_engine.motes[1]
-        leaf.app._action_mote_enqueueDataForDAGroot()
+        # _event_handler() causes leaf to send a packet
+        leaf.app._event_handler()
 
         # it's ready to test; run the simulation for long enough time
         u.run_until_asn(sim_engine, 1500)
@@ -551,7 +555,8 @@ class TestDatagramTagManagement(object):
         # generate five packets, each of them is divided into two fragments
         assert len(leaf.tsch.txQueue) == 0
         for _ in range(0, 5):
-            leaf.app._action_mote_enqueueDataForDAGroot()
+            # _event_handler() causes leaf to send a packet
+            leaf.app._event_handler()
         assert len(leaf.tsch.txQueue) == 10
 
         # retrieve the fragments and see if datagram_tag is incremented by one
@@ -635,7 +640,8 @@ class TestFragmentForwarding:
         leaf = sim_engine.motes[1]
 
         # prepare the first fragment and the trigger fragment
-        leaf.app._action_mote_enqueueDataForDAGroot()
+        # _event_handler() causes leaf to send a packet
+        leaf.app._event_handler()
         fragments = []
         for frame in leaf.tsch.txQueue:
             if frame['type'] == d.NET_TYPE_FRAG:
