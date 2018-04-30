@@ -215,10 +215,10 @@ class Tsch(object):
             # This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
 
             # if join is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
-            if packet['type'] == d.APP_TYPE_JOIN or packet['type'] == d.RPL_TYPE_DAO or packet['type'] == d.IANA_6TOP_TYPE_REQUEST or packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
+            if packet['type'] in [d.APP_TYPE_JOIN,d.RPL_TYPE_DAO,d.IANA_6TOP_TYPE_REQUEST,d.IANA_6TOP_TYPE_RESPONSE]:
                 for p in self.txQueue:
                     if packet['type'] == p['type']:
-                        #There is already a DAO, JOIN or 6P in que queue, don't add more
+                        # there is already a DAO, JOIN or 6P in que queue, don't add more
                         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type'])
                         return False
                 self.txQueue    += [packet]
@@ -840,7 +840,7 @@ class Tsch(object):
 
         elif cell['dir'] == d.DIR_TXRX_SHARED:
             
-            if cell['neighbor'] == self.mote._myNeighbors():
+            if cell['neighbor'] == self.mote._myNeighbors(): # FIXME, does nothing, always []==[]
                 self.pktToSend = None
                 if self.txQueue and self.backoffBroadcast == 0:
                     for pkt in self.txQueue:
@@ -864,6 +864,7 @@ class Tsch(object):
                 if self.backoffBroadcast > 0:
                     self.backoffBroadcast -= 1
             else:
+                assert False # FIXME: apparently we never enter this branch...
                 if self.getIsSync():
                     # check whether packet to send
                     self.pktToSend = None
@@ -877,6 +878,7 @@ class Tsch(object):
                 # Decrement backoffPerNeigh
                 if self.backoffPerNeigh[cell['neighbor']] > 0:
                     self.backoffPerNeigh[cell['neighbor']] -= 1
+            
             # send packet
             if self.pktToSend:
 
