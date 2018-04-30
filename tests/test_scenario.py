@@ -45,7 +45,14 @@ def check_all_nodes_send_x(motes,x):
 
 # === RPL
 
-def rpl_check_prefered_parents(motes):
+def rpl_check_root_parentChildfromDAOs(motes):
+    root = motes[0]
+    assert root.rpl.parentChildfromDAOs == {
+        1:0,
+        2:1, # FIXME: calculate dynamically
+    }
+
+def rpl_check_all_node_prefered_parent(motes):
     """ Verify that each mote has a prefered parent """
     for mote in motes:
         if mote.dagRoot:
@@ -53,7 +60,7 @@ def rpl_check_prefered_parents(motes):
         else:
             assert mote.rpl.getPreferredParent() is not None
 
-def rpl_check_rank(motes):
+def rpl_check_all_node_rank(motes):
     """ Verify that each mote has a rank """
     for mote in motes:
         assert mote.rpl.getRank() is not None
@@ -67,7 +74,7 @@ def rpl_check_all_motes_send_DAOs(motes):
 
 # === TSCH
 
-def tsch_check_dedicated_cells(motes):
+def tsch_all_nodes_check_dedicated_cell(motes):
     """ Verify that each mote has at least:
             - one TX cell to its preferred parent
             - one RX cell per child
@@ -83,15 +90,6 @@ def tsch_check_dedicated_cells(motes):
                     tx_cell_exists = True
                     break
         assert tx_cell_exists
-
-        # at least one RX cell per child
-        rx_cell_exists = False
-        for cell in parent.tsch.getTxCells():
-            for neighbor in cell['neighbor']:
-                if neighbor == mote:
-                    rx_cell_exists = True
-                    break
-        assert rx_cell_exists
 
 def tsch_check_all_nodes_send_EBs(motes):
     check_all_nodes_send_x(motes,'EB')
@@ -137,7 +135,9 @@ def test_vanilla_scenario(
             'conn_type':                                   'linear',
         },
     )
-
+    
+    # === network forms
+    
     # give the network time to form
     u.run_until_asn(sim_engine, 300*100)
     
@@ -149,11 +149,18 @@ def test_vanilla_scenario(
     rpl_check_all_nodes_send_DIOs(sim_engine.motes)
     rpl_check_all_motes_send_DAOs(sim_engine.motes)
     
-    # verify the network has formed
-    rpl_check_prefered_parents(sim_engine.motes)
-    rpl_check_rank(sim_engine.motes)
+    # verify that all nodes have acquired rank and preferred parent
+    rpl_check_all_node_prefered_parent(sim_engine.motes)
+    rpl_check_all_node_rank(sim_engine.motes)
+    
+    # verify that root has stored enough DAO information to compute source routes
+    rpl_check_root_parentChildfromDAOs(sim_engine.motes)
+    
+    # verify that all nodes have a dedicated cell to their parent
     if fixture_sf_type!='SSFSymmetric':
-        tsch_check_dedicated_cells(sim_engine.motes)
+        tsch_all_nodes_check_dedicated_cell(sim_engine.motes)
+    
+    # === send data up/down
     
     # pick a "datamote" which will send/receive data
     datamote = sim_engine.motes[-1] # pick furthest mote
