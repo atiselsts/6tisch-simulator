@@ -1,8 +1,5 @@
 """
 Secure joining layer of a mote.
-
-secjoin starts after having received the first EB.
-When secjoin done, _stack_init_synced() is called.
 """
 
 # =========================== imports =========================================
@@ -49,12 +46,18 @@ class SecJoin(object):
         """
         Schedule to start the join process sometimes in the future
         """
-        self.engine.scheduleIn(
-            delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
-            cb               = self._initiateJoinProcess,
-            uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
-            intraSlotOrder   = 2,
-        )
+        
+        if self.settings.secjoin_enabled:
+            # initiate join process
+            self.engine.scheduleIn(
+                delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
+                cb               = self._initiateJoinProcess,
+                uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
+                intraSlotOrder   = 2,
+            )
+        else:
+            # consider I'm already joined
+            self.setIsJoined(True)
 
     def receiveJoinPacket(self, srcIp, payload, timestamp):
         """
@@ -96,7 +99,7 @@ class SecJoin(object):
             self._setJoined()
 
             # initialize the rest of the stack
-            self.mote._stack_init_synced()
+            self.mote.activate_tsch_stack()
 
     def areAllNeighborsJoined(self):
         """

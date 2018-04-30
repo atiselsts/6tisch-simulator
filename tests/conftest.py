@@ -48,7 +48,7 @@ def sim_engine(request):
         # create sim settings
         sim_settings = SimSettings.SimSettings(**config)
         sim_settings.setStartTime(
-            '{0}-{1}'.format(
+            '{0}-{1:03d}'.format(
                 time.strftime('%Y%m%d-%H%M%S'),
                 int(round(time.time() * 1000))%1000
             )
@@ -76,7 +76,12 @@ def set_initial_routing_and_scheduling_state(engine):
     # root is mote 0
     root = engine.motes[0]
     root.rpl.setRank(256)
-
+    
+    # activate all nodes
+    for m in engine.motes:
+        m.tsch.setIsSync(True)     # declare as sync'ed
+        m.activate_tsch_stack()    # activate the TSCH stack
+    
     # start scheduling from slot offset 1 upwards
     cur_slot = 1
 

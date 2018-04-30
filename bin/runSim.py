@@ -95,7 +95,7 @@ def runSimCombinations(params):
         # run the simulation runs
         for run_id in xrange(first_run, numRuns):
 
-            # print
+            # printOrLog
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(
                simParamNum+1,
                len(simParams),
@@ -125,7 +125,7 @@ def runSimCombinations(params):
             settings.destroy()
             Connectivity.Connectivity().destroy()
 
-        # print
+        # printOrLog
         output  = 'simulation ended after {0:.0f}s ({1} runs).'.format(
             time.time()-simStartTime,
             numRuns

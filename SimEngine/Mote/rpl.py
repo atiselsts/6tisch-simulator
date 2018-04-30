@@ -83,7 +83,7 @@ class Rpl(object):
     # DIO
 
     def action_receiveDIO(self, type, smac, payload):
-
+        
         # abort if I'm the DAGroot
         if self.mote.dagRoot:
             return
@@ -94,7 +94,7 @@ class Rpl(object):
 
         # log
         self.log(
-            SimEngine.SimLog.LOG_RPL_RX_DIO,
+            SimEngine.SimLog.LOG_RPL_DIO_RX,
             {
                 "source": smac.id
             }
@@ -128,7 +128,7 @@ class Rpl(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_RPL_RX_DAO,
+            SimEngine.SimLog.LOG_RPL_DAO_RX,
             {
                 "source": smac.id
             }
@@ -235,7 +235,7 @@ class Rpl(object):
         """
         decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
         """
-
+        
         # compute probability to send a DIO
         dioProb =   (                                                           \
                         float(self.settings.tsch_probBcast_dioProb)             \
@@ -251,52 +251,65 @@ class Rpl(object):
         # enqueue DIO, if appropriate
         if sendDio:
             # probability passes
-            self._action_enqueueDIO()
+            if  (
+                    self.mote.dagRoot
+                    or
+                    (
+                        self.preferredParent
+                        and
+                        (
+                            (
+                                type(self.mote.sf)==sf.MSF
+                                and
+                                self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(),0)>0
+                            )
+                            or
+                            (
+                                type(self.mote.sf)!=sf.MSF
+                            )
+                        )
+                    )
+                ):
+                
+                # I am the root, or I have a preferred parent with dedicated cells to it
+                
+                # stats
+                self.mote._stats_incrementMoteStats('rplTxDIO')
+                
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_RPL_DIO_TX,
+                    {
+                        "mote_id": self.mote.id
+                    }
+                )
+                
+                # create new packet
+                newDIO = {
+                    'type':           d.RPL_TYPE_DIO,
+                    'asn':            self.engine.getAsn(),
+                    'code':           None,
+                    'payload':        [self.rank], # the payload is the rpl rank
+                    'retriesLeft':    1,           # do not retransmit (broadcast)
+                    'srcIp':          self,
+                    'dstIp':          d.BROADCAST_ADDRESS,
+                    'sourceRoute':    []
+                }
+
+                # enqueue packet in TSCH queue
+                if not self.mote.tsch.enqueue(newDIO):
+                    self.mote.radio.drop_packet(newDIO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
 
         # schedule next DIO
         self._schedule_sendDIO()
-
-    def _action_enqueueDIO(self):
-        """
-        enqueue DIO in TSCH queue
-        """
-
-        if self.mote.dagRoot or (self.preferredParent and self.mote.numCellsToNeighbors.get(self.preferredParent, 0) != 0):
-            # I am the root, or I have a preferred parent with dedicated cells to it
-
-            self.mote._stats_incrementMoteStats('rplTxDIO')
-            
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_RPL_TX_DIO,
-                {
-                    "mote_id": self.mote.id
-                }
-            )
-            
-            # create new packet
-            newDIO = {
-                'type':           d.RPL_TYPE_DIO,
-                'asn':            self.engine.getAsn(),
-                'code':           None,
-                'payload':        [self.rank], # the payload is the rpl rank
-                'retriesLeft':    1,           # do not retransmit (broadcast)
-                'srcIp':          self,
-                'dstIp':          d.BROADCAST_ADDRESS,
-                'sourceRoute':    []
-            }
-
-            # enqueue packet in TSCH queue
-            if not self.mote.tsch.enqueue(newDIO):
-                self.mote.radio.drop_packet(newDIO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-
+        
     # DAO
-
+    
     def _schedule_sendDAO(self, firstDAO=False):
         """
         Schedule to send a DAO sometimes in the future.
         """
-
+        
         # abort it I'm the root
         if self.mote.dagRoot:
             return
@@ -364,7 +377,7 @@ class Rpl(object):
             
             # log
             self.log(
-                SimEngine.SimLog.LOG_RPL_TX_DAO,
+                SimEngine.SimLog.LOG_RPL_DAO_TX,
                 {
                     "mote_id": self.mote.id
                 }

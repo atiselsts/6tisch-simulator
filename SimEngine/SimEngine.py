@@ -299,8 +299,8 @@ class SimEngine(DiscreteEventEngine):
         self.log                        = SimLog.SimLog().log
         SimLog.SimLog().set_simengine(self)
         
-        # select first mote as dagRoot
-        self.motes[self.DAGROOT_ID].role_setDagRoot()
+        # select dagRoot
+        self.motes[self.DAGROOT_ID].setDagRoot()
 
         # boot all motes
         for i in range(len(self.motes)):
