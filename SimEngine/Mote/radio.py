@@ -30,6 +30,7 @@ class Radio(object):
         # singletons (to access quicker than recreate every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
+        self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
         self.onGoingBroadcast               = None
@@ -121,9 +122,20 @@ class Radio(object):
     # dropping
 
     def drop_packet(self, pkt, reason):
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RADIO_PKT_DROPPED,
+            {
+                "mote_id":   self.mote.id,
+                "type":      pkt['type'],
+                "reason":    reason,
+            }
+        )
+        
+        # increment mote stat
+        self.mote._stats_incrementMoteStats(reason)
+        
         # remove all the element of pkt so that it won't be processed further
         for k in pkt.keys():
             del pkt[k]
-
-        # increment mote stat
-        self.mote._stats_incrementMoteStats(reason)

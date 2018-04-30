@@ -92,6 +92,9 @@ LOG_TSCH_DROP_DATA_MAX_RETRIES   = {'type': 'tsch.drop_data_max_retries',   'key
 LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE  = {'type': 'tsch.drop_frag_fail_enqueue',  'keys': ['mote_id']}
 LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE = {'type': 'tsch.drop_relay_fail_enqueue', 'keys': ['mote_id']}
 
+# === radio
+LOG_RADIO_PKT_DROPPED            = {'type': 'radio.pkt_dropped', 'keys': ['mote_id','type','reason']}
+
 # === queue
 LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}
 
