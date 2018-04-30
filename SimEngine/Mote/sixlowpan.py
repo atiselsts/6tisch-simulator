@@ -65,7 +65,7 @@ class Sixlowpan(object):
             # this packet is to be forwarded. 'asn' and 'retriesLeft' fields
             # needs update by the forwarder.
             packet['asn']         = self.engine.getAsn()
-            packet['retriesLeft'] = d.TSCH_MAXTXRETRIES,
+            packet['retriesLeft'] = d.TSCH_MAXTXRETRIES
             if packet['type'] == d.APP_TYPE_DATA:
                 # update the number of hops
                 # TODO: this shouldn't be done in application payload.
