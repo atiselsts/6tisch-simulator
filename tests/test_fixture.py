@@ -70,6 +70,28 @@ def test_instantiation(sim_engine, force_initial_routing_and_scheduling_state, r
         force_initial_routing_and_scheduling_state    = force_initial_routing_and_scheduling_state,
     )
 
+#=== verify forced initial scheduling state
+def test_initial_scheduling_state(sim_engine):
+    sim_engine = sim_engine(
+        diff_config                                   = {
+            'exec_numMotes':                            10
+        },
+        force_initial_routing_and_scheduling_state    = True
+    )
+
+    # Each mote should have one TX dedicated cell to its parent. In this sense,
+    # a mote has the same number of RX dedicated cells as its children. We'll
+    # have a linear topology with force_initial_routing_and_scheduling_state
+    # True, each mote except for the root and the leaf has one TX cell and one
+    # RX cell. The root has one RX cell. The leaf has one TX cell.
+    for mote in reversed(sim_engine.motes):
+        parent = mote.rpl.getPreferredParent()
+        if parent:
+            # "mote" has one TX to its parent
+            assert len(mote.tsch.getTxCells(parent)) == 1
+            # parent of "mote" one RX to "mote"
+            assert len(parent.tsch.getRxCells(mote)) == 1
+
 #=== verify default configs from bin/config.json are loaded correctly
 
 def test_sim_config(sim_engine, repeat4times):
