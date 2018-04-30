@@ -39,7 +39,7 @@ def fixture_sf_type(request):
 
 # =========================== helpers =========================================
 
-def tsch_check_all_nodes_send_x(motes,x):
+def check_all_nodes_send_x(motes,x):
     senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
 
@@ -58,11 +58,12 @@ def rpl_check_rank(motes):
     for mote in motes:
         assert mote.rpl.getRank() is not None
 
-def tsch_check_all_nodes_send_DIOs(motes):
-    tsch_check_all_nodes_send_x(motes,'DIO')
+def rpl_check_all_nodes_send_DIOs(motes):
+    check_all_nodes_send_x(motes,'DIO')
 
-def tsch_check_all_motes_send_DAOs(motes):
-    tsch_check_all_nodes_send_x(motes,'DAO')
+def rpl_check_all_motes_send_DAOs(motes):
+    senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']=='DAO']))
+    assert sorted(senders)==sorted([m.id for m in motes if m.id!=0])
 
 # === TSCH
 
@@ -93,7 +94,11 @@ def tsch_check_dedicated_cells(motes):
         assert rx_cell_exists
 
 def tsch_check_all_nodes_send_EBs(motes):
-    tsch_check_all_nodes_send_x(motes,'EB')
+    check_all_nodes_send_x(motes,'EB')
+
+def tsch_check_all_nodes_synced(motes):
+    synced =  list(set([l['mote_id'] for l in u.read_log_file(['tsch.synced'])]))
+    assert sorted(synced)==sorted([m.id for m in motes])
 
 # =========================== tests ===========================================
 
@@ -134,7 +139,10 @@ def test_vanilla_scenario(
     )
 
     # give the network time to form
-    u.run_until_asn(sim_engine, 10000)
+    u.run_until_asn(sim_engine, 300*100)
+    
+    # verify that all nodes are sync'ed
+    tsch_check_all_nodes_synced(sim_engine.motes)
     
     # verify that all nodes are sending EBs, DIOs and DAOs
     tsch_check_all_nodes_send_EBs(sim_engine.motes)

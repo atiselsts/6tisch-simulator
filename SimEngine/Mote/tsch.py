@@ -7,6 +7,7 @@ import random
 import copy
 
 # Mote sub-modules
+import sf
 import MoteDefines as d
 
 # Simulator-wide modules
@@ -946,7 +947,7 @@ class Tsch(object):
     # EBs
 
     def _tsch_schedule_sendEB(self):
-
+        
         # schedule to send an EB every slotframe
         # _tsch_action_sendEB() decides whether to actually send, based on probability
         self.engine.scheduleAtAsn(
@@ -967,13 +968,32 @@ class Tsch(object):
                      else                                                  \
                      float(self.settings.tsch_probBcast_ebProb)
         sendEB = (random.random() < ebProb)
-
+        
         # enqueue EB, if appropriate
         if sendEB:
             # probability passes
-            if self.mote.secjoin.isJoined() or not self.settings.secjoin_enabled:
+            if self.mote.secjoin.isJoined() or (not self.settings.secjoin_enabled):
                 # I have joined
-                if self.mote.dagRoot or (self.mote.rpl.getPreferredParent() and self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) != 0):
+                if  (
+                        self.mote.dagRoot
+                        or
+                        (
+                            self.mote.rpl.getPreferredParent()
+                            and
+                            (
+                                (
+                                    type(self.mote.sf)==sf.MSF
+                                    and
+                                    self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(),0)>0
+                                )
+                                or
+                                (
+                                    type(self.mote.sf)!=sf.MSF
+                                )
+                            )
+                        )
+                    ):
+                    
                     # I am the root, or I have a preferred parent with dedicated cells to it
                     
                     # create new packet
