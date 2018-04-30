@@ -4,32 +4,32 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-@pytest.fixture(params=[2])
+@pytest.fixture(params=[3])
 def fixture_exec_numMotes(request):
     return request.param
 
-@pytest.fixture(params=['up', 'down', 'up-down'])
-#@pytest.fixture(params=['down'])
+#@pytest.fixture(params=['up', 'down', 'up-down'])
+@pytest.fixture(params=['up'])
 def fixture_data_flow(request):
     return request.param
 
-@pytest.fixture(params=[10, 100, 200])
-#@pytest.fixture(params=[10])
+#@pytest.fixture(params=[10, 100, 200])
+@pytest.fixture(params=[10])
 def fixture_app_pkLength(request):
     return request.param
 
-@pytest.fixture(params=["PerHopReassembly", "FragmentForwarding"])
-#@pytest.fixture(params=["FragmentForwarding"])
+#@pytest.fixture(params=["PerHopReassembly", "FragmentForwarding"])
+@pytest.fixture(params=["FragmentForwarding"])
 def fixture_fragmentation(request):
     return request.param
 
-@pytest.fixture(params=[True, False])
-#@pytest.fixture(params=[False])
+#@pytest.fixture(params=[True, False])
+@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_missing_fragment(request):
     return request.param
 
-@pytest.fixture(params=[True, False])
-#@pytest.fixture(params=[False])
+#@pytest.fixture(params=[True, False])
+@pytest.fixture(params=[False])
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 
@@ -38,6 +38,10 @@ def fixture_sf_type(request):
     return request.param
 
 # =========================== helpers =========================================
+
+def tsch_check_all_nodes_send_x(motes,x):
+    senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']==x]))
+    assert sorted(senders)==sorted([m.id for m in motes])
 
 # === RPL
 
@@ -53,6 +57,12 @@ def rpl_check_rank(motes):
     """ Verify that each mote has a rank """
     for mote in motes:
         assert mote.rpl.getRank() is not None
+
+def tsch_check_all_nodes_send_DIOs(motes):
+    tsch_check_all_nodes_send_x(motes,'DIO')
+
+def tsch_check_all_motes_send_DAOs(motes):
+    tsch_check_all_nodes_send_x(motes,'DAO')
 
 # === TSCH
 
@@ -81,6 +91,9 @@ def tsch_check_dedicated_cells(motes):
                     rx_cell_exists = True
                     break
         assert rx_cell_exists
+
+def tsch_check_all_nodes_send_EBs(motes):
+    tsch_check_all_nodes_send_x(motes,'EB')
 
 # =========================== tests ===========================================
 
@@ -121,8 +134,13 @@ def test_vanilla_scenario(
     )
 
     # give the network time to form
-    u.run_until_asn(sim_engine, 5000)
-
+    u.run_until_asn(sim_engine, 10000)
+    
+    # verify that all nodes are sending EBs, DIOs and DAOs
+    tsch_check_all_nodes_send_EBs(sim_engine.motes)
+    rpl_check_all_nodes_send_DIOs(sim_engine.motes)
+    rpl_check_all_motes_send_DAOs(sim_engine.motes)
+    
     # verify the network has formed
     rpl_check_prefered_parents(sim_engine.motes)
     rpl_check_rank(sim_engine.motes)
