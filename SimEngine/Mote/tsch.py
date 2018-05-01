@@ -662,7 +662,15 @@ class Tsch(object):
                     parent       = child.rpl.getPreferredParent()
 
         return offset
-
+    
+    def removeTypeFromQueue(self,type):
+        i = 0
+        while i<len(self.txQueue):
+            if self.txQueue[i]['type'] == type:
+                del self.txQueue[i]
+            else:
+                i += 1
+    
     #======================== private ==========================================
     
     # listeningForEB
@@ -1010,6 +1018,9 @@ class Tsch(object):
                         'sourceRoute':  [],
                     }
 
+                    # remove other possible EBs from the queue
+                    self.removeTypeFromQueue(d.TSCH_TYPE_EB)
+                    
                     # enqueue packet in TSCH queue
                     if not self.enqueue(newEB):
                         # update mote stats
