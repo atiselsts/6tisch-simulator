@@ -48,9 +48,10 @@ class Sixlowpan(object):
             self.log(
                 SimEngine.SimLog.LOG_SIXLOWPAN_RECV_PACKET,
                 {
-                    'srcIp'      : packet['srcIp'].id,
-                    'dstIp'      : packet['dstIp'].id,
-                    'packet_type': packet['type']
+                    '_mote_id':        self.mote.id,
+                    'srcIp':           packet['srcIp'].id,
+                    'dstIp':           packet['dstIp'].id,
+                    'packet_type':     packet['type']
                 }
             )
             
@@ -76,9 +77,10 @@ class Sixlowpan(object):
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_FORWARD_PACKET,
             {
-                'srcIp'      : packet['srcIp'].id,
-                'dstIp'      : packet['dstIp'].id,
-                'packet_type': packet['type']
+                '_mote_id':       self.mote.id,
+                'srcIp':          packet['srcIp'].id,
+                'dstIp':          packet['dstIp'].id,
+                'packet_type':    packet['type']
             }
         )
         if self.settings.tsch_max_payload_len < packet['payload']['length']:
@@ -103,14 +105,15 @@ class Sixlowpan(object):
                 raise NotImplementedError()
 
     def send(self, packet):
-        # FIXME: use mote_id as IPv6 address since IPv6 address is not
+        # FIXME: use _mote_id as IPv6 address since IPv6 address is not
         # implemented
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_SEND_PACKET,
             {
-                'srcIp'      : packet['srcIp'].id,
-                'dstIp'      : packet['dstIp'].id,
-                'packet_type': packet['type']
+                '_mote_id':       self.mote.id,
+                'srcIp':          packet['srcIp'].id,
+                'dstIp':          packet['dstIp'].id,
+                'packet_type':    packet['type']
             }
         )
         if self.settings.tsch_max_payload_len < packet['payload']['length']:
@@ -229,13 +232,14 @@ class Sixlowpan(object):
                 self.log(
                     SimEngine.SimLog.LOG_SIXLOWPAN_SEND_FRAGMENT,
                     {
-                        'srcIp'               : fragment['srcIp'].id,
-                        'dstIp'               : fragment['dstIp'].id,
-                        'datagram_size'       : fragment['payload']['datagram_size'],
-                        'datagram_offset'     : fragment['payload']['datagram_offset'],
-                        'datagram_tag'        : fragment['payload']['datagram_tag'],
-                        'length'              : fragment['payload']['length'],
-                        'original_packet_type': fragment['payload']['original_type']
+                        '_mote_id':              self.mote.id,
+                        'srcIp':                 fragment['srcIp'].id,
+                        'dstIp':                 fragment['dstIp'].id,
+                        'datagram_size':         fragment['payload']['datagram_size'],
+                        'datagram_offset':       fragment['payload']['datagram_offset'],
+                        'datagram_tag':          fragment['payload']['datagram_tag'],
+                        'length':                fragment['payload']['length'],
+                        'original_packet_type':  fragment['payload']['original_type']
                     }
                 )
 
@@ -292,14 +296,14 @@ class PerHopReassembly(Fragmentation):
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
             {
-                'mote_id'             : self.mote.id,
-                'srcIp'               : fragment['srcIp'].id,
-                'dstIp'               : fragment['dstIp'].id,
-                'datagram_size'       : fragment['payload']['datagram_size'],
-                'datagram_offset'     : fragment['payload']['datagram_offset'],
-                'datagram_tag'        : fragment['payload']['datagram_tag'],
-                'length'              : fragment['payload']['length'],
-                'original_packet_type': fragment['payload']['original_type']
+                '_mote_id':                 self.mote.id,
+                'srcIp':                    fragment['srcIp'].id,
+                'dstIp':                    fragment['dstIp'].id,
+                'datagram_size':            fragment['payload']['datagram_size'],
+                'datagram_offset':          fragment['payload']['datagram_offset'],
+                'datagram_tag':             fragment['payload']['datagram_tag'],
+                'length':                   fragment['payload']['length'],
+                'original_packet_type':     fragment['payload']['original_type']
             }
         )
         packet = self.sixlowpan.reassemble(smac, fragment)
@@ -432,14 +436,14 @@ class FragmentForwarding(Fragmentation):
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
             {
-                'mote_id'             : self.mote.id,
-                'srcIp'               : fragment['srcIp'].id,
-                'dstIp'               : fragment['dstIp'].id,
-                'datagram_size'       : fragment['payload']['datagram_size'],
-                'datagram_offset'     : fragment['payload']['datagram_offset'],
-                'datagram_tag'        : fragment['payload']['datagram_tag'],
-                'length'              : fragment['payload']['length'],
-                'original_packet_type': fragment['payload']['original_type']
+                '_mote_id':                 self.mote.id,
+                'srcIp':                    fragment['srcIp'].id,
+                'dstIp':                    fragment['dstIp'].id,
+                'datagram_size':            fragment['payload']['datagram_size'],
+                'datagram_offset':          fragment['payload']['datagram_offset'],
+                'datagram_tag':             fragment['payload']['datagram_tag'],
+                'length':                   fragment['payload']['length'],
+                'original_packet_type':     fragment['payload']['original_type']
             }
         )
 
@@ -447,12 +451,13 @@ class FragmentForwarding(Fragmentation):
             self.log(
                 SimEngine.SimLog.LOG_SIXLOWPAN_FORWARD_FRAGMENT,
                 {
-                    'srcIp'               : fragment['srcIp'].id,
-                    'dstIp'               : fragment['dstIp'].id,
-                    'datagram_size'       : fragment['payload']['datagram_size'],
-                    'datagram_offset'     : fragment['payload']['datagram_offset'],
-                    'datagram_tag'        : fragment['payload']['datagram_tag'],
-                    'length'              : fragment['payload']['length'],
+                    '_mote_id':             self.mote.id,
+                    'srcIp':                fragment['srcIp'].id,
+                    'dstIp':                fragment['dstIp'].id,
+                    'datagram_size':        fragment['payload']['datagram_size'],
+                    'datagram_offset':      fragment['payload']['datagram_offset'],
+                    'datagram_tag':         fragment['payload']['datagram_tag'],
+                    'length':               fragment['payload']['length'],
                     'original_packet_type': fragment['payload']['original_type']
                 }
             )

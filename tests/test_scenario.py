@@ -40,7 +40,7 @@ def fixture_sf_type(request):
 # =========================== helpers =========================================
 
 def check_all_nodes_send_x(motes,x):
-    senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']==x]))
+    senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
 
 # === app
@@ -83,7 +83,7 @@ def rpl_check_all_nodes_send_DIOs(motes):
     check_all_nodes_send_x(motes,'DIO')
 
 def rpl_check_all_motes_send_DAOs(motes):
-    senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']=='DAO']))
+    senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']=='DAO']))
     assert sorted(senders)==sorted([m.id for m in motes if m.id!=0])
 
 # === TSCH
@@ -109,7 +109,7 @@ def tsch_check_all_nodes_send_EBs(motes):
     check_all_nodes_send_x(motes,'EB')
 
 def tsch_check_all_nodes_synced(motes):
-    synced =  list(set([l['mote_id'] for l in u.read_log_file(['tsch.synced'])]))
+    synced =  list(set([l['_mote_id'] for l in u.read_log_file(['tsch.synced'])]))
     assert sorted(synced)==sorted([m.id for m in motes])
 
 # =========================== tests ===========================================

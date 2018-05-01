@@ -63,7 +63,7 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_SYNCED,
             {
-                "mote_id":   self.mote.id,
+                "_mote_id":   self.mote.id,
             }
         )
         
@@ -256,7 +256,7 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_TXDONE,
             {
-                'mote_id':        self.mote.id,
+                '_mote_id':       self.mote.id,
                 'frame_type':     self.pktToSend['type'],
                 'nextHop':        nextHop,
                 'isACKed':        isACKed,
@@ -424,7 +424,26 @@ class Tsch(object):
     def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
-            
+        
+        # make sure I'm in the right state
+        if self.getIsSync():
+            assert ts in self.getSchedule()
+            assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
+            assert self.waitingFor == d.DIR_RX
+
+        # not waiting for anything anymore
+        self.waitingFor = None
+        
+        # abort if received nothing (idle listen)
+        if type==None:
+            return False # isACKed
+        
+        # abort if unicast to some other mote
+        if (d.BROADCAST_ADDRESS not in dmac) and (self.mote not in dmac):
+            return False # isACKed
+        
+        # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
+        
         # log
         if type:
             if smac:
@@ -442,137 +461,129 @@ class Tsch(object):
             self.log(
                 SimEngine.SimLog.LOG_TSCH_RXDONE,
                 {
-                    'mote_id':        self.mote.id,
-                    'frame_type':     type,
-                    'smac':           smac_to_print,
-                    'dmac':           dmac_to_print,
+                    '_mote_id':        self.mote.id,
+                    'frame_type':      type,
+                    'smac':            smac_to_print,
+                    'dmac':            dmac_to_print,
                 }
             )
         
-        if self.getIsSync():
-            assert ts in self.getSchedule()
-            assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
-            assert self.waitingFor == d.DIR_RX
+        # time correction
+        if smac == self.mote.rpl.getPreferredParent():
+            self.asnLastSync = asn
         
-        if smac and ((self.mote in dmac) or (d.BROADCAST_ADDRESS in dmac)):
-            # I received a packet, either unicast for me, or broadcast
+        # update schedule stats
+        if self.getIsSync():
+            self.getSchedule()[ts]['numRx'] += 1
+        
+        # signal activity to SF
+        if self.getIsSync():
+            self.mote.sf.signal_cell_used(
+                self.mote,
+                self.getSchedule()[ts]['neighbor'],
+                self.getSchedule()[ts]['dir'],
+                d.DIR_RX,
+                type,
+            )
+        
+        if   self.mote in dmac:
+            # link-layer unicast to me
             
-            # time correction
-            if smac == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
+            # ACK frame
+            isACKed = True
             
-            # update schedule stats
-            if self.getIsSync():
-                self.getSchedule()[ts]['numRx'] += 1
-            
-            # signal activity to SF
-            if self.getIsSync():
-                self.mote.sf.signal_cell_used(
-                    self.mote,
-                    self.getSchedule()[ts]['neighbor'],
-                    self.getSchedule()[ts]['dir'],
-                    d.DIR_RX,
-                    type,
-                )
-
-            if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
-                self.waitingFor = None
-                self.mote.sixlowpan.recv(
-                    smac,
-                    {
-                        'asn'        : asn,
-                        'type'       : type,
-                        'code'       : None,
-                        'payload'    : payload,
-                        'srcIp'      : srcIp,
-                        'dstIp'      : dstIp,
-                        'sourceRoute': srcRoute,
-                    },
-                )
-                isACKed = True
-                return isACKed
-
-            if dstIp == d.BROADCAST_ADDRESS:
-                if type == d.RPL_TYPE_DIO:
-                    # got a DIO
-                    self.mote.rpl.action_receiveDIO(type, smac, payload)
-
-                    isACKed = False
-
-                    self.waitingFor = None
-
-                    return isACKed
-                elif type == d.TSCH_TYPE_EB:
-                    self._tsch_action_receiveEB(type, smac, payload)
-
-                    isACKed = False
-
-                    self.waitingFor = None
-
-                    return isACKed
-            elif dstIp == self.mote:
-                # receiving packet
-                if type == d.RPL_TYPE_DAO:
-                    self.mote.rpl.action_receiveDAO(type, smac, payload)
-                    isACKed = True
-                elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_ADD:  # received an 6P ADD request
-                    self.mote.sixp.receive_ADD_REQUEST(type, smac, payload)
-                    isACKed = True
-                elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_DELETE:  # received an 6P DELETE request
-                    self.mote.sixp.receive_DELETE_REQUEST(type, smac, payload)
-                    isACKed = True
-                elif type == d.IANA_6TOP_TYPE_RESPONSE:  # received an 6P response
-                    if self.mote.sixp.receive_RESPONSE(type, code, smac, payload):
-                        isACKed = True
-                    else:
-                        isACKed = False
-                elif type == d.APP_TYPE_ACK:
-                    self.mote.app.action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
-                    isACKed = True
-                elif type == d.APP_TYPE_JOIN:
-                    self.mote.secjoin.receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
-                    isACKed = True
-                else:
-                    assert False
+            # dispatch to the right upper layer
+            if   type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_ADD:
+                self.mote.sixp.receive_ADD_REQUEST(type, smac, payload)
+            elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_DELETE:
+                self.mote.sixp.receive_DELETE_REQUEST(type, smac, payload)
+            elif type == d.IANA_6TOP_TYPE_RESPONSE:
+                self.mote.sixp.receive_RESPONSE(type, code, smac, payload)
             else:
-                # relaying packet
-
-                # copy the payload and forward
-                newPayload     = copy.deepcopy(payload)
-
-                # create packet
-                relayPacket = {
-                    'asn':         asn,
-                    'type':        type,
-                    'code':        code,
-                    'payload':     newPayload,
-                    'retriesLeft': d.TSCH_MAXTXRETRIES,
-                    'srcIp':       srcIp,
-                    'dstIp':       dstIp,
-                    'sourceRoute': srcRoute,
-                }
-
-                isEnqueued = self.enqueue(relayPacket)
-                if isEnqueued:
-
-                    # update mote stats
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
-
-                    isACKed = True
+                if   dstIp == d.BROADCAST_ADDRESS:
+                    # link-layer unicast, ip-layer broadcast
+                    
+                    raise SystemError()
+                elif dstIp == self.mote:
+                    # link-layer unicast, ip-layer unicast for me
+                    
+                    if   type == d.APP_TYPE_JOIN:
+                        self.mote.secjoin.receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
+                        isACKed = True
+                    elif type == d.APP_TYPE_ACK:
+                        self.mote.app.action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
+                        isACKed = True
+                    elif type == d.RPL_TYPE_DAO:
+                        self.mote.rpl.action_receiveDAO(type, smac, payload)
+                    elif type in [d.APP_TYPE_DATA,d.APP_TYPE_FRAG]:
+                        self.mote.sixlowpan.recv(
+                            smac,
+                            {
+                                'asn'        : asn,
+                                'type'       : type,
+                                'code'       : None,
+                                'payload'    : payload,
+                                'srcIp'      : srcIp,
+                                'dstIp'      : dstIp,
+                                'sourceRoute': srcRoute,
+                            },
+                        )
+                    else:
+                        raise SystemError()
                 else:
-                    self.mote.radio.drop_packet(
-                        relayPacket,
-                        SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
-                    )
-                    isACKed = False
+                    # link-layer unicast, ip-layer unicast for someone else
+                    
+                    # relay!
+                    
+                    # create packet
+                    relayPacket = {
+                        'asn':         asn,
+                        'type':        type,
+                        'code':        code,
+                        'payload':     copy.deepcopy(payload),
+                        'retriesLeft': d.TSCH_MAXTXRETRIES,
+                        'srcIp':       srcIp,
+                        'dstIp':       dstIp,
+                        'sourceRoute': srcRoute,
+                    }
 
-        else:
-            # this was an idle listen
-
+                    isEnqueued = self.enqueue(relayPacket)
+                    if isEnqueued:
+                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
+                    else:
+                        self.mote.radio.drop_packet(
+                            relayPacket,
+                            SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
+                        )
+            
+        elif d.BROADCAST_ADDRESS in dmac:
+            # link-layer broadcast
+            
+            # do NOT ACK frame
             isACKed = False
-
-        self.waitingFor = None
-
+            
+            # dispatch to the right upper layer
+            if   type == d.TSCH_TYPE_EB:
+                self._tsch_action_receiveEB(type, smac, payload)
+            else:
+                if   dstIp == d.BROADCAST_ADDRESS:
+                    # link-layer broadcast, ip-layer broadcast
+                    
+                    if type == d.RPL_TYPE_DIO:
+                        self.mote.rpl.action_receiveDIO(type, smac, payload)
+                    else:
+                        raise SystemError()
+                elif dstIp == self.mote:
+                    # link-layer broadcast, ip-layer unicast to me
+                    
+                    raise SystemError()
+                else:
+                    # link-layer broadcast, ip-layer unicast to someone else
+                    
+                    raise SystemError()
+        else:
+            raise SystemError()
+        
         return isACKed
 
     def getOffsetToDagRoot(self):

@@ -180,10 +180,10 @@ class TestPacketDelivery:
         for log in logs:
             if (
                     (log['_type']   == 'sixlowpan.recv_fragment') and
-                    (log['mote_id'] == 1)
+                    (log['_mote_id'] == 1)
                ):
                 # count the fragment receptions by the intermediate node, whose
-                # mote_id is 1
+                # _mote_id is 1
                 fragment_reception_count += 1
             elif log['_type'] == 'app_reached_dagroot':
                 # this should never happen; a packet never reaches the root
@@ -264,13 +264,13 @@ class TestPacketDelivery:
         for log in logs:
             if  (
                     (log['_type'] == 'sixlowpan.recv_fragment') and
-                    (log['mote_id'] == 2) and
+                    (log['_mote_id'] == 2) and
                     (log['datagram_offset'] == 0)
                 ):
                 # 'sixlowpan_send_segment' log cannot used to get asn_start
                 # since it does not have a ASN where the fragment is
                 # transmitted. instead, 'sixlowpan.recv_fragment' log of the
-                # parent of the leaf is used. mote_id of the
+                # parent of the leaf is used. _mote_id of the
                 # intermediate node is 2.
                 assert log['srcIp'] == leaf.id
                 asn_start = log['_asn']

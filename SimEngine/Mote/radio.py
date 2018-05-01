@@ -127,7 +127,7 @@ class Radio(object):
         self.log(
             SimEngine.SimLog.LOG_RADIO_PKT_DROPPED,
             {
-                "mote_id":   self.mote.id,
+                "_mote_id":  self.mote.id,
                 "type":      pkt['type'],
                 "reason":    reason,
             }

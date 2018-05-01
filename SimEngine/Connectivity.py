@@ -181,7 +181,7 @@ class Connectivity(object):
         ts    = asn % self.settings.tsch_slotframeLength
 
         for channel in range(self.settings.phy_numChans):
-            arrivalTime = {} # dict of frame reception time
+            arrivalTime   = {} # dict of frame reception time
             transmissions = [] # list of transmission in the current slot
 
             # transmissions
@@ -197,8 +197,8 @@ class Connectivity(object):
 
             for transmission in transmissions:
             
-                isACKed = False
-                senders = self._get_senders(channel)  # list of motes in tx state
+                isACKed   = False
+                senders   = self._get_senders(channel)  # list of motes in tx state
                 receivers = self._get_receivers(channel)  # list of motes in rx state
 
                 for receiver in receivers:

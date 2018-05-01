@@ -96,7 +96,7 @@ class App(object):
         self.log(
             SimEngine.SimLog.LOG_APP_TX,
             {
-                'mote_id':        self.mote.id,
+                '_mote_id':       self.mote.id,
                 'destination':    self.mote.dagRootAddress.id,
                 'appcounter':     appcounter,
             }
@@ -167,7 +167,7 @@ class App(object):
         self.log(
             SimEngine.SimLog.LOG_APP_TX,
             {
-                'mote_id':        self.mote.id,
+                '_mote_id':       self.mote.id,
                 'destination':    dest_mote.id,
                 'appcounter':     appcounter,
             }
@@ -208,7 +208,7 @@ class App(object):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id':        self.mote.id,
+                '_mote_id':       self.mote.id,
                 'source':         srcIp.id,
                 'appcounter':     payload['appcounter'],
             }

@@ -122,10 +122,10 @@ class SixP(object):
                     self.log(
                         SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                         {
-                            "ts": ts,
-                            "channel": ch,
-                            "direction": dir,
-                            "mote_id": self.mote.id,
+                            "_mote_id":     self.mote.id,
+                            "ts":           ts,
+                            "channel":      ch,
+                            "direction":    dir,
                             "neighbor_id": neighbor.id
                         }
                     )
@@ -381,10 +381,10 @@ class SixP(object):
         self.log(
             SimEngine.SimLog.LOG_6TOP_RX_RESP,
             {
-                "mote_id": self.mote.id,
-                "rc": code,
-                "type": type,
-                "neighbor_id": smac.id
+                "_mote_id":       self.mote.id,
+                "rc":             code,
+                "type":           type,
+                "neighbor_id":    smac.id
             }
         )
 
@@ -476,11 +476,11 @@ class SixP(object):
                         self.log(
                             SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                             {
-                                "ts": ts,
-                                "channel": ch,
-                                "direction": cellDir,
-                                "neighbor_id": neighbor.id,
-                                "mote_id": self.mote.id,
+                                "_mote_id":      self.mote.id,
+                                "ts":            ts,
+                                "channel":       ch,
+                                "direction":     cellDir,
+                                "neighbor_id":   neighbor.id,
                             }
                         )
                         cellList += [(ts, ch, newDir)]

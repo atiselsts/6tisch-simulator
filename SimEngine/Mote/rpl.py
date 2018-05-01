@@ -280,7 +280,7 @@ class Rpl(object):
                 self.log(
                     SimEngine.SimLog.LOG_RPL_DIO_TX,
                     {
-                        "mote_id": self.mote.id
+                        "_mote_id": self.mote.id
                     }
                 )
                 
@@ -382,7 +382,7 @@ class Rpl(object):
             self.log(
                 SimEngine.SimLog.LOG_RPL_DAO_TX,
                 {
-                    "mote_id": self.mote.id
+                    "_mote_id": self.mote.id
                 }
             )
             
