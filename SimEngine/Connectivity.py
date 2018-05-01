@@ -196,11 +196,22 @@ class Connectivity(object):
                 arrivalTime[transmission['smac']] = sender.tsch.getOffsetToDagRoot()
 
             for transmission in transmissions:
-            
+                
                 isACKed   = False
                 senders   = self._get_senders(channel)  # list of motes in tx state
                 receivers = self._get_receivers(channel)  # list of motes in rx state
-
+                
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_PROP_TRANSMISSION,
+                    {
+                        'channel':          channel,
+                        'frame':            str(transmission),
+                        'source':           None,
+                        'destinations':     None,
+                    }
+                )
+                
                 for receiver in receivers:
                     
                     # get interferers

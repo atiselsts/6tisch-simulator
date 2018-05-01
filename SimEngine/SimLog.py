@@ -14,6 +14,7 @@ Usage:
 # ========================== imports =========================================
 
 import json
+import traceback
 
 import SimSettings
 import SimEngine
@@ -100,6 +101,7 @@ LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}
 
 # === propagation
 LOG_PROP_PROBABLE_COLLISION      = {'type': 'prop.probable_collision', 'keys': ['source_id','channel']}
+LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission',       'keys': ['channel','frame','source','destinations']}
 
 # ============================ SimLog =========================================
 
