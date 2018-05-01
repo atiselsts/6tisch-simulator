@@ -198,7 +198,6 @@ class Connectivity(object):
             for transmission in transmissions:
             
                 isACKed = False
-                isNACKed = False
                 senders = self._get_senders(channel)  # list of motes in tx state
                 receivers = self._get_receivers(channel)  # list of motes in rx state
 
@@ -249,7 +248,7 @@ class Connectivity(object):
                         # try to send
                         if random.random() < pdr:
                             # packet is received correctly
-                            isACKed, isNACKed = receiver.radio.rxDone(**transmission)
+                            isACKed = receiver.radio.rxDone(**transmission)
 
                         else:
                             # packet is NOT received correctly
@@ -275,7 +274,7 @@ class Connectivity(object):
                         receiver.radio.rxDone()
 
                 # indicate to source packet was sent
-                transmission['smac'].radio.txDone(isACKed, isNACKed)
+                transmission['smac'].radio.txDone(isACKed)
 
             # get remaining senders and receivers
             senders = self._get_senders(channel)  # list of motes in tx state

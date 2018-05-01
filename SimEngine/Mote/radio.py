@@ -68,7 +68,7 @@ class Radio(object):
         # remember whether frame is broadcast
         self.onGoingBroadcast = (dmac == d.BROADCAST_ADDRESS)
 
-    def txDone(self, isACKed, isNACKed):
+    def txDone(self, isACKed):
         """end of tx slot"""
         self.state = d.RADIO_STATE_IDLE
         self.channel = None
@@ -77,8 +77,8 @@ class Radio(object):
         assert self.onGoingTransmission
 
         # log charge consumed
-        if   isACKed or isNACKed:
-            # ACK of NACK received (both consume same amount of charge)
+        if   isACKed:
+            # ACK received
             self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
         elif self.onGoingBroadcast:
             # no ACK expected (link-layer bcast)
@@ -92,7 +92,7 @@ class Radio(object):
         self.onGoingTransmission = None
 
         # inform upper layer (TSCH)
-        self.mote.tsch.txDone(isACKed, isNACKed)
+        self.mote.tsch.txDone(isACKed)
 
     # RX
 

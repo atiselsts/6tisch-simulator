@@ -239,7 +239,7 @@ class Tsch(object):
 
     # interface with radio
 
-    def txDone(self, isACKed, isNACKed):
+    def txDone(self, isACKed):
         """end of tx slot"""
         
         asn   = self.engine.getAsn()
@@ -260,7 +260,6 @@ class Tsch(object):
                 'frame_type':     self.pktToSend['type'],
                 'nextHop':        nextHop,
                 'isACKed':        isACKed,
-                'isNACKed':       isNACKed,
                 'channel':        self.channel,
             }
         )
@@ -354,66 +353,6 @@ class Tsch(object):
             if tmpDir == d.DIR_TXRX_SHARED or (tmpDir == d.DIR_TX and not self.txQueue):
                 if tmpDir == d.DIR_TXRX_SHARED and tmpNeighbor != self.mote._myNeighbors():
                     self._resetBackoffPerNeigh(tmpNeighbor)
-                else:
-                    self._resetBroadcastBackoff()
-
-        elif isNACKed:
-
-            # update schedule stats as if it were successfully transmitted
-            self.getSchedule()[ts]['numTxAck'] += 1
-
-            # time correction
-            if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
-
-            # decrement 'retriesLeft' counter associated with that packet
-            i = self.getTxQueue().index(self.pktToSend)
-            if self.txQueue[i]['retriesLeft'] > 0:
-                self.txQueue[i]['retriesLeft'] -= 1
-
-            # drop packet if retried too many time
-            if self.txQueue[i]['retriesLeft'] == 0:
-
-                if len(self.txQueue) == d.TSCH_QUEUE_SIZE:
-
-                    # only count drops of DATA packets that are part of the experiment
-                    if self.pktToSend['type'] == d.APP_TYPE_DATA:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_DATA_MAX_RETRIES['type'])
-
-                    # update mote stats
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type'])
-
-                    # remove packet from queue
-                    self.getTxQueue().remove(self.pktToSend)
-
-                    # reset state for this neighbor
-                    # go back to IDLE, i.e. remove the neighbor form the states
-                    # but, in the case of a response msg, if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
-                    if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                    elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
-                else:
-                    if self.pktToSend['type'] != d.APP_TYPE_DATA:
-                        # update mote stats
-                        self.mote._stats_incrementMoteStats('droppedMacRetries')
-
-                        # remove packet from queue
-                        self.getTxQueue().remove(self.pktToSend)
-
-                        if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                        elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
-
-            # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
-            if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED or (self.getSchedule()[ts]['dir'] == d.DIR_TX and not self.txQueue):
-                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED and self.getSchedule()[ts]['neighbor'] != self.mote._myNeighbors():
-                    self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
                 else:
                     self._resetBroadcastBackoff()
 
@@ -550,49 +489,49 @@ class Tsch(object):
                         'sourceRoute': srcRoute,
                     },
                 )
-                (isACKed, isNACKed) = (True, False)
-                return isACKed, isNACKed
+                isACKed = True
+                return isACKed
 
             if dstIp == d.BROADCAST_ADDRESS:
                 if type == d.RPL_TYPE_DIO:
                     # got a DIO
                     self.mote.rpl.action_receiveDIO(type, smac, payload)
 
-                    (isACKed, isNACKed) = (False, False)
+                    isACKed = False
 
                     self.waitingFor = None
 
-                    return isACKed, isNACKed
+                    return isACKed
                 elif type == d.TSCH_TYPE_EB:
                     self._tsch_action_receiveEB(type, smac, payload)
 
-                    (isACKed, isNACKed) = (False, False)
+                    isACKed = False
 
                     self.waitingFor = None
 
-                    return isACKed, isNACKed
+                    return isACKed
             elif dstIp == self.mote:
                 # receiving packet
                 if type == d.RPL_TYPE_DAO:
                     self.mote.rpl.action_receiveDAO(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_ADD:  # received an 6P ADD request
                     self.mote.sixp.receive_ADD_REQUEST(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_DELETE:  # received an 6P DELETE request
                     self.mote.sixp.receive_DELETE_REQUEST(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 elif type == d.IANA_6TOP_TYPE_RESPONSE:  # received an 6P response
                     if self.mote.sixp.receive_RESPONSE(type, code, smac, payload):
-                        (isACKed, isNACKed) = (True, False)
+                        isACKed = True
                     else:
-                        (isACKed, isNACKed) = (False, False)
+                        isACKed = False
                 elif type == d.APP_TYPE_ACK:
                     self.mote.app.action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 elif type == d.APP_TYPE_JOIN:
                     self.mote.secjoin.receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 else:
                     assert False
             else:
@@ -619,22 +558,22 @@ class Tsch(object):
                     # update mote stats
                     self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
 
-                    (isACKed, isNACKed) = (True, False)
+                    isACKed = True
                 else:
                     self.mote.radio.drop_packet(
                         relayPacket,
                         SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
                     )
-                    (isACKed, isNACKed) = (False, True)
+                    isACKed = False
 
         else:
             # this was an idle listen
 
-            (isACKed, isNACKed) = (False, False)
+            isACKed = False
 
         self.waitingFor = None
 
-        return (isACKed,isNACKed)
+        return isACKed
 
     def getOffsetToDagRoot(self):
         """
