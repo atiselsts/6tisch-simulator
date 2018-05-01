@@ -28,8 +28,8 @@ LOG_MOTE_STATS                   = {'type': 'mote.stats'}
 LOG_MOTE_STATE                   = {'type': 'mote.state'}
 
 # === app
-LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['mote_id','destination']}
-LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['mote_id','source']}
+LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['mote_id','destination','appcounter']}
+LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['mote_id','source','appcounter']}
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 LOG_APP_VRB_TABLE_FULL           = {'type': 'app.vrb_table_full'}
 

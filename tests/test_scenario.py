@@ -43,6 +43,15 @@ def check_all_nodes_send_x(motes,x):
     senders = list(set([l['mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['frame_type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
 
+# === app
+
+def count_num_app_rx(appcounter):
+    numrx = 0
+    for app_rx in u.read_log_file(['app.rx']):
+        if app_rx['appcounter']==appcounter:
+            numrx += 1
+    assert numrx==1
+
 # === RPL
 
 def rpl_check_root_parentChildfromDAOs(motes):
@@ -131,9 +140,9 @@ def test_vanilla_scenario(
             'exec_numSlotframesPerRun':                    10000,
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
-            'rpl_daoPeriod':                               30,
-            "tsch_probBcast_ebProb":                       0.10,
-            "tsch_probBcast_dioProb":                      0.10,
+            'rpl_daoPeriod':                               60,
+            'tsch_probBcast_ebProb':                       0.33/2,
+            'tsch_probBcast_dioProb':                      0.33/2,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
             'sf_type':                                     fixture_sf_type,
@@ -167,6 +176,9 @@ def test_vanilla_scenario(
     
     # === send data up/down
     
+    # appcounter increments at each packet
+    appcounter = 0
+    
     # pick a "datamote" which will send/receive data
     datamote = sim_engine.motes[-1] # pick furthest mote
 
@@ -182,13 +194,16 @@ def test_vanilla_scenario(
         for _ in range(10):
             
             # inject data at the datamote
-            datamote.app._action_mote_sendSinglePacketToDAGroot()
+            datamote.app._action_mote_sendSinglePacketToDAGroot(appcounter)
 
             # give the data time to reach the root
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
-            # verify it got to the root
-            assert len(u.read_log_file(['app.rx']))>0
+            # verify datamote got exactly one packet
+            count_num_app_rx(appcounter)
+            
+            # increment appcounter
+            appcounter += 1
     
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down")!=-1:
@@ -196,10 +211,13 @@ def test_vanilla_scenario(
         for _ in range(10):
 
             # inject data at the root
-            dagroot.app._action_root_sendSinglePacketToMote(datamote)
+            dagroot.app._action_root_sendSinglePacketToMote(datamote,appcounter)
 
             # give the data time to reach the datamote
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
-            # verify it got to the root
-            #assert len(u.read_log_file(['app_reaches_mote']))>0
+            # verify datamote got exactly one packet
+            count_num_app_rx(appcounter)
+            
+            # increment appcounter
+            appcounter += 1

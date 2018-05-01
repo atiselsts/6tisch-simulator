@@ -87,7 +87,7 @@ class App(object):
 
     #=== [TX] mote -> root
 
-    def _action_mote_sendSinglePacketToDAGroot(self):
+    def _action_mote_sendSinglePacketToDAGroot(self,appcounter=0):
         """
         send a single packet, and reschedule next one
         """
@@ -98,16 +98,17 @@ class App(object):
             {
                 'mote_id':        self.mote.id,
                 'destination':    self.mote.dagRootAddress.id,
+                'appcounter':     appcounter,
             }
         )
         
         # enqueue data
-        self._action_mote_enqueueDataForDAGroot()
+        self._action_mote_enqueueDataForDAGroot(appcounter)
 
         # schedule sending next packet
         self.schedule_mote_sendSinglePacketToDAGroot()
     
-    def _action_mote_enqueueDataForDAGroot(self):
+    def _action_mote_enqueueDataForDAGroot(self,appcounter):
         """
         enqueue data packet to the DAGroot
         """
@@ -140,6 +141,7 @@ class App(object):
                     'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
                     'hops':            1,                       # number of hops, used to calculate empirical hop count
                     'length':          self.settings.app_pkLength,
+                    'appcounter':      appcounter,
                 },
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self.mote,                    # from mote
@@ -154,7 +156,7 @@ class App(object):
     
     #=== [TX] root -> mote
     
-    def _action_root_sendSinglePacketToMote(self,dest_mote):
+    def _action_root_sendSinglePacketToMote(self,dest_mote,appcounter=0):
         """
         send a single packet
         """
@@ -167,6 +169,7 @@ class App(object):
             {
                 'mote_id':        self.mote.id,
                 'destination':    dest_mote.id,
+                'appcounter':     appcounter,
             }
         )
         
@@ -182,6 +185,7 @@ class App(object):
                 'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
                 'hops':            1,                       # number of hops, used to calculate empirical hop count
                 'length':          self.settings.app_pkLength,
+                'appcounter':      appcounter,
             },
             'retriesLeft':     d.TSCH_MAXTXRETRIES,
             'srcIp':           self.mote,   # from DAGroot
@@ -204,8 +208,9 @@ class App(object):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id': self.mote.id,
-                'source':  srcIp.id,
+                'mote_id':        self.mote.id,
+                'source':         srcIp.id,
+                'appcounter':     payload['appcounter'],
             }
         )
 
