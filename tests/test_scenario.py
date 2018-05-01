@@ -9,7 +9,7 @@ def fixture_exec_numMotes(request):
     return request.param
 
 #@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['up'])
+@pytest.fixture(params=['up-down'])
 def fixture_data_flow(request):
     return request.param
 
@@ -176,26 +176,30 @@ def test_vanilla_scenario(
     # verify no packets yet received by root
     assert len(u.read_log_file(['app.rx']))==0
     
-    # send data upstream (datamote->root)
+    # send packets upstream (datamote->root)
     if fixture_data_flow.find("up")!=-1:
         
-        # inject data at the datamote
-        datamote.app._action_mote_sendSinglePacketToDAGroot()
+        for _ in range(10):
+            
+            # inject data at the datamote
+            datamote.app._action_mote_sendSinglePacketToDAGroot()
 
-        # give the data time to reach the root
-        u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
+            # give the data time to reach the root
+            u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
 
-        # verify it got to the root
-        assert len(u.read_log_file(['app.rx']))>0
+            # verify it got to the root
+            assert len(u.read_log_file(['app.rx']))>0
     
     # send data downstream (root->datamote)
     if fixture_data_flow.find("down")!=-1:
         
-        # inject data at the root
-        dagroot.app._action_root_sendSinglePacketToMote(datamote)
+        for _ in range(10):
 
-        # give the data time to reach the datamote
-        u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
+            # inject data at the root
+            dagroot.app._action_root_sendSinglePacketToMote(datamote)
 
-        # verify it got to the root
-        #assert len(u.read_log_file(['app_reaches_mote']))>0
+            # give the data time to reach the datamote
+            u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
+
+            # verify it got to the root
+            #assert len(u.read_log_file(['app_reaches_mote']))>0

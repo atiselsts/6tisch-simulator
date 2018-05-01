@@ -295,7 +295,10 @@ class Rpl(object):
                     'dstIp':          d.BROADCAST_ADDRESS,
                     'sourceRoute':    []
                 }
-
+                
+                # remove other possible DIOs from the queue
+                self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
+                
                 # enqueue packet in TSCH queue
                 if not self.mote.tsch.enqueue(newDIO):
                     self.mote.radio.drop_packet(newDIO, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
@@ -397,6 +400,9 @@ class Rpl(object):
                 'dstIp':          self.mote.dagRootAddress,
                 'sourceRoute':    [],
             }
+            
+            # remove other possible DAOs from the queue
+            self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DAO)
             
             # enqueue packet in TSCH queue
             if not self.mote.tsch.enqueue(newDAO):
