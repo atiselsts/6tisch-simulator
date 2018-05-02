@@ -684,7 +684,7 @@ class Tsch(object):
             
                 # 'type', 'mac', and 'net' are mandatory fields of a packet. in this
                 # sense, a set of packet.keys() should have them.
-                assert set(['type','mac','net']).issubset(set(pkt.keys()))
+                assert set(['type','mac']).issubset(set(pkt.keys()))
             
                 # send the frame if next hop matches the cell destination
                 if pkt['mac']['dstMac'] == cell['neighbor'].id:
