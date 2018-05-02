@@ -145,6 +145,8 @@ class MSF(SchedulingFunction):
           In the case of bootstrap, add one cell to the preferred parent.
         """
         
+        return # FIXME: enable 6P
+        
         assert self.mote.rpl.getPreferredParent()!=None
 
         armTimeout = False
