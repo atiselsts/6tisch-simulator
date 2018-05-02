@@ -184,8 +184,8 @@ class App(object):
             },
         }
         
-        # enqueue packet in TSCH queue
-        self.mote.tsch.enqueue(newDownstreamDataPacket)
+        # send a packet
+        self.mote.sixlowpan.send(newDownstreamDataPacket)
     
     #=== [RX]
     

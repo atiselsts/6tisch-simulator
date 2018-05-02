@@ -292,7 +292,7 @@ class Rpl(object):
                 self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
                 
                 # send the DIO via sixlowpan
-                self.mote.sixlowpan(newDIO)
+                self.mote.sixlowpan.send(newDIO)
 
         # schedule next DIO
         self._schedule_sendDIO()

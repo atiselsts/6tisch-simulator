@@ -30,7 +30,6 @@ FRAGMENTATION_FF_DISCARD_VRB_ENTRY_POLICY = [
 def fragmentation_ff_discard_vrb_entry_policy(request):
     return request.param
 
-
 def get_memory_usage(mote, fragmentation):
     if fragmentation == 'PerHopReassembly':
         memory_structure = mote.sixlowpan.reassembly_buffers
@@ -38,6 +37,7 @@ def get_memory_usage(mote, fragmentation):
         memory_structure = mote.sixlowpan.fragmentation.vrb_table
 
     return sum([len(e) for _, e in memory_structure.items()])
+
 
 class TestPacketDelivery:
     """ Behavioral Testing for Fragmentation
@@ -204,6 +204,7 @@ class TestPacketDelivery:
         # with this simulator. Even in reality, it rarely happens.
         pass
 
+    @pytest.mark.skip(reason='WIP')
     def test_e2e_latency(
             self,
             sim_engine,
@@ -289,6 +290,7 @@ class TestPacketDelivery:
         assert e2e_latency == expected_e2e_latency[fragmentation]
 
 
+@pytest.mark.skip(reason='WIP')
 class TestFragmentationAndReassembly(object):
 
     TSCH_MAX_PAYLOAD    = 90
@@ -344,6 +346,7 @@ class TestFragmentationAndReassembly(object):
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
+@pytest.mark.skip(reason='WIP')
 class TestMemoryManagement:
     """Test memory management for reassembly buffer and VRB table
     """
@@ -500,6 +503,7 @@ class TestMemoryManagement:
         assert get_memory_usage(hop1, fragmentation) == 1
 
 
+@pytest.mark.skip(reason='WIP')
 class TestDatagramTagManagement(object):
     """Test datagram_tag management
     """
@@ -589,7 +593,7 @@ class TestDatagramTagManagement(object):
             )
 
 
-
+@pytest.mark.skip(reason='WIP')
 class TestFragmentForwarding:
 
     # index of the fragment that is the actual test input. A packet is divided

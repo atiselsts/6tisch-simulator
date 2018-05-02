@@ -204,9 +204,9 @@ class Tsch(object):
 
     def enqueue(self, packet):
 
-        # 'type', 'mac', and 'net' are mandatory fields of a packet. in this
+        # 'type', 'mac' are mandatory fields of a packet. in this
         # sense, a set of packet.keys() should have them.
-        assert set(['type','mac','net']).issubset(set(packet.keys()))
+        assert set(['type','mac']).issubset(set(packet.keys()))
 
         # srcMac and dstMac should be in place
         assert 'srcMac' in packet['mac']
@@ -245,7 +245,7 @@ class Tsch(object):
         # if I get here, every is OK, I can enqueue
         if returnVal:
             # set retriesLeft which should be renewed at every hop
-            packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES,
+            packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
             # add to txQueue
             self.txQueue    += [packet]
         
@@ -363,7 +363,7 @@ class Tsch(object):
                 else:
                     self._resetBroadcastBackoff()
 
-        elif self.pktToSend['net']['dstIp'] == d.BROADCAST_ADDRESS:
+        elif self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
 
             self.getTxQueue().remove(self.pktToSend)
 
@@ -896,9 +896,9 @@ class Tsch(object):
                         'app': {
                             'jp':           self.mote.rpl.getDagRank(),
                         },
-                        'net': {
-                            'srcIp':        self.mote.id,            # from mote
-                            'dstIp':        d.BROADCAST_ADDRESS,     # broadcast
+                        'mac': {
+                            'srcMac':       self.mote.id,            # from mote
+                            'dstMac':       d.BROADCAST_ADDRESS,     # broadcast
                         },
                     }
 
