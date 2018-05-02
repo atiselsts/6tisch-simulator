@@ -45,9 +45,10 @@ class Mote(object):
 
         # admin
         self.dataLock                  = threading.RLock()
+        
         # identifiers
         self.dagRoot                   = False
-        self.dagRootAddress            = None
+        self.dagRootId                 = None
 
         # stats
         self.packetLatencies           = []      # in slots
@@ -70,11 +71,7 @@ class Mote(object):
         self.sf                        = sf.SchedulingFunction.get_sf(self)
         self.radio                     = radio.Radio(self)
         self.batt                      = batt.Batt(self)
-
-        # wireless
-        self.RSSI                      = {}      # indexed by neighbor
-        self.PDR                       = {}      # indexed by neighbor
-
+        
         # stats
         self.motestats                 = {}
         self._stats_resetMoteStats()
@@ -119,23 +116,18 @@ class Mote(object):
                 return self.getPDR(cell['neighbor'])
             else:
                 return float(cell['numTxAck']) / float(cell['numTx'])
-
-    def setPDR(self, neighbor, pdr):
-        """ sets the pdr to that neighbor"""
-        with self.dataLock:
-            self.PDR[neighbor] = pdr
-
+    
     def getPDR(self, neighbor):
         """ returns the pdr to that neighbor"""
         with self.dataLock:
             return self.engine.connectivity.get_pdr(
-                source       = self,
+                source       = self.id,
                 destination  = neighbor,
                 channel      = 0, #FIXME
             )
 
     def _myNeighbors(self):
-        return [n for n in self.PDR.keys() if self.PDR[n] > 0]
+        return [n.id for n in self.engine.motes if self.engine.connectivity.get_pdr(self.id,n.id,0) > 0]
 
     # ==== location
 
@@ -171,7 +163,7 @@ class Mote(object):
             
             # give DAGroot's ID to each mote FIXME: remove
             for mote in self.engine.motes:
-                mote.dagRootAddress  = self
+                mote.dagRootId  = self.id
             
             # schedule the first active cell
             self.tsch.tsch_schedule_active_cell()
@@ -225,18 +217,7 @@ class Mote(object):
     def _stats_resetMoteStats(self):
         with self.dataLock:
             self.motestats = {}
-
-    def _stats_incrementMoteStats(self, name):
-        """
-        :param str name:
-        :return:
-        """
-        with self.dataLock:
-            if name in self.motestats:  # increment stat
-                self.motestats[name] += 1
-            else:
-                self.motestats[name] = 1  # init stat
-
+    
     # cell stats
 
     def getCellStats(self, ts_p, ch_p):

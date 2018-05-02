@@ -21,6 +21,8 @@ APP_TYPE_FRAG                               = 'FRAG'
 RPL_TYPE_DIO                                = 'DIO'
 RPL_TYPE_DAO                                = 'DAO'
 TSCH_TYPE_EB                                = 'EB'
+IANA_6TOP_ADD_REQUEST                       = '6P_ADD_REQUEST'
+IANA_6TOP_DELETE_REQUEST                    = '6P_DELETE_REQUEST'
 
 # === 6top message types
 IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'

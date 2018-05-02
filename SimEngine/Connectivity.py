@@ -181,7 +181,7 @@ class Connectivity(object):
         ts    = asn % self.settings.tsch_slotframeLength
 
         for channel in range(self.settings.phy_numChans):
-            arrivalTime = {} # dict of frame reception time
+            arrivalTime   = {} # dict of frame reception time
             transmissions = [] # list of transmission in the current slot
 
             # transmissions
@@ -192,16 +192,26 @@ class Connectivity(object):
 
             # store arrival times of transmitted packets
             for transmission in transmissions:
-                sender = transmission['smac']
-                arrivalTime[transmission['smac']] = sender.tsch.getOffsetToDagRoot()
+                sender_id   = transmission['packet']['mac']['srcMac']
+                sender_mote = self.engine.motes[sender_id]
+                arrivalTime[sender_id] = sender_mote.tsch.getOffsetToDagRoot()
 
             for transmission in transmissions:
-            
-                isACKed = False
-                isNACKed = False
-                senders = self._get_senders(channel)  # list of motes in tx state
-                receivers = self._get_receivers(channel)  # list of motes in rx state
-
+                
+                isACKed   = False
+                senders   = self._get_senders(channel)    # list of motes in TX state on that channel
+                receivers = self._get_receivers(channel)  # list of motes in rx state on that channel
+                
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_PROP_TRANSMISSION,
+                    {
+                        'channel':          transmission['channel'],
+                        'packet':           transmission['packet'],
+                        'destinations':     None,
+                    }
+                )
+                
                 for receiver in receivers:
                     
                     # get interferers
@@ -211,60 +221,71 @@ class Connectivity(object):
                     #     except the current transmission sender
                     interferers = []
                     for sender in senders:
-                        if (
-                            self.settings.phy_minRssi < self.get_rssi(receiver, sender)
-                            and sender.id != transmission['smac'].id
-                        ):
+                        if  (
+                                self.settings.phy_minRssi < self.get_rssi(receiver, sender)
+                                and
+                                sender != transmission['packet']['mac']['srcMac']
+                            ):
                             interferers.append(sender)
 
                     # log
-                    if len(interferers) > 0:
+                    if interferers:
                         self.log(
-                            SimEngine.SimLog.LOG_PROP_PROBABLE_COLLISION,
+                            SimEngine.SimLog.LOG_PROP_INTERFERENCE,
                             {
-                                "source_id": transmission['smac'].id,
-                                "channel": transmission['channel']
+                                'source_id':     transmission['packet']['mac']['srcMac'],
+                                'channel':       transmission['channel'],
+                                'interferers':   interferers,
                             }
                         )
 
                     # lock on the first transmission
-                    sender_locked_on = transmission['smac']
+                    sender_locked_on = transmission['packet']['mac']['srcMac']
                     for itfr in senders:
-                        if (
-                            arrivalTime[itfr] < arrivalTime[sender_locked_on]
-                            and self.settings.phy_minRssi < self.get_rssi(receiver, itfr)
-                        ):
+                        if  (
+                                arrivalTime[itfr] < arrivalTime[sender_locked_on]
+                                and
+                                self.settings.phy_minRssi < self.get_rssi(receiver, itfr)
+                            ):
                             # lock on interference
                             sender_locked_on = itfr
 
-                    if sender_locked_on == transmission['smac']:
+                    if sender_locked_on == transmission['packet']['mac']['srcMac']:
                         # mote locked in the current signal
 
                         # calculate pdr, including interference
-                        pdr = self.compute_pdr(transmission['smac'],
-                                               receiver,
-                                               interferers=interferers,
-                                               channel=transmission['channel'])
+                        pdr = self.compute_pdr(
+                            src_id          = transmission['packet']['mac']['srcMac'],
+                            dst_id          = receiver,
+                            interferers     = interferers,
+                            channel         = transmission['channel'],
+                        )
 
                         # try to send
                         if random.random() < pdr:
                             # packet is received correctly
-                            isACKed, isNACKed = receiver.radio.rxDone(**transmission)
+                            isACKed = self.engine.motes[receiver].radio.rxDone(
+                                packet = transmission['packet'],
+                            )
 
                         else:
                             # packet is NOT received correctly
-                            receiver.radio.rxDone()
+                            self.engine.motes[receiver].radio.rxDone(
+                                packet = None,
+                            )
                     else:
                         # mote locked on an interfering signal
 
                         # receive the interference as if it was the right frame
-                        pseudo_interferers = senders + [transmission['smac']]
+                        pseudo_interferers = senders + [transmission['packet']['mac']['srcMac']]
 
                         # calculate PDR
-                        pdr = self.compute_pdr(sender_locked_on,
-                                               receiver,
-                                               interferers=pseudo_interferers,
-                                               channel=transmission['channel'])
+                        pdr = self.compute_pdr(
+                            src_id          = sender_locked_on,
+                            dst_id          = receiver,
+                            interferers     = pseudo_interferers,
+                            channel         = transmission['channel'],
+                        )
 
                         # try to send
                         if random.random() < pdr and receiver.radio_isSync():
@@ -272,19 +293,22 @@ class Connectivity(object):
                             receiver.schedule[ts]['rx_wrong_frame'] = True
 
                         # frame is not received
-                        receiver.radio.rxDone()
+                        self.engine.motes[receiver].radio.rxDone(
+                            packet = None,
+                        )
 
                 # indicate to source packet was sent
-                transmission['smac'].radio.txDone(isACKed, isNACKed)
+                self.engine.motes[transmission['packet']['mac']['srcMac']].radio.txDone(isACKed)
 
             # get remaining senders and receivers
-            senders = self._get_senders(channel)  # list of motes in tx state
+            senders   = self._get_senders(channel)    # list of motes in tx state
             receivers = self._get_receivers(channel)  # list of motes in rx state
 
             # remaining receivers that did not receive a packet
             for receiver in receivers:
+                
                 # ignore mote that are not in rx state
-                if receiver.radio.state != d.RADIO_STATE_RX:
+                if self.engine.motes[receiver].radio.state != d.RADIO_STATE_RX:
                     continue
 
                 # get interferers
@@ -293,9 +317,7 @@ class Connectivity(object):
                 #     - send with sufficient signal that the mote can receive
                 interferers = []
                 for sender in senders:
-                    if (
-                            self.settings.phy_minRssi < self.get_rssi(receiver, sender)
-                    ):
+                    if self.settings.phy_minRssi < self.get_rssi(receiver, sender):
                         interferers.append(sender)
 
                 # lock on the first arrived transmission
@@ -310,10 +332,12 @@ class Connectivity(object):
                 # if locked, try to receive the frame
                 if sender_locked_on:
                     # pdr calculation
-                    pdr = self.compute_pdr(sender_locked_on,
-                                           receiver,
-                                           interferers=senders,
-                                           channel=receiver.radio.channel)
+                    pdr = self.compute_pdr(
+                        src_id         = sender_locked_on,
+                        dst_id         = receiver,
+                        interferers    = senders,
+                        channel        = self.engine.motes[receiver].radio.channel,
+                    )
 
                     # pick a random number
                     if random.random() < pdr and receiver.radio_isSync():
@@ -321,28 +345,35 @@ class Connectivity(object):
                         receiver.schedule[ts]['rx_wrong_frame'] = True
 
                 # packet is not received
-                receiver.radio.rxDone()
+                self.engine.motes[receiver].radio.rxDone(
+                    packet = None,
+                )
 
         # schedule next propagation
         self._schedule_propagate()
 
-    def compute_pdr(self, source, destination, interferers, channel=None):
+    def compute_pdr(self, src_id, dst_id, interferers, channel):
         """
         Returns the PDR of a link at a given time.
         The returned PDR is computed from the connectivity matrix and from
         internal interferences.
-        :param Mote source:
+        :param Mote src_id:
         :param Mote destination:
         :param list interferers:
         :param int channel:
         :return: The link PDR
         :rtype: float
         """
+        
+        assert type(src_id) == int
+        assert type(dst_id) == int
+        for interferer in interferers:
+            assert type(interferer) == int
+        
+        matrix_pdr = self.get_pdr(src_id, dst_id, channel)
 
-        matrix_pdr = self.get_pdr(source, destination, channel)
-
-        sinr = self._compute_sinr(source, destination, interferers)
-        interference_pdr = self._compute_pdr_from_sinr(sinr, destination)
+        sinr       = self._compute_sinr(src_id, dst_id, interferers)
+        interference_pdr = self._compute_pdr_from_sinr(sinr, dst_id)
 
         return interference_pdr * matrix_pdr
 
@@ -356,13 +387,18 @@ class Connectivity(object):
         :return: The link PDR
         :rtype: float
         """
-        if (
-            self.settings.conn_type == CONN_TYPE_TRACE
-            and self.connectivity_matrix_timestamp < self.engine.asn
-        ):
+        
+        assert type(source)==int
+        assert type(destination)==int
+        
+        if  (
+                self.settings.conn_type == CONN_TYPE_TRACE
+                and 
+                self.connectivity_matrix_timestamp < self.engine.asn
+            ):
             self._update_connectivity_matrix_from_trace()
 
-        pdr = self.connectivity_matrix[source.id][destination.id][channel]["pdr"]
+        pdr = self.connectivity_matrix[source][destination][channel]["pdr"]
         if pdr is None:
             pdr = 0
 
@@ -378,13 +414,18 @@ class Connectivity(object):
         :return: The link mean RSSI
         :rtype: float
         """
-        if (
-                self.settings.conn_type == CONN_TYPE_TRACE
-                and self.connectivity_matrix_timestamp < self.engine.asn
-        ):
+        
+        assert type(source)==int
+        assert type(destination)==int
+        
+        if  (
+                    self.settings.conn_type == CONN_TYPE_TRACE
+                    and
+                    self.connectivity_matrix_timestamp < self.engine.asn
+            ):
             self._update_connectivity_matrix_from_trace()
 
-        rssi = self.connectivity_matrix[source.id][destination.id][channel]["rssi"]
+        rssi = self.connectivity_matrix[source][destination][channel]["rssi"]
 
         if rssi is None:
             rssi = -1000
@@ -506,8 +547,8 @@ class Connectivity(object):
         :return: The SINR
         :rtype: int
         """
-
-        noise = _dBm_to_mW(destination.radio.noisepower)
+        
+        noise = _dBm_to_mW(self.engine.motes[destination].radio.noisepower)
         # S = RSSI - N
         signal = _dBm_to_mW(self.get_rssi(source, destination)) - noise
         if signal < 0.0:
@@ -529,8 +570,7 @@ class Connectivity(object):
 
         return _mW_to_dBm(sinr)
 
-    @staticmethod
-    def _compute_pdr_from_sinr(sinr, destination):
+    def _compute_pdr_from_sinr(self, sinr, destination):
         """ Compute the packet delivery ration (PDR) from
             signal to interference plus noise ratio (SINR)
 
@@ -539,10 +579,12 @@ class Connectivity(object):
         :return:
         :rtype: float
         """
-
+        
+        noisepower = self.engine.motes[destination].radio.noisepower
+        
         equivalentRSSI = _mW_to_dBm(
-            _dBm_to_mW(sinr + destination.radio.noisepower) +
-            _dBm_to_mW(destination.radio.noisepower)
+            _dBm_to_mW(sinr + noisepower) +
+            _dBm_to_mW(noisepower)
         )
 
         pdr = _rssi_to_pdr(equivalentRSSI)
@@ -552,19 +594,15 @@ class Connectivity(object):
     # === senders and receivers
 
     def _get_senders(self, channel):
-        """Returns a list of motes transmitting on a given channel in the current ASN"""
-        senders = []  # list of motes in tx state
+        returnVal = []  
         for mote in self.engine.motes:
             if (mote.radio.state == d.RADIO_STATE_TX) and (mote.radio.channel == channel):
-                senders.append(mote)
-
-        return senders
+                returnVal.append(mote.id)
+        return returnVal
 
     def _get_receivers(self, channel):
-        """Returns a list of motes listening on a given channel in the current ASN"""
-        receivers = []  # list of motes in rx state
+        returnVal = []
         for mote in self.engine.motes:
             if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
-                receivers.append(mote)
-        
-        return receivers
+                returnVal.append(mote.id)
+        return returnVal

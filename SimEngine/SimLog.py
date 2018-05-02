@@ -5,7 +5,7 @@ Usage:
     self.log(
         SimEngine.SimLog.LOG_APP_RX,
         {
-            'mote_id': self.mote.id,
+            '_mote_id': self.mote.id,
             'source':  srcIp.id,
         }
     )
@@ -14,6 +14,7 @@ Usage:
 # ========================== imports =========================================
 
 import json
+import traceback
 
 import SimSettings
 import SimEngine
@@ -28,8 +29,8 @@ LOG_MOTE_STATS                   = {'type': 'mote.stats'}
 LOG_MOTE_STATE                   = {'type': 'mote.state'}
 
 # === app
-LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['mote_id','destination']}
-LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['mote_id','source']}
+LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','dest_id','appcounter']}
+LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','packet']}
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 LOG_APP_VRB_TABLE_FULL           = {'type': 'app.vrb_table_full'}
 
@@ -39,22 +40,20 @@ LOG_JOIN_RX                      = {'type': 'join.rx', 'keys': ['source', 'token
 LOG_JOINED                       = {'type': 'join.joined'}
 
 # === rpl
-LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',           'keys': ['mote_id']}
-LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',           'keys': ['source']}
-LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',           'keys': ['mote_id']}
+LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',           'keys': ['_mote_id']}
+LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',           'keys': ['_mote_id','source']}
+LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',           'keys': ['_mote_id']}
 LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',           'keys': ['source']}
 LOG_RPL_CHURN_RANK               = {'type': 'rpl.churn_rank',       'keys': ['old_rank', 'new_rank']}
 LOG_RPL_CHURN_PREF_PARENT        = {'type': 'rpl.churn_pref_parent','keys': ['old_parent', 'new_parent']}
 LOG_RPL_CHURN_PARENT_SET         = {'type': 'rpl.churn_parent_set'}
-LOG_RPL_DROP_NO_ROUTE            = {'type': 'rpl.drop_no_route',    'keys': ['mote_id']}
+LOG_RPL_DROP_NO_ROUTE            = {'type': 'rpl.drop_no_route',    'keys': ['_mote_id']}
 
 # === 6LoWPAN
-LOG_SIXLOWPAN_SEND_PACKET        = {'type': 'sixlowpan.send_packet',      'keys': ['srcIp','dstIp','packet_type']}
-LOG_SIXLOWPAN_RECV_PACKET        = {'type': 'sixlowpan.recv_packet',      'keys': ['srcIp','dstIp','packet_type']}
-LOG_SIXLOWPAN_FORWARD_PACKET     = {'type': 'sixlowpan.forward_packet',   'keys': ['srcIp','dstIp','packet_type']}
-LOG_SIXLOWPAN_SEND_FRAGMENT      = {'type': 'sixlowpan.send_fragment',    'keys': ['srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
-LOG_SIXLOWPAN_RECV_FRAGMENT      = {'type': 'sixlowpan.recv_fragment',    'keys': ['mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
-LOG_SIXLOWPAN_FORWARD_FRAGMENT   = {'type': 'sixlowpan.forward_fragment', 'keys': ['srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
+LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_FWD            = {'type': 'sixlowpan.pkt.fwd',          'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
 
 # === 6top
 LOG_6TOP_ADD_CELL                = {'type': '6top.add_cell',     'keys': ['ts', 'channel', 'direction', 'neighbor_id']}
@@ -64,7 +63,7 @@ LOG_6TOP_TX_ADD_RESP             = {'type': '6top.tx_add_resp'}
 LOG_6TOP_TX_DEL_RESP             = {'type': '6top.tx_del_resp'}
 LOG_6TOP_RX_ADD_REQ              = {'type': '6top.rx_add_req'}
 LOG_6TOP_RX_DEL_REQ              = {'type': '6top.rx_del_req'}
-LOG_6TOP_RX_RESP                 = {'type': '6top.rx_resp',      'keys': ['mote_id', 'rc', 'type', 'neighbor_id']}
+LOG_6TOP_RX_RESP                 = {'type': '6top.rx_resp',      'keys': ['_mote_id', 'rc', 'type', 'neighbor_id']}
 LOG_6TOP_RX_ACK                  = {'type': '6top.rx_ack'}
 LOG_6TOP_TIMEOUT                 = {'type': '6top.timeout',      'keys': ['cell_pdr']}
 LOG_6TOP_CELL_USED               = {'type': '6top.cell_used',    'keys': ['neighbor', 'direction', 'cell_type', 'prefered_parent']}
@@ -75,31 +74,32 @@ LOG_6TOP_LATENCY                 = {'type': '6top.latency'}
 LOG_6TOP_QUEUE_DEL               = {'type': '6top.queue_del', 'keys': ['pkt_type','neighbor']}
 
 # === tsch
-LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                  'keys': ['mote_id']}
+LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                  'keys': ['_mote_id']}
 LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell'}
 LOG_TSCH_REMOVE_CELL             = {'type': 'tsch.remove_cell'}
 LOG_TSCH_TX_EB                   = {'type': 'tsch.tx_eb'}
 LOG_TSCH_RX_EB                   = {'type': 'tsch.rx_eb'}
-LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                  'keys': ['mote_id','channel','frame_type','nextHop','isACKed','isNACKed']}
-LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                  'keys': ['mote_id','frame_type','smac','dmac']}
-LOG_TSCH_DROP_QUEUE_FULL         = {'type': 'tsch.drop_queue_full',         'keys': ['mote_id']}
-LOG_TSCH_DROP_NO_TX_CELLS        = {'type': 'tsch.drop_no_tx_cells',        'keys': ['mote_id']}
-LOG_TSCH_DROP_FAIL_ENQUEUE       = {'type': 'tsch.drop_fail_enqueue',       'keys': ['mote_id']}
-LOG_TSCH_DROP_DATA_FAIL_ENQUEUE  = {'type': 'tsch.drop_data_fail_enqueue',  'keys': ['mote_id']}
-LOG_TSCH_DROP_ACK_FAIL_ENQUEUE   = {'type': 'tsch.drop_ack_fail_enqueue',   'keys': ['mote_id']}
-LOG_TSCH_DROP_MAX_RETRIES        = {'type': 'tsch.drop_max_retries',        'keys': ['mote_id']}
-LOG_TSCH_DROP_DATA_MAX_RETRIES   = {'type': 'tsch.drop_data_max_retries',   'keys': ['mote_id']}
-LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE  = {'type': 'tsch.drop_frag_fail_enqueue',  'keys': ['mote_id']}
-LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE = {'type': 'tsch.drop_relay_fail_enqueue', 'keys': ['mote_id']}
+LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                  'keys': ['_mote_id','channel','packet','isACKed']}
+LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                  'keys': ['_mote_id','packet']}
+LOG_TSCH_DROP_QUEUE_FULL         = {'type': 'tsch.drop_queue_full',         'keys': ['_mote_id']}
+LOG_TSCH_DROP_NO_TX_CELLS        = {'type': 'tsch.drop_no_tx_cells',        'keys': ['_mote_id']}
+LOG_TSCH_DROP_FAIL_ENQUEUE       = {'type': 'tsch.drop_fail_enqueue',       'keys': ['_mote_id']}
+LOG_TSCH_DROP_DATA_FAIL_ENQUEUE  = {'type': 'tsch.drop_data_fail_enqueue',  'keys': ['_mote_id']}
+LOG_TSCH_DROP_ACK_FAIL_ENQUEUE   = {'type': 'tsch.drop_ack_fail_enqueue',   'keys': ['_mote_id']}
+LOG_TSCH_DROP_MAX_RETRIES        = {'type': 'tsch.drop_max_retries',        'keys': ['_mote_id']}
+LOG_TSCH_DROP_DATA_MAX_RETRIES   = {'type': 'tsch.drop_data_max_retries',   'keys': ['_mote_id']}
+LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE  = {'type': 'tsch.drop_frag_fail_enqueue',  'keys': ['_mote_id']}
+LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE = {'type': 'tsch.drop_relay_fail_enqueue', 'keys': ['_mote_id']}
 
 # === radio
-LOG_RADIO_PKT_DROPPED            = {'type': 'radio.pkt_dropped', 'keys': ['mote_id','type','reason']}
+LOG_RADIO_PKT_DROPPED            = {'type': 'radio.pkt_dropped', 'keys': ['_mote_id','type','reason']}
 
 # === queue
 LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}
 
 # === propagation
-LOG_PROP_PROBABLE_COLLISION      = {'type': 'prop.probable_collision', 'keys': ['source_id','channel']}
+LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission', 'keys': ['channel','packet','destinations']}
+LOG_PROP_INTERFERENCE            = {'type': 'prop.interference', 'keys': ['source_id','channel','interferers']}
 
 # ============================ SimLog =========================================
 
@@ -207,7 +207,7 @@ class SimLog(object):
 
         for mote in self.engine.motes:
             mote_stats = mote.getMoteStats()
-            mote_stats["mote_id"] = mote.id
+            mote_stats["_mote_id"] = mote.id
 
             # log
             self.log(
