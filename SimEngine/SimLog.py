@@ -53,9 +53,7 @@ LOG_RPL_DROP_NO_ROUTE            = {'type': 'rpl.drop_no_route',    'keys': ['_m
 LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
 LOG_SIXLOWPAN_PKT_FWD            = {'type': 'sixlowpan.pkt.fwd',          'keys': ['_mote_id','packet']}
 LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_SEND_FRAGMENT      = {'type': 'sixlowpan.send_fragment',    'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
-LOG_SIXLOWPAN_FORWARD_FRAGMENT   = {'type': 'sixlowpan.forward_fragment', 'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
-LOG_SIXLOWPAN_RECV_FRAGMENT      = {'type': 'sixlowpan.recv_fragment',    'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
+LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
 
 # === 6top
 LOG_6TOP_ADD_CELL                = {'type': '6top.add_cell',     'keys': ['ts', 'channel', 'direction', 'neighbor_id']}

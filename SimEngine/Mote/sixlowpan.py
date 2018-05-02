@@ -51,67 +51,111 @@ class Sixlowpan(object):
             }
         )
         
-        # fragment, if needed
-        if self.settings.tsch_max_payload_len < packet['app']['app_payload_length']:
-            # packet doesn't fit into a single frame; needs fragmentation
-            self.fragment(packet) # FIXME: pass fragmentation to new packet format
-        else:
-            self.mote.tsch.enqueue(packet)
+        for p in self.fragment(packet):
+            # fragment() returns a list of sending fragments. It could return a
+            # list having one packet when the packet doesn't need fragmentation
+            self.mote.tsch.enqueue(p)
     
     def fragment(self, packet):
-        """
-        fragment packet into fragments, and put in TSCH queue
+        """Fragment the input packet into fragments
+
+        This method returns fragments in a list. If the input packet doesn't
+        need fragmentation, this methods returns the packet in a list.
+
+        Formats of fragment packets are shown below:
+
+            The format of the first fragment (no app field):
+            {
+                'net': {
+                    'srcIp':                src_ip_address,
+                    'dstIp':                dst_ip_address,
+                    'packet_length':        packet_length,
+                    'datagram_size':        original_packet_length,
+                    'datagram_tag':         tag_for_the_packet,
+                    'datagram_offset':      offset_for_this_fragment,
+                    'original_packet_type': original_packet_type
+                }
+            }
+
+            The format of the last fragment (no srcIp/dstIp):
+            {
+                'net': {
+                    'packet_length':        packet_length,
+                    'datagram_size':        original_packet_length,
+                    'datagram_tag':         tag_for_the_packet,
+                    'datagram_offset':      offset_for_this_fragment,
+                }
+                'app':                      (if applicable)
+            }
+
+            The format of other fragments (neither app nor srcIp/dstIp):
+            {
+                'net': {
+                    'packet_length':        packet_length,
+                    'datagram_size':        original_packet_length,
+                    'datagram_tag':         tag_for_the_packet,
+                    'datagram_offset':      offset_for_this_fragment,
+                }
+            }
         """
         # choose tag (same for all fragments)
         outgoing_datagram_tag = self._get_next_datagram_tag()
 
-        # create and put fragmets in TSCH queue
-        number_of_fragments = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
-        datagram_offset = 0
-        for i in range(0, number_of_fragments):
+        if packet['payload']['length'] > self.settings.tsch_max_payload_len:
+            # the packet needs fragmentation
+            ret = []
+            number_of_fragments = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
+            datagram_offset = 0
+            for i in range(0, number_of_fragments):
 
-            # copy (fake) contents of the packets in fragment
-            fragment = copy.copy(packet)
-            # change fields so looks like fragment
-            fragment['type']                        = d.APP_TYPE_FRAG
-            fragment['payload']                     = copy.deepcopy(packet['payload'])
-            fragment['payload']['original_type']    = packet['type']
-            fragment['payload']['datagram_size']    = packet['payload']['length']
-            fragment['payload']['datagram_tag']     = outgoing_datagram_tag
-            fragment['payload']['datagram_offset']  = datagram_offset
+                # copy (fake) contents of the packets in fragment
+                fragment = copy.copy(packet)
+                # change fields so looks like fragment
+                fragment['type']                        = d.APP_TYPE_FRAG
+                fragment['payload']                     = copy.deepcopy(packet['payload'])
+                fragment['payload']['original_type']    = packet['type']
+                fragment['payload']['datagram_size']    = packet['payload']['length']
+                fragment['payload']['datagram_tag']     = outgoing_datagram_tag
+                fragment['payload']['datagram_offset']  = datagram_offset
 
-            if (
-                    (i == 0) and
-                    ((packet['payload']['length'] % self.settings.tsch_max_payload_len) > 0)
-               ):
-                # Make the first fragment have some room to handle size changes
-                # of the compressed header, although header compaction and
-                # inflation have been not implemented yet.
-                fragment['payload']['length'] = packet['payload']['length'] % self.settings.tsch_max_payload_len
-            else:
-                fragment['payload']['length'] = self.settings.tsch_max_payload_len
+                if (
+                        (i == 0) and
+                        ((packet['payload']['length'] % self.settings.tsch_max_payload_len) > 0)
+                   ):
+                    # Make the first fragment have some room to handle size changes
+                    # of the compressed header, although header compaction and
+                    # inflation have been not implemented yet.
+                    fragment['payload']['length'] = packet['payload']['length'] % self.settings.tsch_max_payload_len
+                else:
+                    fragment['payload']['length'] = self.settings.tsch_max_payload_len
 
-            datagram_offset        += fragment['payload']['length']
-            fragment['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
+                datagram_offset        += fragment['payload']['length']
+                fragment['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
 
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_SIXLOWPAN_SEND_FRAGMENT,
-                {
-                    '_mote_id':              self.mote.id,
-                    'srcIp':                 fragment['srcIp'].id,
-                    'dstIp':                 fragment['dstIp'].id,
-                    'datagram_size':         fragment['payload']['datagram_size'],
-                    'datagram_offset':       fragment['payload']['datagram_offset'],
-                    'datagram_tag':          fragment['payload']['datagram_tag'],
-                    'length':                fragment['payload']['length'],
-                    'original_packet_type':  fragment['payload']['original_type']
-                }
-            )
-            
-            # enqueue
-            self.mote.tsch.enqueue(fragment)
-    
+                # add the fragment to a returning list
+                ret.append(fragment)
+
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_SIXLOWPAN_FRAG_GEN,
+                    {
+                        '_mote_id':              self.mote.id,
+                        'srcIp':                 fragment['srcIp'].id,
+                        'dstIp':                 fragment['dstIp'].id,
+                        'datagram_size':         fragment['payload']['datagram_size'],
+                        'datagram_offset':       fragment['payload']['datagram_offset'],
+                        'datagram_tag':          fragment['payload']['datagram_tag'],
+                        'length':                fragment['payload']['length'],
+                        'original_packet_type':  fragment['payload']['original_type']
+                    }
+                )
+
+        else:
+            # the input packet doesn't need fragmentation
+            ret = [packet]
+
+        return ret
+
     def forward(self, packet):
         
         # forwarded packet still has the old mac header
@@ -204,29 +248,59 @@ class Sixlowpan(object):
         return packet
     
     def recv(self, packet):
-        if   packet['type'] == d.APP_TYPE_FRAG:
-            self.fragmentation.recv(packet)
-        
-        elif packet['net']['dstIp'] == self.mote.id:
-            
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
-                {
-                    '_mote_id':        self.mote.id,
-                    'packet':          packet,
-                }
-            )
-            
-            # hand to app
+
+        self.log(
+            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
+            {
+                '_mote_id':        self.mote.id,
+                'packet':          packet,
+            }
+        )
+
+        if packet['type'] == d.APP_TYPE_FRAG:
+            # self.fragmentaiton.recv() returns a packet to be processed
+            # here. `packet` could be None when no packet should be processed
+            # further.
+            packet = self.fragmentation.recv(packet)
+
+        # process switch:
+        # - packet is None      : do nothing
+        # - packet is for us    : hand to app
+        # - packet is for other : forward
+        if not packet:
+            # packet is None; do nothing
+            pass
+        elif (
+                (packet['type'] == d.APP_TYPE_DATA)
+                and
+                (packet['net']['dstIp'] == self.mote.id)
+             ):
+            # packet is for us; hand to app
             self.mote.app._action_receivePacket(
                 packet       = packet,
             )
-            
-        else:
-            # this packet needs forwarding
-            
-            self.forward(packet)
+        elif (
+                (
+                    (packet['type']         == d.APP_TYPE_DATA)
+                    and
+                    (packet['net']['dstIp'] != self.mote.id)
+                )
+                or
+                (
+                    (packet['type']         == d.APP_TYPE_FRAG)
+                )
+             ):
+            # packet is for other; forward it
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
+                    {
+                        '_mote_id':       self.mote.id,
+                        'packet':         fwdPacket,
+                    }
+                )
+                self.forward(packet)
+
 
     #======================== private ==========================================
 
@@ -265,6 +339,10 @@ class Fragmentation(object):
 
     @abstractmethod
     def recv(self, fragment):
+        """This method is supposed to return a packet to be processed further
+
+        This could return None.
+        """
         raise NotImplementedError()
 
 
@@ -278,22 +356,9 @@ class PerHopReassembly(Fragmentation):
     #======================== public ==========================================
 
     def recv(self, smac, fragment):
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
-            {
-                '_mote_id':                 self.mote.id,
-                'srcIp':                    fragment['srcIp'].id,
-                'dstIp':                    fragment['dstIp'].id,
-                'datagram_size':            fragment['payload']['datagram_size'],
-                'datagram_offset':          fragment['payload']['datagram_offset'],
-                'datagram_tag':             fragment['payload']['datagram_tag'],
-                'length':                   fragment['payload']['length'],
-                'original_packet_type':     fragment['payload']['original_type']
-            }
-        )
-        packet = self.sixlowpan.reassemble(smac, fragment)
-        if packet:
-            self.sixlowpan.recv(smac, packet)
+        """Reassemble an original packet
+        """
+        return self.sixlowpan.reassemble(smac, fragment)
 
 
 class FragmentForwarding(Fragmentation):
@@ -381,28 +446,23 @@ class FragmentForwarding(Fragmentation):
             # VRB entry found!
 
             if self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] is None:
-                # fragment for me
-                # do no forward (but reassemble)
-                packet = self.sixlowpan.reassemble(smac, fragment)
-                if packet:
-                    self.sixlowpan.recv(smac, packet)
-                # putting the fragment into reassembly queue is treated as
-                # enqueuing
-                isEnqueued = True
+                # fragment for me: do not forward but reassemble. ret will have
+                # either a original packet or None
+                ret = self.sixlowpan.reassemble(smac, fragment)
 
             else:
                 fragment['asn'] = self.engine.getAsn()
                 # update the number of hops
-                # TODO: this shouldn't be done in application payload.
+                # FIXME: this shouldn't be done in application payload.
                 if fragment['payload']['original_type'] == d.APP_TYPE_DATA:
                     fragment['payload']['hops'] += 1 # update the number of hops
                 fragment['payload']['datagram_tag'] = self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag']
 
-                isEnqueued = self.mote.tsch.enqueue(fragment)
+                ret = fragment
 
         else:
             # no VRB table entry is found
-            isEnqueued = False
+            ret = None
 
         # when last_fragment is in discard_vrb_entry_policy
         # - if the incoming fragment is the last fragment of a packet, remove the corresponding entry
@@ -417,37 +477,7 @@ class FragmentForwarding(Fragmentation):
             if len(self.vrb_table[smac]) == 0:
                 del self.vrb_table[smac]
 
-        # log the reception of a forwarding or dropping fragment
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_RECV_FRAGMENT,
-            {
-                '_mote_id':                 self.mote.id,
-                'srcIp':                    fragment['srcIp'].id,
-                'dstIp':                    fragment['dstIp'].id,
-                'datagram_size':            fragment['payload']['datagram_size'],
-                'datagram_offset':          fragment['payload']['datagram_offset'],
-                'datagram_tag':             fragment['payload']['datagram_tag'],
-                'length':                   fragment['payload']['length'],
-                'original_packet_type':     fragment['payload']['original_type']
-            }
-        )
-
-        if isEnqueued:
-            self.log(
-                SimEngine.SimLog.LOG_SIXLOWPAN_FORWARD_FRAGMENT,
-                {
-                    '_mote_id':             self.mote.id,
-                    'srcIp':                fragment['srcIp'].id,
-                    'dstIp':                fragment['dstIp'].id,
-                    'datagram_size':        fragment['payload']['datagram_size'],
-                    'datagram_offset':      fragment['payload']['datagram_offset'],
-                    'datagram_tag':         fragment['payload']['datagram_tag'],
-                    'length':               fragment['payload']['length'],
-                    'original_packet_type': fragment['payload']['original_type']
-                }
-            )
-        else:
-            self.mote.radio.drop_packet(fragment, 'sixlowpan_fragment_drop')
+        return ret
 
     #======================== private ==========================================
 
