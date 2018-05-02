@@ -28,7 +28,7 @@ LOG_THREAD_STATE                 = {'type': 'thread.state', 'keys': ['state', 'n
 LOG_MOTE_STATE                   = {'type': 'mote.state'}
 
 # === app
-LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','dest_id','appcounter']}
+LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','dest_id','appcounter','packet_type']}
 LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','packet']}
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 
