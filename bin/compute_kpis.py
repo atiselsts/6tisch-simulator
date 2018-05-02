@@ -40,7 +40,7 @@ def kpi_consumption():
 
 # =========================== main ============================================
 
-def all_kpis():
+def kpis_all():
     kpis = {}
     kpis['formation']   = kpi_formation()
     kpis['reliability'] = kpi_reliability()
@@ -49,8 +49,14 @@ def all_kpis():
     return kpis
 
 def main():
-    kpis = all_kpis()
+    # gather the kpis
+    kpis = kpis_all()
+    
+    # print on the terminal
     pp.pprint(kpis)
+    
+    # add to the data folder
+    # TODO
     
 if __name__=='__main__':
     main()
