@@ -203,8 +203,14 @@ class Tsch(object):
     # data interface with upper layers
 
     def enqueue(self, packet):
-        
-        assert sorted(packet.keys()) == sorted(['type','app','net'])
+
+        # 'type', 'mac' are mandatory fields of a packet. in this
+        # sense, a set of packet.keys() should have them.
+        assert set(['type','mac']).issubset(set(packet.keys()))
+
+        # srcMac and dstMac should be in place
+        assert 'srcMac' in packet['mac']
+        assert 'dstMac' in packet['mac']
         
         returnVal = True
         
@@ -236,31 +242,10 @@ class Tsch(object):
                 # couldn't enqueue
                 returnVal = False
         
-        # find link-layer destination
-        if returnVal:
-            dmacId = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
-            if dmacId==None:
-                # I cannot find the next hop
-                
-                # drop
-                self.mote.radio.drop_packet(
-                    pkt     = packet,
-                    reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
-                )
-                
-                # couldn't enqueue
-                returnVal = False
-        
         # if I get here, every is OK, I can enqueue
         if returnVal:
-            
-            # add MAC header
-            packet['mac'] = {
-                'srcMac':         self.mote.id,
-                'dstMac':         dmacId,
-                'retriesLeft':    d.TSCH_MAXTXRETRIES,
-            }
-            
+            # set retriesLeft which should be renewed at every hop
+            packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
             # add to txQueue
             self.txQueue    += [packet]
         
@@ -378,7 +363,7 @@ class Tsch(object):
                 else:
                     self._resetBroadcastBackoff()
 
-        elif self.pktToSend['net']['dstIp'] == d.BROADCAST_ADDRESS:
+        elif self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
 
             self.getTxQueue().remove(self.pktToSend)
 
@@ -484,8 +469,39 @@ class Tsch(object):
                 d.DIR_RX,
                 packet['type'],
             )
-        
-        if   packet['mac']['dstMac']==self.mote.id:
+
+        if   'net' in packet:
+            # sanity-check:
+            # - unicast IPv6 packet should have unicast MAC address
+            # - broadcast (multicast) IPv6 packet should have broadcast MAC address
+            if (
+                    (packet['type'] != d.NET_TYPE_FRAG)
+                    and
+                    (
+                        (
+                            (packet['mac']['dstMac'] == self.mote.id)
+                            and
+                            (packet['net']['dstIp']  == d.BROADCAST_ADDRESS)
+                        )
+                        or
+                        (
+                            (packet['type']          != d.NET_TYPE_FRAG)
+                            and
+                            (packet['mac']['dstMac'] == d.BROADCAST_ADDRESS)
+                            and
+                            (packet['net']['dstIp']  != d.BROADCAST_ADDRESS)
+                        )
+                    )
+               ):
+                raise SystemError()
+
+            # ACK frame
+            isACKed = True
+
+            # network-layer packet; pass it to sixlowpan
+            self.mote.sixlowpan.recv(packet)
+
+        elif packet['mac']['dstMac']==self.mote.id:
             # link-layer unicast to me
             
             # ACK frame
@@ -498,41 +514,7 @@ class Tsch(object):
                 self.mote.sixp.receive_DELETE_REQUEST(packet)
             elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                 self.mote.sixp.receive_RESPONSE(packet)
-            else:
-                if   packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
-                    # link-layer unicast, ip-layer broadcast
-                    
-                    raise SystemError()
-                elif packet['net']['dstIp'] == self.mote.id:
-                    # link-layer unicast, ip-layer unicast for me
-                    
-                    if   packet['type'] == d.APP_TYPE_JOIN:
-                        self.mote.secjoin.receiveJoinPacket(packet)
-                        isACKed = True
-                    elif packet['type'] == d.APP_TYPE_ACK:
-                        self.mote.app.action_mote_receiveE2EAck(packet)
-                        isACKed = True
-                    elif packet['type'] == d.RPL_TYPE_DAO:
-                        self.mote.rpl.action_receiveDAO(packet)
-                    elif packet['type'] in [d.APP_TYPE_DATA,d.APP_TYPE_FRAG]:
-                        self.mote.sixlowpan.recv(packet)
-                    else:
-                        raise SystemError()
-                else:
-                    # link-layer unicast, ip-layer unicast for someone else
-                    
-                    # relay!
-                    
-                    # create net-level packet
-                    relayPacket = {
-                        'type':        copy.deepcopy(packet['type']),
-                        'app':         copy.deepcopy(packet['app']),
-                        'net':         copy.deepcopy(packet['net']),
-                    }
-                    
-                    # enqueue
-                    self.enqueue(relayPacket)
-            
+
         elif packet['mac']['dstMac']==d.BROADCAST_ADDRESS:
             # link-layer broadcast
             
@@ -542,22 +524,7 @@ class Tsch(object):
             # dispatch to the right upper layer
             if   packet['type'] == d.TSCH_TYPE_EB:
                 self._tsch_action_receiveEB(packet)
-            else:
-                if   packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
-                    # link-layer broadcast, ip-layer broadcast
-                    
-                    if packet['type'] == d.RPL_TYPE_DIO:
-                        self.mote.rpl.action_receiveDIO(packet)
-                    else:
-                        raise SystemError()
-                elif packet['net']['dstIp'] == self.mote:
-                    # link-layer broadcast, ip-layer unicast to me
-                    
-                    raise SystemError()
-                else:
-                    # link-layer broadcast, ip-layer unicast to someone else
-                    
-                    raise SystemError()
+
         else:
             raise SystemError()
         
@@ -715,7 +682,9 @@ class Tsch(object):
             self.pktToSend = None
             for pkt in self.txQueue:
             
-                assert sorted(pkt.keys()) == sorted(['type','app','net','mac'])
+                # 'type', 'mac', and 'net' are mandatory fields of a packet. in this
+                # sense, a set of packet.keys() should have them.
+                assert set(['type','mac','net']).issubset(set(pkt.keys()))
             
                 # send the frame if next hop matches the cell destination
                 if pkt['mac']['dstMac'] == cell['neighbor'].id:
@@ -927,9 +896,9 @@ class Tsch(object):
                         'app': {
                             'jp':           self.mote.rpl.getDagRank(),
                         },
-                        'net': {
-                            'srcIp':        self.mote.id,            # from mote
-                            'dstIp':        d.BROADCAST_ADDRESS,     # broadcast
+                        'mac': {
+                            'srcMac':       self.mote.id,            # from mote
+                            'dstMac':       d.BROADCAST_ADDRESS,     # broadcast
                         },
                     }
 

@@ -30,18 +30,20 @@ class Sixlowpan(object):
         self.next_datagram_tag    = random.randint(0, 2**16-1)
         # "reassembly_buffers" has mote instances as keys. Each value is a list.
         # A list is indexed by incoming datagram_tags.
-        # An element of the list a dictionary consisting of two key-values:
-        # "expiration" and "fragments".
-        # "fragments" holds received fragments, although only their
+        #
+        # An element of the list a dictionary consisting of three key-values:
+        # "net", "expiration" and "fragments".
+        #
+        # - "net" has srcIp and dstIp of the packet
+        # - "fragments" holds received fragments, although only their
         # datagram_offset and lengths are stored in the "fragments" list.
         self.reassembly_buffers    = {}
 
     #======================== public ==========================================
-    
+
     def send(self, packet):
-        
         assert sorted(packet.keys()) == sorted(['type','net','app'])
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_PKT_TX,
@@ -50,12 +52,19 @@ class Sixlowpan(object):
                 'packet':         packet,
             }
         )
-        
-        for p in self.fragment(packet):
-            # fragment() returns a list of sending fragments. It could return a
-            # list having one packet when the packet doesn't need fragmentation
-            self.mote.tsch.enqueue(p)
-    
+
+        if self._prepare_mac_header(packet):
+            for pkt in self.fragment(packet):
+                # fragment() returns a list of sending fragments. It could return a
+                # list having one packet when the packet doesn't need fragmentation
+                self.mote.tsch.enqueue(pkt)
+        else:
+            # we cannot find a next-hop; drop this packet
+            self.mote.radio.drop_packet(
+                pkt     = packet,
+                reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+            )
+
     def fragment(self, packet):
         """Fragment the input packet into fragments
 
@@ -73,7 +82,7 @@ class Sixlowpan(object):
                     'datagram_size':        original_packet_length,
                     'datagram_tag':         tag_for_the_packet,
                     'datagram_offset':      offset_for_this_fragment,
-                    'original_packet_type': original_packet_type
+                    'sourceRoute':          (if applicable)
                 }
             }
 
@@ -84,6 +93,7 @@ class Sixlowpan(object):
                     'datagram_size':        original_packet_length,
                     'datagram_tag':         tag_for_the_packet,
                     'datagram_offset':      offset_for_this_fragment,
+                    'original_packet_type': original_packet_type,
                 }
                 'app':                      (if applicable)
             }
@@ -98,44 +108,69 @@ class Sixlowpan(object):
                 }
             }
         """
-        
-        assert sorted(packet.keys()) == sorted(['type','net','app'])
-        
+
+        # 'type' and 'net' are mandatory fields of a packet here. in this
+        # sense, a set of packet.keys() should have 'type' and 'net' in it.
+        assert set(['type','net']).issubset(set(packet.keys()))
+
         returnVal = []
-        
-        if self.settings.tsch_max_payload_len < packet['app']['app_payload_length']:
+
+        if (
+                (packet['type'] != d.NET_TYPE_FRAG)
+                and
+                ('packet_length' in packet['net'])
+                and
+                (self.settings.tsch_max_payload_len < packet['net']['packet_length'])
+           ):
             # the packet needs fragmentation
-            
+
             # choose tag (same for all fragments)
             outgoing_datagram_tag = self._get_next_datagram_tag()
-            number_of_fragments   = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
+            number_of_fragments   = int(math.ceil(float(packet['net']['packet_length']) / self.settings.tsch_max_payload_len))
             datagram_offset       = 0
-            
+
             for i in range(0, number_of_fragments):
 
-                # copy (fake) contents of the packets in fragment
-                fragment = copy.copy(packet)
-                # change fields so looks like fragment
-                fragment['type']                        = d.APP_TYPE_FRAG
-                fragment['payload']                     = copy.deepcopy(packet['payload'])
-                fragment['payload']['original_type']    = packet['type']
-                fragment['payload']['datagram_size']    = packet['payload']['length']
-                fragment['payload']['datagram_tag']     = outgoing_datagram_tag
-                fragment['payload']['datagram_offset']  = datagram_offset
+                # common part of fragment packet
+                fragment = {
+                    'type':                d.NET_TYPE_FRAG,
+                    'net': {
+                        'datagram_size':   packet['net']['packet_length'],
+                        'datagram_tag':    outgoing_datagram_tag,
+                        'datagram_offset': datagram_offset
+                    }
+                }
 
+                # put additional fields to the first and the last fragment
+                if   i == 0:
+                    # the first fragment of a packet has srcIp, dstIp
+                    fragment['net']['srcIp']                = packet['net']['srcIp']
+                    fragment['net']['dstIp']                = packet['net']['dstIp']
+                    if 'sourceRoute' in packet['net']:
+                        fragment['net']['sourceRoute']      = copy.deepcopy(packet['net']['sourceRoute'])
+                elif i == (number_of_fragments - 1):
+                    # the last fragment of a packet has original_packet_type
+                    # and 'app' field
+                    fragment['app']                         = copy.deepcopy(packet['app'])
+                    fragment['net']['original_packet_type'] = packet['type']
+
+                # set the length of the fragment as packet_length
                 if (
                         (i == 0) and
-                        ((packet['payload']['length'] % self.settings.tsch_max_payload_len) > 0)
+                        ((packet['net']['packet_length'] % self.settings.tsch_max_payload_len) > 0)
                    ):
                     # Make the first fragment have some room to handle size changes
                     # of the compressed header, although header compaction and
                     # inflation have been not implemented yet.
-                    fragment['payload']['length'] = packet['payload']['length'] % self.settings.tsch_max_payload_len
+                    fragment['net']['packet_length'] = packet['net']['packet_length'] % self.settings.tsch_max_payload_len
                 else:
-                    fragment['payload']['length'] = self.settings.tsch_max_payload_len
+                    fragment['net']['packet_length'] = self.settings.tsch_max_payload_len
 
-                datagram_offset        += fragment['payload']['length']
-                fragment['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
+                # update datagram_offset which will be used for the next fragment
+                datagram_offset += fragment['net']['packet_length']
+
+                # copy the MAC header
+                fragment['mac'] = copy.deepcopy(packet['mac'])
 
                 # add the fragment to a returning list
                 returnVal.append(fragment)
@@ -144,14 +179,8 @@ class Sixlowpan(object):
                 self.log(
                     SimEngine.SimLog.LOG_SIXLOWPAN_FRAG_GEN,
                     {
-                        '_mote_id':              self.mote.id,
-                        'srcIp':                 fragment['srcIp'].id,
-                        'dstIp':                 fragment['dstIp'].id,
-                        'datagram_size':         fragment['payload']['datagram_size'],
-                        'datagram_offset':       fragment['payload']['datagram_offset'],
-                        'datagram_tag':          fragment['payload']['datagram_tag'],
-                        'length':                fragment['payload']['length'],
-                        'original_packet_type':  fragment['payload']['original_type']
+                        '_mote_id': self.mote.id,
+                        'packet':   fragment
                     }
                 )
 
@@ -162,43 +191,58 @@ class Sixlowpan(object):
         return returnVal
 
     def forward(self, packet):
-        
-        # forwarded packet still has the old mac header
-        assert sorted(packet.keys()) == sorted(['type','app','net','mac'])
-        
+        # input packet is either:
+        # - a complete IPv6 packet which can be forwarded without fragmentation
+        # - a complete IPv6 packet which needs fragmentation
+        # - a fragment packet forwarded by fragment-forwarding
+
+        # mandatory fields are type and net
+        assert set(['type', 'net']).issubset(set(packet.keys()))
+
         # keep only headers that are needed
         fwdPacket = {
-            'type':     copy.deepcopy(packet['type']),
-            'app':      copy.deepcopy(packet['app']),
-            'net':      copy.deepcopy(packet['net']),
+            'type':            copy.deepcopy(packet['type']),
+            'net':             copy.deepcopy(packet['net']),
         }
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
-            {
-                '_mote_id':       self.mote.id,
-                'packet':         fwdPacket,
-            }
-        )
-        
-        # fragment, if needed
-        if self.settings.tsch_max_payload_len < fwdPacket['app']['app_payload_length']:
-            # packet doesn't fit into a single frame; needs fragmentation
-            self.fragment(fwdPacket) # FIXME: pass fragmentation to new packet format
+        if 'app' in packet:
+            fwdPacket['app'] = copy.deepcopy(packet['app'])
+
+
+        if fwdPacket['type'] == d.NET_TYPE_FRAG:
+            # this is a fragment-forwarding packet which should have the valid
+            # MAC header
+            fwdPacket['mac'] = copy.deepcopy(packet['mac'])
+            ready_to_forward = True
         else:
-            self.mote.tsch.enqueue(fwdPacket)
-    
-    def reassemble(self, smac, fragment):
-        datagram_size         = fragment['payload']['datagram_size']
-        datagram_offset       = fragment['payload']['datagram_offset']
-        incoming_datagram_tag = fragment['payload']['datagram_tag']
+            # prepare MAC header for the forwarding packet
+            ready_to_forward = self._prepare_mac_header(fwdPacket)
+
+        if ready_to_forward:
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
+                {
+                    '_mote_id':       self.mote.id,
+                    'packet':         fwdPacket,
+                }
+            )
+
+            # fragment if needed; and forward the packet or the fragments
+            for pkt in self.fragment(fwdPacket):
+                if self._prepare_mac_header(pkt):
+                    self.mote.tsch.enqueue(pkt)
+
+    def reassemble(self, fragment):
+        srcMac                = fragment['mac']['srcMac']
+        datagram_size         = fragment['net']['datagram_size']
+        datagram_offset       = fragment['net']['datagram_offset']
+        incoming_datagram_tag = fragment['net']['datagram_tag']
         buffer_lifetime  = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
 
         self._remove_expired_reassembly_buffer()
 
         # make sure we can allocate a reassembly buffer if necessary
-        if (smac not in self.reassembly_buffers) or (incoming_datagram_tag not in self.reassembly_buffers[smac]):
+        if (srcMac not in self.reassembly_buffers) or (incoming_datagram_tag not in self.reassembly_buffers[srcMac]):
             # dagRoot has no memory limitation for reassembly buffer
             if not self.mote.dagRoot:
                 total_reassembly_buffers_num = 0
@@ -210,48 +254,58 @@ class Sixlowpan(object):
                     return
 
             # create a new reassembly buffer
-            if smac not in self.reassembly_buffers:
-                self.reassembly_buffers[smac] = {}
-            if incoming_datagram_tag not in self.reassembly_buffers[smac]:
-                self.reassembly_buffers[smac][incoming_datagram_tag] = {
+            if srcMac not in self.reassembly_buffers:
+                self.reassembly_buffers[srcMac] = {}
+            if incoming_datagram_tag not in self.reassembly_buffers[srcMac]:
+                self.reassembly_buffers[srcMac][incoming_datagram_tag] = {
                     'expiration': self.engine.getAsn() + buffer_lifetime,
                     'fragments': []
                 }
 
-        if datagram_offset not in map(lambda x: x['datagram_offset'], self.reassembly_buffers[smac][incoming_datagram_tag]['fragments']):
-            self.reassembly_buffers[smac][incoming_datagram_tag]['fragments'].append({
+        if datagram_offset not in map(lambda x: x['datagram_offset'], self.reassembly_buffers[srcMac][incoming_datagram_tag]['fragments']):
+
+            if fragment['net']['datagram_offset'] == 0:
+                # store srcIp and dstIp which only the first fragment has
+                self.reassembly_buffers[srcMac][incoming_datagram_tag]['net'] = {
+                    'srcIp':  fragment['net']['srcIp'],
+                    'dstIp':  fragment['net']['dstIp']
+                }
+
+            self.reassembly_buffers[srcMac][incoming_datagram_tag]['fragments'].append({
                 'datagram_offset': datagram_offset,
-                'fragment_length': fragment['payload']['length']
+                'fragment_length': fragment['net']['packet_length']
             })
         else:
             # it's a duplicate fragment
             return
 
         # check whether we have a full packet in the reassembly buffer
-        total_fragment_length = sum([f['fragment_length'] for f in self.reassembly_buffers[smac][incoming_datagram_tag]['fragments']])
+        total_fragment_length = sum([f['fragment_length'] for f in self.reassembly_buffers[srcMac][incoming_datagram_tag]['fragments']])
         assert total_fragment_length <= datagram_size
         if total_fragment_length < datagram_size:
             # reassembly is not completed
             return
 
-        # reassembly is done; we don't need the reassembly buffer for the
-        # packet any more. remove the buffer.
-        del self.reassembly_buffers[smac][incoming_datagram_tag]
-        if len(self.reassembly_buffers[smac]) == 0:
-            del self.reassembly_buffers[smac]
-
         # construct an original packet
         packet = copy.copy(fragment)
-        packet['type'] = fragment['payload']['original_type']
-        packet['payload'] = copy.deepcopy(fragment['payload'])
-        packet['payload']['length'] = datagram_size
-        del packet['payload']['datagram_tag']
-        del packet['payload']['datagram_size']
-        del packet['payload']['datagram_offset']
-        del packet['payload']['original_type']
+        packet['type'] = fragment['net']['original_packet_type']
+        packet['net'] = copy.deepcopy(fragment['net'])
+        packet['net']['srcIp'] = self.reassembly_buffers[srcMac][incoming_datagram_tag]['net']['srcIp']
+        packet['net']['dstIp'] = self.reassembly_buffers[srcMac][incoming_datagram_tag]['net']['dstIp']
+        packet['net']['packet_length'] = datagram_size
+        del packet['net']['datagram_tag']
+        del packet['net']['datagram_size']
+        del packet['net']['datagram_offset']
+        del packet['net']['original_packet_type']
+
+        # reassembly is done; we don't need the reassembly buffer for the
+        # packet any more. remove the buffer.
+        del self.reassembly_buffers[srcMac][incoming_datagram_tag]
+        if len(self.reassembly_buffers[srcMac]) == 0:
+            del self.reassembly_buffers[srcMac]
 
         return packet
-    
+
     def recv(self, packet):
 
         self.log(
@@ -262,52 +316,82 @@ class Sixlowpan(object):
             }
         )
 
-        if packet['type'] == d.APP_TYPE_FRAG:
+        if packet['type'] == d.NET_TYPE_FRAG:
             # self.fragmentaiton.recv() returns a packet to be processed
             # here. `packet` could be None when no packet should be processed
             # further.
             packet = self.fragmentation.recv(packet)
 
         # process switch:
-        # - packet is None      : do nothing
-        # - packet is for us    : hand to app
-        # - packet is for other : forward
+        # - packet is None       : do nothing
+        # - packet is for us     : hand to app
+        # - packet is for others : forward
         if not packet:
             # packet is None; do nothing
             pass
+
         elif (
-                (packet['type'] == d.APP_TYPE_DATA)
+                (packet['type'] != d.NET_TYPE_FRAG)
                 and
-                (packet['net']['dstIp'] == self.mote.id)
-             ):
-            # packet is for us; hand to app
-            self.mote.app._action_receivePacket(
-                packet       = packet,
-            )
-        elif (
                 (
-                    (packet['type']         == d.APP_TYPE_DATA)
+                    (packet['net']['dstIp'] == self.mote.id)
+                    or
+                    (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
+                )
+             ):
+            # packet for us
+
+            if   packet['type'] == d.APP_TYPE_JOIN:
+                self.mote.secjoin.receiveJoinPacket(packet)
+            elif packet['type'] == d.RPL_TYPE_DAO:
+                self.mote.rpl.action_receiveDAO(packet)
+            elif packet['type'] == d.RPL_TYPE_DIO:
+                self.mote.rpl.action_receiveDIO(packet)
+            elif packet['type'] == d.APP_TYPE_DATA:
+                self.mote.app._action_receivePacket(packet)
+            elif packet['type'] == d.APP_TYPE_ACK:
+                self.mote.app.action_mote_receiveE2EAck(packet)
+
+        else:
+            # packet for others; forward it
+
+            # application data packet specific process
+            if (
+                    ('app' in packet)
                     and
-                    (packet['net']['dstIp'] != self.mote.id)
-                )
-                or
-                (
-                    (packet['type']         == d.APP_TYPE_FRAG)
-                )
-             ):
-            # packet is for other; forward it
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
-                    {
-                        '_mote_id':       self.mote.id,
-                        'packet':         fwdPacket,
-                    }
-                )
-                self.forward(packet)
+                    ('appcounter' in packet['app'])
+               ):
+                # update the number of hops
+                # FIXME: this shouldn't be done in application payload.
+                packet['app']['appcounter'] += 1 # update the number of hops
+
+            self.forward(packet)
 
 
     #======================== private ==========================================
+
+    def _prepare_mac_header(self, packet):
+        returnVal = False
+
+        if 'mac' not in packet:
+            # need to prepare its MAC header
+            assert 'srcIp' in packet['net']
+            assert 'dstIp' in packet['net']
+            # find link-layer destination
+            dstMac = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
+            if dstMac == None:
+                returnVal = False
+            else:
+                packet['mac'] = {
+                    'srcMac': self.mote.id,
+                    'dstMac': dstMac
+                }
+                returnVal = True
+        else:
+            assert 'srcMac' in packet['mac']
+            returnVal = True
+
+        return returnVal
 
     def _get_next_datagram_tag(self):
         ret = self.next_datagram_tag
@@ -318,15 +402,15 @@ class Sixlowpan(object):
         if len(self.reassembly_buffers) == 0:
             return
 
-        for smac in self.reassembly_buffers.keys():
-            for incoming_datagram_tag in self.reassembly_buffers[smac].keys():
+        for srcMac in self.reassembly_buffers.keys():
+            for incoming_datagram_tag in self.reassembly_buffers[srcMac].keys():
                 # remove a reassembly buffer which expires
-                if self.reassembly_buffers[smac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
-                    del self.reassembly_buffers[smac][incoming_datagram_tag]
+                if self.reassembly_buffers[srcMac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
+                    del self.reassembly_buffers[srcMac][incoming_datagram_tag]
 
             # remove an reassembly buffer entry if it's empty
-            if len(self.reassembly_buffers[smac]) == 0:
-                del self.reassembly_buffers[smac]
+            if len(self.reassembly_buffers[srcMac]) == 0:
+                del self.reassembly_buffers[srcMac]
 
 
 class Fragmentation(object):
@@ -360,10 +444,10 @@ class PerHopReassembly(Fragmentation):
     """
     #======================== public ==========================================
 
-    def recv(self, smac, fragment):
+    def recv(self, fragment):
         """Reassemble an original packet
         """
-        return self.sixlowpan.reassemble(smac, fragment)
+        return self.sixlowpan.reassemble(fragment)
 
 
 class FragmentForwarding(Fragmentation):
@@ -380,18 +464,25 @@ class FragmentForwarding(Fragmentation):
 
     #======================== public ==========================================
 
-    def recv(self, smac, fragment):
+    def recv(self, fragment):
 
-        dstIp                 = fragment['dstIp']
-        datagram_size         = fragment['payload']['datagram_size']
-        datagram_offset       = fragment['payload']['datagram_offset']
-        incoming_datagram_tag = fragment['payload']['datagram_tag']
+        srcMac                = fragment['mac']['srcMac']
+        datagram_size         = fragment['net']['datagram_size']
+        datagram_offset       = fragment['net']['datagram_offset']
+        incoming_datagram_tag = fragment['net']['datagram_tag']
         entry_lifetime        = d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME / self.settings.tsch_slotDuration
 
         self._remove_expired_vrb_table_entry()
 
         # handle first fragments
         if datagram_offset == 0:
+
+            if fragment['net']['dstIp'] != self.mote.id:
+                dstMac = self.mote.rpl.findNextHopId(fragment['net']['dstIp'])
+                if dstMac == None:
+                    # no route to the destination
+                    return
+
             # check if we have enough memory for a new entry if necessary
             if self.mote.dagRoot:
                 # dagRoot has no memory limitation for VRB Table
@@ -404,66 +495,78 @@ class FragmentForwarding(Fragmentation):
                     self.mote.radio.drop_packet(fragment, 'frag_vrb_table_full')
                     return
 
-            if smac not in self.vrb_table:
-                self.vrb_table[smac] = {}
+
+            if srcMac not in self.vrb_table:
+                self.vrb_table[srcMac] = {}
 
             # By specification, a VRB Table entry is supposed to have:
-            # - incoming smac
+            # - incoming srcMac
             # - incoming datagram_tag
-            # - outgoing dmac (nexthop)
+            # - outgoing dstMac (nexthop)
             # - outgoing datagram_tag
-            # However, a VRB Table entry in this implementation doesn't have
-            # nexthop mac address since nexthop is determined at TSCH layer in
-            # this simulation.
-            if incoming_datagram_tag in self.vrb_table[smac]:
+
+            if incoming_datagram_tag in self.vrb_table[srcMac]:
                 # duplicate first fragment is silently discarded
                 return
             else:
-                self.vrb_table[smac][incoming_datagram_tag] = {}
+                self.vrb_table[srcMac][incoming_datagram_tag] = {}
 
-            if dstIp == self.mote:
+            if fragment['net']['dstIp']  == self.mote.id:
                 # this is a special entry for fragments destined to the mote
-                self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] = None
+                self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = None
             else:
-                self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] = self.sixlowpan._get_next_datagram_tag()
-            self.vrb_table[smac][incoming_datagram_tag]['expiration'] = self.engine.getAsn() + entry_lifetime
+                self.vrb_table[srcMac][incoming_datagram_tag]['dstMac']                = dstMac
+                self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = self.sixlowpan._get_next_datagram_tag()
+
+            self.vrb_table[srcMac][incoming_datagram_tag]['expiration'] = self.engine.getAsn() + entry_lifetime
 
             if 'missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy:
-                self.vrb_table[smac][incoming_datagram_tag]['next_offset'] = 0
+                self.vrb_table[srcMac][incoming_datagram_tag]['next_offset'] = 0
 
         # when missing_fragment is in discard_vrb_entry_policy
         # - if the incoming fragment is the expected one, update the next_offset
         # - otherwise, remove the corresponding VRB table entry
         if (
                 ('missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
-                (smac in self.vrb_table) and
-                (incoming_datagram_tag in self.vrb_table[smac])
+                (srcMac in self.vrb_table) and
+                (incoming_datagram_tag in self.vrb_table[srcMac])
            ):
-            if datagram_offset == self.vrb_table[smac][incoming_datagram_tag]['next_offset']:
-                self.vrb_table[smac][incoming_datagram_tag]['next_offset'] += fragment['payload']['length']
+            if datagram_offset == self.vrb_table[srcMac][incoming_datagram_tag]['next_offset']:
+                self.vrb_table[srcMac][incoming_datagram_tag]['next_offset'] += fragment['net']['packet_length']
             else:
-                del self.vrb_table[smac][incoming_datagram_tag]
-                if len(self.vrb_table[smac]) == 0:
-                    del self.vrb_table[smac]
+                del self.vrb_table[srcMac][incoming_datagram_tag]
+                if len(self.vrb_table[srcMac]) == 0:
+                    del self.vrb_table[srcMac]
 
         # find entry in VRB table and forward fragment
-        if (smac in self.vrb_table) and (incoming_datagram_tag in self.vrb_table[smac]):
+        if (srcMac in self.vrb_table) and (incoming_datagram_tag in self.vrb_table[srcMac]):
             # VRB entry found!
 
-            if self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag'] is None:
+            if self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] is None:
                 # fragment for me: do not forward but reassemble. ret will have
                 # either a original packet or None
-                ret = self.sixlowpan.reassemble(smac, fragment)
+                ret = self.sixlowpan.reassemble(fragment)
 
             else:
-                fragment['asn'] = self.engine.getAsn()
-                # update the number of hops
-                # FIXME: this shouldn't be done in application payload.
-                if fragment['payload']['original_type'] == d.APP_TYPE_DATA:
-                    fragment['payload']['hops'] += 1 # update the number of hops
-                fragment['payload']['datagram_tag'] = self.vrb_table[smac][incoming_datagram_tag]['outgoing_datagram_tag']
+                # need to create a new packet in order to distinguish between the
+                # received packet and a forwarding packet.
+                fwdFragment = {
+                    'type':       copy.deepcopy(fragment['type']),
+                    'net':        copy.deepcopy(fragment['net']),
+                    'mac': {
+                        'srcMac': self.mote.id,
+                        'dstMac': self.vrb_table[srcMac][incoming_datagram_tag]['dstMac']
+                    }
+                }
 
-                ret = fragment
+                # forwarding fragment should have the outgoing datagram_tag
+                fwdFragment['net']['datagram_tag'] = self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag']
+
+                # copy app field if necessary
+                if 'app' in fragment:
+                    fwdFragment['app'] = copy.deepcopy(fragment['app'])
+
+                ret = fwdFragment
 
         else:
             # no VRB table entry is found
@@ -474,13 +577,13 @@ class FragmentForwarding(Fragmentation):
         # - otherwise, do nothing
         if (
                 ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
-                (smac in self.vrb_table) and
-                (incoming_datagram_tag in self.vrb_table[smac]) and
-                ((fragment['payload']['datagram_offset'] + fragment['payload']['length']) == fragment['payload']['datagram_size'])
+                (srcMac in self.vrb_table) and
+                (incoming_datagram_tag in self.vrb_table[srcMac]) and
+                ((fragment['net']['datagram_offset'] + fragment['net']['packet_length']) == fragment['net']['datagram_size'])
            ):
-            del self.vrb_table[smac][incoming_datagram_tag]
-            if len(self.vrb_table[smac]) == 0:
-                del self.vrb_table[smac]
+            del self.vrb_table[srcMac][incoming_datagram_tag]
+            if len(self.vrb_table[srcMac]) == 0:
+                del self.vrb_table[srcMac]
 
         return ret
 
@@ -490,11 +593,11 @@ class FragmentForwarding(Fragmentation):
         if len(self.vrb_table) == 0:
             return
 
-        for smac in self.vrb_table.keys():
-            for incoming_datagram_tag in self.vrb_table[smac].keys():
+        for srcMac in self.vrb_table.keys():
+            for incoming_datagram_tag in self.vrb_table[srcMac].keys():
                 # too old
-                if self.vrb_table[smac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
-                    del self.vrb_table[smac][incoming_datagram_tag]
+                if self.vrb_table[srcMac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
+                    del self.vrb_table[srcMac][incoming_datagram_tag]
             # empty
-            if len(self.vrb_table[smac]) == 0:
-                del self.vrb_table[smac]
+            if len(self.vrb_table[srcMac]) == 0:
+                del self.vrb_table[srcMac]
