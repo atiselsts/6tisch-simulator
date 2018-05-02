@@ -194,7 +194,7 @@ def test_vanilla_scenario(
         for _ in range(10):
             
             # inject data at the datamote
-            datamote.app._action_mote_sendSinglePacketToDAGroot(appcounter)
+            datamote.app._event_handler()
 
             # give the data time to reach the root
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
@@ -211,7 +211,7 @@ def test_vanilla_scenario(
         for _ in range(10):
 
             # inject data at the root
-            dagroot.app._action_root_sendSinglePacketToMote(datamote.id,appcounter)
+            dagroot.app._send_ack(datamote.id)
 
             # give the data time to reach the datamote
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)

@@ -69,69 +69,55 @@ class AppBase(object):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id'    : self.mote.id,
-                'source'     : packet['srcIp'].id,
-                'packet_type': d.APP_TYPE_ACK
+                '_mote_id': self.mote.id,
+                'packet'  : packet
             }
         )
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RX['type'])
 
     #======================== private ==========================================
 
-    def _generate_packet(self, dstIp, packet_type, packet_length):
+    def _generate_packet(
+            self,
+            dstIp,
+            packet_type,
+            packet_length,
+        ):
 
-        # FIXME: code and retriesLeft should be filled by other layers
         packet = {
-            'asn':               self.engine.getAsn(),
             'type':              packet_type,
-            'code':              None,
-            'payload': {
-                'asn_at_source': self.engine.getAsn(),    # ASN, used to calculate e2e latency
-                'hops':          1,                       # number of hops, used to calculate empirical hop count
-                'length':        packet_length
+            'net': {
+                'srcIp':         self.mote.id,
+                'dstIp':         dstIp,
+                'packet_length': packet_length
             },
-            'retriesLeft':       d.TSCH_MAXTXRETRIES,
-            'srcIp':             self.mote,
-            'dstIp':             dstIp
+            'app': {
+                'appcounter':    self.appcounter,
+            }
+
         }
-        # FIXME: sourceRoute should be inserted at the different layer
-        if self.mote.dagRoot:
-            packet['sourceRoute'] = self.mote.rpl.computeSourceRoute(dstIp.id)
-        else:
-            packet['sourceRoute'] = []
+
+        # update appcounter
+        self.appcounter += 1
 
         return packet
 
     def _send_packet(self, packet_type, dstIp, packet_length):
 
-        # log and update mote stats
-        self.log(
-            SimEngine.SimLog.LOG_APP_TX,
-            {
-                'mote_id'    : self.mote.id,
-                'destination': dstIp.id,
-                'packet_type': packet_type
-            }
-        )
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_TX['type'])
-
         # check whether the mote is ready to send a packet
         if self.mote.dagRoot:
             ready_to_send = True
         elif (
-                (
-                    self.mote.rpl.getPreferredParent()
-                )
+                self.mote.rpl.getPreferredParent() != None
                 and
                 (
                     (
-                        type(self.mote.sf) == sf.MSF
+                        type(self.mote.sf)==sf.MSF
                         and
-                        (self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0)
+                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
                     )
                     or
                     (
-                        type(self.mote.sf) != sf.MSF
+                        type(self.mote.sf)!=sf.MSF
                     )
                 )
              ):
@@ -141,13 +127,25 @@ class AppBase(object):
             ready_to_send = False
 
         if ready_to_send:
-            self.mote.sixlowpan.sendPacket(
-                self._generate_packet(
-                    dstIp          = dstIp,
-                    packet_type    = packet_type,
-                    packet_length  = packet_length
-                )
+
+            packet = self._generate_packet(
+                dstIp          = dstIp,
+                packet_type    = packet_type,
+                packet_length  = packet_length
             )
+
+            self.log(
+                SimEngine.SimLog.LOG_APP_TX,
+                {
+                    '_mote_id':       self.mote.id,
+                    'dest_id':        packet['net']['dstIp'],
+                    'appcounter':     packet['app']['appcounter'],
+                    'packet_type':    packet_type
+                }
+            )
+
+            self.mote.sixlowpan.sendPacket(packet)
+
 
 class AppSink(AppBase):
     """Handle application packets from motes
@@ -172,24 +170,14 @@ class AppSink(AppBase):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                'mote_id'    : self.mote.id,
-                'source'     : packet['srcIp'].id,
-                'packet_type': packet['type']
+                '_mote_id': self.mote.id,
+                'packet'  : packet
             }
         )
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RX['type'])
-
-        # log end-to-end latency
-        self.mote._stats_logLatencyStat(
-            self.engine.getAsn() - packet['payload']['asn_at_source']
-        )
-
-        # log the number of hops
-        self.mote._stats_logHopsStat(packet['payload']['hops'])
 
         # send end-to-end ACK back to mote, if applicable
         if self.settings.app_e2eAck:
-            self._send_ack(packet['srcIp'])
+            self._send_ack(packet['net']['srcIp'])
 
     #======================== private ==========================================
     def _send_ack(self, destination):
@@ -249,7 +237,7 @@ class AppPeriodic(AppBase):
 
     def _event_handler(self):
         self._send_packet(
-            dstIp          = self.mote.dagRootAddress,
+            dstIp          = self.mote.dagRootId,
             packet_type    = d.APP_TYPE_DATA,
             packet_length  = self.settings.app_pkLength
         )
@@ -280,7 +268,7 @@ class AppBurst(AppBase):
     def _send_packets(self):
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
-                dstIp         = self.mote.dagRootAddress,
+                dstIp         = self.mote.dagRootId,
                 packet_type   = d.APP_TYPE_DATA,
                 packet_length = self.settings.app_pkLength
             )
