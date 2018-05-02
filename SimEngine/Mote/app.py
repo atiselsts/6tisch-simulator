@@ -136,12 +136,12 @@ class App(object):
             newUpstreamDataPacket = {
                 'type':                     d.APP_TYPE_DATA,
                 'app': {
-                    'app_payload_length':   self.settings.app_pkLength,
                     'appcounter':           appcounter,
                 },
                 'net': {
-                    'srcIp':                self.mote.id,            # from mote
-                    'dstIp':                self.mote.dagRootId,     # to DAGroot
+                    'srcIp':                self.mote.id,              # from mote
+                    'dstIp':                self.mote.dagRootId,       # to DAGroot
+                    'packet_length':        self.settings.app_pkLength
                 },
             }
 
@@ -174,13 +174,13 @@ class App(object):
         newDownstreamDataPacket = {
             'type':                     d.APP_TYPE_DATA,
             'app': {
-                'app_payload_length':   self.settings.app_pkLength,
                 'appcounter':           appcounter,
             },
             'net': {
                 'srcIp':                self.mote.id, # to DAGroot
                 'dstIp':                dest_id,      # from mote
                 'sourceRoute':          sourceRoute,
+                'packet_length':        self.settings.app_pkLength
             },
         }
         

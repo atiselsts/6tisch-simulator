@@ -13,7 +13,7 @@ import SimEngine.Mote.MoteDefines as d
     d.APP_TYPE_DATA,
     d.APP_TYPE_ACK,
     d.APP_TYPE_JOIN,
-    d.APP_TYPE_FRAG,
+    d.NET_TYPE_FRAG,
     d.RPL_TYPE_DIO,
     d.RPL_TYPE_DAO,
     d.TSCH_TYPE_EB,

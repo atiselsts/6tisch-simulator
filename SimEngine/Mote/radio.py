@@ -49,8 +49,8 @@ class Radio(object):
         
         assert self.onGoingBroadcast    is None
         assert self.onGoingTransmission is None
-        assert sorted(packet.keys()) == sorted(['type','net','app','mac'])
-        
+        assert set(['type','mac','net']).issubset(set(packet.keys()))
+
         # record the state of the radio
         self.state   = d.RADIO_STATE_TX
         self.channel = channel
