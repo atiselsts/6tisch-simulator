@@ -98,14 +98,19 @@ class Sixlowpan(object):
                 }
             }
         """
-        # choose tag (same for all fragments)
-        outgoing_datagram_tag = self._get_next_datagram_tag()
-
-        if packet['payload']['length'] > self.settings.tsch_max_payload_len:
+        
+        assert sorted(packet.keys()) == sorted(['type','net','app'])
+        
+        returnVal = []
+        
+        if self.settings.tsch_max_payload_len < packet['app']['app_payload_length']:
             # the packet needs fragmentation
-            ret = []
-            number_of_fragments = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
-            datagram_offset = 0
+            
+            # choose tag (same for all fragments)
+            outgoing_datagram_tag = self._get_next_datagram_tag()
+            number_of_fragments   = int(math.ceil(float(packet['payload']['length']) / self.settings.tsch_max_payload_len))
+            datagram_offset       = 0
+            
             for i in range(0, number_of_fragments):
 
                 # copy (fake) contents of the packets in fragment
@@ -133,7 +138,7 @@ class Sixlowpan(object):
                 fragment['sourceRoute'] = copy.deepcopy(packet['sourceRoute'])
 
                 # add the fragment to a returning list
-                ret.append(fragment)
+                returnVal.append(fragment)
 
                 # log
                 self.log(
@@ -152,9 +157,9 @@ class Sixlowpan(object):
 
         else:
             # the input packet doesn't need fragmentation
-            ret = [packet]
+            returnVal = [packet]
 
-        return ret
+        return returnVal
 
     def forward(self, packet):
         
