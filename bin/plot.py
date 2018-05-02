@@ -43,7 +43,7 @@ def main(options):
             data[curr_combination] = []
             for line in f:
                 log = json.loads(line)
-                if log['type'] == yparam:
+                if log['_type'] == yparam:
                     data[curr_combination].append(log[key])
 
     plt.boxplot(data.values())
@@ -59,42 +59,56 @@ def savefig(output_folder, output_name, output_format="png"):
         os.makedirs(output_folder)
 
     # save the figure
-    plt.savefig(os.path.join(output_folder, output_name + "." + output_format),
-                bbox_inches='tight',
-                pad_inches=0,
-                format=output_format)
+    plt.savefig(
+        os.path.join(output_folder, output_name + "." + output_format),
+        bbox_inches     = 'tight',
+        pad_inches      = 0,
+        format          = output_format,
+    )
 
 def parse_args():
     # parse options
     parser = argparse.ArgumentParser()
-    parser.add_argument('--inputfolder',
-                        help='The simulation result folder.',
-                        default='simData')
-    parser.add_argument('--outputfolder',
-                        help='The plots output folder.',
-                        default='simPlots')
-    parser.add_argument('-x',
-                        '--xparam',
-                        help='The x-axis parameter',
-                        type=str,
-                        default='slotframe_iteration')
-    parser.add_argument('-y',
-                        '--yparam',
-                        help='The y-axis parameter',
-                        type=str,
-                        default='charge_consumed;charge')
-    parser.add_argument('--xlabel',
-                        help='The x-axis label',
-                        type=str,
-                        default=None)
-    parser.add_argument('--ylabel',
-                        help='The y-axis label',
-                        type=str,
-                        default=None)
-    parser.add_argument('--show',
-                        help='Show the plots.',
-                        action='store_true',
-                        default=None)
+    parser.add_argument(
+        '--inputfolder',
+        help       = 'The simulation result folder.',
+        default    = 'simData',
+    )
+    parser.add_argument(
+        '--outputfolder',
+        help       = 'The plots output folder.',
+        default    = 'simPlots',
+    )
+    parser.add_argument(
+        '-x','--xparam',
+        help       = 'The x-axis parameter',
+        type       = str,
+        default    = 'slotframe_iteration',
+    )
+    parser.add_argument(
+        '-y','--yparam',
+        help       = 'The y-axis parameter',
+        type       = str,
+        default    = 'charge_consumed;charge',
+    )
+    parser.add_argument(
+        '--xlabel',
+        help       = 'The x-axis label',
+        type       = str,
+        default    = None,
+    )
+    parser.add_argument(
+        '--ylabel',
+        help       = 'The y-axis label',
+        type       = str,
+        default    = None,
+    )
+    parser.add_argument(
+        '--show',
+        help       = 'Show the plots.',
+        action     = 'store_true',
+        default    = None,
+    )
     return parser.parse_args()
 
 if __name__ == '__main__':
