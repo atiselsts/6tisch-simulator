@@ -33,6 +33,7 @@ class App(object):
         self.log             = SimEngine.SimLog.SimLog().log
 
         # local variables
+        self.appcounter      = 0
 
     #======================== public ==========================================
 
@@ -87,10 +88,15 @@ class App(object):
 
     #=== [TX] mote -> root
 
-    def _action_mote_sendSinglePacketToDAGroot(self,appcounter=0):
+    def _action_mote_sendSinglePacketToDAGroot(self,appcounter=None):
         """
         send a single packet, and reschedule next one
         """
+        
+        # use internal appcounter, if needed
+        if appcounter == None:
+            appcounter  = self.appcounter
+            self.appcounter += 1
         
         # mote
         self.log(
@@ -149,10 +155,15 @@ class App(object):
     
     #=== [TX] root -> mote
     
-    def _action_root_sendSinglePacketToMote(self,dest_id,appcounter=0):
+    def _action_root_sendSinglePacketToMote(self,dest_id,appcounter=None):
         """
         send a single packet
         """
+        
+        # use internal appcounter, if needed
+        if appcounter == None:
+            appcounter  = self.appcounter
+            self.appcounter += 1
         
         assert type(dest_id)==int
         assert self.mote.dagRoot
@@ -194,7 +205,7 @@ class App(object):
         Receive a data packet (both DAGroot and mote)
         """
 
-        # FIXME: srcIp is not an address instance but a mote instance
+        # log
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
