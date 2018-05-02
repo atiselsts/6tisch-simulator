@@ -30,25 +30,25 @@ def test_ranks_forced_state(sim_engine,fixture_conn_type):
     hop2 = sim_engine.motes[2]
 
     assert root.dagRoot is True
-    assert root.rpl.getPreferredParent()      == None
-    assert root.rpl.getRank()                 ==  256
-    assert root.rpl.getDagRank()              ==    1
+    assert root.rpl.getPreferredParent()      ==    None
+    assert root.rpl.getRank()                 ==     256
+    assert root.rpl.getDagRank()              ==       1
     
     assert hop1.dagRoot is False
-    assert hop1.rpl.getPreferredParent()      == root
-    assert hop1.rpl.getRank()                 ==  768
-    assert hop1.rpl.getDagRank()              ==    3
+    assert hop1.rpl.getPreferredParent()      == root.id
+    assert hop1.rpl.getRank()                 ==     768
+    assert hop1.rpl.getDagRank()              ==       3
     
     if   fixture_conn_type=='fully_meshed':
         assert hop2.dagRoot is False
-        assert hop2.rpl.getPreferredParent()  == root
-        assert hop2.rpl.getRank()             ==  768
-        assert hop2.rpl.getDagRank()          ==    3
+        assert hop2.rpl.getPreferredParent()  == root.id
+        assert hop2.rpl.getRank()             ==     768
+        assert hop2.rpl.getDagRank()          ==       3
     elif fixture_conn_type=='linear':
         assert hop2.dagRoot is False
-        assert hop2.rpl.getPreferredParent()  == hop1
-        assert hop2.rpl.getRank()             == 1280
-        assert hop2.rpl.getDagRank()          ==    5
+        assert hop2.rpl.getPreferredParent()  == hop1.id
+        assert hop2.rpl.getRank()             ==    1280
+        assert hop2.rpl.getDagRank()          ==       5
         
 def test_source_route_calculation(sim_engine):
     
