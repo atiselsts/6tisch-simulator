@@ -13,7 +13,7 @@ import SimEngine.Mote.MoteDefines as d
     d.APP_TYPE_DATA,
     d.APP_TYPE_ACK,
     d.APP_TYPE_JOIN,
-    d.APP_TYPE_FRAG,
+    d.NET_TYPE_FRAG,
     d.RPL_TYPE_DIO,
     d.RPL_TYPE_DAO,
     d.TSCH_TYPE_EB,
@@ -42,7 +42,7 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     assert len(hop1.tsch.txQueue) == d.TSCH_QUEUE_SIZE
 
     # prepare a test_frame
-    test_frame = {'type': frame_type,'app': {},'net': {}}
+    test_frame = {'type': frame_type, 'mac': {'srcMac': hop1, 'dstMac': root}}
     '''
     if (
             (frame_type == d.RPL_TYPE_DIO) or
@@ -61,7 +61,7 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     '''
 
     # ensure queuing fails
-    assert hop1.tsch.enqueue(copy.deepcopy(test_frame)) == False
+    assert hop1.tsch.enqueue(test_frame) == False
 
 def test_removeTypeFromQueue(sim_engine):
     sim_engine = sim_engine(

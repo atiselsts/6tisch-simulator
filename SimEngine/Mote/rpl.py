@@ -291,8 +291,8 @@ class Rpl(object):
                 # remove other possible DIOs from the queue
                 self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
                 
-                # enqueue packet in TSCH queue
-                self.mote.tsch.enqueue(newDIO)
+                # send the DIO via sixlowpan
+                self.mote.sixlowpan.send(newDIO)
 
         # schedule next DIO
         self._schedule_sendDIO()
@@ -391,8 +391,8 @@ class Rpl(object):
             # remove other possible DAOs from the queue
             self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DAO)
             
-            # enqueue packet in TSCH queue
-            self.mote.tsch.enqueue(newDAO)
+            # send the DAO via sixlowpan
+            self.mote.sixlowpan.send(newDAO)
 
     # misc
 
