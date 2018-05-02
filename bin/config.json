@@ -6,11 +6,11 @@
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [50]
+            "exec_numMotes":                               [30]
         },
         "regular": {
             "exec_simDataDir":                             "simData",
-            "exec_numSlotframesPerRun":                    10,
+            "exec_numSlotframesPerRun":                    100,
 
             "app_pkPeriod":                                10,
             "app_pkPeriodVar":                             0.05,
@@ -56,6 +56,7 @@
     },
     "logging": "all",
     "post": [
-        "python plot.py"
+        "python plot.py",
+        "python compute_kpis.py"
     ]
 }
