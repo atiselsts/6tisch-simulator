@@ -204,7 +204,6 @@ class TestPacketDelivery:
         # with this simulator. Even in reality, it rarely happens.
         pass
 
-    @pytest.mark.skip(reason='WIP')
     def test_e2e_latency(
             self,
             sim_engine,
@@ -224,8 +223,8 @@ class TestPacketDelivery:
 
         # latency is expressed in the number of slotframes
         expected_e2e_latency = {
-            'PerHopReassembly'  : 5,
-            'FragmentForwarding': 4
+            'PerHopReassembly'  : 6,
+            'FragmentForwarding': 5
         }
 
         sim_engine = sim_engine(
@@ -290,7 +289,6 @@ class TestPacketDelivery:
         assert e2e_latency == expected_e2e_latency[fragmentation]
 
 
-@pytest.mark.skip(reason='WIP')
 class TestFragmentationAndReassembly(object):
 
     TSCH_MAX_PAYLOAD    = 90
@@ -341,16 +339,16 @@ class TestFragmentationAndReassembly(object):
         u.run_until_asn(sim_engine, 1500)
 
         # check if fragment receptions happen the expected times
+        logs = u.read_log_file(filter=['sixlowpan.pkt.rx'])
         assert (
-            len(u.read_log_file(filter=['sixlowpan.recv_fragment'])) ==
+            len([log for log in logs if log['packet']['type'] == d.NET_TYPE_FRAG]) ==
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
-@pytest.mark.skip(reason='WIP')
 class TestMemoryManagement:
     """Test memory management for reassembly buffer and VRB table
     """
-    
+
     MEMORY_LIMIT = range(1, 10, 1)
     @pytest.fixture(params=MEMORY_LIMIT)
     def memory_limit(self, request):
@@ -377,7 +375,8 @@ class TestMemoryManagement:
                 'fragmentation'                   : fragmentation,
                 'fragmentation_ff_vrb_table_size' : memory_limit,
                 'sixlowpan_reassembly_buffers_num': memory_limit
-            }
+            },
+            force_initial_routing_and_scheduling_state = True
         )
 
         root = sim_engine.motes[0]
@@ -390,25 +389,26 @@ class TestMemoryManagement:
             # root node has no limitation on memory size; test with a non-root
             # mote
             hop1.sixlowpan.recv(
-                hop2,
                 {
-                    'srcIp': hop2,
-                    'dstIp': root,
                     'type': d.NET_TYPE_FRAG,
-                    'payload': {
-                        'original_type'  : d.APP_TYPE_DATA,
-                        'datagram_size'  : 180,
-                        'datagram_tag'   : datagram_tag,
-                        'datagram_offset': 0,
-                        'length': 90,
-                        'hops': 0
+                    'mac': {
+                        'srcMac'               : hop2.id,
+                        'dstMac'               : hop1.id
+                    },
+                    'net': {
+                        'srcIp'                : hop2.id,
+                        'dstIp'                : root.id,
+                        'packet_length'        : 90,
+                        'datagram_size'        : 180,
+                        'datagram_tag'         : datagram_tag,
+                        'datagram_offset'      : 0,
                     }
                 }
             )
 
         # the memory usage should be the same as memory_limit
         assert get_memory_usage(hop1, fragmentation) == memory_limit
-    
+
     def test_entry_expiration(
             self,
             sim_engine,
@@ -436,7 +436,8 @@ class TestMemoryManagement:
                 'fragmentation_ff_vrb_table_size'          : 2,
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy,
-            }
+            },
+            force_initial_routing_and_scheduling_state = True
         )
         sim_settings = SimEngine.SimSettings.SimSettings()
 
@@ -449,27 +450,27 @@ class TestMemoryManagement:
         # fragment2_0: the first fragment of a different packet
         # fragment2_1: the second fragment of the different packet
         fragment1_0 = {
-            'srcIp':         hop2,
-            'sourceRoute':   [],
-            'dstIp':         root,
-            'code':          None,
-            'retriesLeft':   5,
-            'type':          d.NET_TYPE_FRAG,
-            'payload': {
-                'original_type'  : d.APP_TYPE_DATA,
+            'type':                d.NET_TYPE_FRAG,
+            'mac': {
+                'srcMac':          hop2.id,
+                'dstMac':          hop1.id,
+            },
+            'net': {
+                'srcIp':           hop2.id,
+                'dstIp':           root.id,
                 'datagram_size'  : 270,
                 'datagram_tag'   : 1,
                 'datagram_offset': 0,
-                'length':          90,
-                'hops':            0,
+                'packet_length':   90
             }
         }
-        fragment2_0 = copy.copy(fragment1_0)
-        fragment2_0['payload'] = copy.deepcopy(fragment1_0['payload'])
-        fragment2_0['payload']['datagram_tag'] = 2
-        fragment2_1 = copy.copy(fragment2_0)
-        fragment2_1['payload'] = copy.deepcopy(fragment2_0['payload'])
-        fragment2_1['payload']['datagram_offset'] = 90
+        fragment2_0                                = copy.copy(fragment1_0)
+        fragment2_0['net']                         = copy.deepcopy(fragment1_0['net'])
+        fragment2_0['net']['datagram_tag']         = 2
+        fragment2_1                                = copy.copy(fragment2_0)
+        fragment2_1['net']                         = copy.deepcopy(fragment2_0['net'])
+        fragment2_1['net']['datagram_offset']      = 90
+        fragment2_1['net']['original_packet_type'] = d.APP_TYPE_DATA,
 
         # compute the lifetime of an entry
         slots_per_sec = int(1.0 / sim_settings.tsch_slotDuration)
@@ -481,7 +482,7 @@ class TestMemoryManagement:
 
         # inject the first fragment
         assert get_memory_usage(hop1, fragmentation) == 0
-        hop1.sixlowpan.recv(hop2, fragment1_0)
+        hop1.sixlowpan.recv(fragment1_0)
         assert get_memory_usage(hop1, fragmentation) == 1
 
         # run the simulation until 50% of the lifetime
@@ -489,7 +490,7 @@ class TestMemoryManagement:
 
         # inject another fragment (the first fragment of a packet). hop1
         # creates a new entry for this fragment (packet)
-        hop1.sixlowpan.recv(hop2, fragment2_0)
+        hop1.sixlowpan.recv(fragment2_0)
         assert get_memory_usage(hop1, fragmentation) == 2
 
         # run the simulation until its expiration
@@ -497,13 +498,12 @@ class TestMemoryManagement:
 
         # inject the other fragment (the second fragment of a packet). this
         # fragment doesn't cause hop1 to create a new entry
-        hop1.sixlowpan.recv(hop2, fragment2_1)
+        hop1.sixlowpan.recv(fragment2_1)
 
         # the memory should have only one entry for fragment2_0 and fragment2_1
         assert get_memory_usage(hop1, fragmentation) == 1
 
 
-@pytest.mark.skip(reason='WIP')
 class TestDatagramTagManagement(object):
     """Test datagram_tag management
     """
@@ -560,10 +560,10 @@ class TestDatagramTagManagement(object):
             fragments_by_leaf.append(fragment)
 
             # test datagram_tag
-            assert fragment['payload']['datagram_tag'] == expected_datagram_tag
+            assert fragment['net']['datagram_tag'] == expected_datagram_tag
 
             # this is the last fragment; increment expected_datagram_tag
-            if fragment['payload']['datagram_offset'] == 90:
+            if fragment['net']['datagram_offset'] == 90:
                 expected_datagram_tag += 1
 
         # inject the fragments to hop1
@@ -571,29 +571,28 @@ class TestDatagramTagManagement(object):
         for i in range(0, len(fragments_by_leaf)):
             # inject a copied fragment to hop1
             fragment = copy.copy(fragments_by_leaf[i])
-            fragment['payload'] = copy.deepcopy(fragments_by_leaf[i]['payload'])
-            hop1.sixlowpan.recv(leaf, fragment)
+            fragment['net'] = copy.deepcopy(fragments_by_leaf[i]['net'])
+            hop1.sixlowpan.recv(fragment)
 
         # check outgoing datagram_tag is incremented by one
         expected_datagram_tag = hop1_initial_next_datagram_tag
         for fragment in hop1.tsch.txQueue:
             # test datagram_tag
             # datagram_tag should be updated by hop1
-            assert fragment['payload']['datagram_tag'] == expected_datagram_tag
+            assert fragment['net']['datagram_tag'] == expected_datagram_tag
 
             # this is the last fragment; increment expected_datagram_tag
-            if fragment['payload']['datagram_offset'] == 90:
+            if fragment['net']['datagram_offset'] == 90:
                 expected_datagram_tag += 1
 
         # incoming datagram_tag and outgoing datagram_tag should be different
         for (incoming_fragment, outgoing_fragment) in zip(fragments_by_leaf, hop1.tsch.txQueue):
             assert (
-                incoming_fragment['payload']['datagram_tag'] !=
-                outgoing_fragment['payload']['datagram_tag']
+                incoming_fragment['net']['datagram_tag'] !=
+                outgoing_fragment['net']['datagram_tag']
             )
 
 
-@pytest.mark.skip(reason='WIP')
 class TestFragmentForwarding:
 
     # index of the fragment that is the actual test input. A packet is divided
@@ -642,12 +641,12 @@ class TestFragmentForwarding:
                 fragments.append(frame)
 
         # inject the first fragment to root
-        root.sixlowpan.recv(leaf, fragments[0])
+        root.sixlowpan.recv(fragments[0])
         assert get_memory_usage(root, sim_settings.fragmentation) == 1
 
         if trigger_fragment_type == 'missing_fragment':
             # skip injection of fragments[1], which is a missing fragment
-            root.sixlowpan.recv(leaf, fragments[2])
+            root.sixlowpan.recv(fragments[2])
             if 'missing_fragment' in fragmentation_ff_discard_vrb_entry_policy:
                 # the missing fragment should remove the entry
                 assert get_memory_usage(root, sim_settings.fragmentation) == 0
@@ -657,9 +656,9 @@ class TestFragmentForwarding:
 
         elif trigger_fragment_type == 'last_fragment':
             # inject all the fragments in order
-            root.sixlowpan.recv(leaf, fragments[1])
-            root.sixlowpan.recv(leaf, fragments[2])
-            root.sixlowpan.recv(leaf, fragments[3])
+            root.sixlowpan.recv(fragments[1])
+            root.sixlowpan.recv(fragments[2])
+            root.sixlowpan.recv(fragments[3])
 
             if 'last_fragment' in fragmentation_ff_discard_vrb_entry_policy:
                 # the last fragment should remove the entry
