@@ -97,7 +97,7 @@ class App(object):
             SimEngine.SimLog.LOG_APP_TX,
             {
                 '_mote_id':       self.mote.id,
-                'destination':    self.mote.dagRootId,
+                'dest_id':        self.mote.dagRootId,
                 'appcounter':     appcounter,
             }
         )
@@ -133,7 +133,7 @@ class App(object):
             ):
             
             # create new data packet
-            newDataPacket = {
+            newUpstreamDataPacket = {
                 'type':                     d.APP_TYPE_DATA,
                 'app': {
                     'app_payload_length':   self.settings.app_pkLength,
@@ -145,15 +145,16 @@ class App(object):
                 },
             }
 
-            self.mote.sixlowpan.send(newDataPacket)
+            self.mote.sixlowpan.send(newUpstreamDataPacket)
     
     #=== [TX] root -> mote
     
-    def _action_root_sendSinglePacketToMote(self,dest_mote,appcounter=0):
+    def _action_root_sendSinglePacketToMote(self,dest_id,appcounter=0):
         """
         send a single packet
         """
         
+        assert type(dest_id)==int
         assert self.mote.dagRoot
         
         # mote
@@ -161,33 +162,30 @@ class App(object):
             SimEngine.SimLog.LOG_APP_TX,
             {
                 '_mote_id':       self.mote.id,
-                'destination':    dest_mote.id,
+                'dest_id':        dest_id,
                 'appcounter':     appcounter,
             }
         )
         
         # compute source route
-        sourceRoute = self.mote.rpl.computeSourceRoute(dest_mote.id)
+        sourceRoute = self.mote.rpl.computeSourceRoute(dest_id)
         
         # create DATA packet
-        newDataPacket = {
-            'asn':             self.engine.getAsn(),
-            'type':            d.APP_TYPE_DATA,
-            'code':            None,
-            'payload': { # payload overloaded is to calculate packet stats
-                'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
-                'hops':            1,                       # number of hops, used to calculate empirical hop count
-                'length':          self.settings.app_pkLength,
-                'appcounter':      appcounter,
+        newDownstreamDataPacket = {
+            'type':                     d.APP_TYPE_DATA,
+            'app': {
+                'app_payload_length':   self.settings.app_pkLength,
+                'appcounter':           appcounter,
             },
-            'retriesLeft':     d.TSCH_MAXTXRETRIES,
-            'srcIp':           self.mote,   # from DAGroot
-            'dstIp':           dest_mote,   # to mote
-            'sourceRoute':     sourceRoute
+            'net': {
+                'srcIp':                self.mote.id, # to DAGroot
+                'dstIp':                dest_id,      # from mote
+                'sourceRoute':          sourceRoute,
+            },
         }
-
+        
         # enqueue packet in TSCH queue
-        self.mote.tsch.enqueue(newDataPacket)
+        self.mote.tsch.enqueue(newDownstreamDataPacket)
     
     #=== [RX]
     

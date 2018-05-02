@@ -8,8 +8,8 @@ import test_utils as u
 def fixture_exec_numMotes(request):
     return request.param
 
-#@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['up'])
+@pytest.fixture(params=['up', 'down', 'up-down'])
+#@pytest.fixture(params=['down'])
 def fixture_data_flow(request):
     return request.param
 
@@ -211,7 +211,7 @@ def test_vanilla_scenario(
         for _ in range(10):
 
             # inject data at the root
-            dagroot.app._action_root_sendSinglePacketToMote(datamote,appcounter)
+            dagroot.app._action_root_sendSinglePacketToMote(datamote.id,appcounter)
 
             # give the data time to reach the datamote
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
