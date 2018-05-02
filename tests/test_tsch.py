@@ -2,30 +2,27 @@
 Test for TSCH layer
 """
 
+import copy
 import pytest
 
 import SimEngine.Mote.MoteDefines as d
 
-
 # frame_type having "True" in "first_enqueuing" can be enqueued to TX queue
 # even if the queue is full.
-@pytest.mark.parametrize("frame_type, first_enqueuing_expectation", [
-    (d.APP_TYPE_DATA          , False),
-    (d.APP_TYPE_ACK           , False),
-    (d.APP_TYPE_JOIN          , True),
-    (d.APP_TYPE_FRAG          , False),
-    (d.RPL_TYPE_DIO           , False),
-    (d.RPL_TYPE_DAO           , True),
-    (d.TSCH_TYPE_EB           , False),
-    (d.IANA_6TOP_TYPE_REQUEST , True),
-    (d.IANA_6TOP_TYPE_RESPONSE, True),
+@pytest.mark.parametrize("frame_type", [
+    d.APP_TYPE_DATA,
+    d.APP_TYPE_ACK,
+    d.APP_TYPE_JOIN,
+    d.APP_TYPE_FRAG,
+    d.RPL_TYPE_DIO,
+    d.RPL_TYPE_DAO,
+    d.TSCH_TYPE_EB,
+    d.IANA_6TOP_TYPE_REQUEST,
+    d.IANA_6TOP_TYPE_RESPONSE,
 ])
-def test_enqueue_under_full_tx_queue(
-        sim_engine,
-        frame_type,
-        first_enqueuing_expectation
-    ):
-    """Test Tsch.enqueue(self) under the situation when TX queue is full
+def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
+    """
+    Test Tsch.enqueue(self) under the situation when TX queue is full
     """
     sim_engine = sim_engine(
         diff_config = {
@@ -44,8 +41,9 @@ def test_enqueue_under_full_tx_queue(
         hop1.tsch.txQueue.append(dummy_frame)
     assert len(hop1.tsch.txQueue) == d.TSCH_QUEUE_SIZE
 
-    # prepare a test_frame. dstIp is chosen based on frame_type.
-    test_frame = {'type': frame_type}
+    # prepare a test_frame
+    test_frame = {'type': frame_type,'app': {},'net': {}}
+    '''
     if (
             (frame_type == d.RPL_TYPE_DIO) or
             (frame_type == d.TSCH_TYPE_EB)
@@ -60,13 +58,10 @@ def test_enqueue_under_full_tx_queue(
         # this frame_type is used for either upstream or downstream. in this
         # test, it's treated as upstream. dstIp is set with root.
         test_frame['dstIp']       = root
+    '''
 
-    # ready to test; enqueue test_frame and check the return value by
-    # `enqueue()`
-    assert hop1.tsch.enqueue(test_frame) == first_enqueuing_expectation
-
-    # the second enqueuing test_frame should always fail
-    assert hop1.tsch.enqueue(test_frame) == False
+    # ensure queuing fails
+    assert hop1.tsch.enqueue(copy.deepcopy(test_frame)) == False
 
 def test_removeTypeFromQueue(sim_engine):
     sim_engine = sim_engine(
