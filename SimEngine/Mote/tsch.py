@@ -718,7 +718,7 @@ class Tsch(object):
                 assert sorted(pkt.keys()) == sorted(['type','app','net','mac'])
             
                 # send the frame if next hop matches the cell destination
-                if packet['mac']['dstMac'] == cell['neighbor'].id:
+                if pkt['mac']['dstMac'] == cell['neighbor'].id:
                     self.pktToSend = pkt
                     break
 
