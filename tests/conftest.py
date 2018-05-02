@@ -12,7 +12,7 @@ import test_utils                 as u
 def pdr_not_null(c,p,engine):
     returnVal = False
     for channel in range(engine.settings.phy_numChans):
-        if engine.connectivity.get_pdr(c,p,channel)>0:
+        if engine.connectivity.get_pdr(c.id,p.id,channel)>0:
             returnVal = True
     return returnVal
 
@@ -112,7 +112,7 @@ def set_initial_routing_and_scheduling_state(engine):
                 # there is a non-zero PDR on the child->parent link
 
                 # set child's preferredparent to parent
-                child.rpl.setPreferredParent(parent)
+                child.rpl.setPreferredParent(parent.id)
                 # set child's rank
                 child.rpl.setRank(parent.rpl.getRank()+512)
                 # record the child->parent relationship at the root (for source routing)

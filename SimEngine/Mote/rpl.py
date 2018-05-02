@@ -62,6 +62,7 @@ class Rpl(object):
     def getPreferredParent(self):
         return self.preferredParent
     def setPreferredParent(self, newVal):
+        assert type(newVal)==int
         self.preferredParent = newVal
 
     def getOldPreferredParent(self):

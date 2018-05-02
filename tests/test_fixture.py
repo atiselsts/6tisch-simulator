@@ -88,9 +88,9 @@ def test_initial_scheduling_state(sim_engine):
         parent = mote.rpl.getPreferredParent()
         if parent:
             # "mote" has one TX to its parent
-            assert len(mote.tsch.getTxCells(parent)) == 1
+            assert len(mote.tsch.getTxCells(parent.id)) == 1
             # parent of "mote" one RX to "mote"
-            assert len(parent.tsch.getRxCells(mote)) == 1
+            assert len(parent.tsch.getRxCells(mote.id)) == 1
 
 #=== verify default configs from bin/config.json are loaded correctly
 
