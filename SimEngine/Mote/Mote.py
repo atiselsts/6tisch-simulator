@@ -1,28 +1,18 @@
-#!/usr/bin/python
 """
-\brief Model of a 6TiSCH mote.
-
-\author Thomas Watteyne <watteyne@eecs.berkeley.edu>
-\author Kazushi Muraoka <k-muraoka@eecs.berkeley.edu>
-\author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
-\author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
-\author Malisa Vucinic <malisa.vucinic@inria.fr>
-\author Esteban Municio <esteban.municio@uantwerpen.be>
-\author Glenn Daneels <glenn.daneels@uantwerpen.be>
+Model of a 6TiSCH mote.
 """
 
 # =========================== imports =========================================
 
-import copy
 import threading
 
 # Mote sub-modules
 import app
-import sixlowpan
+import secjoin
 import rpl
+import sixlowpan
 import sf
 import sixp
-import secjoin
 import tsch
 import radio
 import batt
@@ -61,12 +51,12 @@ class Mote(object):
 
         # stack
         self.app                       = app.App(self)
-        self.sixlowpan                 = sixlowpan.Sixlowpan(self)
-        self.rpl                       = rpl.Rpl(self)
-        self.sixp                      = sixp.SixP(self)
         self.secjoin                   = secjoin.SecJoin(self)
-        self.tsch                      = tsch.Tsch(self)
+        self.rpl                       = rpl.Rpl(self)
+        self.sixlowpan                 = sixlowpan.Sixlowpan(self)
         self.sf                        = sf.SchedulingFunction.get_sf(self)
+        self.sixp                      = sixp.SixP(self)
+        self.tsch                      = tsch.Tsch(self)
         self.radio                     = radio.Radio(self)
         self.batt                      = batt.Batt(self)
 
@@ -86,14 +76,8 @@ class Mote(object):
         self.tsch.activate()
         self.rpl.activate()
         self.sf.activate()
-
-        # app
-        if not self.dagRoot:
-            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
-                self.app.schedule_mote_sendPacketBurstToDAGroot()
-            else:
-                self.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-
+        self.app.activate()
+    
     # ==== wireless
 
     def getCellPDR(self, cell):
@@ -145,8 +129,11 @@ class Mote(object):
             self.tsch.add_minimal_cell()
             self.tsch.setIsSync(True)
             
-            # activate the TSCH stack
-            self.activate_tsch_stack()
+            # activate the entire upper stack
+            self.tsch.activate()
+            self.rpl.activate()
+            self.sf.activate()
+            self.app.activate()
             
             # give DAGroot's ID to each mote FIXME: remove
             for mote in self.engine.motes:

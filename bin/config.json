@@ -9,7 +9,6 @@
             "exec_numMotes":                               [30]
         },
         "regular": {
-            "exec_simDataDir":                             "simData",
             "exec_numSlotframesPerRun":                    100,
 
             "app_pkPeriod":                                10,

@@ -55,7 +55,7 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            self.exec_simDataDir,
+            'simData',
             self.startTime,
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )

@@ -37,7 +37,7 @@ class Sixlowpan(object):
         # - "net" has srcIp and dstIp of the packet
         # - "fragments" holds received fragments, although only their
         # datagram_offset and lengths are stored in the "fragments" list.
-        self.reassembly_buffers    = {}
+        self.reassembly_buffers   = {}
 
     #======================== public ==========================================
 
@@ -371,6 +371,7 @@ class Sixlowpan(object):
     #======================== private ==========================================
 
     def _prepare_mac_header(self, packet):
+        
         returnVal = False
 
         if 'mac' not in packet:

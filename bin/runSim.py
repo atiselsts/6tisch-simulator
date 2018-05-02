@@ -257,7 +257,7 @@ def main():
             os.remove('cpu{0}.templog'.format(i))
 
     # merge output files
-    folder_path = os.path.join(simconfig.settings.regular.exec_simDataDir, start_time)
+    folder_path = os.path.join('simData', start_time)
     merge_output_files(folder_path)
 
     # copy config file into output directory

@@ -41,7 +41,6 @@ class Rpl(object):
         self.oldPreferredParent        = None    # preserve old preferred parent upon a change
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self.neighborRank              = {}      # indexed by neighbor
-        self.neighborDagRank           = {}      # indexed by neighbor
 
     #======================== public ==========================================
 
@@ -52,7 +51,7 @@ class Rpl(object):
     def getRank(self):
         return self.rank
     def getDagRank(self):
-        return self._rankToDagrank(self.rank)
+        return int(self.rank/d.RPL_MIN_HOP_RANK_INCREASE)
     
     def addParentChildfromDAOs(self, parent_id, child_id):
         assert type(parent_id)==int
@@ -68,6 +67,7 @@ class Rpl(object):
     def getOldPreferredParent(self):
         return self.oldPreferredParent
     def setOldPreferredParent(self, newVal):
+        assert type(newVal)==int
         self.oldPreferredParent = newVal
 
     # admin
@@ -81,137 +81,8 @@ class Rpl(object):
         self._schedule_sendDIO()
         self._schedule_sendDAO(firstDAO=True)
 
-    # DIO
-
-    def action_receiveDIO(self, packet):
-        
-        assert packet['type'] == d.RPL_TYPE_DIO
-        
-        # abort if I'm the DAGroot
-        if self.mote.dagRoot:
-            return
-
-        # abort if I'm not sync'ed
-        if not self.mote.tsch.getIsSync():
-            return
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_RPL_DIO_RX,
-            {
-                "_mote_id":  self.mote.id,
-                "source":    packet['mac']['srcMac'],
-            }
-        )
-        
-        # don't update poor link
-        if self._calcRankIncrease(packet['mac']['srcMac']) > d.RPL_MAX_RANK_INCREASE:
-            return
-
-        # update rank/DAGrank with sender
-        self.neighborRank[packet['mac']['srcMac']]    = packet['app']['rank']
-        self.neighborDagRank[packet['mac']['srcMac']] = self._rankToDagrank(packet['app']['rank'])
-
-        # trigger RPL housekeeping
-        self._housekeeping()
-
-    # DAO
-
-    def action_receiveDAO(self, packet):
-        """
-        DAGroot receives DAO, store parent/child relationship for source route calculation.
-        """
-
-        assert self.mote.dagRoot
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_RPL_DAO_RX,
-            {
-                "source": packet['mac']['srcMac']
-            }
-        )
-
-        # store parent/child relationship for source route calculation
-        self.addParentChildfromDAOs(
-            parent_id   = packet['app']['parent_id'],
-            child_id    = packet['app']['child_id'],
-        )
-
-    # source route
-
-    def computeSourceRoute(self, dest_id):
-        """
-        Compute the source route to a given mote.
-
-        :param destAddr: [in] The EUI64 address of the final destination.
-
-        :returns: The source route, a list of EUI64 address, ordered from
-            destination to source.
-        """
-        assert type(dest_id)==int
-        
-        sourceRoute = []
-        cur_id = dest_id
-        while cur_id!=0:
-            sourceRoute += [cur_id]
-            try:
-                cur_id = self.parentChildfromDAOs[cur_id]
-            except KeyError:
-                raise NoSourceRouteError()
-        
-        # reverse (so goes from source to destination)
-        sourceRoute.reverse()
-        
-        return sourceRoute
-
-    # forwarding
-
-    def findNextHopId(self, dstIpId, sourceRoute = []):
-        """
-        Determines the next hop and writes that in the packet's 'nextHop' field.
-        """
-        assert dstIpId != self.mote.id
-        
-        if dstIpId == d.BROADCAST_ADDRESS:
-            # broadcast packet
-            
-            # broadcast next hop
-            nextHopId = d.BROADCAST_ADDRESS
-        
-        elif sourceRoute:
-            # unicast source routed downstream packet
-            
-            # nextHopId is the first item in the source route 
-            nextHopId = [self.engine.motes[sourceRoute.pop(0)]]
-            
-        else:
-            # unicast upstream packet
-            
-            if self.preferredParent==None:
-                # no preferred parent
-                
-                nextHopId =  None
-            else:
-                if   dstIpId == self.mote.dagRootId:
-                    # common upstream packet
-                    
-                    # send to preferred parent
-                    nextHopId = self.preferredParent
-                elif dstIpId in self.mote._myNeighbors():
-                    # packet to a neighbor
-                    
-                    # nexhop is that neighbor
-                    nextHopId = dstIpId
-                else:
-                    raise SystemError()
-        
-        return nextHopId
-
-    #======================== private ==========================================
-
-    # DIO
-
+    # === DIO
+    
     def _schedule_sendDIO(self):
         """
         Send a DIO sometimes in the future.
@@ -296,8 +167,39 @@ class Rpl(object):
 
         # schedule next DIO
         self._schedule_sendDIO()
+    
+    def action_receiveDIO(self, packet):
         
-    # DAO
+        assert packet['type'] == d.RPL_TYPE_DIO
+        
+        # abort if I'm the DAGroot
+        if self.mote.dagRoot:
+            return
+
+        # abort if I'm not sync'ed
+        if not self.mote.tsch.getIsSync():
+            return
+
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DIO_RX,
+            {
+                "_mote_id":  self.mote.id,
+                "source":    packet['mac']['srcMac'],
+            }
+        )
+        
+        # don't update poor link
+        if self._calcRankIncrease(packet['mac']['srcMac']) > d.RPL_MAX_RANK_INCREASE:
+            return
+
+        # update rank/DAGrank with sender
+        self.neighborRank[packet['mac']['srcMac']]    = packet['app']['rank']
+
+        # trigger RPL housekeeping
+        self._housekeeping()
+
+    # === DAO
     
     def _schedule_sendDAO(self, firstDAO=False):
         """
@@ -393,7 +295,100 @@ class Rpl(object):
             
             # send the DAO via sixlowpan
             self.mote.sixlowpan.send(newDAO)
+    
+    def action_receiveDAO(self, packet):
+        """
+        DAGroot receives DAO, store parent/child relationship for source route calculation.
+        """
 
+        assert self.mote.dagRoot
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DAO_RX,
+            {
+                "source": packet['mac']['srcMac']
+            }
+        )
+
+        # store parent/child relationship for source route calculation
+        self.addParentChildfromDAOs(
+            parent_id   = packet['app']['parent_id'],
+            child_id    = packet['app']['child_id'],
+        )
+
+    # source route
+
+    def computeSourceRoute(self, dest_id):
+        """
+        Compute the source route to a given mote.
+
+        :param destAddr: [in] The EUI64 address of the final destination.
+
+        :returns: The source route, a list of EUI64 address, ordered from
+            destination to source.
+        """
+        assert type(dest_id)==int
+        
+        sourceRoute = []
+        cur_id = dest_id
+        while cur_id!=0:
+            sourceRoute += [cur_id]
+            try:
+                cur_id = self.parentChildfromDAOs[cur_id]
+            except KeyError:
+                raise NoSourceRouteError()
+        
+        # reverse (so goes from source to destination)
+        sourceRoute.reverse()
+        
+        return sourceRoute
+
+    # forwarding
+
+    def findNextHopId(self, dstIpId, sourceRoute = []):
+        """
+        Determines the next hop and writes that in the packet's 'nextHop' field.
+        """
+        assert dstIpId != self.mote.id
+        
+        if dstIpId == d.BROADCAST_ADDRESS:
+            # broadcast packet
+            
+            # broadcast next hop
+            nextHopId = d.BROADCAST_ADDRESS
+        
+        elif sourceRoute:
+            # unicast source routed downstream packet
+            
+            # nextHopId is the first item in the source route 
+            nextHopId = [self.engine.motes[sourceRoute.pop(0)]]
+            
+        else:
+            # unicast upstream packet
+            
+            if self.preferredParent==None:
+                # no preferred parent
+                
+                nextHopId =  None
+            else:
+                if   dstIpId == self.mote.dagRootId:
+                    # common upstream packet
+                    
+                    # send to preferred parent
+                    nextHopId = self.preferredParent
+                elif dstIpId in self.mote._myNeighbors():
+                    # packet to a neighbor
+                    
+                    # nexhop is that neighbor
+                    nextHopId = dstIpId
+                else:
+                    raise SystemError()
+        
+        return nextHopId
+
+    #======================== private ==========================================
+    
     # misc
 
     def _housekeeping(self):
@@ -526,6 +521,3 @@ class Rpl(object):
         etx = float(numTx)/float(numTxAck)
 
         return etx
-    
-    def _rankToDagrank(self,r):
-        return int(r/d.RPL_MIN_HOP_RANK_INCREASE)
