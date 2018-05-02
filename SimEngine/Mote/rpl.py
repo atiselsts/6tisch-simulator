@@ -444,9 +444,8 @@ class Rpl(object):
                         if rank-newrank < d.RPL_PARENT_SWITCH_THRESHOLD:
                             (newPreferredParent, newrank) = (mote, rank)
 
-            # update mote stats
+            # log
             if self.rank and newrank != self.rank:
-                # log
                 self.log(
                     SimEngine.SimLog.LOG_RPL_CHURN_RANK,
                     {
@@ -454,6 +453,7 @@ class Rpl(object):
                         "new_rank": newrank
                     }
                 )
+            
             if (self.preferredParent==None) and (newPreferredParent is not None):
                 if not self.settings.secjoin_enabled:
                     # if we selected a parent for the first time, add one cell to it

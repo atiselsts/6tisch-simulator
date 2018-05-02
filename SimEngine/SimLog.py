@@ -25,7 +25,6 @@ import SimEngine
 LOG_THREAD_STATE                 = {'type': 'thread.state', 'keys': ['state', 'name']}
 
 # === mote
-LOG_MOTE_STATS                   = {'type': 'mote.stats'}
 LOG_MOTE_STATE                   = {'type': 'mote.state'}
 
 # === app
@@ -201,31 +200,3 @@ class SimLog(object):
         cls._init           = False
 
     # ============================== private ==================================
-
-    def _collectSumMoteStats(self):
-        returnVal = {}
-
-        for mote in self.engine.motes:
-            mote_stats = mote.getMoteStats()
-            mote_stats["_mote_id"] = mote.id
-
-            # log
-            self.log(
-                LOG_MOTE_STATS,
-                mote_stats
-            )
-
-        return returnVal
-
-    def _action_collect_stats(self):
-        """Called at each end of slotframe_iteration."""
-
-        self._collectSumMoteStats()
-
-        # schedule next statistics collection
-        self.engine.scheduleAtAsn(
-            asn              = self.engine.asn + self.settings.tsch_slotframeLength,
-            cb               = self._action_collect_stats,
-            uniqueTag        = (None, '_action_collect_stats'),
-            intraSlotOrder   = 10,
-        )

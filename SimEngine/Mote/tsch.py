@@ -740,20 +740,16 @@ class Tsch(object):
                 '''
                 if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                     if   pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                     elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_REQ['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                     else:
                         raise SystemError()
 
                 if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                     if self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                     elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                     elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                         pass
@@ -832,20 +828,16 @@ class Tsch(object):
                 '''
                 if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                     if pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
                     elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_REQ['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
                     else:
                         assert False
 
                 if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                     if self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
                     elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
                         self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
                     elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
                         pass

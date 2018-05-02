@@ -533,7 +533,6 @@ class SixP(object):
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
-                    # TODO: increase stats of RC_BUSY
                 elif code == d.IANA_6TOP_RC_RESET:  # should not happen
                     # log
                     self.log(
@@ -549,7 +548,6 @@ class SixP(object):
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
-                    # TODO: increase stats of RC_BUSY
                 else:
                     assert False
 
@@ -657,7 +655,6 @@ class SixP(object):
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
-                    # TODO: increase stats of RC_NORES
                 # only when devices are not powerfull enough. Not used in the simulator
                 elif code == d.IANA_6TOP_RC_BUSY:
                     # log
@@ -674,7 +671,6 @@ class SixP(object):
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
                     return True
-                    # TODO: increase stats of RC_BUSY
                 elif code == d.IANA_6TOP_RC_RESET:
                     # log
                     self.log(
@@ -689,7 +685,7 @@ class SixP(object):
                     # go back to IDLE, i.e. remove the neighbor form the states
                     self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_IDLE
                     self.sixtopStates[neighbor.id]['tx']['blockedCells'] = []
-                    # TODO: increase stats of RC_RESET
+
                     return True
                 else:  # should not happen
                     assert False
@@ -709,7 +705,6 @@ class SixP(object):
                 neighbor = packet['dstIp']
                 code = packet['code']
 
-                self.mote._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
                 self.tsSixTopReqRecv[neighbor] = 0
 
                 if code == d.IANA_6TOP_RC_SUCCESS:
@@ -758,7 +753,6 @@ class SixP(object):
                 neighbor = packet['dstIp']
                 code = packet['code']
 
-                self.mote._stats_logSixTopLatencyStat(self.engine.asn - self.tsSixTopReqRecv[neighbor])
                 self.tsSixTopReqRecv[neighbor] = 0
 
                 if code == d.IANA_6TOP_RC_SUCCESS:
