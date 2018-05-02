@@ -105,7 +105,7 @@ class SecJoin(object):
         """
         Are all my neighbors joined?
         """
-        return [nei for nei in self.mote._myNeighbors() if nei.secjoin.isJoined is True]
+        return [nei for nei in self.mote._myNeighbors() if self.engine.motes[nei].secjoin.isJoined is True]
 
     #======================== private ==========================================
 
@@ -114,11 +114,11 @@ class SecJoin(object):
         Start the join process.
         """
         if not self.mote.dagRoot:
-            if self.mote.rpl.getPreferredParent():
+            if self.mote.rpl.getPreferredParent()!=None:
                 if not self.isJoined:
                     self._sendJoinPacket(
                         token          = self.settings.secjoin_numExchanges - 1,
-                        destination    = self.mote.dagRootAddress,
+                        destination    = self.mote.dagRootId,
                     )
             else: # node doesn't have a parent yet, re-scheduling
                 self.scheduleJoinProcess()
@@ -145,29 +145,25 @@ class SecJoin(object):
                 'payload':        [
                     token,
                     self.mote.id if not self.mote.dagRoot else None,
-                    self.mote.rpl.getPreferredParent().id if not self.mote.dagRoot else None,
+                    self.mote.rpl.getPreferredParent() if not self.mote.dagRoot else None,
                 ],
                 'retriesLeft':    d.TSCH_MAXTXRETRIES,
                 'srcIp':          self, # DAG root
                 'dstIp':          destination,
                 'sourceRoute':    sourceRoute
             }
-
+            
+            # increment traffic
+            self.log(
+                SimEngine.SimLog.LOG_JOIN_TX,
+                {
+                    'destination': destination.id,
+                    "token": token
+                }
+            )
+            
             # enqueue packet in TSCH queue
-            isEnqueued = self.mote.tsch.enqueue(newPacket)
-
-            if isEnqueued:
-                # increment traffic
-                self.log(
-                    SimEngine.SimLog.LOG_JOIN_TX,
-                    {
-                        'destination': destination.id,
-                        "token": token
-                    }
-                )
-            else:
-                # update mote stats
-                self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+            self.mote.tsch.enqueue(newPacket)
 
             # save last token sent
             self._joinRetransmissionPayload = token
@@ -219,5 +215,5 @@ class SecJoin(object):
         if not self.mote.dagRoot and not self.isJoined:
             self._sendJoinPacket(
                 self._joinRetransmissionPayload,
-                self.mote.dagRootAddress,
+                self.mote.dagRootId,
             )

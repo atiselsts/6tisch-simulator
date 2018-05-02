@@ -30,7 +30,7 @@ LOG_MOTE_STATE                   = {'type': 'mote.state'}
 
 # === app
 LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','destination','appcounter']}
-LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','source','appcounter']}
+LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','packet']}
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 LOG_APP_VRB_TABLE_FULL           = {'type': 'app.vrb_table_full'}
 
@@ -41,7 +41,7 @@ LOG_JOINED                       = {'type': 'join.joined'}
 
 # === rpl
 LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',           'keys': ['_mote_id']}
-LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',           'keys': ['source']}
+LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',           'keys': ['_mote_id','source']}
 LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',           'keys': ['_mote_id']}
 LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',           'keys': ['source']}
 LOG_RPL_CHURN_RANK               = {'type': 'rpl.churn_rank',       'keys': ['old_rank', 'new_rank']}
@@ -50,9 +50,9 @@ LOG_RPL_CHURN_PARENT_SET         = {'type': 'rpl.churn_parent_set'}
 LOG_RPL_DROP_NO_ROUTE            = {'type': 'rpl.drop_no_route',    'keys': ['_mote_id']}
 
 # === 6LoWPAN
-LOG_SIXLOWPAN_SEND_PACKET        = {'type': 'sixlowpan.send_packet',      'keys': ['_mote_id','srcIp','dstIp','packet_type']}
-LOG_SIXLOWPAN_FORWARD_PACKET     = {'type': 'sixlowpan.forward_packet',   'keys': ['_mote_id','srcIp','dstIp','packet_type']}
-LOG_SIXLOWPAN_RECV_PACKET        = {'type': 'sixlowpan.recv_packet',      'keys': ['_mote_id','srcIp','dstIp','packet_type']}
+LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_FWD            = {'type': 'sixlowpan.pkt.fwd',          'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys': ['_mote_id','packet']}
 LOG_SIXLOWPAN_SEND_FRAGMENT      = {'type': 'sixlowpan.send_fragment',    'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
 LOG_SIXLOWPAN_FORWARD_FRAGMENT   = {'type': 'sixlowpan.forward_fragment', 'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
 LOG_SIXLOWPAN_RECV_FRAGMENT      = {'type': 'sixlowpan.recv_fragment',    'keys': ['_mote_id','srcIp','dstIp','datagram_size','datagram_offset','datagram_tag','length','original_packet_type',]}
@@ -81,8 +81,8 @@ LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell'}
 LOG_TSCH_REMOVE_CELL             = {'type': 'tsch.remove_cell'}
 LOG_TSCH_TX_EB                   = {'type': 'tsch.tx_eb'}
 LOG_TSCH_RX_EB                   = {'type': 'tsch.rx_eb'}
-LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                  'keys': ['_mote_id','channel','frame_type','nextHop','isACKed']}
-LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                  'keys': ['_mote_id','frame_type','smac','dmac']}
+LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                  'keys': ['_mote_id','channel','packet','isACKed']}
+LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                  'keys': ['_mote_id','packet']}
 LOG_TSCH_DROP_QUEUE_FULL         = {'type': 'tsch.drop_queue_full',         'keys': ['_mote_id']}
 LOG_TSCH_DROP_NO_TX_CELLS        = {'type': 'tsch.drop_no_tx_cells',        'keys': ['_mote_id']}
 LOG_TSCH_DROP_FAIL_ENQUEUE       = {'type': 'tsch.drop_fail_enqueue',       'keys': ['_mote_id']}
@@ -100,8 +100,8 @@ LOG_RADIO_PKT_DROPPED            = {'type': 'radio.pkt_dropped', 'keys': ['_mote
 LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}
 
 # === propagation
-LOG_PROP_PROBABLE_COLLISION      = {'type': 'prop.probable_collision', 'keys': ['source_id','channel']}
-LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission',       'keys': ['channel','frame','source','destinations']}
+LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission', 'keys': ['channel','packet','destinations']}
+LOG_PROP_INTERFERENCE            = {'type': 'prop.interference', 'keys': ['source_id','channel','interferers']}
 
 # ============================ SimLog =========================================
 

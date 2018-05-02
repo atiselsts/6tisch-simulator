@@ -17,7 +17,6 @@
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
-            "app_e2eAck":                                  false,
 
             "rpl_daoPeriod":                               60,
 

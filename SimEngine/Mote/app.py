@@ -97,7 +97,7 @@ class App(object):
             SimEngine.SimLog.LOG_APP_TX,
             {
                 '_mote_id':       self.mote.id,
-                'destination':    self.mote.dagRootAddress.id,
+                'destination':    self.mote.dagRootId,
                 'appcounter':     appcounter,
             }
         )
@@ -108,7 +108,7 @@ class App(object):
         # schedule sending next packet
         self.schedule_mote_sendSinglePacketToDAGroot()
     
-    def _action_mote_enqueueDataForDAGroot(self,appcounter):
+    def _action_mote_enqueueDataForDAGroot(self,appcounter=0):
         """
         enqueue data packet to the DAGroot
         """
@@ -117,7 +117,7 @@ class App(object):
 
         # only send data if I have a preferred parent and dedicated cells to that parent in case of MSF
         if  (
-                self.mote.rpl.getPreferredParent()
+                self.mote.rpl.getPreferredParent()!=None
                 and
                 (
                     (
@@ -133,26 +133,19 @@ class App(object):
             ):
             
             # create new data packet
-            newPacket = {
-                'asn':            self.engine.getAsn(),
-                'type':           d.APP_TYPE_DATA,
-                'code':           None,
-                'payload':        { # payload overloaded is to calculate packet stats
-                    'asn_at_source':   self.engine.getAsn(),    # ASN, used to calculate e2e latency
-                    'hops':            1,                       # number of hops, used to calculate empirical hop count
-                    'length':          self.settings.app_pkLength,
-                    'appcounter':      appcounter,
+            newDataPacket = {
+                'type':                     d.APP_TYPE_DATA,
+                'app': {
+                    'app_payload_length':   self.settings.app_pkLength,
+                    'appcounter':           appcounter,
                 },
-                'retriesLeft':    d.TSCH_MAXTXRETRIES,
-                'srcIp':          self.mote,                    # from mote
-                'dstIp':          self.mote.dagRootAddress,     # to DAGroot
-                'sourceRoute':    [],
+                'net': {
+                    'srcIp':                self.mote.id,            # from mote
+                    'dstIp':                self.mote.dagRootId,     # to DAGroot
+                },
             }
 
-            # update mote stats
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_TX['type'])
-
-            self.mote.sixlowpan.send(newPacket)
+            self.mote.sixlowpan.send(newDataPacket)
     
     #=== [TX] root -> mote
     
@@ -177,7 +170,7 @@ class App(object):
         sourceRoute = self.mote.rpl.computeSourceRoute(dest_mote.id)
         
         # create DATA packet
-        newPacket = {
+        newDataPacket = {
             'asn':             self.engine.getAsn(),
             'type':            d.APP_TYPE_DATA,
             'code':            None,
@@ -194,12 +187,11 @@ class App(object):
         }
 
         # enqueue packet in TSCH queue
-        if not self.mote.tsch.enqueue(newPacket):
-            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
+        self.mote.tsch.enqueue(newDataPacket)
     
     #=== [RX]
     
-    def _action_receivePacket(self, srcIp, payload, timestamp):
+    def _action_receivePacket(self, packet):
         """
         Receive a data packet (both DAGroot and mote)
         """
@@ -209,41 +201,6 @@ class App(object):
             SimEngine.SimLog.LOG_APP_RX,
             {
                 '_mote_id':       self.mote.id,
-                'source':         srcIp.id,
-                'appcounter':     payload['appcounter'],
+                'packet':         packet,
             }
         )
-
-        # update mote stats
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RX['type'])
-
-        # log end-to-end latency
-        self.mote._stats_logLatencyStat(timestamp - payload['asn_at_source']) # payload[0] is the ASN when sent
-
-        # log the number of hops
-        self.mote._stats_logHopsStat(payload['hops'])
-
-        # send end-to-end ACK back to mote, if applicable
-        if self.settings.app_e2eAck:
-
-            destination = srcIp
-            sourceRoute = self.mote.rpl.computeSourceRoute([destination.id])
-
-            if sourceRoute:
-
-                # create e2e ACK
-                newPacket = {
-                    'asn':             self.engine.getAsn(),
-                    'type':            d.APP_TYPE_ACK,
-                    'code':            None,
-                    'payload':         {},
-                    'retriesLeft':     d.TSCH_MAXTXRETRIES,
-                    'srcIp':           self.mote,     # from DAGroot
-                    'dstIp':           destination,   # to mote
-                    'sourceRoute':     sourceRoute
-                }
-
-                # enqueue packet in TSCH queue
-                if not self.mote.tsch.enqueue(newPacket):
-                    self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_ACK_FAIL_ENQUEUE['type'])
-    

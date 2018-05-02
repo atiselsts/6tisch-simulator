@@ -45,28 +45,24 @@ class Radio(object):
 
     # TX
 
-    def startTx(self, channel, type, code, smac, dmac, srcIp, dstIp, srcRoute, payload):
-        self.state = d.RADIO_STATE_TX
-        self.channel = channel
-
-        assert self.onGoingBroadcast is None
+    def startTx(self, channel, packet):
+        
+        assert self.onGoingBroadcast    is None
         assert self.onGoingTransmission is None
-
-        # send to propagation model
+        assert sorted(packet.keys()) == sorted(['type','net','app','mac'])
+        
+        # record the state of the radio
+        self.state   = d.RADIO_STATE_TX
+        self.channel = channel
+        
+        # record ongoing, for propagation model
         self.onGoingTransmission = {
-            "channel": channel,
-            "type": type,
-            "code": code,
-            "smac": smac,
-            "dmac": dmac,
-            "srcIp": srcIp,
-            "dstIp": dstIp,
-            "srcRoute": srcRoute,
-            "payload": payload
+            'channel': channel,
+            'packet':  packet,
         }
 
         # remember whether frame is broadcast
-        self.onGoingBroadcast = (dmac == d.BROADCAST_ADDRESS)
+        self.onGoingBroadcast = (packet['mac']['dstMac']==d.BROADCAST_ADDRESS)
 
     def txDone(self, isACKed):
         """end of tx slot"""
@@ -100,16 +96,18 @@ class Radio(object):
         self.state = d.RADIO_STATE_RX
         self.channel = channel
 
-    def rxDone(self, channel=None, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
+    def rxDone(self, packet):
         """end of RX radio activity"""
-        self.state = d.RADIO_STATE_IDLE
+        
+        # switch radio state
+        self.state   = d.RADIO_STATE_IDLE
         self.channel = None
 
         # log charge consumed
-        if type is None:
+        if not packet:
             # didn't receive any frame (idle listen)
             self.mote.batt.logChargeConsumed(d.CHARGE_Idle_uC)
-        elif dmac == [self.mote]:
+        elif packet['mac']['dstMac'] == self.mote.id:
             # unicast frame for me, I sent an ACK
             self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
         else:
@@ -117,7 +115,7 @@ class Radio(object):
             self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
 
         # inform upper layer (TSCH)
-        return self.mote.tsch.rxDone(type, code, smac, dmac, srcIp, dstIp, srcRoute, payload)
+        return self.mote.tsch.rxDone(packet)
 
     # dropping
 
@@ -132,9 +130,6 @@ class Radio(object):
                 "reason":    reason,
             }
         )
-        
-        # increment mote stat
-        self.mote._stats_incrementMoteStats(reason)
         
         # remove all the element of pkt so that it won't be processed further
         for k in pkt.keys():

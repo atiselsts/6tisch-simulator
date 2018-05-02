@@ -174,7 +174,6 @@ class SixP(object):
 
             # has the asn of when the req packet was enqueued in the neighbor
             self.tsSixTopReqRecv[neighbor] = payload[4]
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_ADD_REQ['type'])
 
             if smac.id in self.sixtopStates and 'rx' in self.sixtopStates[smac.id] and \
                self.sixtopStates[smac.id]['rx']['state'] != d.SIX_STATE_IDLE:
@@ -322,7 +321,6 @@ class SixP(object):
             receivedDir = payload[2]
             seq = payload[3]
 
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_RX_DEL_REQ['type'])
             # has the asn of when the req packet was enqueued in the neighbor. Used for calculate avg 6top latency
             self.tsSixTopReqRecv[neighbor] = payload[4]
 
@@ -392,8 +390,6 @@ class SixP(object):
             if self.sixtopStates[smac.id]['tx']['state'] == d.SIX_STATE_WAIT_ADDRESPONSE:
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET  # RC_BUSY not implemented yet
-
-                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -560,8 +556,6 @@ class SixP(object):
             elif self.sixtopStates[smac.id]['tx']['state'] == d.SIX_STATE_WAIT_DELETERESPONSE:
                 # TODO: now this is still an assert, later this should be handled appropriately
                 assert code == d.IANA_6TOP_RC_SUCCESS or code == d.IANA_6TOP_RC_NORES or code == d.IANA_6TOP_RC_RESET
-
-                self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_DEL_RESP['type'])
 
                 neighbor = smac
                 receivedCellList = payload[0]
@@ -835,10 +829,7 @@ class SixP(object):
         # enqueue packet in TSCH queue
         isEnqueued = self.mote.tsch.enqueue(newPacket)
 
-        if not isEnqueued:
-            # update mote stats
-            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-        else:
+        if isEnqueued:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
             self.sixtopStates[neighbor.id]['tx']['blockedCells'] = cellList
@@ -863,10 +854,7 @@ class SixP(object):
         # enqueue packet in TSCH queue
         isEnqueued = self.mote.tsch.enqueue(newPacket)
 
-        if not isEnqueued:
-            # update mote stats
-            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-        else:
+        if isEnqueued:
             # set state to sending request for this neighbor
             self.sixtopStates[neighbor.id]['tx']['state'] = d.SIX_STATE_SENDING_REQUEST
 
@@ -888,11 +876,7 @@ class SixP(object):
         }
 
         # enqueue packet in TSCH queue
-        isEnqueued = self.mote.tsch.enqueue(newPacket)
-
-        if not isEnqueued:
-            # update mote stats
-            self.mote.radio.drop_packet(newPacket, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
+        self.mote.tsch.enqueue(newPacket)
 
     # misc
 
