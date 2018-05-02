@@ -36,7 +36,31 @@ class App(object):
         self.appcounter      = 0
 
     #======================== public ==========================================
+    
+    def activate(self):
+        # app
+        if not self.mote.dagRoot:
+            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
+                self.schedule_mote_sendPacketBurstToDAGroot()
+            else:
+                self.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
+    
+    #=== [TX] mote -> root
+    
+    def schedule_mote_sendPacketBurstToDAGroot(self):
+        """
+        schedule an event to send a single burst of data (NOT periodic)
+        """
 
+        # schedule app_burstNumPackets packets at app_burstTimestamp
+        for i in xrange(self.settings.app_burstNumPackets):
+            self.engine.scheduleIn(
+                delay             = self.settings.app_burstTimestamp,
+                cb                = self._action_mote_enqueueDataForDAGroot,
+                uniqueTag         = (self.mote.id, '_app_action_enqueueData_burst_{0}'.format(i)),
+                intraSlotOrder    = 2,
+            )
+    
     def schedule_mote_sendSinglePacketToDAGroot(self, firstPacket=False):
         """
         schedule an event to send a single packet
@@ -62,32 +86,7 @@ class App(object):
             uniqueTag        = (self.mote.id, '_action_mote_sendSinglePacketToDAGroot'),
             intraSlotOrder   = 2,
         )
-
-    def schedule_mote_sendPacketBurstToDAGroot(self):
-        """
-        schedule an event to send a single burst of data (NOT periodic)
-        """
-
-        # schedule app_burstNumPackets packets at app_burstTimestamp
-        for i in xrange(self.settings.app_burstNumPackets):
-            self.engine.scheduleIn(
-                delay             = self.settings.app_burstTimestamp,
-                cb                = self._action_mote_enqueueDataForDAGroot,
-                uniqueTag         = (self.mote.id, '_app_action_enqueueData_burst_{0}'.format(i)),
-                intraSlotOrder    = 2,
-            )
-
-    def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
-        """
-        mote receives end-to-end ACK from the DAGroot
-        """
-
-        assert not self.mote.dagRoot
-
-    #======================== private ==========================================
-
-    #=== [TX] mote -> root
-
+    
     def _action_mote_sendSinglePacketToDAGroot(self,appcounter=None):
         """
         send a single packet, and reschedule next one
@@ -152,6 +151,13 @@ class App(object):
             }
 
             self.mote.sixlowpan.send(newUpstreamDataPacket)
+
+    def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
+        """
+        mote receives end-to-end ACK from the DAGroot
+        """
+
+        assert not self.mote.dagRoot
     
     #=== [TX] root -> mote
     

@@ -76,14 +76,8 @@ class Mote(object):
         self.tsch.activate()
         self.rpl.activate()
         self.sf.activate()
-
-        # app
-        if not self.dagRoot:
-            if self.settings.app_burstNumPackets and self.settings.app_burstTimestamp:
-                self.app.schedule_mote_sendPacketBurstToDAGroot()
-            else:
-                self.app.schedule_mote_sendSinglePacketToDAGroot(firstPacket=True)
-
+        self.app.activate()
+    
     # ==== wireless
 
     def getCellPDR(self, cell):
@@ -135,8 +129,11 @@ class Mote(object):
             self.tsch.add_minimal_cell()
             self.tsch.setIsSync(True)
             
-            # activate the TSCH stack
-            self.activate_tsch_stack()
+            # activate the entire upper stack
+            self.tsch.activate()
+            self.rpl.activate()
+            self.sf.activate()
+            self.app.activate()
             
             # give DAGroot's ID to each mote FIXME: remove
             for mote in self.engine.motes:

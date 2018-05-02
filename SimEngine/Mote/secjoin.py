@@ -48,6 +48,7 @@ class SecJoin(object):
         """
         
         if self.settings.secjoin_enabled:
+            raise NotImplementedError()
             # initiate join process
             self.engine.scheduleIn(
                 delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
@@ -65,7 +66,9 @@ class SecJoin(object):
 
         FIXME: different functions for join request and response.
         """
-
+        
+        raise NotImplementedError()
+        
         # remove pending retransmission event
         self.engine.removeFutureEvent(
             (self.mote.id, '_join_action_retransmission')
