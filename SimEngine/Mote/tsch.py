@@ -63,7 +63,7 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_SYNCED,
             {
-                "mote_id":   self.mote.id,
+                "_mote_id":   self.mote.id,
             }
         )
         
@@ -77,6 +77,10 @@ class Tsch(object):
         self.tsch_schedule_active_cell()    # schedule next active cell
 
     def getTxCells(self, neighbor = None):
+        
+        if neighbor!=None:
+            assert type(neighbor)==int
+        
         if neighbor is None:
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_TX]
         else:
@@ -84,6 +88,10 @@ class Tsch(object):
                     c['dir'] == d.DIR_TX and c['neighbor'] == neighbor]
 
     def getRxCells(self, neighbor = None):
+        
+        if neighbor!=None:
+            assert type(neighbor)==int
+        
         if neighbor is None:
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_RX]
         else:
@@ -91,6 +99,10 @@ class Tsch(object):
                     c['dir'] == d.DIR_RX and c['neighbor'] == neighbor]
 
     def getSharedCells(self, neighbor = None):
+        
+        if neighbor!=None:
+            assert type(neighbor)==int
+        
         if neighbor is None:
             return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_TXRX_SHARED]
         else:
@@ -192,54 +204,71 @@ class Tsch(object):
 
     def enqueue(self, packet):
         
-        if not self.mote.rpl.findNextHop(packet):
-            # I don't have a route
+        assert sorted(packet.keys()) == sorted(['type','app','net'])
+        
+        returnVal = True
+        
+        # check there is space in txQueue
+        if returnVal:
+            if len(self.txQueue) >= d.TSCH_QUEUE_SIZE:
+                # my TX queue is full
+                
+                # drop
+                self.mote.radio.drop_packet(
+                    pkt     = packet,
+                    reason  = SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type']
+                )
+                
+                # couldn't enqueue
+                returnVal = False
+        
+        # check that I have cell to transmit on
+        if returnVal:
+            if (not self.getTxCells()) and (not self.getSharedCells()):
+                # I don't have any cell to transmit on
+                
+                # drop
+                self.mote.radio.drop_packet(
+                    pkt     = packet,
+                    reason  = SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type']
+                )
+                
+                # couldn't enqueue
+                returnVal = False
+        
+        # find link-layer destination
+        if returnVal:
+            dmacId = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
+            if dmacId==None:
+                # I cannot find the next hop
+                
+                # drop
+                self.mote.radio.drop_packet(
+                    pkt     = packet,
+                    reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                )
+                
+                # couldn't enqueue
+                returnVal = False
+        
+        # if I get here, every is OK, I can enqueue
+        if returnVal:
             
-            # increment mote state
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type'])
-
-            return False
-
-        elif (not self.getTxCells()) and (not self.getSharedCells()):
-            # I don't have any cell to transmit
+            # add MAC header
+            packet['mac'] = {
+                'srcMac':         self.mote.id,
+                'dstMac':         dmacId,
+                'retriesLeft':    d.TSCH_MAXTXRETRIES,
+            }
             
-            # increment mote state
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type'])
-
-            return False
-
-        elif len(self.txQueue) >= d.TSCH_QUEUE_SIZE:
-            # my TX queue is full
-            
-            # However, I will allow to add an additional packet in some specific ocasions
-            # This is because if the queues of the nodes are filled with DATA packets, new nodes won't be able to enter properly in the network. So there are exceptions.
-
-            # if join is enabled, all nodes will wait until all nodes have at least 1 Tx cell. So it is allowed to enqueue 1 aditional DAO, JOIN or 6P packet
-            if packet['type'] in [d.APP_TYPE_JOIN,d.RPL_TYPE_DAO,d.IANA_6TOP_TYPE_REQUEST,d.IANA_6TOP_TYPE_RESPONSE]:
-                for p in self.txQueue:
-                    if packet['type'] == p['type']:
-                        # there is already a DAO, JOIN or 6P in que queue, don't add more
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type'])
-                        return False
-                self.txQueue    += [packet]
-                return True
-
-            # update mote stats
-            self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type'])
-
-            return False
-
-        else:
-            # all is good
-            
-            # enqueue packet
+            # add to txQueue
             self.txQueue    += [packet]
-
-            return True
+        
+        return returnVal
 
     # interface with radio
 
-    def txDone(self, isACKed, isNACKed):
+    def txDone(self, isACKed):
         """end of tx slot"""
         
         asn   = self.engine.getAsn()
@@ -250,18 +279,13 @@ class Tsch(object):
         assert self.waitingFor == d.DIR_TX
         
         # log
-        nextHop = self.pktToSend['nextHop'][0]
-        if type(nextHop)!=int:
-            nextHop = nextHop.id # FIXME: agree on format of nextHop...
         self.log(
             SimEngine.SimLog.LOG_TSCH_TXDONE,
             {
-                'mote_id':        self.mote.id,
-                'frame_type':     self.pktToSend['type'],
-                'nextHop':        nextHop,
-                'isACKed':        isACKed,
-                'isNACKed':       isNACKed,
+                '_mote_id':       self.mote.id,
                 'channel':        self.channel,
+                'packet':         self.pktToSend,
+                'isACKed':        isACKed,
             }
         )
         
@@ -269,9 +293,6 @@ class Tsch(object):
 
             # update schedule stats
             self.getSchedule()[ts]['numTxAck'] += 1
-
-            # update queue stats
-            self.mote._stats_logQueueDelay(asn-self.pktToSend['asn'])
 
             # time correction
             if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
@@ -357,67 +378,7 @@ class Tsch(object):
                 else:
                     self._resetBroadcastBackoff()
 
-        elif isNACKed:
-
-            # update schedule stats as if it were successfully transmitted
-            self.getSchedule()[ts]['numTxAck'] += 1
-
-            # time correction
-            if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
-
-            # decrement 'retriesLeft' counter associated with that packet
-            i = self.getTxQueue().index(self.pktToSend)
-            if self.txQueue[i]['retriesLeft'] > 0:
-                self.txQueue[i]['retriesLeft'] -= 1
-
-            # drop packet if retried too many time
-            if self.txQueue[i]['retriesLeft'] == 0:
-
-                if len(self.txQueue) == d.TSCH_QUEUE_SIZE:
-
-                    # only count drops of DATA packets that are part of the experiment
-                    if self.pktToSend['type'] == d.APP_TYPE_DATA:
-                        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_DATA_MAX_RETRIES['type'])
-
-                    # update mote stats
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type'])
-
-                    # remove packet from queue
-                    self.getTxQueue().remove(self.pktToSend)
-
-                    # reset state for this neighbor
-                    # go back to IDLE, i.e. remove the neighbor form the states
-                    # but, in the case of a response msg, if the node received another, already new request, from the same node (because its timer fired), do not go to IDLE
-                    if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                    elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
-                else:
-                    if self.pktToSend['type'] != d.APP_TYPE_DATA:
-                        # update mote stats
-                        self.mote._stats_incrementMoteStats('droppedMacRetries')
-
-                        # remove packet from queue
-                        self.getTxQueue().remove(self.pktToSend)
-
-                        if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                        elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
-
-            # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
-            if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED or (self.getSchedule()[ts]['dir'] == d.DIR_TX and not self.txQueue):
-                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED and self.getSchedule()[ts]['neighbor'] != self.mote._myNeighbors():
-                    self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
-                else:
-                    self._resetBroadcastBackoff()
-
-        elif self.pktToSend['dstIp'] == d.BROADCAST_ADDRESS:
+        elif self.pktToSend['net']['dstIp'] == d.BROADCAST_ADDRESS:
 
             self.getTxQueue().remove(self.pktToSend)
 
@@ -438,20 +399,13 @@ class Tsch(object):
 
             # decrement 'retriesLeft' counter associated with that packet
             i = self.getTxQueue().index(self.pktToSend)
-            if self.txQueue[i]['retriesLeft'] > 0:
-                self.txQueue[i]['retriesLeft'] -= 1
+            if self.txQueue[i]['mac']['retriesLeft'] > 0:
+                self.txQueue[i]['mac']['retriesLeft'] -= 1
 
             # drop packet if retried too many time
-            if self.txQueue[i]['retriesLeft'] == 0:
+            if self.txQueue[i]['mac']['retriesLeft'] == 0:
 
                 if  len(self.txQueue) == d.TSCH_QUEUE_SIZE:
-
-                    # counts drops of DATA packets
-                    if self.pktToSend['type'] == d.APP_TYPE_DATA:
-                        self.mote._stats_incrementMoteStats('droppedDataMacRetries')
-
-                    # update mote stats
-                    self.mote._stats_incrementMoteStats('droppedMacRetries')
 
                     # remove packet from queue
                     self.getTxQueue().remove(self.pktToSend)
@@ -467,9 +421,6 @@ class Tsch(object):
                 else:
                     if self.pktToSend['type'] != d.APP_TYPE_DATA:
 
-                        # update mote stats
-                        self.mote._stats_incrementMoteStats('droppedMacRetries')
-
                         # remove packet from queue
                         self.getTxQueue().remove(self.pktToSend)
 
@@ -482,159 +433,135 @@ class Tsch(object):
         # end of radio activity, not waiting for anything
         self.waitingFor = None
 
-    def rxDone(self, type=None, code=None, smac=None, dmac=None, srcIp=None, dstIp=None, srcRoute=None, payload=None):
+    def rxDone(self, packet):
+        
+        # local variables
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
-            
-        # log
-        if type:
-            if smac:
-                smac_to_print        = smac.id
-            else:
-                smac_to_print        = None
-            if dmac==None:
-                dmac_to_print        = None
-            else:
-                try:
-                    dmac_to_print    = [dm.id for dm in dmac]
-                except AttributeError:
-                    dmac_to_print    = dmac
-            
-            self.log(
-                SimEngine.SimLog.LOG_TSCH_RXDONE,
-                {
-                    'mote_id':        self.mote.id,
-                    'frame_type':     type,
-                    'smac':           smac_to_print,
-                    'dmac':           dmac_to_print,
-                }
-            )
         
+        # make sure I'm in the right state
         if self.getIsSync():
             assert ts in self.getSchedule()
             assert self.getSchedule()[ts]['dir'] == d.DIR_RX or self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED
             assert self.waitingFor == d.DIR_RX
         
-        if smac and ((self.mote in dmac) or (d.BROADCAST_ADDRESS in dmac)):
-            # I received a packet, either unicast for me, or broadcast
-            
-            # time correction
-            if smac == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
-            
-            # update schedule stats
-            if self.getIsSync():
-                self.getSchedule()[ts]['numRx'] += 1
-            
-            # signal activity to SF
-            if self.getIsSync():
-                self.mote.sf.signal_cell_used(
-                    self.mote,
-                    self.getSchedule()[ts]['neighbor'],
-                    self.getSchedule()[ts]['dir'],
-                    d.DIR_RX,
-                    type,
-                )
-
-            if (type == d.APP_TYPE_DATA) or (type == d.APP_TYPE_FRAG):
-                self.waitingFor = None
-                self.mote.sixlowpan.recv(
-                    smac,
-                    {
-                        'asn'        : asn,
-                        'type'       : type,
-                        'code'       : None,
-                        'payload'    : payload,
-                        'srcIp'      : srcIp,
-                        'dstIp'      : dstIp,
-                        'sourceRoute': srcRoute,
-                    },
-                )
-                (isACKed, isNACKed) = (True, False)
-                return isACKed, isNACKed
-
-            if dstIp == d.BROADCAST_ADDRESS:
-                if type == d.RPL_TYPE_DIO:
-                    # got a DIO
-                    self.mote.rpl.action_receiveDIO(type, smac, payload)
-
-                    (isACKed, isNACKed) = (False, False)
-
-                    self.waitingFor = None
-
-                    return isACKed, isNACKed
-                elif type == d.TSCH_TYPE_EB:
-                    self._tsch_action_receiveEB(type, smac, payload)
-
-                    (isACKed, isNACKed) = (False, False)
-
-                    self.waitingFor = None
-
-                    return isACKed, isNACKed
-            elif dstIp == self.mote:
-                # receiving packet
-                if type == d.RPL_TYPE_DAO:
-                    self.mote.rpl.action_receiveDAO(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
-                elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_ADD:  # received an 6P ADD request
-                    self.mote.sixp.receive_ADD_REQUEST(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
-                elif type == d.IANA_6TOP_TYPE_REQUEST and code == d.IANA_6TOP_CMD_DELETE:  # received an 6P DELETE request
-                    self.mote.sixp.receive_DELETE_REQUEST(type, smac, payload)
-                    (isACKed, isNACKed) = (True, False)
-                elif type == d.IANA_6TOP_TYPE_RESPONSE:  # received an 6P response
-                    if self.mote.sixp.receive_RESPONSE(type, code, smac, payload):
-                        (isACKed, isNACKed) = (True, False)
-                    else:
-                        (isACKed, isNACKed) = (False, False)
-                elif type == d.APP_TYPE_ACK:
-                    self.mote.app.action_mote_receiveE2EAck(srcIp=srcIp, payload=payload, timestamp=asn)
-                    (isACKed, isNACKed) = (True, False)
-                elif type == d.APP_TYPE_JOIN:
-                    self.mote.secjoin.receiveJoinPacket(srcIp=srcIp, payload=payload, timestamp=asn)
-                    (isACKed, isNACKed) = (True, False)
-                else:
-                    assert False
-            else:
-                # relaying packet
-
-                # copy the payload and forward
-                newPayload     = copy.deepcopy(payload)
-
-                # create packet
-                relayPacket = {
-                    'asn':         asn,
-                    'type':        type,
-                    'code':        code,
-                    'payload':     newPayload,
-                    'retriesLeft': d.TSCH_MAXTXRETRIES,
-                    'srcIp':       srcIp,
-                    'dstIp':       dstIp,
-                    'sourceRoute': srcRoute,
-                }
-
-                isEnqueued = self.enqueue(relayPacket)
-                if isEnqueued:
-
-                    # update mote stats
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_APP_RELAYED['type'])
-
-                    (isACKed, isNACKed) = (True, False)
-                else:
-                    self.mote.radio.drop_packet(
-                        relayPacket,
-                        SimEngine.SimLog.LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE['type'],
-                    )
-                    (isACKed, isNACKed) = (False, True)
-
-        else:
-            # this was an idle listen
-
-            (isACKed, isNACKed) = (False, False)
-
+        # not waiting for anything anymore
         self.waitingFor = None
-
-        return (isACKed,isNACKed)
+        
+        # abort if received nothing (idle listen)
+        if packet==None:
+            return False # isACKed
+        
+        # abort if unicast to some other mote
+        if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS,self.mote.id]:
+            return False # isACKed
+        
+        # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_RXDONE,
+            {
+                '_mote_id':        self.mote.id,
+                'packet':          packet,
+            }
+        )
+        
+        # time correction
+        if packet['mac']['srcMac'] == self.mote.rpl.getPreferredParent():
+            self.asnLastSync = asn
+        
+        # update schedule stats
+        if self.getIsSync():
+            self.getSchedule()[ts]['numRx'] += 1
+        
+        # signal activity to SF
+        if self.getIsSync():
+            self.mote.sf.signal_cell_used(
+                self.mote,
+                self.getSchedule()[ts]['neighbor'],
+                self.getSchedule()[ts]['dir'],
+                d.DIR_RX,
+                packet['type'],
+            )
+        
+        if   packet['mac']['dstMac']==self.mote.id:
+            # link-layer unicast to me
+            
+            # ACK frame
+            isACKed = True
+            
+            # dispatch to the right upper layer
+            if   packet['type'] == d.IANA_6TOP_ADD_REQUEST:
+                self.mote.sixp.receive_ADD_REQUEST(packet)
+            elif packet['type'] == d.IANA_6TOP_DELETE_REQUEST:
+                self.mote.sixp.receive_DELETE_REQUEST(packet)
+            elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
+                self.mote.sixp.receive_RESPONSE(packet)
+            else:
+                if   packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
+                    # link-layer unicast, ip-layer broadcast
+                    
+                    raise SystemError()
+                elif packet['net']['dstIp'] == self.mote.id:
+                    # link-layer unicast, ip-layer unicast for me
+                    
+                    if   packet['type'] == d.APP_TYPE_JOIN:
+                        self.mote.secjoin.receiveJoinPacket(packet)
+                        isACKed = True
+                    elif packet['type'] == d.APP_TYPE_ACK:
+                        self.mote.app.action_mote_receiveE2EAck(packet)
+                        isACKed = True
+                    elif packet['type'] == d.RPL_TYPE_DAO:
+                        self.mote.rpl.action_receiveDAO(packet)
+                    elif packet['type'] in [d.APP_TYPE_DATA,d.APP_TYPE_FRAG]:
+                        self.mote.sixlowpan.recv(packet)
+                    else:
+                        raise SystemError()
+                else:
+                    # link-layer unicast, ip-layer unicast for someone else
+                    
+                    # relay!
+                    
+                    # create net-level packet
+                    relayPacket = {
+                        'type':        copy.deepcopy(packet['type']),
+                        'app':         copy.deepcopy(packet['app']),
+                        'net':         copy.deepcopy(packet['net']),
+                    }
+                    
+                    # enqueue
+                    self.enqueue(relayPacket)
+            
+        elif packet['mac']['dstMac']==d.BROADCAST_ADDRESS:
+            # link-layer broadcast
+            
+            # do NOT ACK frame
+            isACKed = False
+            
+            # dispatch to the right upper layer
+            if   packet['type'] == d.TSCH_TYPE_EB:
+                self._tsch_action_receiveEB(packet)
+            else:
+                if   packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
+                    # link-layer broadcast, ip-layer broadcast
+                    
+                    if packet['type'] == d.RPL_TYPE_DIO:
+                        self.mote.rpl.action_receiveDIO(packet)
+                    else:
+                        raise SystemError()
+                elif packet['net']['dstIp'] == self.mote:
+                    # link-layer broadcast, ip-layer unicast to me
+                    
+                    raise SystemError()
+                else:
+                    # link-layer broadcast, ip-layer unicast to someone else
+                    
+                    raise SystemError()
+        else:
+            raise SystemError()
+        
+        return isACKed
 
     def getOffsetToDagRoot(self):
         """
@@ -647,7 +574,7 @@ class Tsch(object):
         asn                  = self.engine.getAsn()
         offset               = 0.0
         child                = self.mote
-        parent               = self.mote.rpl.getPreferredParent()
+        parent               = self.engine.motes[self.mote.rpl.getPreferredParent()]
 
         if child.tsch.asnLastSync:
             while True:
@@ -659,10 +586,18 @@ class Tsch(object):
                     break
                 else:
                     child        = parent
-                    parent       = child.rpl.getPreferredParent()
+                    parent       = self.engine.motes[child.rpl.getPreferredParent()]
 
         return offset
-
+    
+    def removeTypeFromQueue(self,type):
+        i = 0
+        while i<len(self.txQueue):
+            if self.txQueue[i]['type'] == type:
+                del self.txQueue[i]
+            else:
+                i += 1
+    
     #======================== private ==========================================
     
     # listeningForEB
@@ -747,12 +682,13 @@ class Tsch(object):
 
         # make sure this is an active slot
         assert ts in self.schedule
+        
         # make sure we're not in the middle of a TX/RX operation
         assert not self.waitingFor
 
         cell = self.schedule[ts]
 
-        # Signal to scheduling function that a cell to a neighbor has been triggered
+        # signal to scheduling function that a cell to a neighbor has been triggered
         self.mote.sf.signal_cell_elapsed(
             self.mote,
             cell['neighbor'],
@@ -778,8 +714,11 @@ class Tsch(object):
             # find packet to send
             self.pktToSend = None
             for pkt in self.txQueue:
+            
+                assert sorted(pkt.keys()) == sorted(['type','app','net','mac'])
+            
                 # send the frame if next hop matches the cell destination
-                if pkt['nextHop'] == [cell['neighbor']]:
+                if packet['mac']['dstMac'] == cell['neighbor'].id:
                     self.pktToSend = pkt
                     break
 
@@ -794,9 +733,11 @@ class Tsch(object):
                     d.DIR_TX,
                     pkt['type'],
                 )
-
+                
+                # update cell stats
                 cell['numTx'] += 1
 
+                '''
                 if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                     if   pkt['code'] == d.IANA_6TOP_CMD_ADD:
                         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
@@ -820,18 +761,12 @@ class Tsch(object):
                         pass
                     else:
                         raise SystemError()
-
+                '''
+                
                 # send packet to the radio
                 self.mote.radio.startTx(
                     channel   = cell['ch'],
-                    type      = self.pktToSend['type'],
-                    code      = self.pktToSend['code'],
-                    smac      = self.mote,
-                    dmac      = [cell['neighbor']],
-                    srcIp     = self.pktToSend['srcIp'],
-                    dstIp     = self.pktToSend['dstIp'],
-                    srcRoute  = self.pktToSend['sourceRoute'],
-                    payload   = self.pktToSend['payload'],
+                    packet    = self.pktToSend,
                 )
 
                 # indicate that we're waiting for the TX operation to finish
@@ -852,9 +787,9 @@ class Tsch(object):
                                 or
                                 # other frames on the minimal cell if no dedicated cells to the nextHop
                                 (
-                                    self.getTxCells(pkt['nextHop'][0])==[]
+                                    self.getTxCells(pkt['mac']['dstMac'])==[]
                                     and
-                                    self.getSharedCells(pkt['nextHop'][0])==[]
+                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
                                 )
                             ):
                             self.pktToSend = pkt
@@ -882,9 +817,10 @@ class Tsch(object):
             # send packet
             if self.pktToSend:
 
+                # update cell stats
                 cell['numTx'] += 1
 
-                # to scheduling function that a cell to a neighbor is used
+                # signal to scheduling function that a cell to a neighbor is used
                 self.mote.sf.signal_cell_used(
                     self.mote,
                     cell['neighbor'],
@@ -892,7 +828,8 @@ class Tsch(object):
                     d.DIR_TX,
                     pkt['type'],
                 )
-
+                
+                '''
                 if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
                     if pkt['code'] == d.IANA_6TOP_CMD_ADD:
                         self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_6TOP_TX_ADD_REQ['type'])
@@ -916,18 +853,12 @@ class Tsch(object):
                         pass
                     else:
                         assert False
+                '''
 
                 # send packet to the radio
                 self.mote.radio.startTx(
                     channel   = cell['ch'],
-                    type      = self.pktToSend['type'],
-                    code      = self.pktToSend['code'],
-                    smac      = self.mote,
-                    dmac      = self.pktToSend['nextHop'],
-                    srcIp     = self.pktToSend['srcIp'],
-                    dstIp     = self.pktToSend['dstIp'],
-                    srcRoute  = self.pktToSend['sourceRoute'],
-                    payload   = self.pktToSend['payload'],
+                    packet    = self.pktToSend,
                 )
 
                 # indicate that we're waiting for the TX operation to finish
@@ -980,7 +911,7 @@ class Tsch(object):
                         self.mote.dagRoot
                         or
                         (
-                            self.mote.rpl.getPreferredParent()
+                            self.mote.rpl.getPreferredParent()!=None
                             and
                             (
                                 (
@@ -1000,36 +931,33 @@ class Tsch(object):
                     
                     # create new packet
                     newEB = {
-                        'type':         d.TSCH_TYPE_EB,
-                        'asn':          self.engine.getAsn(),
-                        'code':         None,
-                        'payload':      [self.mote.rpl.getDagRank()],  # the payload is the rpl rank
-                        'retriesLeft':  1,  # do not retransmit broadcast
-                        'srcIp':        self.mote,
-                        'dstIp':        d.BROADCAST_ADDRESS,
-                        'sourceRoute':  [],
+                        'type':             d.TSCH_TYPE_EB,
+                        'app': {
+                            'jp':           self.mote.rpl.getDagRank(),
+                        },
+                        'net': {
+                            'srcIp':        self.mote.id,            # from mote
+                            'dstIp':        d.BROADCAST_ADDRESS,     # broadcast
+                        },
                     }
 
+                    # remove other possible EBs from the queue
+                    self.removeTypeFromQueue(d.TSCH_TYPE_EB)
+                    
                     # enqueue packet in TSCH queue
-                    if not self.enqueue(newEB):
-                        # update mote stats
-                        self.mote.radio.drop_packet(newEB, SimEngine.SimLog.LOG_TSCH_DROP_FAIL_ENQUEUE['type'])
-
-                    # stats
-                    self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_TX_EB['type'])
+                    self.enqueue(newEB)
 
         # schedule next EB
         self._tsch_schedule_sendEB()
 
-    def _tsch_action_receiveEB(self, type, smac, payload):
+    def _tsch_action_receiveEB(self, packet):
+        
+        assert packet['type'] == d.TSCH_TYPE_EB
         
         # abort if I'm the root
         if self.mote.dagRoot:
             return
-
-        # got an EB, increment stats
-        self.mote._stats_incrementMoteStats(SimEngine.SimLog.LOG_TSCH_RX_EB['type'])
-
+        
         if not self.getIsSync():
             # receiving EB while not sync'ed
             

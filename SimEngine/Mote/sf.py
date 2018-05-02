@@ -145,7 +145,7 @@ class MSF(SchedulingFunction):
           In the case of bootstrap, add one cell to the preferred parent.
         """
         
-        assert self.mote.rpl.getPreferredParent()
+        assert self.mote.rpl.getPreferredParent()!=None
 
         armTimeout = False
 
@@ -247,7 +247,7 @@ class MSF(SchedulingFunction):
                     'neighbor': neighbor.id,
                     'direction': direction,
                     'cell_type': celltype,
-                    'prefered_parent': mote.rpl.getPreferredParent().id
+                    'prefered_parent': mote.rpl.getPreferredParent()
                 }
             )
             mote.sf.numCellsUsed += 1
@@ -351,7 +351,7 @@ class MSF(SchedulingFunction):
                 {
                     'cell_count': self.settings.sf_msf_numCellsToAddRemove,
                     'cell_options': celloptions,
-                    'neighbor': mote.rpl.getPreferredParent().id,
+                    'neighbor': mote.rpl.getPreferredParent(),
                     'timeout': timeout
                 }
             )

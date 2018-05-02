@@ -67,3 +67,30 @@ def test_enqueue_under_full_tx_queue(
 
     # the second enqueuing test_frame should always fail
     assert hop1.tsch.enqueue(test_frame) == False
+
+def test_removeTypeFromQueue(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1,
+        },
+    )
+    
+    mote = sim_engine.motes[0]
+    
+    mote.tsch.txQueue = [
+        {'type': 1},
+        {'type': 2},
+        {'type': 3},
+        {'type': 4},
+        {'type': 3},
+        {'type': 5},
+    ]
+    mote.tsch.removeTypeFromQueue(type=3)
+    assert mote.tsch.txQueue == [
+        {'type': 1},
+        {'type': 2},
+        # removed
+        {'type': 4},
+        # removed
+        {'type': 5},
+    ]

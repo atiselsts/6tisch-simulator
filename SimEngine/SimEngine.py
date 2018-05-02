@@ -294,7 +294,7 @@ class SimEngine(DiscreteEventEngine):
     
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
-        self.motes                      = [Mote.Mote.Mote(mote_id) for mote_id in range(self.settings.exec_numMotes)]
+        self.motes                      = [Mote.Mote.Mote(m) for m in range(self.settings.exec_numMotes)]
         self.connectivity               = Connectivity.Connectivity()
         self.log                        = SimLog.SimLog().log
         SimLog.SimLog().set_simengine(self)
