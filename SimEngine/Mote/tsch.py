@@ -262,7 +262,7 @@ class Tsch(object):
     # interface with radio
 
     def txDone(self, isACKed):
-        """end of tx slot"""
+        assert isACKed in [True,False]
         
         asn   = self.engine.getAsn()
         ts    = asn % self.settings.tsch_slotframeLength
@@ -282,147 +282,71 @@ class Tsch(object):
             }
         )
         
-        if isACKed:
-
-            # update schedule stats
-            self.getSchedule()[ts]['numTxAck'] += 1
-
-            # time correction
-            if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
-                self.asnLastSync = asn
-
-            # received an ACK for the request, change state and increase the sequence number
-            if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                if self.pktToSend['code'] == d.IANA_6TOP_CMD_ADD:
-                    assert self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] == d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDRESPONSE
-
-                    # calculate the asn at which it should fire
-                    fireASN = int(self.engine.getAsn() + (
-                                float(self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
-                    uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
-                    self.engine.scheduleAtAsn(
-                        asn            = fireASN,
-                        cb             = self.mote.sixp.timer_fired,
-                        uniqueTag      = (self.mote.id, uniqueTag),
-                        intraSlotOrder = 5,
-                    )
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
-                    self.log(
-                        SimEngine.SimLog.LOG_6TOP_INFO,
-                        {
-                            "info": "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}"
-                            .format(
-                                self.mote.id,
-                                self.pktToSend['dstIp'].id,
-                                fireASN,
-                                str(uniqueTag)
-                            )
-                        }
-                    )
-                elif self.pktToSend['code'] == d.IANA_6TOP_CMD_DELETE:
-                    assert self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] == d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETERESPONSE
-
-                    # calculate the asn at which it should fire
-                    fireASN = int(self.engine.getAsn() + (float(self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timeout']) / float(self.settings.tsch_slotDuration)))
-                    uniqueTag = '_sixtop_timer_fired_dest_%s' % self.pktToSend['dstIp'].id
-                    self.engine.scheduleAtAsn(
-                        asn            = fireASN,
-                        cb             = self.mote.sixp.timer_fired,
-                        uniqueTag      = (self.mote.id, uniqueTag),
-                        intraSlotOrder = 5,
-                    )
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer'] = {}
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['tag'] = (self.mote.id, uniqueTag)
-                    self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['timer']['asn'] = fireASN
-                    self.log(
-                        SimEngine.SimLog.LOG_6TOP_INFO,
-                        {
-                            "info": "[6top] activated a timer for mote {0} to neighbor {1} on asn {2} with tag {3}"
-                            .format(
-                                self.mote.id,
-                                self.pktToSend['dstIp'].id,
-                                fireASN,
-                                str(self.mote.id),
-                                str(uniqueTag)
-                            )
-                        }
-                    )
-                else:
-                    assert False
-
-            # save it in a tmp variable
-            # because it is possible that self.getSchedule()[ts] does not exist anymore after receiving an ACK for a DELETE RESPONSE
-            tmpNeighbor = self.getSchedule()[ts]['neighbor']
-            tmpDir = self.getSchedule()[ts]['dir']
-
-            if self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE: # received an ACK for the response, handle the schedule
-                self.mote.sixp.receive_RESPONSE_ACK(self.pktToSend)
-
+        if self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
+            # I just sent a broadcast packet
+            
+            assert isACKed==False
+            
             # remove packet from queue
             self.getTxQueue().remove(self.pktToSend)
-            # reset backoff in case of shared slot or in case of a tx slot when the queue is empty
-            if tmpDir == d.DIR_TXRX_SHARED or (tmpDir == d.DIR_TX and not self.txQueue):
-                if tmpDir == d.DIR_TXRX_SHARED and tmpNeighbor != self.mote._myNeighbors():
-                    self._resetBackoffPerNeigh(tmpNeighbor)
-                else:
-                    self._resetBroadcastBackoff()
-
-        elif self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
-
-            self.getTxQueue().remove(self.pktToSend)
-
+            
+            # reset backoff
             self._resetBroadcastBackoff()
-
         else:
+            # I just sent a unicast packet...
+        
+            # TODO send txDone up
+        
+            if isACKed:
+                # ... which was ACKed
 
-            # increment backoffExponent and get new backoff value
-            if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED:
-                if self.getSchedule()[ts]['neighbor'] == self.mote._myNeighbors():
-                    if self.backoffBroadcastExponent < d.TSCH_MAX_BACKOFF_EXPONENT:
-                        self.backoffBroadcastExponent += 1
-                    self.backoffBroadcast = random.randint(0, 2 ** self.backoffBroadcastExponent - 1)
-                else:
-                    if self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] < d.TSCH_MAX_BACKOFF_EXPONENT:
-                        self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] += 1
-                    self.backoffPerNeigh[self.getSchedule()[ts]['neighbor']] = random.randint(0, 2 ** self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] - 1)
+                # update schedule stats
+                self.getSchedule()[ts]['numTxAck'] += 1
 
-            # decrement 'retriesLeft' counter associated with that packet
-            i = self.getTxQueue().index(self.pktToSend)
-            if self.txQueue[i]['mac']['retriesLeft'] > 0:
-                self.txQueue[i]['mac']['retriesLeft'] -= 1
+                # time correction
+                if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
+                    self.asnLastSync = asn
+                
+                # remove packet from queue
+                self.getTxQueue().remove(self.pktToSend)
 
-            # drop packet if retried too many time
-            if self.txQueue[i]['mac']['retriesLeft'] == 0:
+                # update backoff
+                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED or (self.getSchedule()[ts]['dir'] == d.DIR_TX and not self.txQueue):
+                    if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED and self.getSchedule()[ts]['neighbor'] != self.mote._myNeighbors():
+                        self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
+                    else:
+                        self._resetBroadcastBackoff()
 
-                if  len(self.txQueue) == d.TSCH_QUEUE_SIZE:
+            else:
+                # ... which was NOT ACKed
+
+                # decrement 'retriesLeft' counter associated with that packet
+                assert self.pktToSend['mac']['retriesLeft'] > 0
+                self.pktToSend['mac']['retriesLeft'] -= 1
+
+                # drop packet if retried too many time
+                if self.pktToSend['mac']['retriesLeft'] == 0:
 
                     # remove packet from queue
                     self.getTxQueue().remove(self.pktToSend)
 
-                    # reset state for this neighbor
-                    # go back to IDLE, i.e. remove the neighbor form the states
-                    if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                    elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
-                else:
-                    if self.pktToSend['type'] != d.APP_TYPE_DATA:
+                    # drop
+                    self.mote.radio.drop_packet(
+                        pkt     = self.pktToSend,
+                        reason  = SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type']
+                    )
 
-                        # remove packet from queue
-                        self.getTxQueue().remove(self.pktToSend)
-
-                        if self.pktToSend['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['tx']['blockedCells'] = []
-                        elif self.pktToSend['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['state'] = d.SIX_STATE_IDLE
-                            self.mote.sixp.getSixtopStates()[self.pktToSend['dstIp'].id]['rx']['blockedCells'] = []
+                # update backoff
+                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED:
+                    if self.getSchedule()[ts]['neighbor'] == self.mote._myNeighbors():
+                        if self.backoffBroadcastExponent < d.TSCH_MAX_BACKOFF_EXPONENT:
+                            self.backoffBroadcastExponent += 1
+                        self.backoffBroadcast = random.randint(0, 2 ** self.backoffBroadcastExponent - 1)
+                    else:
+                        if self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] < d.TSCH_MAX_BACKOFF_EXPONENT:
+                            self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] += 1
+                        self.backoffPerNeigh[self.getSchedule()[ts]['neighbor']] = random.randint(0, 2 ** self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] - 1)
+        
         # end of radio activity, not waiting for anything
         self.waitingFor = None
 
@@ -445,7 +369,7 @@ class Tsch(object):
         if packet==None:
             return False # isACKed
         
-        # abort if unicast to some other mote
+        # abort if I received a frame for someone else
         if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS,self.mote.id]:
             return False # isACKed
         
@@ -478,38 +402,7 @@ class Tsch(object):
                 packet['type'],
             )
 
-        if   'net' in packet:
-            # sanity-check:
-            # - unicast IPv6 packet should have unicast MAC address
-            # - broadcast (multicast) IPv6 packet should have broadcast MAC address
-            if (
-                    (packet['type'] != d.NET_TYPE_FRAG)
-                    and
-                    (
-                        (
-                            (packet['mac']['dstMac'] == self.mote.id)
-                            and
-                            (packet['net']['dstIp']  == d.BROADCAST_ADDRESS)
-                        )
-                        or
-                        (
-                            (packet['type']          != d.NET_TYPE_FRAG)
-                            and
-                            (packet['mac']['dstMac'] == d.BROADCAST_ADDRESS)
-                            and
-                            (packet['net']['dstIp']  != d.BROADCAST_ADDRESS)
-                        )
-                    )
-               ):
-                raise SystemError()
-
-            # ACK frame
-            isACKed = True
-
-            # network-layer packet; pass it to sixlowpan
-            self.mote.sixlowpan.recvPacket(packet)
-
-        elif packet['mac']['dstMac']==self.mote.id:
+        if   packet['mac']['dstMac']==self.mote.id:
             # link-layer unicast to me
             
             # ACK frame
@@ -522,20 +415,29 @@ class Tsch(object):
                 self.mote.sixp.receive_DELETE_REQUEST(packet)
             elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                 self.mote.sixp.receive_RESPONSE(packet)
+            elif 'net' in packet:
+                self.mote.sixlowpan.recvPacket(packet)
+            else:
+                raise SystemError()
 
         elif packet['mac']['dstMac']==d.BROADCAST_ADDRESS:
             # link-layer broadcast
             
-            # do NOT ACK frame
+            # do NOT ACK frame (broadcast)
             isACKed = False
             
             # dispatch to the right upper layer
             if   packet['type'] == d.TSCH_TYPE_EB:
                 self._tsch_action_receiveEB(packet)
+            elif 'net' in packet:
+                assert packet['type']==d.RPL_TYPE_DIO
+                self.mote.sixlowpan.recvPacket(packet)
+            else:
+                raise SystemError()
 
         else:
             raise SystemError()
-        
+
         return isACKed
 
     def getOffsetToDagRoot(self):
@@ -564,7 +466,7 @@ class Tsch(object):
                     parent       = self.engine.motes[child.rpl.getPreferredParent()]
 
         return offset
-    
+
     def removeTypeFromQueue(self,type):
         i = 0
         while i<len(self.txQueue):
@@ -572,7 +474,7 @@ class Tsch(object):
                 del self.txQueue[i]
             else:
                 i += 1
-    
+
     #======================== private ==========================================
     
     # listeningForEB
