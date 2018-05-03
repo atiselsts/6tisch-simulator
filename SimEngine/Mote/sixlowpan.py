@@ -33,17 +33,6 @@ class Sixlowpan(object):
         
         # local variables
         self.fragmentation        = globals()[self.settings.fragmentation](self)
-        self.next_datagram_tag    = random.randint(0, 2**16-1)
-        # "reassembly_buffers" has mote instances as keys. Each value is a list.
-        # A list is indexed by incoming datagram_tags.
-        #
-        # An element of the list a dictionary consisting of three key-values:
-        # "net", "expiration" and "fragments".
-        #
-        # - "net" has srcIp and dstIp of the packet
-        # - "fragments" holds received fragments, although only their
-        # datagram_offset and lengths are stored in the "fragments" list.
-        self.reassembly_buffers   = {}
 
     #======================== public ==========================================
 
@@ -84,13 +73,165 @@ class Sixlowpan(object):
         
         # cut packet into fragments
         if goOn:
-            frags = self.fragmentPacket(packet)
+            frags = self.fragmentation.fragmentPacket(packet)
         
         # enqueue each fragment
         if goOn:
             for frag in frags:
                 self.mote.tsch.enqueue(frag)
+    
+    def recv(self, packet):
+        
+        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        
+        goOn = True
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
+            {
+                '_mote_id':        self.mote.id,
+                'packet':          packet,
+            }
+        )
+        
+        # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
+        if goOn:
+            if packet['type'] == d.NET_TYPE_FRAG:
+                packet = self.fragmentation.fragRecv(packet)
+                if not packet:
+                    goOn = False
+        
+        # handle packet
+        if goOn:
+            if  (
+                    packet['type']!=d.NET_TYPE_FRAG # in case of fragment forwarding
+                    and
+                    (
+                        (packet['net']['dstIp'] == self.mote.id)
+                        or
+                        (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
+                    )
+                ):
+                # packet for me
+                
+                # dispatch to upper component
+                if   packet['type'] == d.APP_TYPE_JOIN:
+                    self.mote.secjoin.receiveJoinPacket(packet)
+                elif packet['type'] == d.RPL_TYPE_DAO:
+                    self.mote.rpl.action_receiveDAO(packet)
+                elif packet['type'] == d.RPL_TYPE_DIO:
+                    self.mote.rpl.action_receiveDIO(packet)
+                elif packet['type'] == d.APP_TYPE_DATA:
+                    self.mote.app._action_receivePacket(packet)
+                elif packet['type'] == d.APP_TYPE_ACK:
+                    self.mote.app.action_mote_receiveE2EAck(packet)
+                else:
+                    raise SystemError()
 
+            else:
+                # packet not for me
+
+                # forward
+                self.forward(packet)
+    
+    def forward(self, packet):
+        # packet can be:
+        # - an IPv6 packet (which may need fragmentation)
+        # - a fragment (fragment forwarding)
+        
+        assert 'type' in packet
+        assert 'net' in packet
+        
+        goOn = True
+        
+        # === create forwarded packet
+        if goOn:
+            fwdPacket             = {}
+            # type
+            fwdPacket['type']     = copy.deepcopy(packet['type'])
+            # app
+            if 'app' in packet:
+                fwdPacket['app']  = copy.deepcopy(packet['app'])
+            # net
+            fwdPacket['net']      = copy.deepcopy(packet['net'])
+            # mac
+            if fwdPacket['type'] == d.NET_TYPE_FRAG:
+                # fragment already has mac header (FIXME: why?)
+                fwdPacket['mac']  = copy.deepcopy(packet['mac'])
+            else:
+                # find next hop
+                dstMac = self.mote.rpl.findNextHopId(fwdPacket['net']['dstIp'])
+                if dstMac==None:
+                    # we cannot find a next-hop; drop this packet
+                    self.mote.radio.drop_packet(
+                        pkt     = packet,
+                        reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                    )
+                    # stop handling this packet
+                    goOn = False
+                else:
+                    # add MAC header
+                    fwdPacket['mac'] = {
+                        'srcMac': self.mote.id,
+                        'dstMac': dstMac
+                    }
+
+        # log
+        if goOn:
+            self.log(
+                SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
+                {
+                    '_mote_id':       self.mote.id,
+                    'packet':         fwdPacket,
+                }
+            )
+        
+        # cut the forwarded packet into fragments
+        if goOn:
+            if fwdPacket['type']==d.NET_TYPE_FRAG:
+                fwdFrags = [fwdPacket] # don't re-frag a frag
+            else:
+                fwdFrags = self.fragmentation.fragmentPacket(fwdPacket)
+        
+        # enqueue all frags
+        if goOn:
+            for fwdFrag in fwdFrags:
+                self.mote.tsch.enqueue(fwdFrag)
+    
+    #======================== private ==========================================
+
+
+class Fragmentation(object):
+    """The base class for forwarding implementations of fragments
+    """
+
+    def __init__(self, sixlowpan):
+        
+        # store params
+        self.sixlowpan            = sixlowpan
+        
+        # singletons
+        self.settings             = SimEngine.SimSettings.SimSettings()
+        self.engine               = SimEngine.SimEngine.SimEngine()
+        self.log                  = SimEngine.SimLog.SimLog().log
+        
+        # local variables
+        self.mote                 = sixlowpan.mote
+        self.next_datagram_tag    = random.randint(0, 2**16-1)
+        # "reassembly_buffers" has mote instances as keys. Each value is a list.
+        # A list is indexed by incoming datagram_tags.
+        #
+        # An element of the list a dictionary consisting of three key-values:
+        # "net", "expiration" and "fragments".
+        #
+        # - "net" has srcIp and dstIp of the packet
+        # - "fragments" holds received fragments, although only their
+        # datagram_offset and lengths are stored in the "fragments" list.
+        self.reassembly_buffers   = {}
+
+    #======================== public ==========================================
+    
     def fragmentPacket(self, packet):
         """Fragments a packet into fragments
 
@@ -213,131 +354,20 @@ class Sixlowpan(object):
 
         return returnVal
     
-    def recv(self, packet):
-        
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
-        
-        goOn = True
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
-            {
-                '_mote_id':        self.mote.id,
-                'packet':          packet,
-            }
-        )
-        
-        # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
-        if goOn:
-            if packet['type'] == d.NET_TYPE_FRAG:
-                packet = self.fragmentation.fragRecv(packet)
-                if not packet:
-                    goOn = False
-        
-        # handle packet
-        if goOn:
-            if  (
-                    packet['type']!=d.NET_TYPE_FRAG # in case of fragment forwarding
-                    and
-                    (
-                        (packet['net']['dstIp'] == self.mote.id)
-                        or
-                        (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
-                    )
-                ):
-                # packet for me
-                
-                # dispatch to upper component
-                if   packet['type'] == d.APP_TYPE_JOIN:
-                    self.mote.secjoin.receiveJoinPacket(packet)
-                elif packet['type'] == d.RPL_TYPE_DAO:
-                    self.mote.rpl.action_receiveDAO(packet)
-                elif packet['type'] == d.RPL_TYPE_DIO:
-                    self.mote.rpl.action_receiveDIO(packet)
-                elif packet['type'] == d.APP_TYPE_DATA:
-                    self.mote.app._action_receivePacket(packet)
-                elif packet['type'] == d.APP_TYPE_ACK:
-                    self.mote.app.action_mote_receiveE2EAck(packet)
-                else:
-                    raise SystemError()
+    @abstractmethod
+    def fragRecv(self, fragment):
+        """This method is supposed to return a packet to be processed further
 
-            else:
-                # packet not for me
-
-                # forward
-                self.forward(packet)
+        This could return None.
+        """
+        raise NotImplementedError()
     
-    def forward(self, packet):
-        # packet can be:
-        # - an IPv6 packet (which may need fragmentation)
-        # - a fragment (fragment forwarding)
-        
-        assert 'type' in packet
-        assert 'net' in packet
-        
-        goOn = True
-        
-        # === create forwarded packet
-        if goOn:
-            fwdPacket = {}
-            # type
-            fwdPacket['type']     = copy.deepcopy(packet['type'])
-            # app
-            if 'app' in packet:
-                fwdPacket['app']  = copy.deepcopy(packet['app'])
-            # net
-            fwdPacket['net']      = copy.deepcopy(packet['net'])
-            # mac
-            if fwdPacket['type'] == d.NET_TYPE_FRAG:
-                # fragment already has mac header (FIXME: why?)
-                fwdPacket['mac']  = copy.deepcopy(packet['mac'])
-            else:
-                # find next hop
-                dstMac = self.mote.rpl.findNextHopId(fwdPacket['net']['dstIp'])
-                if dstMac==None:
-                    # we cannot find a next-hop; drop this packet
-                    self.mote.radio.drop_packet(
-                        pkt     = packet,
-                        reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
-                    )
-                    # stop handling this packet
-                    goOn = False
-                else:
-                    # add MAC header
-                    fwdPacket['mac'] = {
-                        'srcMac': self.mote.id,
-                        'dstMac': dstMac
-                    }
-
-        # log
-        if goOn:
-            self.log(
-                SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
-                {
-                    '_mote_id':       self.mote.id,
-                    'packet':         fwdPacket,
-                }
-            )
-        
-        # fragment
-        if goOn:
-            if fwdPacket['type']==d.NET_TYPE_FRAG:
-                fwdFrags = [fwdPacket] # don't re-frag a frag
-            else:
-                fwdFrags = self.fragmentPacket(fwdPacket)
-        
-        # enqueue all frags
-        if goOn:
-            for fwdFrag in fwdFrags:
-                self.mote.tsch.enqueue(fwdFrag)
-
-    def reassemble(self, fragment):
-        srcMac                = fragment['mac']['srcMac']
-        datagram_size         = fragment['net']['datagram_size']
-        datagram_offset       = fragment['net']['datagram_offset']
-        incoming_datagram_tag = fragment['net']['datagram_tag']
-        buffer_lifetime  = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
+    def reassemblePacket(self, fragment):
+        srcMac                    = fragment['mac']['srcMac']
+        datagram_size             = fragment['net']['datagram_size']
+        datagram_offset           = fragment['net']['datagram_offset']
+        incoming_datagram_tag     = fragment['net']['datagram_tag']
+        buffer_lifetime           = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
 
         self._remove_expired_reassembly_buffer()
 
@@ -405,14 +435,14 @@ class Sixlowpan(object):
             del self.reassembly_buffers[srcMac]
 
         return packet
-
-    #======================== private ==========================================
+    
+    # ======================= private =========================================    
     
     def _get_next_datagram_tag(self):
         ret = self.next_datagram_tag
         self.next_datagram_tag = (ret + 1) % 65536
         return ret
-
+    
     def _remove_expired_reassembly_buffer(self):
         if len(self.reassembly_buffers) == 0:
             return
@@ -427,55 +457,26 @@ class Sixlowpan(object):
             if len(self.reassembly_buffers[srcMac]) == 0:
                 del self.reassembly_buffers[srcMac]
 
-
-class Fragmentation(object):
-    """The base class for forwarding implementations of fragments
-    """
-
-    def __init__(self, sixlowpan):
-        self.sixlowpan = sixlowpan
-        self.mote      = sixlowpan.mote
-        self.settings  = SimEngine.SimSettings.SimSettings()
-        self.engine    = SimEngine.SimEngine.SimEngine()
-        self.log       = SimEngine.SimLog.SimLog().log
-
-    #======================== public ==========================================
-
-    @abstractmethod
-    def fragRecv(self, fragment):
-        """This method is supposed to return a packet to be processed further
-
-        This could return None.
-        """
-        raise NotImplementedError()
-
-
 class PerHopReassembly(Fragmentation):
-    """The typical 6LoWPAN reassembly and fragmentation implementation.
-
-    Each intermediate node between the source node and the destination
-    node of the fragments of a packet reasembles the original packet and
-    fragment it again before forwarding the fragments to its next-hop.
+    """
+    RFC4944-like per-hop fragmentation and reassembly.
     """
     #======================== public ==========================================
 
     def fragRecv(self, fragment):
         """Reassemble an original packet
         """
-        return self.sixlowpan.reassemble(fragment)
+        return self.reassemblePacket(fragment)
 
 
 class FragmentForwarding(Fragmentation):
-    """Fragment Forwarding implementation.
-
-    A fragment is forwarded without reassembling the original packet
-    using VRB Table. For further information, see this I-d:
-    https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment
+    """
+    Fragment forwarding, per https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment
     """
 
     def __init__(self, sixlowpan):
         super(FragmentForwarding, self).__init__(sixlowpan)
-        self.vrb_table   = {}
+        self.vrb_table       = {}
 
     #======================== public ==========================================
 
@@ -531,7 +532,7 @@ class FragmentForwarding(Fragmentation):
                 self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = None
             else:
                 self.vrb_table[srcMac][incoming_datagram_tag]['dstMac']                = dstMac
-                self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = self.sixlowpan._get_next_datagram_tag()
+                self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = self._get_next_datagram_tag()
 
             self.vrb_table[srcMac][incoming_datagram_tag]['expiration'] = self.engine.getAsn() + entry_lifetime
 
@@ -560,7 +561,7 @@ class FragmentForwarding(Fragmentation):
             if self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] is None:
                 # fragment for me: do not forward but reassemble. ret will have
                 # either a original packet or None
-                ret = self.sixlowpan.reassemble(fragment)
+                ret = self.reassemblePacket(fragment)
 
             else:
                 # need to create a new packet in order to distinguish between the
