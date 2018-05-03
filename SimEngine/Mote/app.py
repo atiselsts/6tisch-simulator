@@ -227,7 +227,7 @@ class AppPeriodic(AppBase):
         # schedule
         self.engine.scheduleIn(
             delay           = delay,
-            cb              = self._event_handler,
+            cb              = self._send_a_single_packet,
             uniqueTag       = (
                 'AppPeriodic',
                 'scheduled_by_{0}'.format(self.mote.id)
@@ -235,7 +235,7 @@ class AppPeriodic(AppBase):
             intraSlotOrder  = 2,
             )
 
-    def _event_handler(self):
+    def _send_a_single_packet(self):
         self._send_packet(
             dstIp          = self.mote.dagRootId,
             packet_type    = d.APP_TYPE_DATA,
@@ -255,7 +255,7 @@ class AppBurst(AppBase):
         # schedule app_burstNumPackets packets at pkScheduleAt
         self.engine.scheduleIn(
             delay           = self.settings.app_burstTimestamp,
-            cb              = self._send_packets,
+            cb              = self._send_burst_packets,
             uniqueTag       = (
                 'AppBurst',
                 'scheduled_by_{0}'.format(self.mote.id)
@@ -265,7 +265,7 @@ class AppBurst(AppBase):
 
     #======================== private ==========================================
 
-    def _send_packets(self):
+    def _send_burst_packets(self):
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
                 dstIp         = self.mote.dagRootId,

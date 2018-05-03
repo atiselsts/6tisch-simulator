@@ -148,8 +148,8 @@ class TestPacketDelivery:
 
         # send a packet from the leaf mote
         leaf = sim_engine.motes[2]
-        # _event_handler() causes leaf to send a packet
-        leaf.app._event_handler()
+        # _send_a_single_packet() causes leaf to send a packet
+        leaf.app._send_a_single_packet()
 
         # retrieve fragments in its TX queue
         fragments = []
@@ -255,8 +255,8 @@ class TestPacketDelivery:
         # send a packet; its fragments start being forwarded at the next
         # timeslot where it has a dedicated TX cell
         leaf = sim_engine.motes[3]
-        # _event_handler() causes leaf to send a packet
-        leaf.app._event_handler()
+        # _send_a_single_packet() causes leaf to send a packet
+        leaf.app._send_a_single_packet()
 
         # run the simulation for long enough time
         u.run_until_asn(sim_engine, 1000)
@@ -340,8 +340,8 @@ class TestFragmentationAndReassembly(object):
 
         # send a packet from the leaf mote
         leaf = sim_engine.motes[1]
-        # _event_handler() causes leaf to send a packet
-        leaf.app._event_handler()
+        # _send_a_single_packet() causes leaf to send a packet
+        leaf.app._send_a_single_packet()
 
         # it's ready to test; run the simulation for long enough time
         u.run_until_asn(sim_engine, 1500)
@@ -556,8 +556,8 @@ class TestDatagramTagManagement(object):
         # generate five packets, each of them is divided into two fragments
         assert len(leaf.tsch.txQueue) == 0
         for _ in range(0, 5):
-            # _event_handler() causes leaf to send a packet
-            leaf.app._event_handler()
+            # _send_a_single_packet() causes leaf to send a packet
+            leaf.app._send_a_single_packet()
         assert len(leaf.tsch.txQueue) == 10
 
         # retrieve the fragments and see if datagram_tag is incremented by one
@@ -641,8 +641,8 @@ class TestFragmentForwarding:
         leaf = sim_engine.motes[1]
 
         # prepare the first fragment and the trigger fragment
-        # _event_handler() causes leaf to send a packet
-        leaf.app._event_handler()
+        # _send_a_single_packet() causes leaf to send a packet
+        leaf.app._send_a_single_packet()
         fragments = []
         for frame in leaf.tsch.txQueue:
             if frame['type'] == d.NET_TYPE_FRAG:

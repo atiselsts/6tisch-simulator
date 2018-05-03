@@ -194,7 +194,7 @@ def test_vanilla_scenario(
         for _ in range(10):
             
             # inject data at the datamote
-            datamote.app._event_handler()
+            datamote.app._send_a_single_packet()
 
             # give the data time to reach the root
             u.run_until_asn(sim_engine, sim_engine.getAsn() + 10000)
