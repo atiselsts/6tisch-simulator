@@ -33,23 +33,25 @@ def _alloc_cell(transmitter, receiver, slot_offset, channel_offset):
     """
 
     # cell structure: (slot_offset, channel_offset, direction)
-    transmitter.tsch.addCells(
-        receiver,
-        [
-            (slot_offset,channel_offset,d.DIR_TX)
-        ]
+    transmitter.tsch.addCell(
+        neighbor        = receiver,
+        slotoffset      = slot_offset,
+        channeloffset   = channel_offset,
+        direction       = d.DIR_TX,
     )
+        
     if receiver not in transmitter.numCellsToNeighbors:
         transmitter.numCellsToNeighbors[receiver] = 1
     else:
         transmitter.numCellsToNeighbors[receiver] += 1
 
-    receiver.tsch.addCells(
-        transmitter,
-        [
-            (slot_offset,channel_offset,d.DIR_RX)
-        ]
+    receiver.tsch.addCell(
+        neighbor        = transmitter,
+        slotoffset      = slot_offset,
+        channeloffset   = channel_offset,
+        direction       = d.DIR_RX,
     )
+    
     if transmitter not in receiver.numCellsFromNeighbors:
         receiver.numCellsFromNeighbors[transmitter] = 1
     else:

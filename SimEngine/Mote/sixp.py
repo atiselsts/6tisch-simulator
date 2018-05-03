@@ -118,6 +118,7 @@ class SixP(object):
 
                 cellList = []
                 for (ts, ch) in cells.iteritems():
+                    
                     # log
                     self.log(
                         SimEngine.SimLog.LOG_6TOP_ADD_CELL,
@@ -126,11 +127,17 @@ class SixP(object):
                             "ts":           ts,
                             "channel":      ch,
                             "direction":    dir,
-                            "neighbor_id": neighbor.id
+                            "neighbor_id":  neighbor.id
                         }
                     )
-                    cellList += [(ts, ch, dir)]
-                self.mote.tsch.addCells(neighbor, cellList)
+                    
+                    # add cell
+                    self.mote.tsch.addCell(
+                        neighbor        = neighbor,
+                        slotoffset      = ts,
+                        channeloffset   = ch,
+                        direction       = dir,
+                    )
 
                 # update counters
                 if dir == d.DIR_TX:
@@ -457,8 +464,7 @@ class SixP(object):
 
                 # if the request was successfull and there were enough resources
                 if code == d.IANA_6TOP_RC_SUCCESS:
-                    cellList = []
-
+                    
                     # set direction of cells
                     if receivedDir == d.DIR_TX:
                         newDir = d.DIR_RX
@@ -468,6 +474,7 @@ class SixP(object):
                         newDir = d.DIR_TXRX_SHARED
 
                     for (ts, ch, cellDir) in receivedCellList:
+                        
                         # log
                         self.log(
                             SimEngine.SimLog.LOG_6TOP_ADD_CELL,
@@ -479,8 +486,14 @@ class SixP(object):
                                 "neighbor_id":   neighbor.id,
                             }
                         )
-                        cellList += [(ts, ch, newDir)]
-                    self.mote.tsch.addCells(neighbor, cellList)
+                        
+                        # add cell
+                        self.mote.tsch.addCell(
+                            neighbor        = neighbor,
+                            slotoffset      = ts,
+                            channeloffset   = ch,
+                            direction       = newDir,
+                        )
 
                     # update counters
                     if newDir == d.DIR_TX:
@@ -709,6 +722,7 @@ class SixP(object):
 
                 if code == d.IANA_6TOP_RC_SUCCESS:
                     for (ts, ch, cellDir) in confirmedCellList:
+                        
                         # log
                         self.log(
                             SimEngine.SimLog.LOG_6TOP_RX_ACK,
@@ -721,7 +735,14 @@ class SixP(object):
                                 "rc": code,
                             }
                         )
-                    self.mote.tsch.addCells(neighbor, confirmedCellList)
+                        
+                        # add cell
+                        self.mote.tsch.addCell(
+                            neighbor        = neighbor,
+                            slotoffset      = ts,
+                            channeloffset   = ch,
+                            direction       = cellDir,
+                        )
 
                     # update counters
                     if receivedDir == d.DIR_TX:
@@ -891,12 +912,16 @@ class SixP(object):
                 set(range(self.settings.tsch_slotframeLength)) - set(neighbor.tsch.getSchedule().keys()) - set(self.mote.tsch.getSchedule().keys()))
             random.shuffle(availableTimeslots)
             cells = dict([(ts, random.randint(0, self.settings.phy_numChans - 1)) for ts in availableTimeslots[:numCells]])
-            cellList = []
-
+            
+            # add cells
             for ts, ch in cells.iteritems():
-                cellList += [(ts, ch, newDir)]
-            self.mote.tsch.addCells(neighbor, cellList)
-
+                self.mote.tsch.addCell(
+                    neighbor        = neighbor,
+                    slotoffset      = ts,
+                    channeloffset   = ch,
+                    direction       = newDir,
+                )
+            
             # update counters
             if newDir == d.DIR_TX:
                 if neighbor not in self.mote.numCellsToNeighbors:

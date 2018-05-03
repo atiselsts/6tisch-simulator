@@ -77,47 +77,49 @@ class Tsch(object):
             uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
         )
         self.tsch_schedule_active_cell()    # schedule next active cell
-
+    
+    def _getCells(self, direction, neighbor):
+        if neighbor!=None:
+            assert type(neighbor)==int
+        
+        if neighbor is None:
+            return [
+                (ts, c['ch'], c['neighbor'])
+                    for (ts, c) in self.schedule.items()
+                        if c['dir'] == direction
+            ]
+        else:
+            return [
+                (ts, c['ch'], c['neighbor'])
+                    for (ts, c) in self.schedule.items()
+                        if c['dir'] == direction and c['neighbor'] == neighbor
+            ]
+    
     def getTxCells(self, neighbor = None):
-        
-        if neighbor!=None:
-            assert type(neighbor)==int
-        
-        if neighbor is None:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_TX]
-        else:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
-                    c['dir'] == d.DIR_TX and c['neighbor'] == neighbor]
-
+        return self._getCells(
+            direction = d.DIR_TX,
+            neighbor  = neighbor,
+        )
     def getRxCells(self, neighbor = None):
-        
-        if neighbor!=None:
-            assert type(neighbor)==int
-        
-        if neighbor is None:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_RX]
-        else:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
-                    c['dir'] == d.DIR_RX and c['neighbor'] == neighbor]
-
+        return self._getCells(
+            direction = d.DIR_RX,
+            neighbor  = neighbor,
+        )
     def getSharedCells(self, neighbor = None):
-        
-        if neighbor!=None:
-            assert type(neighbor)==int
-        
-        if neighbor is None:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if c['dir'] == d.DIR_TXRX_SHARED]
-        else:
-            return [(ts, c['ch'], c['neighbor']) for (ts, c) in self.schedule.items() if
-                    c['dir'] == d.DIR_TXRX_SHARED and c['neighbor'] == neighbor]
-
+        return self._getCells(
+            direction = d.DIR_TXRX_SHARED,
+            neighbor  = neighbor,
+        )
+    
+    # admin
+    
     def activate(self):
         '''
         Active the TSCH state machine.
         - on the dagRoot, from boot
         - on the mote, after having received an EB
         '''
-        
+
         # start sending EBs
         self._tsch_schedule_sendEB()
 
@@ -131,53 +133,54 @@ class Tsch(object):
 
     def add_minimal_cell(self):
 
-        self.addCells(
-            self.mote._myNeighbors(),
-            [
-                (0, 0, d.DIR_TXRX_SHARED)
-            ],
+        self.addCell(
+            neighbor         = self.mote._myNeighbors(), # FIXME: replace by None
+            slotoffset       = 0,
+            channeloffset    = 0,
+            direction        = d.DIR_TXRX_SHARED,
         )
 
     # schedule interface
 
-    def addCells(self, neighbor, cellList):
+    def addCell(self, neighbor, slotoffset, channeloffset, direction):
         """ Adds cell(s) to the schedule
 
         :param Mote || list neighbor:
         :param list cellList:
         :return:
         """
-
-        assert (
-            isinstance(neighbor, int)
-            or
-            all(isinstance(item, int) for item in neighbor)
+        
+        ''' FIXME
+        if neighbor!=None:
+            assert isinstance(neighbor, int)
+        '''
+        assert isinstance(slotoffset, int)
+        assert isinstance(channeloffset, int)
+        
+        # make sure I have no activity at that slotoffset already
+        assert slotoffset not in self.schedule.keys()
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_ADD_CELL,
+            {
+                "ts":             slotoffset,
+                "channel":        channeloffset,
+                "direction":      direction,
+                "source_id":      self.mote.id,
+                "neighbor_id":    neighbor if not type(neighbor) == list else d.BROADCAST_ADDRESS
+            }
         )
-
         
         # add cell
-        for cell in cellList:
-            assert cell[0] not in self.schedule.keys()
-            self.schedule[cell[0]] = {
-                'ch':                        cell[1],
-                'dir':                       cell[2],
-                'neighbor':                  neighbor,
-                'numTx':                     0,
-                'numTxAck':                  0,
-                'numRx':                     0,
-            }
-
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_TSCH_ADD_CELL,
-                {
-                    "ts": cell[0],
-                    "channel": cell[1],
-                    "direction": cell[2],
-                    "source_id": self.mote.id,
-                    "neighbor_id": neighbor if not type(neighbor) == list else d.BROADCAST_ADDRESS
-                }
-            )
+        self.schedule[slotoffset] = {
+            'ch':                 channeloffset,
+            'dir':                direction,
+            'neighbor':           neighbor,
+            'numTx':              0,
+            'numTxAck':           0,
+            'numRx':              0,
+        }
         
         # reschedule the next active cell, in case it is now earlier
         if self.getIsSync():
