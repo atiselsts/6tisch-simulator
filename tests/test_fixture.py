@@ -90,12 +90,15 @@ def test_initial_scheduling_state(sim_engine):
         assert len(mote.tsch.getSharedCells()) == 1
 
         # check dedicated cell
-        parent = mote.rpl.getPreferredParent()
-        if parent != None:
-            # "mote" has one TX to its parent
-            assert len(mote.tsch.getTxCells(parent)) == 1
-            # parent of "mote" one RX to "mote"
-            assert len(parent.tsch.getRxCells(mote)) == 1
+        # FIXME: what is the best way to get mote instance by mote_id?
+        if mote.rpl.getPreferredParent() == None:
+            continue
+
+        parent = sim_engine.motes[mote.rpl.getPreferredParent()]
+        # "mote" has one TX to its parent
+        assert len(mote.tsch.getTxCells(parent.id)) == 1
+        # parent of "mote" one RX to "mote"
+        assert len(parent.tsch.getRxCells(mote.id)) == 1
 
 #=== verify default configs from bin/config.json are loaded correctly
 

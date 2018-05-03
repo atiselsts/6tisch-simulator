@@ -121,9 +121,9 @@ def set_initial_routing_and_scheduling_state(engine):
                     parent_id = parent.id,
                 )
                 # add a cell from child to parent
-                child.tsch.addCells(parent,[(cur_slot,0,d.DIR_TX)])
+                child.tsch.addCells(parent.id,[(cur_slot,0,d.DIR_TX)])
                 child.numCellsToNeighbors[parent.id] = 1
-                parent.tsch.addCells(child,[(cur_slot,0,d.DIR_RX)])
+                parent.tsch.addCells(child.id,[(cur_slot,0,d.DIR_RX)])
                 parent.numCellsFromNeighbors[child.id] = 1
                 cur_slot += 1
                 # add a minimal cells (one TX/RX/SHARED cell) to child
