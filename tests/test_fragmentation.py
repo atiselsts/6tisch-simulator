@@ -229,8 +229,8 @@ class TestPacketDelivery:
 
         # latency is expressed in the number of slotframes
         expected_e2e_latency = {
-            'PerHopReassembly'  : 5,
-            'FragmentForwarding': 3
+            'PerHopReassembly'  : 6,
+            'FragmentForwarding': 5
         }
 
         sim_engine = sim_engine(
