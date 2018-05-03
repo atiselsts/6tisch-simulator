@@ -54,7 +54,15 @@ class Sixlowpan(object):
         )
         
         # find link-layer destination
-        dstMac = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
+        if 'sourceRoute' in packet['net']:
+            sourceRoute = packet['net']['sourceRoute']
+        else:
+            sourceRoute = []
+
+        dstMac = self.mote.rpl.findNextHopId(
+            dstIpId     = packet['net']['dstIp'],
+            sourceRoute = sourceRoute
+        )
         if dstMac==None:
             # we cannot find a next-hop; drop this packet
             self.mote.radio.drop_packet(
@@ -157,7 +165,15 @@ class Sixlowpan(object):
                 fwdPacket['mac']  = copy.deepcopy(packet['mac'])
             else:
                 # find next hop
-                dstMac = self.mote.rpl.findNextHopId(fwdPacket['net']['dstIp'])
+                if 'sourceRoute' in packet['net']:
+                    sourceRoute = packet['net']['sourceRoute']
+                else:
+                    sourceRoute = []
+                dstMac = self.mote.rpl.findNextHopId(
+                    dstIpId     = packet['net']['dstIp'],
+                    sourceRoute = sourceRoute
+                )
+
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
                     self.mote.radio.drop_packet(
@@ -490,7 +506,16 @@ class FragmentForwarding(Fragmentation):
         if datagram_offset == 0:
 
             if fragment['net']['dstIp'] != self.mote.id:
-                dstMac = self.mote.rpl.findNextHopId(fragment['net']['dstIp'])
+
+                if 'sourceRoute' in fragment['net']:
+                    sourceRoute = fragment['net']['sourceRoute']
+                else:
+                    sourceRoute = []
+
+                dstMac = self.mote.rpl.findNextHopId(
+                    dstIpId     = fragment['net']['dstIp'],
+                    sourceRoute = sourceRoute
+                )
                 if dstMac == None:
                     # no route to the destination
                     return

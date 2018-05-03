@@ -96,6 +96,10 @@ class AppBase(object):
 
         }
 
+
+        if self.mote.dagRoot:
+            packet['net']['sourceRoute'] = self.mote.rpl.computeSourceRoute(dstIp)
+
         # update appcounter
         self.appcounter += 1
 
