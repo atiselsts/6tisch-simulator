@@ -88,7 +88,7 @@ class Sixlowpan(object):
             for frag in frags:
                 self.mote.tsch.enqueue(frag)
     
-    def recv(self, packet):
+    def recvPacket(self, packet):
         
         assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
         
@@ -284,7 +284,7 @@ class Fragmentation(object):
                 }
             }
         """
-        assert packet['type'] in ['DIO','DAO','DATA']
+        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
         assert 'type' in packet
         assert 'net'  in packet
         

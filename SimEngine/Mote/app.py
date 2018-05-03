@@ -62,7 +62,7 @@ class AppBase(object):
         """
         raise NotImplementedError()
 
-    def recv(self, packet):
+    def recvPacket(self, packet):
         """Receive a packet destined to this application
         """
         # log and mote stats
@@ -167,7 +167,7 @@ class AppSink(AppBase):
         # nothing to schedule
         pass
 
-    def recv(self, packet):
+    def recvPacket(self, packet):
         assert self.mote.dagRoot
 
         # log and update mote stats

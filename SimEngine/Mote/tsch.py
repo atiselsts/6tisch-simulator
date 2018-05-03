@@ -517,7 +517,7 @@ class Tsch(object):
             isACKed = True
 
             # network-layer packet; pass it to sixlowpan
-            self.mote.sixlowpan.recv(packet)
+            self.mote.sixlowpan.recvPacket(packet)
 
         elif packet['mac']['dstMac']==self.mote.id:
             # link-layer unicast to me

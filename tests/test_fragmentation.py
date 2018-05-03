@@ -389,7 +389,7 @@ class TestMemoryManagement:
         for datagram_tag in range(0, 10):
             # root node has no limitation on memory size; test with a non-root
             # mote
-            hop1.sixlowpan.recv(
+            hop1.sixlowpan.recvPacket(
                 {
                     'type': d.NET_TYPE_FRAG,
                     'mac': {
@@ -483,7 +483,7 @@ class TestMemoryManagement:
 
         # inject the first fragment
         assert get_memory_usage(hop1, fragmentation) == 0
-        hop1.sixlowpan.recv(fragment1_0)
+        hop1.sixlowpan.recvPacket(fragment1_0)
         assert get_memory_usage(hop1, fragmentation) == 1
 
         # run the simulation until 50% of the lifetime
@@ -491,7 +491,7 @@ class TestMemoryManagement:
 
         # inject another fragment (the first fragment of a packet). hop1
         # creates a new entry for this fragment (packet)
-        hop1.sixlowpan.recv(fragment2_0)
+        hop1.sixlowpan.recvPacket(fragment2_0)
         assert get_memory_usage(hop1, fragmentation) == 2
 
         # run the simulation until its expiration
@@ -499,7 +499,7 @@ class TestMemoryManagement:
 
         # inject the other fragment (the second fragment of a packet). this
         # fragment doesn't cause hop1 to create a new entry
-        hop1.sixlowpan.recv(fragment2_1)
+        hop1.sixlowpan.recvPacket(fragment2_1)
 
         # the memory should have only one entry for fragment2_0 and fragment2_1
         assert get_memory_usage(hop1, fragmentation) == 1
@@ -573,7 +573,7 @@ class TestDatagramTagManagement(object):
             # inject a copied fragment to hop1
             fragment = copy.copy(fragments_by_leaf[i])
             fragment['net'] = copy.deepcopy(fragments_by_leaf[i]['net'])
-            hop1.sixlowpan.recv(fragment)
+            hop1.sixlowpan.recvPacket(fragment)
 
         # check outgoing datagram_tag is incremented by one
         expected_datagram_tag = hop1_initial_next_datagram_tag
@@ -642,12 +642,12 @@ class TestFragmentForwarding:
                 fragments.append(frame)
 
         # inject the first fragment to root
-        root.sixlowpan.recv(fragments[0])
+        root.sixlowpan.recvPacket(fragments[0])
         assert get_memory_usage(root, sim_settings.fragmentation) == 1
 
         if trigger_fragment_type == 'missing_fragment':
             # skip injection of fragments[1], which is a missing fragment
-            root.sixlowpan.recv(fragments[2])
+            root.sixlowpan.recvPacket(fragments[2])
             if 'missing_fragment' in fragmentation_ff_discard_vrb_entry_policy:
                 # the missing fragment should remove the entry
                 assert get_memory_usage(root, sim_settings.fragmentation) == 0
@@ -657,9 +657,9 @@ class TestFragmentForwarding:
 
         elif trigger_fragment_type == 'last_fragment':
             # inject all the fragments in order
-            root.sixlowpan.recv(fragments[1])
-            root.sixlowpan.recv(fragments[2])
-            root.sixlowpan.recv(fragments[3])
+            root.sixlowpan.recvPacket(fragments[1])
+            root.sixlowpan.recvPacket(fragments[2])
+            root.sixlowpan.recvPacket(fragments[3])
 
             if 'last_fragment' in fragmentation_ff_discard_vrb_entry_policy:
                 # the last fragment should remove the entry
