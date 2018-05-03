@@ -354,6 +354,14 @@ class Fragmentation(object):
 
         return returnVal
     
+    @abstractmethod
+    def fragRecv(self, fragment):
+        """This method is supposed to return a packet to be processed further
+
+        This could return None.
+        """
+        raise NotImplementedError()
+    
     def reassemblePacket(self, fragment):
         srcMac                    = fragment['mac']['srcMac']
         datagram_size             = fragment['net']['datagram_size']
@@ -427,14 +435,6 @@ class Fragmentation(object):
             del self.reassembly_buffers[srcMac]
 
         return packet
-    
-    @abstractmethod
-    def fragRecv(self, fragment):
-        """This method is supposed to return a packet to be processed further
-
-        This could return None.
-        """
-        raise NotImplementedError()
     
     # ======================= private =========================================    
     
