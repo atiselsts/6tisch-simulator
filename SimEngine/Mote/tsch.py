@@ -143,12 +143,6 @@ class Tsch(object):
     # schedule interface
 
     def addCell(self, neighbor, slotoffset, channeloffset, direction):
-        """ Adds cell(s) to the schedule
-
-        :param Mote || list neighbor:
-        :param list cellList:
-        :return:
-        """
         
         ''' FIXME
         if neighbor!=None:
@@ -186,33 +180,32 @@ class Tsch(object):
         if self.getIsSync():
             self.tsch_schedule_active_cell()
 
-    def removeCells(self, neighbor, tsList):
-        """ removes cell(s) from the schedule """
-
-        assert (
-            isinstance(neighbor, int)
-            or
-            all(isinstance(item, int) for item in neighbor)
-        )
+    def removeCell(self, neighbor, slotoffset, channeloffset, direction):
         
-        # remove cell
-        for cell in tsList:
-            assert type(cell) == int
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
-                {
-                    "ts": cell[0],
-                    "channel": cell[1],
-                    "direction": cell[2],
-                    "source_id": self.mote.id,
-                    "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
-                }
-            )
+        assert isinstance(neighbor, int)
+        assert isinstance(slotoffset, int)
+        assert isinstance(channeloffset, int)
+        
+        # make sure I'm removing a cell that I have in my schedule
+        assert slotoffset in self.schedule.keys()
+        assert self.schedule[slotoffset]['ch']        == channeloffset
+        assert self.schedule[slotoffset]['dir']       == direction
+        assert self.schedule[slotoffset]['neighbor']  == neighbor
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
+            {
+                "ts":              cell[0],
+                "channel":         cell[1],
+                "direction":       cell[2],
+                "source_id":       self.mote.id,
+                "neighbor_id":     neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+            }
+        )
 
-            assert cell in self.schedule.keys()
-            assert self.schedule[cell]['neighbor'] == neighbor
-            self.schedule.pop(cell)
+        # remove cell
+        del self.schedule[slotoffset]
 
         # reschedule the next active cell, in case it is now earlier
         if self.getIsSync():
@@ -222,18 +215,15 @@ class Tsch(object):
 
     def enqueue(self, packet):
 
-        # 'type', 'mac' are mandatory fields of a packet. in this
-        # sense, a set of packet.keys() should have them.
-        assert set(['type','mac']).issubset(set(packet.keys()))
-
-        # srcMac and dstMac should be in place
+        assert 'type' in packet
+        assert 'mac' in packet
         assert 'srcMac' in packet['mac']
         assert 'dstMac' in packet['mac']
         
-        returnVal = True
+        goOn = True
         
         # check there is space in txQueue
-        if returnVal:
+        if goOn:
             if len(self.txQueue) >= d.TSCH_QUEUE_SIZE:
                 # my TX queue is full
                 
@@ -244,10 +234,10 @@ class Tsch(object):
                 )
                 
                 # couldn't enqueue
-                returnVal = False
+                goOn = False
         
         # check that I have cell to transmit on
-        if returnVal:
+        if goOn:
             if (not self.getTxCells()) and (not self.getSharedCells()):
                 # I don't have any cell to transmit on
                 
@@ -258,16 +248,16 @@ class Tsch(object):
                 )
                 
                 # couldn't enqueue
-                returnVal = False
+                goOn = False
         
         # if I get here, every is OK, I can enqueue
-        if returnVal:
+        if goOn:
             # set retriesLeft which should be renewed at every hop
             packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
             # add to txQueue
             self.txQueue    += [packet]
         
-        return returnVal
+        return goOn
 
     # interface with radio
 
