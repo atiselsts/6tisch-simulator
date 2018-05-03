@@ -657,22 +657,16 @@ class Tsch(object):
                 if self.txQueue and self.backoffBroadcast == 0:
                     for pkt in self.txQueue:
                         if  (
+                                # DIOs and EBs always on minimal cell
                                 (
-                                    len(self.getTxCells(pkt['mac']['dstMac'])) == 0
+                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
                                 )
-                                and
-                                    (
-                                    # DIOs and EBs always on minimal cell
-                                    (
-                                        pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
-                                    )
-                                    or
-                                    # other frames on the minimal cell if no dedicated cells to the nextHop
-                                    (
-                                        self.getTxCells(pkt['mac']['dstMac'])==[]
-                                        and
-                                        self.getSharedCells(pkt['mac']['dstMac'])==[]
-                                    )
+                                or
+                                # other frames on the minimal cell if no dedicated cells to the nextHop
+                                (
+                                    self.getTxCells(pkt['mac']['dstMac']) == []
+                                    and
+                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
                                 )
                             ):
                             self.pktToSend = pkt
