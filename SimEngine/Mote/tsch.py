@@ -4,7 +4,6 @@
 # =========================== imports =========================================
 
 import random
-import copy
 
 # Mote sub-modules
 import sf
@@ -26,7 +25,7 @@ class Tsch(object):
         # store params
         self.mote                           = mote
 
-        # singletons (to access quicker than recreate every time)
+        # singletons (quicker access, instead of recreating every time)
         self.engine                         = SimEngine.SimEngine.SimEngine()
         self.settings                       = SimEngine.SimSettings.SimSettings()
         self.log                            = SimEngine.SimLog.SimLog().log
@@ -39,11 +38,14 @@ class Tsch(object):
         self.channel                        = None
         self.asnLastSync                    = None
         self.isSync                         = False
-        self.backoffBroadcast               = 0
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
+        
+        # backoff
+        self.backoffBroadcast               = None    # FIXME: group under a single 'backoff' dict
+        self.backoffBroadcastExponent       = None    # FIXME: group under a single 'backoff' dict
         self._resetBroadcastBackoff()
-        self.backoffPerNeigh                = {}
-        self.backoffExponentPerNeigh        = {}
+        self.backoffPerNeigh                = {}      # FIXME: group under a single 'backoff' dict
+        self.backoffExponentPerNeigh        = {}      # FIXME: group under a single 'backoff' dict
 
     #======================== public ==========================================
 
@@ -70,7 +72,7 @@ class Tsch(object):
         # set
         self.isSync = val
         
-        # listeningForEB->active transition 
+        # transition: listeningForEB->active
         self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
             uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
         )
@@ -779,7 +781,7 @@ class Tsch(object):
                             self.pktToSend = pkt
                             break
                 
-                # decrement back-off
+                # decrement backoff
                 if self.backoffBroadcast > 0:
                     self.backoffBroadcast -= 1
             else:
@@ -958,12 +960,12 @@ class Tsch(object):
             # trigger join process
             self.mote.secjoin.scheduleJoinProcess()  # trigger the join process
 
-    # back-off
+    # backoff
 
     def _resetBroadcastBackoff(self):
-        self.backoffBroadcast = 0
-        self.backoffBroadcastExponent = d.TSCH_MIN_BACKOFF_EXPONENT - 1
+        self.backoffBroadcast               = 0
+        self.backoffBroadcastExponent       = d.TSCH_MIN_BACKOFF_EXPONENT - 1
 
     def _resetBackoffPerNeigh(self, neigh):
-        self.backoffPerNeigh[neigh] = 0
+        self.backoffPerNeigh[neigh]         = 0
         self.backoffExponentPerNeigh[neigh] = d.TSCH_MIN_BACKOFF_EXPONENT - 1
