@@ -204,6 +204,7 @@ class TestPacketDelivery:
         # with this simulator. Even in reality, it rarely happens.
         pass
 
+    @pytest.mark.skip
     def test_e2e_latency(
             self,
             sim_engine,
