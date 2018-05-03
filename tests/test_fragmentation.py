@@ -210,7 +210,6 @@ class TestPacketDelivery:
         # with this simulator. Even in reality, it rarely happens.
         pass
 
-    @pytest.mark.skip(reason='fails randomly')
     def test_e2e_latency(
             self,
             sim_engine,
@@ -264,7 +263,7 @@ class TestPacketDelivery:
         logs = u.read_log_file(
             filter=[
                 'app.rx',
-                'sixlowpan.pkt.rx'
+                'prop.transmission'
             ]
         )
 
@@ -275,16 +274,10 @@ class TestPacketDelivery:
 
         for log in logs:
             if  (
-                    (log['_type'] == 'sixlowpan.recv_fragment') and
-                    (log['_mote_id'] == 2) and
-                    (log['datagram_offset'] == 0)
+                    (log['_type'] == 'sixlowpan.pkt.tx') and
+                    (log['packet']['srcMac'] == 3) and
+                    (log['packet']['type'] == d.NET_TYPE_FRAG)
                 ):
-                # 'sixlowpan_send_segment' log cannot used to get asn_start
-                # since it does not have a ASN where the fragment is
-                # transmitted. instead, 'sixlowpan.recv_fragment' log of the
-                # parent of the leaf is used. _mote_id of the
-                # intermediate node is 2.
-                assert log['srcIp'] == leaf.id
                 asn_start = log['_asn']
 
             if log['_type'] == 'app.rx':
