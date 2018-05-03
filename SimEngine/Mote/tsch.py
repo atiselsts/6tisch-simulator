@@ -145,6 +145,13 @@ class Tsch(object):
         :param list cellList:
         :return:
         """
+
+        assert (
+            isinstance(neighbor, int)
+            or
+            all(isinstance(item, int) for item in neighbor)
+        )
+
         
         # add cell
         for cell in cellList:
@@ -166,7 +173,7 @@ class Tsch(object):
                     "channel": cell[1],
                     "direction": cell[2],
                     "source_id": self.mote.id,
-                    "neighbor_id": neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                    "neighbor_id": neighbor if not type(neighbor) == list else d.BROADCAST_ADDRESS
                 }
             )
         
@@ -176,6 +183,12 @@ class Tsch(object):
 
     def removeCells(self, neighbor, tsList):
         """ removes cell(s) from the schedule """
+
+        assert (
+            isinstance(neighbor, int)
+            or
+            all(isinstance(item, int) for item in neighbor)
+        )
         
         # remove cell
         for cell in tsList:
@@ -687,7 +700,7 @@ class Tsch(object):
                 assert set(['type','mac']).issubset(set(pkt.keys()))
             
                 # send the frame if next hop matches the cell destination
-                if pkt['mac']['dstMac'] == cell['neighbor'].id:
+                if pkt['mac']['dstMac'] == cell['neighbor']:
                     self.pktToSend = pkt
                     break
 
@@ -745,16 +758,22 @@ class Tsch(object):
                 if self.txQueue and self.backoffBroadcast == 0:
                     for pkt in self.txQueue:
                         if  (
-                                # DIOs and EBs always on minimal cell
                                 (
-                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                                    len(self.getTxCells(pkt['mac']['dstMac'])) == 0
                                 )
-                                or
-                                # other frames on the minimal cell if no dedicated cells to the nextHop
-                                (
-                                    self.getTxCells(pkt['mac']['dstMac'])==[]
-                                    and
-                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
+                                and
+                                    (
+                                    # DIOs and EBs always on minimal cell
+                                    (
+                                        pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                                    )
+                                    or
+                                    # other frames on the minimal cell if no dedicated cells to the nextHop
+                                    (
+                                        self.getTxCells(pkt['mac']['dstMac'])==[]
+                                        and
+                                        self.getSharedCells(pkt['mac']['dstMac'])==[]
+                                    )
                                 )
                             ):
                             self.pktToSend = pkt
