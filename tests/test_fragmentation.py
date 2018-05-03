@@ -32,7 +32,7 @@ def fragmentation_ff_discard_vrb_entry_policy(request):
 
 def get_memory_usage(mote, fragmentation):
     if fragmentation == 'PerHopReassembly':
-        memory_structure = mote.sixlowpan.reassembly_buffers
+        memory_structure = mote.sixlowpan.fragmentation.reassembly_buffers
     elif fragmentation == 'FragmentForwarding':
         memory_structure = mote.sixlowpan.fragmentation.vrb_table
 
