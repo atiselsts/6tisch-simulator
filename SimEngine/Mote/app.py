@@ -101,7 +101,7 @@ class AppBase(object):
 
         return packet
 
-    def _send_packet(self, packet_type, dstIp, packet_length):
+    def _send_packet(self, dstIp, packet_length):
 
         # check whether the mote is ready to send a packet
         if self.mote.dagRoot:
@@ -130,7 +130,7 @@ class AppBase(object):
 
             packet = self._generate_packet(
                 dstIp          = dstIp,
-                packet_type    = packet_type,
+                packet_type    = d.APP_TYPE_DATA,
                 packet_length  = packet_length
             )
 
@@ -140,7 +140,7 @@ class AppBase(object):
                     '_mote_id':       self.mote.id,
                     'dest_id':        packet['net']['dstIp'],
                     'appcounter':     packet['app']['appcounter'],
-                    'packet_type':    packet_type
+                    'packet_type':    packet['type']
                 }
             )
 
@@ -183,7 +183,6 @@ class AppSink(AppBase):
     def _send_ack(self, destination):
         self._send_packet(
             dstIp          = destination,
-            packet_type    = d.APP_TYPE_ACK,
             packet_length  = self.APP_PK_LENGTH
         )
 
@@ -238,7 +237,6 @@ class AppPeriodic(AppBase):
     def _send_a_single_packet(self):
         self._send_packet(
             dstIp          = self.mote.dagRootId,
-            packet_type    = d.APP_TYPE_DATA,
             packet_length  = self.settings.app_pkLength
         )
         # schedule the next transmission
@@ -269,6 +267,5 @@ class AppBurst(AppBase):
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
                 dstIp         = self.mote.dagRootId,
-                packet_type   = d.APP_TYPE_DATA,
                 packet_length = self.settings.app_pkLength
             )

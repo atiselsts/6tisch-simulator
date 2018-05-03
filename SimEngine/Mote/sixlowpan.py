@@ -123,11 +123,7 @@ class Sixlowpan(object):
                 elif packet['type'] == d.RPL_TYPE_DIO:
                     self.mote.rpl.action_receiveDIO(packet)
                 elif packet['type'] == d.APP_TYPE_DATA:
-                    self.mote.app._action_receivePacket(packet)
-                elif packet['type'] == d.APP_TYPE_ACK:
-                    self.mote.app.action_mote_receiveE2EAck(packet)
-                else:
-                    raise SystemError()
+                    self.mote.app.recvPacket(packet)
 
             else:
                 # packet not for me
