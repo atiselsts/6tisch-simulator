@@ -460,7 +460,7 @@ class Rpl(object):
                     SimEngine.SimLog.LOG_RPL_CHURN_PREF_PARENT,
                     {
                         "old_parent": self.preferredParent,
-                        "new_parent": newPreferredParent.id
+                        "new_parent": newPreferredParent
                     }
                 )
                 # trigger 6P add to the new parent
