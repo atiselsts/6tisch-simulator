@@ -11,11 +11,13 @@
         "regular": {
             "exec_numSlotframesPerRun":                    100,
 
+            "app":                                         "AppPeriodic",
             "app_pkPeriod":                                10,
             "app_pkPeriodVar":                             0.05,
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
+            "app_e2eAck":                                  false,
 
             "rpl_daoPeriod":                               60,
 

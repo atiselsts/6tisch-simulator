@@ -12,7 +12,6 @@ import SimEngine.Mote.MoteDefines as d
 # even if the queue is full.
 @pytest.mark.parametrize("frame_type", [
     d.APP_TYPE_DATA,
-    d.APP_TYPE_ACK,
     d.APP_TYPE_JOIN,
     d.NET_TYPE_FRAG,
     d.RPL_TYPE_DIO,
@@ -51,10 +50,6 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
        ):
         # always broadcast
         test_frame['dstIp']       = d.BROADCAST_ADDRESS
-    elif frame_type == d.APP_TYPE_ACK:
-        # always downstream frame
-        test_frame['dstIp']       = hop2
-        test_frame['sourceRoute'] = root.rpl.computeSourceRoute(hop2.id)
     else:
         # this frame_type is used for either upstream or downstream. in this
         # test, it's treated as upstream. dstIp is set with root.

@@ -362,7 +362,7 @@ class Rpl(object):
             # unicast source routed downstream packet
             
             # nextHopId is the first item in the source route 
-            nextHopId = [self.engine.motes[sourceRoute.pop(0)]]
+            nextHopId = self.engine.motes[sourceRoute.pop(0)].id
             
         else:
             # unicast upstream packet
