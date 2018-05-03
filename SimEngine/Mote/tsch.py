@@ -70,7 +70,8 @@ class Tsch(object):
         )
         
         # set
-        self.isSync = val
+        self.isSync      = val
+        self.asnLastSync = self.engine.getAsn()
         
         # transition: listeningForEB->active
         self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
@@ -305,7 +306,7 @@ class Tsch(object):
 
                 # time correction
                 if self.getSchedule()[ts]['neighbor'] == self.mote.rpl.getPreferredParent():
-                    self.asnLastSync = asn
+                    self.asnLastSync = asn # ACK-based sync
                 
                 # remove packet from queue
                 self.getTxQueue().remove(self.pktToSend)
@@ -386,7 +387,7 @@ class Tsch(object):
         
         # time correction
         if packet['mac']['srcMac'] == self.mote.rpl.getPreferredParent():
-            self.asnLastSync = asn
+            self.asnLastSync = asn # packet-based sync
         
         # update schedule stats
         if self.getIsSync():
@@ -440,30 +441,31 @@ class Tsch(object):
 
         return isACKed
 
-    def getOffsetToDagRoot(self):
+    def desyncWithDagRoot(self):
         """
         calculate time offset compared to the DAGroot
         """
-
+        
+        assert self.getIsSync()
+        assert self.asnLastSync!=None
+        
         if self.mote.dagRoot:
             return 0.0
 
-        asn                  = self.engine.getAsn()
         offset               = 0.0
+
         child                = self.mote
         parent               = self.engine.motes[self.mote.rpl.getPreferredParent()]
-
-        if child.tsch.asnLastSync:
-            while True:
-                secSinceSync     = (asn-child.tsch.asnLastSync)*self.settings.tsch_slotDuration  # sec
-                # FIXME: for ppm, should we not /10^6?
-                relDrift         = child.tsch.drift - parent.tsch.drift                          # ppm
-                offset          += relDrift * secSinceSync                                       # us
-                if parent.dagRoot:
-                    break
-                else:
-                    child        = parent
-                    parent       = self.engine.motes[child.rpl.getPreferredParent()]
+        while True:
+            secSinceSync     = (self.engine.getAsn()-child.tsch.asnLastSync)*self.settings.tsch_slotDuration
+            # FIXME: for ppm, should we not /10^6?
+            relDrift         = child.tsch.drift - parent.tsch.drift  # ppm
+            offset          += relDrift * secSinceSync               # us
+            if parent.dagRoot:
+                break
+            else:
+                child        = parent
+                parent       = self.engine.motes[child.rpl.getPreferredParent()]
 
         return offset
 

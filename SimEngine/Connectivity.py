@@ -194,7 +194,7 @@ class Connectivity(object):
             for transmission in transmissions:
                 sender_id   = transmission['packet']['mac']['srcMac']
                 sender_mote = self.engine.motes[sender_id]
-                arrivalTime[sender_id] = sender_mote.tsch.getOffsetToDagRoot()
+                arrivalTime[sender_id] = sender_mote.tsch.desyncWithDagRoot()
 
             for transmission in transmissions:
                 
