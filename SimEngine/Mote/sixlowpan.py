@@ -22,10 +22,16 @@ import MoteDefines as d
 class Sixlowpan(object):
 
     def __init__(self, mote):
+    
+        # store params
         self.mote                 = mote
+        
+        # singletons
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.log                  = SimEngine.SimLog.SimLog().log
+        
+        # local variables
         self.fragmentation        = globals()[self.settings.fragmentation](self)
         self.next_datagram_tag    = random.randint(0, 2**16-1)
         # "reassembly_buffers" has mote instances as keys. Each value is a list.
@@ -41,9 +47,14 @@ class Sixlowpan(object):
 
     #======================== public ==========================================
 
-    def send(self, packet):
-        assert sorted(packet.keys()) == sorted(['type','net','app'])
-
+    def sendPacket(self, packet):
+        assert sorted(packet.keys()) == sorted(['type','app','net'])
+        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO]
+        assert 'srcIp' in packet['net']
+        assert 'dstIp' in packet['net']
+        
+        goOn = True
+        
         # log
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_PKT_TX,
@@ -52,28 +63,40 @@ class Sixlowpan(object):
                 'packet':         packet,
             }
         )
-
-        if self._prepare_mac_header(packet):
-            for pkt in self.fragment(packet):
-                # fragment() returns a list of sending fragments. It could return a
-                # list having one packet when the packet doesn't need fragmentation
-                self.mote.tsch.enqueue(pkt)
-        else:
+        
+        # find link-layer destination
+        dstMac = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
+        if dstMac==None:
             # we cannot find a next-hop; drop this packet
             self.mote.radio.drop_packet(
                 pkt     = packet,
                 reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
             )
+            # stop handling this packet
+            goOn = False
+        
+        # add MAC header
+        if goOn:
+            packet['mac'] = {
+                'srcMac': self.mote.id,
+                'dstMac': dstMac
+            }
+        
+        # cut packet into fragments
+        if goOn:
+            frags = self.fragmentPacket(packet)
+        
+        # enqueue each fragment
+        if goOn:
+            for frag in frags:
+                self.mote.tsch.enqueue(frag)
 
-    def fragment(self, packet):
-        """Fragment the input packet into fragments
+    def fragmentPacket(self, packet):
+        """Fragments a packet into fragments
 
-        This method returns fragments in a list. If the input packet doesn't
-        need fragmentation, this methods returns the packet in a list.
+        Returns a list of fragments, possibly with one element.
 
-        Formats of fragment packets are shown below:
-
-            The format of the first fragment (no app field):
+        First fragment (no app field):
             {
                 'net': {
                     'srcIp':                src_ip_address,
@@ -82,12 +105,23 @@ class Sixlowpan(object):
                     'datagram_size':        original_packet_length,
                     'datagram_tag':         tag_for_the_packet,
                     'datagram_offset':      offset_for_this_fragment,
-                    'sourceRoute':          (if applicable)
+                   ['sourceRoute':          [...]]
                 }
             }
 
-            The format of the last fragment (no srcIp/dstIp):
+        Subsequent fragments (no app, no srcIp/dstIp):
             {
+                'net': {
+                    'packet_length':        packet_length,
+                    'datagram_size':        original_packet_length,
+                    'datagram_tag':         tag_for_the_packet,
+                    'datagram_offset':      offset_for_this_fragment,
+                }
+            }
+            
+        Last fragment (app, no srcIp/dstIp):
+            {
+                'app':                      (if applicable)
                 'net': {
                     'packet_length':        packet_length,
                     'datagram_size':        original_packet_length,
@@ -95,33 +129,21 @@ class Sixlowpan(object):
                     'datagram_offset':      offset_for_this_fragment,
                     'original_packet_type': original_packet_type,
                 }
-                'app':                      (if applicable)
-            }
-
-            The format of other fragments (neither app nor srcIp/dstIp):
-            {
-                'net': {
-                    'packet_length':        packet_length,
-                    'datagram_size':        original_packet_length,
-                    'datagram_tag':         tag_for_the_packet,
-                    'datagram_offset':      offset_for_this_fragment,
-                }
             }
         """
-
-        # 'type' and 'net' are mandatory fields of a packet here. in this
-        # sense, a set of packet.keys() should have 'type' and 'net' in it.
-        assert set(['type','net']).issubset(set(packet.keys()))
-
+        assert packet['type'] in ['DIO','DAO','DATA']
+        assert 'type' in packet
+        assert 'net'  in packet
+        
         returnVal = []
 
-        if (
+        if  (
                 (packet['type'] != d.NET_TYPE_FRAG)
                 and
                 ('packet_length' in packet['net'])
                 and
                 (self.settings.tsch_max_payload_len < packet['net']['packet_length'])
-           ):
+            ):
             # the packet needs fragmentation
 
             # choose tag (same for all fragments)
@@ -143,25 +165,26 @@ class Sixlowpan(object):
 
                 # put additional fields to the first and the last fragment
                 if   i == 0:
-                    # the first fragment of a packet has srcIp, dstIp
+                    # first fragment
+                    
+                    # add srcIp, dstIp, sourceRoute
                     fragment['net']['srcIp']                = packet['net']['srcIp']
                     fragment['net']['dstIp']                = packet['net']['dstIp']
                     if 'sourceRoute' in packet['net']:
                         fragment['net']['sourceRoute']      = copy.deepcopy(packet['net']['sourceRoute'])
                 elif i == (number_of_fragments - 1):
-                    # the last fragment of a packet has original_packet_type
-                    # and 'app' field
+                    # the last fragment
+                    
+                    # add original_packet_type and 'app' field
                     fragment['app']                         = copy.deepcopy(packet['app'])
                     fragment['net']['original_packet_type'] = packet['type']
 
-                # set the length of the fragment as packet_length
-                if (
+                # populate packet_length
+                if  (
                         (i == 0) and
                         ((packet['net']['packet_length'] % self.settings.tsch_max_payload_len) > 0)
-                   ):
-                    # Make the first fragment have some room to handle size changes
-                    # of the compressed header, although header compaction and
-                    # inflation have been not implemented yet.
+                    ):
+                    # slop is in the first fragment
                     fragment['net']['packet_length'] = packet['net']['packet_length'] % self.settings.tsch_max_payload_len
                 else:
                     fragment['net']['packet_length'] = self.settings.tsch_max_payload_len
@@ -173,7 +196,7 @@ class Sixlowpan(object):
                 fragment['mac'] = copy.deepcopy(packet['mac'])
 
                 # add the fragment to a returning list
-                returnVal.append(fragment)
+                returnVal += [fragment]
 
                 # log
                 self.log(
@@ -186,39 +209,109 @@ class Sixlowpan(object):
 
         else:
             # the input packet doesn't need fragmentation
-            returnVal = [packet]
+            returnVal += [packet]
 
         return returnVal
+    
+    def recv(self, packet):
+        
+        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        
+        goOn = True
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
+            {
+                '_mote_id':        self.mote.id,
+                'packet':          packet,
+            }
+        )
+        
+        # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
+        if goOn:
+            if packet['type'] == d.NET_TYPE_FRAG:
+                packet = self.fragmentation.fragRecv(packet)
+                if not packet:
+                    goOn = False
+        
+        # handle packet
+        if goOn:
+            if  (
+                    packet['type']!=d.NET_TYPE_FRAG # in case of fragment forwarding
+                    and
+                    (
+                        (packet['net']['dstIp'] == self.mote.id)
+                        or
+                        (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
+                    )
+                ):
+                # packet for me
+                
+                # dispatch to upper component
+                if   packet['type'] == d.APP_TYPE_JOIN:
+                    self.mote.secjoin.receiveJoinPacket(packet)
+                elif packet['type'] == d.RPL_TYPE_DAO:
+                    self.mote.rpl.action_receiveDAO(packet)
+                elif packet['type'] == d.RPL_TYPE_DIO:
+                    self.mote.rpl.action_receiveDIO(packet)
+                elif packet['type'] == d.APP_TYPE_DATA:
+                    self.mote.app._action_receivePacket(packet)
+                elif packet['type'] == d.APP_TYPE_ACK:
+                    self.mote.app.action_mote_receiveE2EAck(packet)
+                else:
+                    raise SystemError()
 
+            else:
+                # packet not for me
+
+                # forward
+                self.forward(packet)
+    
     def forward(self, packet):
-        # input packet is either:
-        # - a complete IPv6 packet which can be forwarded without fragmentation
-        # - a complete IPv6 packet which needs fragmentation
-        # - a fragment packet forwarded by fragment-forwarding
+        # packet can be:
+        # - an IPv6 packet (which may need fragmentation)
+        # - a fragment (fragment forwarding)
+        
+        assert 'type' in packet
+        assert 'net' in packet
+        
+        goOn = True
+        
+        # === create forwarded packet
+        if goOn:
+            fwdPacket = {}
+            # type
+            fwdPacket['type']     = copy.deepcopy(packet['type'])
+            # app
+            if 'app' in packet:
+                fwdPacket['app']  = copy.deepcopy(packet['app'])
+            # net
+            fwdPacket['net']      = copy.deepcopy(packet['net'])
+            # mac
+            if fwdPacket['type'] == d.NET_TYPE_FRAG:
+                # fragment already has mac header (FIXME: why?)
+                fwdPacket['mac']  = copy.deepcopy(packet['mac'])
+            else:
+                # find next hop
+                dstMac = self.mote.rpl.findNextHopId(fwdPacket['net']['dstIp'])
+                if dstMac==None:
+                    # we cannot find a next-hop; drop this packet
+                    self.mote.radio.drop_packet(
+                        pkt     = packet,
+                        reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                    )
+                    # stop handling this packet
+                    goOn = False
+                else:
+                    # add MAC header
+                    fwdPacket['mac'] = {
+                        'srcMac': self.mote.id,
+                        'dstMac': dstMac
+                    }
 
-        # mandatory fields are type and net
-        assert set(['type', 'net']).issubset(set(packet.keys()))
-
-        # keep only headers that are needed
-        fwdPacket = {
-            'type':            copy.deepcopy(packet['type']),
-            'net':             copy.deepcopy(packet['net']),
-        }
-        if 'app' in packet:
-            fwdPacket['app'] = copy.deepcopy(packet['app'])
-
-
-        if fwdPacket['type'] == d.NET_TYPE_FRAG:
-            # this is a fragment-forwarding packet which should have the valid
-            # MAC header
-            fwdPacket['mac'] = copy.deepcopy(packet['mac'])
-            ready_to_forward = True
-        else:
-            # prepare MAC header for the forwarding packet
-            ready_to_forward = self._prepare_mac_header(fwdPacket)
-
-        if ready_to_forward:
-            # log
+        # log
+        if goOn:
             self.log(
                 SimEngine.SimLog.LOG_SIXLOWPAN_PKT_FWD,
                 {
@@ -226,11 +319,18 @@ class Sixlowpan(object):
                     'packet':         fwdPacket,
                 }
             )
-
-            # fragment if needed; and forward the packet or the fragments
-            for pkt in self.fragment(fwdPacket):
-                if self._prepare_mac_header(pkt):
-                    self.mote.tsch.enqueue(pkt)
+        
+        # fragment
+        if goOn:
+            if fwdPacket['type']==d.NET_TYPE_FRAG:
+                fwdFrags = [fwdPacket] # don't re-frag a frag
+            else:
+                fwdFrags = self.fragmentPacket(fwdPacket)
+        
+        # enqueue all frags
+        if goOn:
+            for fwdFrag in fwdFrags:
+                self.mote.tsch.enqueue(fwdFrag)
 
     def reassemble(self, fragment):
         srcMac                = fragment['mac']['srcMac']
@@ -306,94 +406,8 @@ class Sixlowpan(object):
 
         return packet
 
-    def recv(self, packet):
-
-        self.log(
-            SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
-            {
-                '_mote_id':        self.mote.id,
-                'packet':          packet,
-            }
-        )
-
-        if packet['type'] == d.NET_TYPE_FRAG:
-            # self.fragmentaiton.recv() returns a packet to be processed
-            # here. `packet` could be None when no packet should be processed
-            # further.
-            packet = self.fragmentation.recv(packet)
-
-        # process switch:
-        # - packet is None       : do nothing
-        # - packet is for us     : hand to app
-        # - packet is for others : forward
-        if not packet:
-            # packet is None; do nothing
-            pass
-
-        elif (
-                (packet['type'] != d.NET_TYPE_FRAG)
-                and
-                (
-                    (packet['net']['dstIp'] == self.mote.id)
-                    or
-                    (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
-                )
-             ):
-            # packet for us
-
-            if   packet['type'] == d.APP_TYPE_JOIN:
-                self.mote.secjoin.receiveJoinPacket(packet)
-            elif packet['type'] == d.RPL_TYPE_DAO:
-                self.mote.rpl.action_receiveDAO(packet)
-            elif packet['type'] == d.RPL_TYPE_DIO:
-                self.mote.rpl.action_receiveDIO(packet)
-            elif packet['type'] == d.APP_TYPE_DATA:
-                self.mote.app._action_receivePacket(packet)
-            elif packet['type'] == d.APP_TYPE_ACK:
-                self.mote.app.action_mote_receiveE2EAck(packet)
-
-        else:
-            # packet for others; forward it
-
-            # application data packet specific process
-            if (
-                    ('app' in packet)
-                    and
-                    ('appcounter' in packet['app'])
-               ):
-                # update the number of hops
-                # FIXME: this shouldn't be done in application payload.
-                packet['app']['appcounter'] += 1 # update the number of hops
-
-            self.forward(packet)
-
-
     #======================== private ==========================================
-
-    def _prepare_mac_header(self, packet):
-        
-        returnVal = False
-
-        if 'mac' not in packet:
-            # need to prepare its MAC header
-            assert 'srcIp' in packet['net']
-            assert 'dstIp' in packet['net']
-            # find link-layer destination
-            dstMac = self.mote.rpl.findNextHopId(packet['net']['dstIp'])
-            if dstMac == None:
-                returnVal = False
-            else:
-                packet['mac'] = {
-                    'srcMac': self.mote.id,
-                    'dstMac': dstMac
-                }
-                returnVal = True
-        else:
-            assert 'srcMac' in packet['mac']
-            returnVal = True
-
-        return returnVal
-
+    
     def _get_next_datagram_tag(self):
         ret = self.next_datagram_tag
         self.next_datagram_tag = (ret + 1) % 65536
@@ -428,7 +442,7 @@ class Fragmentation(object):
     #======================== public ==========================================
 
     @abstractmethod
-    def recv(self, fragment):
+    def fragRecv(self, fragment):
         """This method is supposed to return a packet to be processed further
 
         This could return None.
@@ -445,7 +459,7 @@ class PerHopReassembly(Fragmentation):
     """
     #======================== public ==========================================
 
-    def recv(self, fragment):
+    def fragRecv(self, fragment):
         """Reassemble an original packet
         """
         return self.sixlowpan.reassemble(fragment)
@@ -465,7 +479,7 @@ class FragmentForwarding(Fragmentation):
 
     #======================== public ==========================================
 
-    def recv(self, fragment):
+    def fragRecv(self, fragment):
 
         srcMac                = fragment['mac']['srcMac']
         datagram_size         = fragment['net']['datagram_size']

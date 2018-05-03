@@ -150,7 +150,7 @@ class App(object):
                 },
             }
 
-            self.mote.sixlowpan.send(newUpstreamDataPacket)
+            self.mote.sixlowpan.sendPacket(newUpstreamDataPacket)
 
     def action_mote_receiveE2EAck(self, srcIp, payload, timestamp):
         """
@@ -202,7 +202,7 @@ class App(object):
         }
         
         # send a packet
-        self.mote.sixlowpan.send(newDownstreamDataPacket)
+        self.mote.sixlowpan.sendPacket(newDownstreamDataPacket)
     
     #=== [RX]
     

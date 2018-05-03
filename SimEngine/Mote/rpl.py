@@ -163,7 +163,7 @@ class Rpl(object):
                 self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
                 
                 # send the DIO via sixlowpan
-                self.mote.sixlowpan.send(newDIO)
+                self.mote.sixlowpan.sendPacket(newDIO)
 
         # schedule next DIO
         self._schedule_sendDIO()
@@ -294,7 +294,7 @@ class Rpl(object):
             self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DAO)
             
             # send the DAO via sixlowpan
-            self.mote.sixlowpan.send(newDAO)
+            self.mote.sixlowpan.sendPacket(newDAO)
     
     def action_receiveDAO(self, packet):
         """

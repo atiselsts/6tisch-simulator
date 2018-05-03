@@ -4,17 +4,17 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-@pytest.fixture(params=[2,3])
+@pytest.fixture(params=[3])
 def fixture_exec_numMotes(request):
     return request.param
 
-@pytest.fixture(params=['up', 'down', 'up-down'])
-#@pytest.fixture(params=['down'])
+#@pytest.fixture(params=['up', 'down', 'up-down'])
+@pytest.fixture(params=['up-down'])
 def fixture_data_flow(request):
     return request.param
 
 #@pytest.fixture(params=[10, 100, 200])
-@pytest.fixture(params=[10])
+@pytest.fixture(params=[100])
 def fixture_app_pkLength(request):
     return request.param
 
