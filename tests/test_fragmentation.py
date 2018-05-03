@@ -11,6 +11,18 @@ import test_utils as u
 import SimEngine
 import SimEngine.Mote.MoteDefines as d
 
+# =========================== helpers =========================================
+    
+def get_memory_usage(mote, fragmentation):
+    if fragmentation == 'PerHopReassembly':
+        memory_structure = mote.sixlowpan.fragmentation.reassembly_buffers
+    elif fragmentation == 'FragmentForwarding':
+        memory_structure = mote.sixlowpan.fragmentation.vrb_table
+
+    return sum([len(e) for _, e in memory_structure.items()])
+
+# =========================== fixtures ========================================
+
 FRAGMENTATION = [
     'PerHopReassembly',
     'FragmentForwarding'
@@ -18,7 +30,6 @@ FRAGMENTATION = [
 @pytest.fixture(params=FRAGMENTATION)
 def fragmentation(request):
     return request.param
-
 
 FRAGMENTATION_FF_DISCARD_VRB_ENTRY_POLICY = [
     [],
@@ -30,14 +41,7 @@ FRAGMENTATION_FF_DISCARD_VRB_ENTRY_POLICY = [
 def fragmentation_ff_discard_vrb_entry_policy(request):
     return request.param
 
-def get_memory_usage(mote, fragmentation):
-    if fragmentation == 'PerHopReassembly':
-        memory_structure = mote.sixlowpan.fragmentation.reassembly_buffers
-    elif fragmentation == 'FragmentForwarding':
-        memory_structure = mote.sixlowpan.fragmentation.vrb_table
-
-    return sum([len(e) for _, e in memory_structure.items()])
-
+# =========================== tests ===========================================
 
 class TestPacketDelivery:
     """ Behavioral Testing for Fragmentation
@@ -289,7 +293,6 @@ class TestPacketDelivery:
         e2e_latency = int(math.ceil(float(asn_end - asn_start) / sim_settings.tsch_slotframeLength))
         assert e2e_latency == expected_e2e_latency[fragmentation]
 
-
 class TestFragmentationAndReassembly(object):
 
     TSCH_MAX_PAYLOAD    = 90
@@ -504,7 +507,6 @@ class TestMemoryManagement:
         # the memory should have only one entry for fragment2_0 and fragment2_1
         assert get_memory_usage(hop1, fragmentation) == 1
 
-
 class TestDatagramTagManagement(object):
     """Test datagram_tag management
     """
@@ -542,10 +544,10 @@ class TestDatagramTagManagement(object):
 
         # set initial datagram_tag for test purpose
         hop1_initial_next_datagram_tag = 10
-        hop1.sixlowpan.next_datagram_tag = hop1_initial_next_datagram_tag
+        hop1.sixlowpan.fragmentation.next_datagram_tag = hop1_initial_next_datagram_tag
 
         leaf_initial_next_datagram_tag = 200
-        leaf.sixlowpan.next_datagram_tag = leaf_initial_next_datagram_tag
+        leaf.sixlowpan.fragmentation.next_datagram_tag = leaf_initial_next_datagram_tag
 
         # generate five packets, each of them is divided into two fragments
         assert len(leaf.tsch.txQueue) == 0
@@ -592,7 +594,6 @@ class TestDatagramTagManagement(object):
                 incoming_fragment['net']['datagram_tag'] !=
                 outgoing_fragment['net']['datagram_tag']
             )
-
 
 class TestFragmentForwarding:
 
