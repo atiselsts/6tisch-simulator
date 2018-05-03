@@ -79,12 +79,17 @@ def test_initial_scheduling_state(sim_engine):
         force_initial_routing_and_scheduling_state    = True
     )
 
-    # Each mote should have one TX dedicated cell to its parent. In this sense,
-    # a mote has the same number of RX dedicated cells as its children. We'll
-    # have a linear topology with force_initial_routing_and_scheduling_state
-    # True, each mote except for the root and the leaf has one TX cell and one
-    # RX cell. The root has one RX cell. The leaf has one TX cell.
+    # Each mote should have one TX/RX/SHRAED cell and one TX dedicated cell to
+    # its parent. In this sense, a mote has the same number of RX dedicated
+    # cells as its children. We'll have a linear topology with
+    # force_initial_routing_and_scheduling_state True, each mote except for the
+    # root and the leaf has one TX cell and one RX cell. The root has one RX
+    # cell. The leaf has one TX cell.
     for mote in reversed(sim_engine.motes):
+        # check shared cell
+        assert len(mote.tsch.getSharedCells()) == 1
+
+        # check dedicated cell
         parent = mote.rpl.getPreferredParent()
         if parent:
             # "mote" has one TX to its parent
