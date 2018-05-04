@@ -128,8 +128,10 @@ class SimLog(object):
         # local variables
         self.log_filters = []
 
-        # write config to log file
-        with open(self.settings.getOutputFile(), 'w') as f:
+        # write config to log file; if a file with the same file name exists,
+        # append logs to the file. this happens if you multiple runs on the
+        # same CPU.
+        with open(self.settings.getOutputFile(), 'a') as f:
             json.dump(self.settings.__dict__, f)
             f.write('\n')
 
