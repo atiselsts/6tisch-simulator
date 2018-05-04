@@ -46,16 +46,14 @@ def test_add_delete_6p(
     assert count_dedicated_tx_cells(hop2,hop1)==0
     
     # trigger a 6P ADD
-    hop2.sixp.send_ADD_REQUEST(
+    hop2.sixp.issue_ADD_REQUEST(
         neighborid = hop1.id,
-        numCells   = 1,
-        direction  = d.DIR_TX,
         cb         = sixp_done_cb,
     )
     
     # give 6P transaction some time to finish
-    u.run_until_asn(sim_engine, 1000)
+    u.run_until_asn(sim_engine, 2000)
     
     # make cell is added
-    assert count_dedicated_tx_cells(sim_engine.motes,hop2,hop1)==1
+    assert count_dedicated_tx_cells(hop2,hop1)==1
     

@@ -52,23 +52,8 @@ LOG_SIXLOWPAN_PKT_FWD            = {'type': 'sixlowpan.pkt.fwd',          'keys'
 LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys': ['_mote_id','packet']}
 LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','packet']}
 
-# === 6top
-LOG_6TOP_ADD_CELL                = {'type': '6top.add_cell',     'keys': ['ts', 'channel', 'direction', 'neighbor_id']}
-LOG_6TOP_TX_ADD_REQ              = {'type': '6top.tx_add_req'}
-LOG_6TOP_TX_DEL_REQ              = {'type': '6top.tx_del_req'}
-LOG_6TOP_TX_ADD_RESP             = {'type': '6top.tx_add_resp'}
-LOG_6TOP_TX_DEL_RESP             = {'type': '6top.tx_del_resp'}
-LOG_6TOP_RX_ADD_REQ              = {'type': '6top.rx_add_req'}
-LOG_6TOP_RX_DEL_REQ              = {'type': '6top.rx_del_req'}
-LOG_6TOP_RX_RESP                 = {'type': '6top.rx_resp',      'keys': ['_mote_id', 'rc', 'type', 'neighbor_id']}
-LOG_6TOP_RX_ACK                  = {'type': '6top.rx_ack'}
-LOG_6TOP_TIMEOUT                 = {'type': '6top.timeout',      'keys': ['cell_pdr']}
-LOG_6TOP_CELL_USED               = {'type': '6top.cell_used',    'keys': ['neighbor', 'direction', 'cell_type', 'prefered_parent']}
-LOG_6TOP_CELL_ELAPSED            = {'type': '6top.cell_elapsed', 'keys': ['cell_pdr']}
-LOG_6TOP_ERROR                   = {'type': '6top.error'}
-LOG_6TOP_INFO                    = {'type': '6top.info'}
-LOG_6TOP_LATENCY                 = {'type': '6top.latency'}
-LOG_6TOP_QUEUE_DEL               = {'type': '6top.queue_del', 'keys': ['pkt_type','neighbor']}
+# === sixp
+LOG_6P_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx', 'keys': ['_mote_id','packet']}
 
 # === tsch
 LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                  'keys': ['_mote_id']}
