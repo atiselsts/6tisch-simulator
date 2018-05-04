@@ -57,6 +57,7 @@ class SecJoin(object):
         
         assert self.mote.dagRoot==False
         assert self.mote.tsch.getIsSync()==True
+        assert self.mote.tsch.join_proxy!=None
         assert self.getIsJoined()==False
         
         if self.settings.secjoin_enabled:
@@ -75,8 +76,8 @@ class SecJoin(object):
                 'app': {
                 },
                 'net': {
-                    'srcIp':         self.mote.id,         # from mote
-                    'dstIp':         self.mote.dagRootId,  # to dagRoot
+                    'srcIp':         self.mote.id,              # from mote
+                    'dstIp':         self.mote.tsch.join_proxy, # to join proxy
                     'packet_length': d.PKT_LEN_JOIN_REQUEST,
                 },
             }

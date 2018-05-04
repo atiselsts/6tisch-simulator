@@ -38,7 +38,7 @@ class Tsch(object):
         self.channel                        = None
         self.asnLastSync                    = None
         self.isSync                         = False
-        self.jp                             = None    # join proxy (id)
+        self.join_proxy                     = None
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
         
         # backoff
@@ -455,7 +455,7 @@ class Tsch(object):
         if self.mote.rpl.getPreferredParent()!=None:
             parent_id        = self.mote.rpl.getPreferredParent()
         else:
-            parent_id        = self.mote.tsch.jp
+            parent_id        = self.mote.tsch.join_proxy
         parent               = self.engine.motes[parent_id]
         while True:
             secSinceSync     = (self.engine.getAsn()-child.tsch.asnLastSync)*self.settings.tsch_slotDuration
@@ -694,13 +694,13 @@ class Tsch(object):
     def _create_EB(self):
         
         newEB = {
-            'type':             d.PKT_TYPE_EB,
+            'type':               d.PKT_TYPE_EB,
             'app': {
-                'jp':           self.mote.rpl.getDagRank(),
+                'join_priority':  self.mote.rpl.getDagRank(),
             },
             'mac': {
-                'srcMac':       self.mote.id,            # from mote
-                'dstMac':       d.BROADCAST_ADDRESS,     # broadcast
+                'srcMac':         self.mote.id,            # from mote
+                'dstMac':         d.BROADCAST_ADDRESS,     # broadcast
             },
         }
         
@@ -721,7 +721,7 @@ class Tsch(object):
             self.setIsSync(True)
             
             # the mote that sent the EB is now by join proxy
-            self.jp = packet['mac']['srcMac']
+            self.join_proxy = packet['mac']['srcMac']
             
             # set neighbors variables before starting request cells to the preferred parent
             # FIXME
@@ -735,7 +735,7 @@ class Tsch(object):
             self.add_minimal_cell()
 
             # trigger join process
-            self.mote.secjoin.startJoinProcess()  # trigger the join process
+            self.mote.secjoin.startJoinProcess()
 
     # backoff
 

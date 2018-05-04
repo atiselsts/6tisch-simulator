@@ -305,7 +305,7 @@ class Rpl(object):
                 
                 if packet['type']==d.PKT_TYPE_JOIN_REQUEST:
                     # a join request is sent before the mote acquires a preferred parent
-                    nextHopId = self.mote.tsch.jp
+                    nextHopId = self.mote.tsch.join_proxy
                 else:
                     nextHopId =  None
             else:
