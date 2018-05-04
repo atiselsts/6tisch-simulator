@@ -175,7 +175,13 @@ class Mote(object):
         
         # I must have at least one TX cell to my preferred parent (if running MSF)
         if returnVal==True:
-            if type(self.sf)==sf.MSF and self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0)==0:
+            if (
+                    (self.dagRoot == False)
+                    and
+                    (type(self.sf) == sf.MSF)
+                    and
+                    (self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0) == 0)
+               ):
                     returnVal = False
         
         return returnVal
@@ -200,4 +206,3 @@ class Mote(object):
             del packet[k]
     
     #======================== private =========================================
-    
