@@ -441,7 +441,7 @@ class Tsch(object):
 
         return isACKed
 
-    def desyncWithDagRoot(self):
+    def computeTimeOffsetToDagRoot(self):
         """
         calculate time offset compared to the DAGroot
         """
