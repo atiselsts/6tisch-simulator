@@ -41,7 +41,13 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     assert len(hop1.tsch.txQueue) == d.TSCH_QUEUE_SIZE
 
     # prepare a test_frame
-    test_frame = {'type': frame_type, 'mac': {'srcMac': hop1, 'dstMac': root}}
+    test_frame = {
+        'type': frame_type,
+        'mac': {
+            'srcMac': hop1.id,
+            'dstMac': root.id,
+        }
+    }
     
     # ensure queuing fails
     assert hop1.tsch.enqueue(test_frame) == False

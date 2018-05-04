@@ -211,14 +211,15 @@ class Rpl(object):
             
             # create new packet
             newDAO = {
-                'type':           d.PKT_TYPE_DAO,
+                'type':                d.PKT_TYPE_DAO,
                 'app': {
-                    'child_id':   self.mote.id,
-                    'parent_id':  self.preferredParent,
+                    'child_id':        self.mote.id,
+                    'parent_id':       self.preferredParent,
                 },
                 'net': {
-                    'srcIp':      self.mote.id,            # from mote
-                    'dstIp':      self.mote.dagRootId,     # to DAGroot
+                    'srcIp':           self.mote.id,            # from mote
+                    'dstIp':           self.mote.dagRootId,     # to DAGroot
+                    'packet_length':   d.PKT_LEN_DAO,
                 },
             }
             
@@ -302,7 +303,11 @@ class Rpl(object):
             if self.preferredParent==None:
                 # no preferred parent
                 
-                nextHopId =  None
+                if packet['type']==d.PKT_TYPE_JOIN_REQUEST:
+                    # a join request is sent before the mote acquires a preferred parent
+                    nextHopId = self.mote.tsch.jp
+                else:
+                    nextHopId =  None
             else:
                 if   packet['net']['dstIp'] == self.mote.dagRootId:
                     # common upstream packet

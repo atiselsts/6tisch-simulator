@@ -11,7 +11,7 @@ DIR_TX                                      = 'TX'
 DIR_RX                                      = 'RX'
 DIR_TXRX_SHARED                             = 'SHARED'
 
-# === frame types
+# === packet types
 PKT_TYPE_DATA                               = 'DATA'
 PKT_TYPE_FRAG                               = 'FRAG'
 PKT_TYPE_JOIN_REQUEST                       = 'JOIN_REQUEST'
@@ -21,6 +21,11 @@ PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
 PKT_TYPE_6P_ADD_REQUEST                     = '6P_ADD_REQUEST'
 PKT_TYPE_6P_DELETE_REQUEST                  = '6P_DELETE_REQUEST'
+
+# === packet lengths
+PKT_LEN_DAO                                 = 20
+PKT_LEN_JOIN_REQUEST                        = 20
+PKT_LEN_JOIN_RESPONSE                       = 20
 
 # === 6top message types
 IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'

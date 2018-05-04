@@ -90,7 +90,7 @@ LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE  = {'type': 'tsch.drop_frag_fail_enqueue',  'key
 LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE = {'type': 'tsch.drop_relay_fail_enqueue', 'keys': ['_mote_id']}
 
 # === radio
-LOG_RADIO_PKT_DROPPED            = {'type': 'radio.pkt_dropped', 'keys': ['_mote_id','type','reason']}
+LOG_PACKET_DROPPED               = {'type': 'packet_dropped', 'keys': ['_mote_id','packet','reason']}
 
 # === queue
 LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}

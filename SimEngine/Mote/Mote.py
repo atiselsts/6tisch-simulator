@@ -180,5 +180,24 @@ class Mote(object):
         
         return returnVal
     
+    # ==== dropping
+    
+    def drop_packet(self, packet, reason):
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_PACKET_DROPPED,
+            {
+                "_mote_id":  self.id,
+                "packet":    packet,
+                "reason":    reason,
+            }
+        )
+        
+        # remove all the element of packet so it cannot be processed further
+        # Note: this is useless, but allows us to catch bugs in case packet is further processed
+        for k in packet.keys():
+            del packet[k]
+    
     #======================== private =========================================
     

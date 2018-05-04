@@ -225,8 +225,8 @@ class Tsch(object):
                 # my TX queue is full
                 
                 # drop
-                self.mote.radio.drop_packet(
-                    pkt     = packet,
+                self.mote.drop_packet(
+                    packet  = packet,
                     reason  = SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type']
                 )
                 
@@ -239,8 +239,8 @@ class Tsch(object):
                 # I don't have any cell to transmit on
                 
                 # drop
-                self.mote.radio.drop_packet(
-                    pkt     = packet,
+                self.mote.drop_packet(
+                    packet  = packet,
                     reason  = SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type']
                 )
                 
@@ -328,9 +328,9 @@ class Tsch(object):
                     self.getTxQueue().remove(self.pktToSend)
 
                     # drop
-                    self.mote.radio.drop_packet(
-                        pkt     = self.pktToSend,
-                        reason  = SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type']
+                    self.mote.drop_packet(
+                        packet  = self.pktToSend,
+                        reason  = SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type'],
                     )
 
                 # update backoff
@@ -452,7 +452,11 @@ class Tsch(object):
         offset               = 0.0
 
         child                = self.mote
-        parent               = self.engine.motes[self.mote.rpl.getPreferredParent()]
+        if self.mote.rpl.getPreferredParent()!=None:
+            parent_id        = self.mote.rpl.getPreferredParent()
+        else:
+            parent_id        = self.mote.tsch.jp
+        parent               = self.engine.motes[parent_id]
         while True:
             secSinceSync     = (self.engine.getAsn()-child.tsch.asnLastSync)*self.settings.tsch_slotDuration
             # FIXME: for ppm, should we not /10^6?

@@ -48,7 +48,7 @@ def check_all_nodes_send_x(motes,x):
     assert sorted(senders)==sorted([m.id for m in motes])
     
 def check_no_packet_drop():
-    assert u.read_log_file(['radio.pkt_dropped'])==[]
+    assert u.read_log_file(['packet_dropped'])==[]
 
 # === app
 

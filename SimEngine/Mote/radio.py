@@ -117,21 +117,3 @@ class Radio(object):
 
         # inform upper layer (TSCH)
         return self.mote.tsch.rxDone(packet)
-
-    # dropping
-
-    def drop_packet(self, pkt, reason):
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_RADIO_PKT_DROPPED,
-            {
-                "_mote_id":  self.mote.id,
-                "type":      pkt['type'],
-                "reason":    reason,
-            }
-        )
-        
-        # remove all the element of pkt so that it won't be processed further
-        for k in pkt.keys():
-            del pkt[k]

@@ -12,9 +12,6 @@ import SimEngine
 
 # =========================== defines =========================================
 
-LEN_JOIN_REQUEST  = 20
-LEN_JOIN_RESPONSE = 20
-
 # =========================== helpers =========================================
 
 # =========================== body ============================================
@@ -80,7 +77,7 @@ class SecJoin(object):
                 'net': {
                     'srcIp':         self.mote.id,         # from mote
                     'dstIp':         self.mote.dagRootId,  # to dagRoot
-                    'packet_length': LEN_JOIN_REQUEST,
+                    'packet_length': d.PKT_LEN_JOIN_REQUEST,
                 },
             }
             
@@ -106,7 +103,7 @@ class SecJoin(object):
                 'net': {
                     'srcIp':         self.mote.id,              # from dagRoot
                     'dstIp':         packet['net']['srcIp'],    # to mote
-                    'packet_length': LEN_JOIN_RESPONSE,
+                    'packet_length': d.PKT_LEN_JOIN_RESPONSE,
                 },
             }
             

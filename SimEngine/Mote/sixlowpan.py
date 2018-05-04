@@ -62,8 +62,8 @@ class Sixlowpan(object):
         dstMac = self.mote.rpl.findNextHopId(packet)
         if dstMac==None:
             # we cannot find a next-hop; drop this packet
-            self.mote.radio.drop_packet(
-                pkt     = packet,
+            self.mote.drop_packet(
+                packet  = packet,
                 reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
             )
             # stop handling this packet
@@ -87,7 +87,14 @@ class Sixlowpan(object):
     
     def recvPacket(self, packet):
         
-        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO,d.PKT_TYPE_FRAG]
+        assert packet['type'] in [
+            d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_DIO,
+            d.PKT_TYPE_FRAG,
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+        ]
         
         goOn = True
         
@@ -166,8 +173,8 @@ class Sixlowpan(object):
 
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
-                    self.mote.radio.drop_packet(
-                        pkt     = packet,
+                    self.mote.drop_packet(
+                        packet  = packet,
                         reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
                     )
                     # stop handling this packet
@@ -274,19 +281,18 @@ class Fragmentation(object):
                 }
             }
         """
-        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO,d.PKT_TYPE_FRAG]
+        assert packet['type'] in [
+            d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+        ]
         assert 'type' in packet
         assert 'net'  in packet
         
         returnVal = []
-
-        if  (
-                (packet['type'] != d.PKT_TYPE_FRAG)
-                and
-                ('packet_length' in packet['net'])
-                and
-                (self.settings.tsch_max_payload_len < packet['net']['packet_length'])
-            ):
+        
+        if  self.settings.tsch_max_payload_len < packet['net']['packet_length']:
             # the packet needs fragmentation
 
             # choose tag (same for all fragments)
@@ -382,7 +388,10 @@ class Fragmentation(object):
                     total_reassembly_buffers_num += len(self.reassembly_buffers[i])
                 if total_reassembly_buffers_num == self.settings.sixlowpan_reassembly_buffers_num:
                     # no room for a new entry
-                    self.mote.radio.drop_packet(fragment, 'frag_reassembly_buffer_full')
+                    self.mote.drop_packet(
+                        packet = fragment,
+                        reason = 'frag_reassembly_buffer_full',
+                    )
                     return
 
             # create a new reassembly buffer
@@ -511,7 +520,10 @@ class FragmentForwarding(Fragmentation):
                 assert total_vrb_table_entry_num <= self.settings.fragmentation_ff_vrb_table_size
                 if total_vrb_table_entry_num == self.settings.fragmentation_ff_vrb_table_size:
                     # no room for a new entry
-                    self.mote.radio.drop_packet(fragment, 'frag_vrb_table_full')
+                    self.mote.drop_packet(
+                        packet = fragment,
+                        reason = 'frag_vrb_table_full',
+                    )
                     return
 
 
