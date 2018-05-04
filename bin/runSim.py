@@ -132,8 +132,9 @@ def runSimCombinations(params):
         )
         printOrLog(cpuID, output, verbose)
 
+keep_printing_progress = True
 def printProgressPerCpu(cpuIDs):
-    while True:
+    while keep_printing_progress:
         time.sleep(1)
         output     = []
         for cpuID in cpuIDs:
@@ -228,6 +229,19 @@ def main():
             runsPerCPU[cpuID] = (runs, first_run)
             first_run += runs
 
+        # print progress, wait until done
+        cpuIDs                = [i for i in range(numCPUs)]
+        print_progress_thread = threading.Thread(
+            target = printProgressPerCpu,
+            args   = ([cpuIDs])
+        )
+        print_progress_thread.start()
+
+        # wait for the thread ready
+        while print_progress_thread.is_alive() == False:
+            time.sleep(0.5)
+
+        # start simulations
         pool = multiprocessing.Pool(numCPUs)
         async_result = pool.map_async(
             runSimCombinations,
@@ -242,12 +256,18 @@ def main():
                 } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
             ]
         )
-        
-        # get() raises an exception raised by a thread if any
-        async_result.get()
 
-        # print progress, wait until done
-        printProgressPerCpu([i for i in range(numCPUs)])
+        # get() raises an exception raised by a thread if any
+        try:
+            async_result.get()
+        except Exception:
+            raise
+        finally:
+            # stop print_proress_thread if it's alive
+            if print_progress_thread.is_alive():
+                global keep_printing_progress
+                keep_printing_progress = False
+                print_progress_thread.join()
 
         # cleanup
         for i in range(numCPUs):
