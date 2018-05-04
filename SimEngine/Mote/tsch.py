@@ -77,7 +77,7 @@ class Tsch(object):
         self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
             uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
         )
-        self.tsch_schedule_active_cell()    # schedule next active cell
+        self.tsch_schedule_next_active_cell()    # schedule next active cell
     
     def _getCells(self, direction, neighbor):
         if neighbor!=None:
@@ -179,7 +179,7 @@ class Tsch(object):
         
         # reschedule the next active cell, in case it is now earlier
         if self.getIsSync():
-            self.tsch_schedule_active_cell()
+            self.tsch_schedule_next_active_cell()
 
     def removeCell(self, neighbor, slotoffset, channeloffset, direction):
         
@@ -210,7 +210,7 @@ class Tsch(object):
 
         # reschedule the next active cell, in case it is now earlier
         if self.getIsSync():
-            self.tsch_schedule_active_cell()
+            self.tsch_schedule_next_active_cell()
 
     # data interface with upper layers
 
@@ -516,7 +516,7 @@ class Tsch(object):
     
     # active cell
 
-    def tsch_schedule_active_cell(self):
+    def tsch_schedule_next_active_cell(self):
         
         assert self.getIsSync()
         
@@ -748,7 +748,7 @@ class Tsch(object):
                 self.waitingFor = d.DIR_RX
 
         # schedule next active cell
-        self.tsch_schedule_active_cell()
+        self.tsch_schedule_next_active_cell()
 
     # EBs
 

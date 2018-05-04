@@ -140,7 +140,7 @@ class Mote(object):
                 mote.dagRootId  = self.id
             
             # schedule the first active cell
-            self.tsch.tsch_schedule_active_cell()
+            self.tsch.tsch_schedule_next_active_cell()
             
         else:
             # I'm NOT the DAG root
