@@ -121,9 +121,6 @@ class Tsch(object):
         - on the mote, after having received an EB
         '''
 
-        # start sending EBs
-        self._tsch_schedule_sendEB()
-
         # if not join, set the neighbor variables when initializing stack.
         # with join this is done when the nodes become synced. If root, initialize here anyway
         if (not self.settings.secjoin_enabled) or self.mote.dagRoot:
@@ -216,8 +213,8 @@ class Tsch(object):
 
     def enqueue(self, packet):
 
-        assert 'type' in packet
-        assert 'mac' in packet
+        assert packet['type'] != d.RPL_TYPE_DIO
+        assert packet['type'] != d.TSCH_TYPE_EB
         assert 'srcMac' in packet['mac']
         assert 'dstMac' in packet['mac']
         
@@ -251,7 +248,7 @@ class Tsch(object):
                 # couldn't enqueue
                 goOn = False
         
-        # if I get here, every is OK, I can enqueue
+        # if I get here, everyting is OK, I can enqueue
         if goOn:
             # set retriesLeft which should be renewed at every hop
             packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
@@ -286,10 +283,10 @@ class Tsch(object):
         if self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
             # I just sent a broadcast packet
             
+            assert self.pktToSend['type'] in [d.TSCH_TYPE_EB,d.RPL_TYPE_DIO]
             assert isACKed==False
             
-            # remove packet from queue
-            self.getTxQueue().remove(self.pktToSend)
+            # DIOs and EBs were never in txQueue, no need to remove
             
             # reset backoff
             self._resetBroadcastBackoff()
@@ -595,23 +592,36 @@ class Tsch(object):
             
             # find packet to send
             if self.backoffBroadcast == 0:
-                for pkt in self.txQueue:
-                    if  (
-                            # DIOs and EBs always on minimal cell
-                            (
-                                pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
-                            )
-                            or
-                            # other frames on the minimal cell if no dedicated cells to the nextHop
-                            (
-                                self.getTxCells(pkt['mac']['dstMac']) == []
-                                and
-                                self.getSharedCells(pkt['mac']['dstMac'])==[]
-                            )
-                        ):
-                        self.pktToSend = pkt
-                        break
-            
+                
+                # first, find packets to neighbor to which I don't have dedicated cells
+                if not self.pktToSend:
+                    for pkt in self.txQueue:
+                        if  (
+                                # DIOs and EBs always on minimal cell
+                                (
+                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                                )
+                                or
+                                # other frames on the minimal cell if no dedicated cells to the nextHop
+                                (
+                                    self.getTxCells(pkt['mac']['dstMac']) == []
+                                    and
+                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
+                                )
+                            ):
+                            self.pktToSend = pkt
+                            break
+                
+                # otherwise, generate an EB or a DIO
+                if not self.pktToSend:
+                    if self.mote.clear_to_send_EBs_and_DIOs():
+                        prob = self.settings.tsch_probBcast_ebDioProb/self.mote.getNumNeighbors()
+                        if random.random()<prob:
+                            if random.random()<0.50:
+                                self.pktToSend = self._create_EB()
+                            else:
+                                self.pktToSend = self.mote.rpl._create_DIO()
+
             # decrement backoff
             if self.backoffBroadcast > 0:
                 self.backoffBroadcast -= 1
@@ -677,77 +687,21 @@ class Tsch(object):
         self.channel         = cell['ch']
 
     # EBs
-
-    def _tsch_schedule_sendEB(self):
+    
+    def _create_EB(self):
         
-        # schedule to send an EB every slotframe
-        # _tsch_action_sendEB() decides whether to actually send, based on probability
-        self.engine.scheduleAtAsn(
-            asn              = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
-            cb               = self._tsch_action_sendEB,
-            uniqueTag        = (self.mote.id, '_tsch_action_sendEB'),
-            intraSlotOrder   = 3,
-        )
-
-    def _tsch_action_sendEB(self):
+        newEB = {
+            'type':             d.TSCH_TYPE_EB,
+            'app': {
+                'jp':           self.mote.rpl.getDagRank(),
+            },
+            'mac': {
+                'srcMac':       self.mote.id,            # from mote
+                'dstMac':       d.BROADCAST_ADDRESS,     # broadcast
+            },
+        }
         
-        # compute probability to send an EB
-        ebProb     = float(self.settings.tsch_probBcast_ebProb)            \
-                     /                                                     \
-                     float(len(self.mote.secjoin.areAllNeighborsJoined())) \
-                     if                                                    \
-                     len(self.mote.secjoin.areAllNeighborsJoined())        \
-                     else                                                  \
-                     float(self.settings.tsch_probBcast_ebProb)
-        sendEB = (random.random() < ebProb)
-        
-        # enqueue EB, if appropriate
-        if sendEB:
-            # probability passes
-            if self.mote.secjoin.isJoined() or (not self.settings.secjoin_enabled):
-                # I have joined
-                if  (
-                        self.mote.dagRoot
-                        or
-                        (
-                            self.mote.rpl.getPreferredParent()!=None
-                            and
-                            (
-                                (
-                                    type(self.mote.sf)==sf.MSF
-                                    and
-                                    self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(),0)>0
-                                )
-                                or
-                                (
-                                    type(self.mote.sf)!=sf.MSF
-                                )
-                            )
-                        )
-                    ):
-                    
-                    # I am the root, or I have a preferred parent with dedicated cells to it
-                    
-                    # create new packet
-                    newEB = {
-                        'type':             d.TSCH_TYPE_EB,
-                        'app': {
-                            'jp':           self.mote.rpl.getDagRank(),
-                        },
-                        'mac': {
-                            'srcMac':       self.mote.id,            # from mote
-                            'dstMac':       d.BROADCAST_ADDRESS,     # broadcast
-                        },
-                    }
-
-                    # remove other possible EBs from the queue
-                    self.removeTypeFromQueue(d.TSCH_TYPE_EB)
-                    
-                    # enqueue packet in TSCH queue
-                    self.enqueue(newEB)
-
-        # schedule next EB
-        self._tsch_schedule_sendEB()
+        return newEB
 
     def _tsch_action_receiveEB(self, packet):
         

@@ -74,8 +74,7 @@ class TestPacketDelivery:
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 5,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
                 'app_pkLength'                             : app_pkLength,
                 'fragmentation'                            : fragmentation,
@@ -83,7 +82,7 @@ class TestPacketDelivery:
             },
             force_initial_routing_and_scheduling_state = True,
         )
-
+        
         # run the simulation for 1000 timeslots (10 seconds)
         u.run_until_asn(sim_engine, 1000)
 
@@ -136,8 +135,7 @@ class TestPacketDelivery:
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
                 'app_pkLength'                             : 270,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
                 'tsch_max_payload_len'                     : 90,
                 'fragmentation'                            : fragmentation,
@@ -241,8 +239,7 @@ class TestPacketDelivery:
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'app_pkLength'                             : 180,
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy
@@ -321,8 +318,7 @@ class TestFragmentationAndReassembly(object):
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'tsch_max_payload_len'                     : self.TSCH_MAX_PAYLOAD,
                 'app_pkLength'                             : app_pkLength,
                 'fragmentation'                            : fragmentation,

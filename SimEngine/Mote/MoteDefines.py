@@ -15,8 +15,8 @@ ERROR                                       = 'ERROR'
 
 # === frame types
 APP_TYPE_DATA                               = 'DATA'
-APP_TYPE_JOIN                               = 'JOIN' # join traffic
 NET_TYPE_FRAG                               = 'FRAG'
+APP_TYPE_JOIN                               = 'JOIN'
 RPL_TYPE_DIO                                = 'DIO'
 RPL_TYPE_DAO                                = 'DAO'
 TSCH_TYPE_EB                                = 'EB'

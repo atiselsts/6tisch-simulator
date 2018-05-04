@@ -43,6 +43,8 @@ def sim_engine(request):
         config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
 
         # update default configuration with parameters
+        for (k,v) in diff_config.items():
+            assert k in config
         config.update(**diff_config)
 
         # create sim settings

@@ -77,96 +77,28 @@ class Rpl(object):
         Initialize the RPL layer
         """
 
-        # start sending DIOs and DAOs
-        self._schedule_sendDIO()
+        # start sending DAOs
         self._schedule_sendDAO(firstDAO=True)
-
+    
     # === DIO
     
-    def _schedule_sendDIO(self):
-        """
-        Send a DIO sometimes in the future.
-        """
-
-        # schedule to send a DIO every slotframe
-        # _action_sendDIO() decides whether to actually send, based on probability
-        self.engine.scheduleAtAsn(
-            asn              = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
-            cb               = self._action_sendDIO,
-            uniqueTag        = (self.mote.id, '_action_sendDIO'),
-            intraSlotOrder   = 3,
-        )
-
-    def _action_sendDIO(self):
-        """
-        decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
-        """
+    def _create_DIO(self):
+        newDIO = {
+            'type':          d.RPL_TYPE_DIO,
+            'app': {
+                'rank':      self.rank,
+            },
+            'net': {
+                'srcIp':     self.mote.id,            # from mote
+                'dstIp':     d.BROADCAST_ADDRESS,     # broadcast (in reality "all RPL routers")
+            },
+            'mac': {
+                'srcMac':    self.mote.id,            # from mote
+                'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
+            }
+        }
         
-        # compute probability to send a DIO
-        dioProb =   (                                                           \
-                        float(self.settings.tsch_probBcast_dioProb)             \
-                        /                                                       \
-                        float(len(self.mote.secjoin.areAllNeighborsJoined()))   \
-                    )                                                           \
-                    if                                                          \
-                    len(self.mote.secjoin.areAllNeighborsJoined())              \
-                    else                                                        \
-                    float(self.settings.tsch_probBcast_dioProb)
-        sendDio =(random.random() < dioProb)
-
-        # enqueue DIO, if appropriate
-        if sendDio:
-            # probability passes
-            if  (
-                    self.mote.dagRoot
-                    or
-                    (
-                        self.preferredParent!=None
-                        and
-                        (
-                            (
-                                type(self.mote.sf)==sf.MSF
-                                and
-                                self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(),0)>0
-                            )
-                            or
-                            (
-                                type(self.mote.sf)!=sf.MSF
-                            )
-                        )
-                    )
-                ):
-                
-                # I am the root, or I have a preferred parent with dedicated cells to it
-                
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_RPL_DIO_TX,
-                    {
-                        "_mote_id": self.mote.id,
-                    }
-                )
-                
-                # create new packet
-                newDIO = {
-                    'type':            d.RPL_TYPE_DIO,
-                    'app': {
-                        'rank':        self.rank,
-                    },
-                    'net': {
-                        'srcIp':       self.mote.id,            # from mote
-                        'dstIp':       d.BROADCAST_ADDRESS,     # broadcast
-                    },
-                }
-                
-                # remove other possible DIOs from the queue
-                self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
-                
-                # send the DIO via sixlowpan
-                self.mote.sixlowpan.sendPacket(newDIO)
-
-        # schedule next DIO
-        self._schedule_sendDIO()
+        return newDIO
     
     def action_receiveDIO(self, packet):
         

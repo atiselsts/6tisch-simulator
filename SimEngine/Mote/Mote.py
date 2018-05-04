@@ -99,10 +99,15 @@ class Mote(object):
                 destination  = neighbor,
                 channel      = 0, #FIXME
             )
-
-    def _myNeighbors(self):
+    
+    # ==== neighbors
+    
+    def _myNeighbors(self): # FIXME: discover neighbors
         return [n.id for n in self.engine.motes if self.engine.connectivity.get_pdr(self.id,n.id,0) > 0]
-
+    
+    def getNumNeighbors(self):
+        return len(self._myNeighbors())
+    
     # ==== location
 
     def setLocation(self, x, y):
@@ -147,5 +152,36 @@ class Mote(object):
             
             # schedule the first listeningForE cell
             self.tsch.tsch_schedule_next_listeningForEB_cell()
-
+    
+    # ==== EBs and DIOs
+    
+    def clear_to_send_EBs_and_DIOs(self):
+        returnVal = False
+        if self.secjoin.isJoined() or (not self.settings.secjoin_enabled):
+            # I have joined
+            if  (
+                    self.dagRoot
+                    or
+                    (
+                        self.rpl.getPreferredParent()!=None
+                        and
+                        (
+                            (
+                                type(self.sf)==sf.MSF
+                                and
+                                self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0)>0
+                            )
+                            or
+                            (
+                                type(self.sf)!=sf.MSF
+                            )
+                        )
+                    )
+                ):
+                
+                # I am the root, or I have a preferred parent with dedicated cells to it
+                returnVal = True
+        return returnVal
+    
     #======================== private =========================================
+    

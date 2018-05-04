@@ -141,8 +141,7 @@ def test_vanilla_scenario(
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
             'rpl_daoPeriod':                               60,
-            'tsch_probBcast_ebProb':                       0.33/2,
-            'tsch_probBcast_dioProb':                      0.33/2,
+            'tsch_probBcast_ebDioProb':                    0.33,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
             'sf_type':                                     fixture_sf_type,
