@@ -156,31 +156,28 @@ class Mote(object):
     # ==== EBs and DIOs
     
     def clear_to_send_EBs_and_DIOs(self):
-        returnVal = False
-        if self.secjoin.isJoined():
-            # I have joined
-            if  (
-                    self.dagRoot
-                    or
-                    (
-                        self.rpl.getPreferredParent()!=None
-                        and
-                        (
-                            (
-                                type(self.sf)==sf.MSF
-                                and
-                                self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0)>0
-                            )
-                            or
-                            (
-                                type(self.sf)!=sf.MSF
-                            )
-                        )
-                    )
-                ):
-                
-                # I am the root, or I have a preferred parent with dedicated cells to it
-                returnVal = True
+        returnVal = True
+        
+        # I need to be synchronized
+        if returnVal==True:
+            if self.tsch.getIsSync()==False:
+                returnVal = False
+        
+        # I need to have joined
+        if returnVal==True:
+            if self.secjoin.isJoined()==False:
+                returnVal = False
+        
+        # I must have a preferred parent (or be the dagRoot)
+        if returnVal==True:
+            if self.dagRoot==False and self.rpl.getPreferredParent()==None:
+                returnVal = False
+        
+        # I must have at least one TX cell to my preferred parent (if running MSF)
+        if returnVal==True:
+            if type(self.sf)==sf.MSF and self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0)==0:
+                    returnVal = False
+        
         return returnVal
     
     #======================== private =========================================
