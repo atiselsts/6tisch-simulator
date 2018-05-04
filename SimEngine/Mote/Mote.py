@@ -165,7 +165,7 @@ class Mote(object):
         
         # I need to have joined
         if returnVal==True:
-            if self.secjoin.isJoined()==False:
+            if self.secjoin.getIsJoined()==False:
                 returnVal = False
         
         # I must have a preferred parent (or be the dagRoot)

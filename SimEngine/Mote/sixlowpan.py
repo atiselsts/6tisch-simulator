@@ -38,7 +38,12 @@ class Sixlowpan(object):
 
     def sendPacket(self, packet):
         assert sorted(packet.keys()) == sorted(['type','app','net'])
-        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO]
+        assert packet['type'] in [
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_DATA,
+        ]
         assert 'srcIp' in packet['net']
         assert 'dstIp' in packet['net']
         
@@ -124,8 +129,8 @@ class Sixlowpan(object):
                 # packet for me
                 
                 # dispatch to upper component
-                if   packet['type'] == d.PKT_TYPE_JOIN:
-                    self.mote.secjoin.receiveJoinPacket(packet)
+                if   packet['type'] in [d.PKT_TYPE_JOIN_REQUEST,d.PKT_TYPE_JOIN_RESPONSE]:
+                    self.mote.secjoin.receive(packet)
                 elif packet['type'] == d.PKT_TYPE_DAO:
                     self.mote.rpl.action_receiveDAO(packet)
                 elif packet['type'] == d.PKT_TYPE_DIO:

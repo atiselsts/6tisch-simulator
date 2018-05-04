@@ -33,9 +33,9 @@ LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','
 LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 
 # === join 
-LOG_JOIN_TX                      = {'type': 'join.tx'}
-LOG_JOIN_RX                      = {'type': 'join.rx', 'keys': ['source', 'token']}
-LOG_JOINED                       = {'type': 'join.joined'}
+LOG_JOIN_TX                      = {'type': 'join.tx',     'keys': ['_mote_id']}
+LOG_JOIN_RX                      = {'type': 'join.rx',     'keys': ['_mote_id']}
+LOG_JOINED                       = {'type': 'join.joined', 'keys': ['_mote_id']}
 
 # === rpl
 LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',           'keys': ['_mote_id']}

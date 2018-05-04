@@ -727,7 +727,7 @@ class Tsch(object):
             self.add_minimal_cell()
 
             # trigger join process
-            self.mote.secjoin.scheduleJoinProcess()  # trigger the join process
+            self.mote.secjoin.startJoinProcess()  # trigger the join process
 
     # backoff
 

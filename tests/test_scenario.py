@@ -4,15 +4,19 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-@pytest.fixture(params=[3])
+@pytest.fixture(params=[2])
 def fixture_exec_numMotes(request):
     return request.param
 
 #@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['up-down'])
+@pytest.fixture(params=['up'])
 def fixture_data_flow(request):
     return request.param
 
+@pytest.fixture(params=[False])
+def fixture_secjoin_enabled(request):
+    return request.param
+    
 #@pytest.fixture(params=[10, 100, 200])
 @pytest.fixture(params=[100])
 def fixture_app_pkLength(request):
@@ -118,6 +122,7 @@ def test_vanilla_scenario(
         sim_engine,
         fixture_exec_numMotes,
         fixture_data_flow,
+        fixture_secjoin_enabled,
         fixture_app_pkLength,
         fixture_fragmentation,
         fixture_ff_vrb_policy_missing_fragment,
@@ -138,6 +143,7 @@ def test_vanilla_scenario(
         diff_config = {
             'exec_numMotes':                               fixture_exec_numMotes,
             'exec_numSlotframesPerRun':                    10000,
+            'secjoin_enabled':                             fixture_secjoin_enabled,
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
             'rpl_daoPeriod':                               60,
