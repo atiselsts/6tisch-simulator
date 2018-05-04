@@ -1,10 +1,21 @@
 import pytest
 
 import test_utils as u
+import SimEngine.Mote.MoteDefines as d
 
 # =========================== fixtures ========================================
 
 # =========================== helpers =========================================
+
+def count_dedicated_tx_cells(mote,neighbor):
+    returnVal = 0
+    for cell in mote.tsch.getTxCells():
+        if cell['neighbor']==neighbor.id:
+            returnVal += 1
+    return returnVal
+
+def sixp_done_cb(seqnum, rc):
+    print seqnum, rc
 
 # =========================== tests ===========================================
 
@@ -29,6 +40,22 @@ def test_add_delete_6p(
     # give the network time to form
     u.run_until_asn(sim_engine, 1000)
     
-    # === add/delete cells
+    # === add a cell
     
+    # make sure no cell yet
+    assert count_dedicated_tx_cells(hop2,hop1)==0
+    
+    # trigger a 6P ADD
+    hop2.sixp.send_ADD_REQUEST(
+        neighborid = hop1.id,
+        numCells   = 1,
+        direction  = d.DIR_TX,
+        cb         = sixp_done_cb,
+    )
+    
+    # give 6P transaction some time to finish
+    u.run_until_asn(sim_engine, 1000)
+    
+    # make cell is added
+    assert count_dedicated_tx_cells(sim_engine.motes,hop2,hop1)==1
     
