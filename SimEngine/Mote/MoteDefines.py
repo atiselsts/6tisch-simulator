@@ -2,16 +2,14 @@
 # sufficient num. of tx to estimate pdr by ACK
 NUM_SUFFICIENT_TX                           = 10
 
-# === TSCH cell option bits
+# === addressing
+
+BROADCAST_ADDRESS                           = 0xffff
+
+# === TSCH cell options
 DIR_TX                                      = 'TX'
 DIR_RX                                      = 'RX'
 DIR_TXRX_SHARED                             = 'SHARED'
-
-# === log message levels
-DEBUG                                       = 'DEBUG'
-INFO                                        = 'INFO'
-WARNING                                     = 'WARNING'
-ERROR                                       = 'ERROR'
 
 # === frame types
 PKT_TYPE_DATA                               = 'DATA'
@@ -106,4 +104,3 @@ CHARGE_TxDataRxAckNone_uC                   = 54.5
 CHARGE_RxDataTxAck_uC                       = 32.6
 CHARGE_RxData_uC                            = 22.6
 
-BROADCAST_ADDRESS                           = 0xffff
