@@ -280,47 +280,35 @@ class Rpl(object):
     # forwarding
 
     def findNextHopId(self, packet):
-        """
-        Determines the next hop and writes that in the packet's 'nextHop' field.
-        """
         assert packet['net']['dstIp'] != self.mote.id
         
         if    packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
             # broadcast packet
             
-            # broadcast next hop
+            # next hop is broadcast address
             nextHopId = d.BROADCAST_ADDRESS
         
         elif 'sourceRoute' in packet['net']:
             # unicast source routed downstream packet
             
-            # nextHopId is the first item in the source route 
+            # next hop is the first item in the source route 
             nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
             
         else:
             # unicast upstream packet
             
-            if self.preferredParent==None:
-                # no preferred parent
+            if packet['net']['dstIp'] in self.mote._myNeighbors():
+                # packet to a neighbor
                 
-                if packet['type']==d.PKT_TYPE_JOIN_REQUEST:
-                    # a join request is sent before the mote acquires a preferred parent
-                    nextHopId = self.mote.tsch.join_proxy
-                else:
-                    nextHopId =  None
+                # next hop is that neighbor
+                nextHopId = packet['net']['dstIp']
+            elif packet['net']['dstIp'] == self.mote.dagRootId:
+                # common upstream packet
+                
+                # next hop is preferred parent (returns None if no preferred parent)
+                nextHopId = self.preferredParent
             else:
-                if   packet['net']['dstIp'] == self.mote.dagRootId:
-                    # common upstream packet
-                    
-                    # send to preferred parent
-                    nextHopId = self.preferredParent
-                elif packet['net']['dstIp'] in self.mote._myNeighbors():
-                    # packet to a neighbor
-                    
-                    # nexhop is that neighbor
-                    nextHopId = dstIpId
-                else:
-                    raise SystemError()
+                raise SystemError()
         
         return nextHopId
 
