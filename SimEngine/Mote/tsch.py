@@ -481,7 +481,7 @@ class Tsch(object):
     
     # listeningForEB
     
-    def tsch_schedule_listeningForEB_cell(self):
+    def tsch_schedule_next_listeningForEB_cell(self):
         
         assert not self.getIsSync()
 
@@ -512,7 +512,7 @@ class Tsch(object):
         self.waitingFor = d.DIR_RX
         
         # schedule next listeningForEB cell
-        self.tsch_schedule_listeningForEB_cell()
+        self.tsch_schedule_next_listeningForEB_cell()
     
     # active cell
 

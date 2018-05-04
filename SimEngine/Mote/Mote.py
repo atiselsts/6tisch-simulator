@@ -146,6 +146,6 @@ class Mote(object):
             # I'm NOT the DAG root
             
             # schedule the first listeningForE cell
-            self.tsch.tsch_schedule_listeningForEB_cell()
+            self.tsch.tsch_schedule_next_listeningForEB_cell()
 
     #======================== private =========================================
