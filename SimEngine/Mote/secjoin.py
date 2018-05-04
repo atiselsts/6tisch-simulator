@@ -4,6 +4,8 @@ Secure joining layer of a mote.
 
 # =========================== imports =========================================
 
+import copy
+
 # Mote sub-modules
 import MoteDefines as d
 
@@ -69,21 +71,21 @@ class SecJoin(object):
                     '_mote_id': self.mote.id,
                 }
             )
-        
+            
             # create join request
-            newJoinRequest = {
-                'type':              d.PKT_TYPE_JOIN_REQUEST,
+            joinRequest = {
+                'type':                     d.PKT_TYPE_JOIN_REQUEST,
                 'app': {
                 },
                 'net': {
-                    'srcIp':         self.mote.id,              # from mote
-                    'dstIp':         self.mote.tsch.join_proxy, # to join proxy
-                    'packet_length': d.PKT_LEN_JOIN_REQUEST,
+                    'srcIp':                self.mote.id,                      # from pledge (this mote)
+                    'dstIp':                self.mote.tsch.join_proxy,         # to join proxy
+                    'packet_length':        d.PKT_LEN_JOIN_REQUEST,
                 },
             }
             
             # send join request
-            self.mote.sixlowpan.sendPacket(newJoinRequest)
+            self.mote.sixlowpan.sendPacket(joinRequest)
             
         else:
             # consider I'm already joined
@@ -94,30 +96,49 @@ class SecJoin(object):
     def receive(self, packet):
         
         if   packet['type']== d.PKT_TYPE_JOIN_REQUEST:
-        
+            
             if self.mote.dagRoot==False:
                 # I'm the join proxy
                 
-                # forward to DAGroot
-                raise NotImplementedError()
+                # proxy join request to dagRoot
+                proxiedJoinRequest = {
+                    'type':                 d.PKT_TYPE_JOIN_REQUEST,
+                    'app': {
+                        'stateless_proxy': {
+                            'pledge_id':    packet['mac']['srcMac']
+                        }
+                    },
+                    'net': {
+                        'srcIp':            self.mote.id,                      # join proxy (this mote)
+                        'dstIp':            self.mote.dagRootId,              # from dagRoot
+                        'packet_length':    packet['net']['packet_length'],
+                    },
+                }
+                
+                # send proxied join response
+                self.mote.sixlowpan.sendPacket(proxiedJoinRequest)
             
             else:
                 # I'm the dagRoot
             
-                # create join response
-                newJoinResponse = {
-                    'type':              d.PKT_TYPE_JOIN_RESPONSE,
-                    'app': {
-                    },
+                # echo back 'stateless_proxy' element in the join response, if present in the join request
+                app = {}
+                if 'stateless_proxy' in packet['app']:
+                    app['stateless_proxy'] = copy.deepcopy(packet['app']['stateless_proxy'])
+                
+                # format join response
+                joinResponse = {
+                    'type':                 d.PKT_TYPE_JOIN_RESPONSE,
+                    'app':                  app,
                     'net': {
-                        'srcIp':         self.mote.id,              # from dagRoot
-                        'dstIp':         packet['net']['srcIp'],    # to sender
-                        'packet_length': d.PKT_LEN_JOIN_RESPONSE,
+                        'srcIp':            self.mote.id,                      # from dagRoot (this mote)
+                        'dstIp':            packet['net']['srcIp'],            # to join proxy
+                        'packet_length':    d.PKT_LEN_JOIN_RESPONSE,
                     },
                 }
                 
                 # send join response
-                self.mote.sixlowpan.sendPacket(newJoinResponse)
+                self.mote.sixlowpan.sendPacket(joinResponse)
             
         elif packet['type']== d.PKT_TYPE_JOIN_RESPONSE:
             assert self.mote.dagRoot==False
@@ -125,8 +146,24 @@ class SecJoin(object):
             if self.getIsJoined()==True:
                 # I'm the join proxy
                 
-                # forward to pledge
-                raise NotImplementedError()
+                # remove the 'stateless_proxy' element from the app payload
+                app       = copy.deepcopy(packet['app'])
+                pledge_id = app['stateless_proxy']['pledge_id']
+                del app['stateless_proxy']
+                
+                # proxy join response to pledge
+                proxiedJoinResponse = {
+                    'type':                 d.PKT_TYPE_JOIN_RESPONSE,
+                    'app':                  app,
+                    'net': {
+                        'srcIp':            self.mote.id,                      # join proxy (this mote)
+                        'dstIp':            pledge_id,                         # to pledge
+                        'packet_length':    packet['net']['packet_length'],
+                    },
+                }
+                
+                # send proxied join response
+                self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
             
             else:
                 # I'm the pledge

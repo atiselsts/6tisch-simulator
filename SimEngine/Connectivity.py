@@ -198,7 +198,6 @@ class Connectivity(object):
 
             for transmission in transmissions:
                 
-                isACKed   = False
                 senders   = self._get_senders(channel)    # list of motes in TX state on that channel
                 receivers = self._get_receivers(channel)  # list of motes in rx state on that channel
                 
@@ -211,6 +210,9 @@ class Connectivity(object):
                         'destinations':     None,
                     }
                 )
+                
+                # keep track of the number of ACKs
+                numACKs = 0
                 
                 for receiver in receivers:
                     
@@ -263,10 +265,14 @@ class Connectivity(object):
 
                         # try to send
                         if random.random() < pdr:
-                            # packet is received correctly
-                            isACKed = self.engine.motes[receiver].radio.rxDone(
+                            # deliver frame to this receiver; sentAnAck indicates whether that receiver sent an ACK
+                            sentAnAck = self.engine.motes[receiver].radio.rxDone(
                                 packet = transmission['packet'],
                             )
+                            
+                            # keep track of the number of ACKs received
+                            if sentAnAck:
+                                numACKs += 1
 
                         else:
                             # packet is NOT received correctly
@@ -296,6 +302,13 @@ class Connectivity(object):
                         self.engine.motes[receiver].radio.rxDone(
                             packet = None,
                         )
+                        
+                # decide whether transmitter received an ACK
+                assert numACKs in [0,1] # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
+                if numACKs==1:
+                    isACKed = True
+                else:
+                    isACKed = False
 
                 # indicate to source packet was sent
                 self.engine.motes[transmission['packet']['mac']['srcMac']].radio.txDone(isACKed)
