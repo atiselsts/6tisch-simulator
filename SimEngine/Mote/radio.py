@@ -85,7 +85,7 @@ class Radio(object):
             self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAckNone_uC)
 
         # nothing ongoing anymore
-        self.onGoingBroadcast = None
+        self.onGoingBroadcast    = None
         self.onGoingTransmission = None
 
         # inform upper layer (TSCH)
