@@ -46,6 +46,9 @@ def fixture_sf_type(request):
 def check_all_nodes_send_x(motes,x):
     senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['packet']['type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
+    
+def check_no_packet_drop():
+    assert u.read_log_file(['radio.pkt_dropped'])==[]
 
 # === app
 
@@ -160,6 +163,9 @@ def test_vanilla_scenario(
     # give the network time to form
     u.run_until_asn(sim_engine, 300*100)
     
+    # verify no packet was dropped
+    check_no_packet_drop()
+    
     # verify that all nodes are sending EBs, DIOs and DAOs
     tsch_check_all_nodes_send_EBs(sim_engine.motes)
     rpl_check_all_nodes_send_DIOs(sim_engine.motes)
@@ -226,3 +232,8 @@ def test_vanilla_scenario(
             
             # increment appcounter
             appcounter += 1
+    
+    # === checks
+    
+    # verify no packet was dropped
+    check_no_packet_drop()
