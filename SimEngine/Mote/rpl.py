@@ -278,23 +278,23 @@ class Rpl(object):
 
     # forwarding
 
-    def findNextHopId(self, dstIpId, sourceRoute = []):
+    def findNextHopId(self, packet):
         """
         Determines the next hop and writes that in the packet's 'nextHop' field.
         """
-        assert dstIpId != self.mote.id
+        assert packet['net']['dstIp'] != self.mote.id
         
-        if dstIpId == d.BROADCAST_ADDRESS:
+        if    packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
             # broadcast packet
             
             # broadcast next hop
             nextHopId = d.BROADCAST_ADDRESS
         
-        elif sourceRoute:
+        elif 'sourceRoute' in packet['net']:
             # unicast source routed downstream packet
             
             # nextHopId is the first item in the source route 
-            nextHopId = self.engine.motes[sourceRoute.pop(0)].id
+            nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
             
         else:
             # unicast upstream packet
@@ -304,12 +304,12 @@ class Rpl(object):
                 
                 nextHopId =  None
             else:
-                if   dstIpId == self.mote.dagRootId:
+                if   packet['net']['dstIp'] == self.mote.dagRootId:
                     # common upstream packet
                     
                     # send to preferred parent
                     nextHopId = self.preferredParent
-                elif dstIpId in self.mote._myNeighbors():
+                elif packet['net']['dstIp'] in self.mote._myNeighbors():
                     # packet to a neighbor
                     
                     # nexhop is that neighbor

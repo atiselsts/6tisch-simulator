@@ -38,6 +38,7 @@ class Tsch(object):
         self.channel                        = None
         self.asnLastSync                    = None
         self.isSync                         = False
+        self.jp                             = None    # join proxy (id)
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
         
         # backoff
@@ -714,7 +715,10 @@ class Tsch(object):
             
             # I'm now sync'ed!
             self.setIsSync(True)
-
+            
+            # the mote that sent the EB is now by join proxy
+            self.jp = packet['mac']['srcMac']
+            
             # set neighbors variables before starting request cells to the preferred parent
             # FIXME
             for m in self.mote._myNeighbors():

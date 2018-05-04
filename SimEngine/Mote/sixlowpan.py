@@ -59,15 +59,7 @@ class Sixlowpan(object):
         )
         
         # find link-layer destination
-        if 'sourceRoute' in packet['net']:
-            sourceRoute = packet['net']['sourceRoute']
-        else:
-            sourceRoute = []
-
-        dstMac = self.mote.rpl.findNextHopId(
-            dstIpId     = packet['net']['dstIp'],
-            sourceRoute = sourceRoute
-        )
+        dstMac = self.mote.rpl.findNextHopId(packet)
         if dstMac==None:
             # we cannot find a next-hop; drop this packet
             self.mote.radio.drop_packet(
@@ -170,14 +162,7 @@ class Sixlowpan(object):
                 fwdPacket['mac']  = copy.deepcopy(packet['mac'])
             else:
                 # find next hop
-                if 'sourceRoute' in packet['net']:
-                    sourceRoute = packet['net']['sourceRoute']
-                else:
-                    sourceRoute = []
-                dstMac = self.mote.rpl.findNextHopId(
-                    dstIpId     = packet['net']['dstIp'],
-                    sourceRoute = sourceRoute
-                )
+                dstMac = self.mote.rpl.findNextHopId(packet)
 
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
@@ -512,15 +497,7 @@ class FragmentForwarding(Fragmentation):
 
             if fragment['net']['dstIp'] != self.mote.id:
 
-                if 'sourceRoute' in fragment['net']:
-                    sourceRoute = fragment['net']['sourceRoute']
-                else:
-                    sourceRoute = []
-
-                dstMac = self.mote.rpl.findNextHopId(
-                    dstIpId     = fragment['net']['dstIp'],
-                    sourceRoute = sourceRoute
-                )
+                dstMac = self.mote.rpl.findNextHopId(fragment)
                 if dstMac == None:
                     # no route to the destination
                     return
