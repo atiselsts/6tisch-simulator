@@ -163,13 +163,10 @@ def merge_output_files(folder_path):
 
         # read files and concatenate results
         with open(os.path.join(folder_path, subfolder + ".dat"), 'w') as outputfile:
-            config_written = None
             for file_path in file_path_list:
                 with open(file_path, 'r') as inputfile:
                     config = json.loads(inputfile.readline())
-                    if config_written is None: # only writing config once
-                        outputfile.write(json.dumps(config) + "\n")
-                        config_written = True
+                    outputfile.write(json.dumps(config) + "\n")
                     outputfile.write(inputfile.read())
         shutil.rmtree(os.path.join(folder_path, subfolder))
 
