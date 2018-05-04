@@ -93,7 +93,7 @@ def runSimCombinations(params):
     for (simParamNum, simParam) in enumerate(simParams):
 
         # run the simulation runs
-        for run_id in xrange(first_run, numRuns):
+        for run_id in xrange(first_run, first_run+numRuns):
 
             # printOrLog
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(
