@@ -195,22 +195,7 @@ class SecJoin(object):
 
             # schedule bootstrap of the preferred parent
             self.mote.sf.schedule_parent_change(self)
-
-            # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
-            if self.settings.secjoin_enabled and all(mote.secjoin.isJoined is True for mote in self.engine.motes):
-                if self.settings.exec_numSlotframesPerRun != 0:
-                    # experiment time in ASNs
-                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
-                    # offset until the end of the current slotframe_iteration
-                    offset = self.settings.tsch_slotframeLength - (self.engine.asn % self.settings.tsch_slotframeLength)
-                    # experiment time + offset
-                    delay = simTime + offset
-                else:
-                    # simulation will finish in the next asn
-                    delay = 1
-                # end the simulation
-                self.engine.terminateSimulation(delay)
-
+    
     def _retransmitJoinPacket(self):
         """
         Send join packet again.

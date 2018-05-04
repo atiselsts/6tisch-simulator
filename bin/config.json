@@ -10,7 +10,11 @@
         },
         "regular": {
             "exec_numSlotframesPerRun":                    100,
-
+            
+            "secjoin_enabled":                             false,
+            "secjoin_numExchanges":                        2,
+            "secjoin_joinTimeout":                         60,
+            
             "app":                                         "AppPeriodic",
             "app_pkPeriod":                                10,
             "app_pkPeriodVar":                             0.05,
@@ -37,11 +41,7 @@
 
             "sixtop_messaging":                            1,
             "sixtop_removeRandomCell":                     false,
-
-            "secjoin_enabled":                             false,
-            "secjoin_numExchanges":                        2,
-            "secjoin_joinTimeout":                         60,
-
+            
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
             "tsch_probBcast_ebDioProb":                    0.66,

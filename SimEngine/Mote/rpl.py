@@ -382,10 +382,9 @@ class Rpl(object):
                 )
             
             if (self.preferredParent==None) and (newPreferredParent is not None):
-                if not self.settings.secjoin_enabled:
-                    # if we selected a parent for the first time, add one cell to it
-                    # upon successful join, the reservation request is scheduled explicitly
-                    self.mote.sf.schedule_parent_change(self.mote)
+                # if we selected a parent for the first time, add one cell to it
+                # upon successful join, the reservation request is scheduled explicitly
+                self.mote.sf.schedule_parent_change(self.mote)
             elif self.preferredParent != newPreferredParent:
                 # log
                 self.log(

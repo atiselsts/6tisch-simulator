@@ -121,11 +121,9 @@ class Tsch(object):
         - on the mote, after having received an EB
         '''
 
-        # if not join, set the neighbor variables when initializing stack.
-        # with join this is done when the nodes become synced. If root, initialize here anyway
-        if (not self.settings.secjoin_enabled) or self.mote.dagRoot:
-            for m in self.mote._myNeighbors():
-                self._resetBackoffPerNeigh(m)
+        # FIXME
+        for m in self.mote._myNeighbors():
+            self._resetBackoffPerNeigh(m)
     
     # minimal
 

@@ -316,13 +316,12 @@ class SimEngine(DiscreteEventEngine):
             }
         )
         
-        # schedule the endOfSimulation event if we are not simulating the join process
-        if (not self.settings.secjoin_enabled):
-            self.scheduleAtAsn(
-                asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
-                cb          = self._actionEndSim,
-                uniqueTag   = ('SimEngine','_actionEndSim'),
-            )
+        # schedule end of simulation
+        self.scheduleAtAsn(
+            asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
+            cb          = self._actionEndSim,
+            uniqueTag   = ('SimEngine','_actionEndSim'),
+        )
 
         # schedule action at every end of slotframe_iteration
         self.scheduleAtAsn(

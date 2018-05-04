@@ -157,7 +157,7 @@ class Mote(object):
     
     def clear_to_send_EBs_and_DIOs(self):
         returnVal = False
-        if self.secjoin.isJoined() or (not self.settings.secjoin_enabled):
+        if self.secjoin.isJoined():
             # I have joined
             if  (
                     self.dagRoot
