@@ -13,6 +13,7 @@ Usage:
 
 # ========================== imports =========================================
 
+import copy
 import json
 import traceback
 
@@ -132,7 +133,15 @@ class SimLog(object):
         # append logs to the file. this happens if you multiple runs on the
         # same CPU.
         with open(self.settings.getOutputFile(), 'a') as f:
-            json.dump(self.settings.__dict__, f)
+
+            # amend config line:
+            # config line in log file should have '_type' field. And 'run_id'
+            # type should be '_run_id'
+            config_line = copy.deepcopy(self.settings.__dict__)
+            config_line['_type']   = 'config'
+            config_line['_run_id'] = config_line['run_id']
+            del config_line['run_id']
+            json.dump(config_line, f)
             f.write('\n')
 
     def log(self, simlog, content):
