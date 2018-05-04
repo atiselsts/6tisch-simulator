@@ -13,7 +13,7 @@ def fixture_exec_numMotes(request):
 def fixture_data_flow(request):
     return request.param
 
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True])
 def fixture_secjoin_enabled(request):
     return request.param
     

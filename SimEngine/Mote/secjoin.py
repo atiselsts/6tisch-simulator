@@ -94,28 +94,45 @@ class SecJoin(object):
     def receive(self, packet):
         
         if   packet['type']== d.PKT_TYPE_JOIN_REQUEST:
-            assert self.mote.dagRoot==True
+        
+            if self.mote.dagRoot==False:
+                # I'm the join proxy
+                
+                # forward to DAGroot
+                raise NotImplementedError()
             
-            # create join response
-            newJoinResponse = {
-                'type':              d.PKT_TYPE_JOIN_RESPONSE,
-                'app': {
-                },
-                'net': {
-                    'srcIp':         self.mote.id,              # from dagRoot
-                    'dstIp':         packet['net']['srcIp'],    # to mote
-                    'packet_length': d.PKT_LEN_JOIN_RESPONSE,
-                },
-            }
+            else:
+                # I'm the dagRoot
             
-            # send join response
-            self.mote.sixlowpan.sendPacket(newJoinResponse)
+                # create join response
+                newJoinResponse = {
+                    'type':              d.PKT_TYPE_JOIN_RESPONSE,
+                    'app': {
+                    },
+                    'net': {
+                        'srcIp':         self.mote.id,              # from dagRoot
+                        'dstIp':         packet['net']['srcIp'],    # to sender
+                        'packet_length': d.PKT_LEN_JOIN_RESPONSE,
+                    },
+                }
+                
+                # send join response
+                self.mote.sixlowpan.sendPacket(newJoinResponse)
             
         elif packet['type']== d.PKT_TYPE_JOIN_RESPONSE:
             assert self.mote.dagRoot==False
             
-            # I'm now joined!
-            self.setIsJoined(True)
+            if self.getIsJoined()==True:
+                # I'm the join proxy
+                
+                # forward to pledge
+                raise NotImplementedError()
+            
+            else:
+                # I'm the pledge
+            
+                # I'm now joined!
+                self.setIsJoined(True)
         else:
             raise SystemError()
 
