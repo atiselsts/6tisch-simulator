@@ -168,3 +168,20 @@ def test_tx_cell_selection(
     for log in logs:
         timeslot_offset = log['_asn'] % sim_engine.settings.tsch_slotframeLength
         assert mote.tsch.schedule[timeslot_offset]['dir'] == expected_cell_options
+
+@pytest.fixture(params=[d.PKT_TYPE_EB, d.PKT_TYPE_DIO])
+def fixture_adv_frame(request):
+    return request.param
+
+def test_network_advertisement(sim_engine, fixture_adv_frame):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'            : 1,
+        }
+    )
+
+    u.run_until_asn(sim_engine, 1000)
+
+    logs = u.read_log_file(filter=['prop.transmission'])
+    # root should send more than one EB in a default simulation run
+    assert len([l for l in logs if l['packet']['type'] == fixture_adv_frame]) > 0
