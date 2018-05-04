@@ -227,7 +227,7 @@ class Tsch(object):
                 # drop
                 self.mote.drop_packet(
                     packet  = packet,
-                    reason  = SimEngine.SimLog.LOG_TSCH_DROP_QUEUE_FULL['type']
+                    reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL,
                 )
                 
                 # couldn't enqueue
@@ -241,7 +241,7 @@ class Tsch(object):
                 # drop
                 self.mote.drop_packet(
                     packet  = packet,
-                    reason  = SimEngine.SimLog.LOG_TSCH_DROP_NO_TX_CELLS['type']
+                    reason  = SimEngine.SimLog.DROPREASON_NO_TX_CELLS,
                 )
                 
                 # couldn't enqueue
@@ -330,7 +330,7 @@ class Tsch(object):
                     # drop
                     self.mote.drop_packet(
                         packet  = self.pktToSend,
-                        reason  = SimEngine.SimLog.LOG_TSCH_DROP_MAX_RETRIES['type'],
+                        reason  = SimEngine.SimLog.DROPREASON_MAX_RETRIES,
                     )
 
                 # update backoff

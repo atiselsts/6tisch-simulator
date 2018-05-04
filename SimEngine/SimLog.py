@@ -45,7 +45,6 @@ LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',           'keys': ['so
 LOG_RPL_CHURN_RANK               = {'type': 'rpl.churn_rank',       'keys': ['old_rank', 'new_rank']}
 LOG_RPL_CHURN_PREF_PARENT        = {'type': 'rpl.churn_pref_parent','keys': ['old_parent', 'new_parent']}
 LOG_RPL_CHURN_PARENT_SET         = {'type': 'rpl.churn_parent_set'}
-LOG_RPL_DROP_NO_ROUTE            = {'type': 'rpl.drop_no_route',    'keys': ['_mote_id']}
 
 # === 6LoWPAN
 LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
@@ -79,18 +78,15 @@ LOG_TSCH_TX_EB                   = {'type': 'tsch.tx_eb'}
 LOG_TSCH_RX_EB                   = {'type': 'tsch.rx_eb'}
 LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                  'keys': ['_mote_id','channel','packet','isACKed']}
 LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                  'keys': ['_mote_id','packet']}
-LOG_TSCH_DROP_QUEUE_FULL         = {'type': 'tsch.drop_queue_full',         'keys': ['_mote_id']}
-LOG_TSCH_DROP_NO_TX_CELLS        = {'type': 'tsch.drop_no_tx_cells',        'keys': ['_mote_id']}
-LOG_TSCH_DROP_FAIL_ENQUEUE       = {'type': 'tsch.drop_fail_enqueue',       'keys': ['_mote_id']}
-LOG_TSCH_DROP_DATA_FAIL_ENQUEUE  = {'type': 'tsch.drop_data_fail_enqueue',  'keys': ['_mote_id']}
-LOG_TSCH_DROP_ACK_FAIL_ENQUEUE   = {'type': 'tsch.drop_ack_fail_enqueue',   'keys': ['_mote_id']}
-LOG_TSCH_DROP_MAX_RETRIES        = {'type': 'tsch.drop_max_retries',        'keys': ['_mote_id']}
-LOG_TSCH_DROP_DATA_MAX_RETRIES   = {'type': 'tsch.drop_data_max_retries',   'keys': ['_mote_id']}
-LOG_TSCH_DROP_FRAG_FAIL_ENQUEUE  = {'type': 'tsch.drop_frag_fail_enqueue',  'keys': ['_mote_id']}
-LOG_TSCH_DROP_RELAY_FAIL_ENQUEUE = {'type': 'tsch.drop_relay_fail_enqueue', 'keys': ['_mote_id']}
 
-# === radio
+# === dropping
 LOG_PACKET_DROPPED               = {'type': 'packet_dropped', 'keys': ['_mote_id','packet','reason']}
+DROPREASON_NO_ROUTE              = 'no_route'
+DROPREASON_TXQUEUE_FULL          = 'txqueue_full'
+DROPREASON_NO_TX_CELLS           = 'no_tx_cells'
+DROPREASON_MAX_RETRIES           = 'max_retries'
+DROPREASON_REASSEMBLY_BUFFER_FULL= 'reassembly_buffer_full'
+DROPREASON_VRB_TABLE_FULL        = 'vrb_table_full'
 
 # === queue
 LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}

@@ -64,7 +64,7 @@ class Sixlowpan(object):
             # we cannot find a next-hop; drop this packet
             self.mote.drop_packet(
                 packet  = packet,
-                reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
             )
             # stop handling this packet
             goOn = False
@@ -170,12 +170,11 @@ class Sixlowpan(object):
             else:
                 # find next hop
                 dstMac = self.mote.rpl.findNextHopId(packet)
-
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
                     self.mote.drop_packet(
                         packet  = packet,
-                        reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                        reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
                     )
                     # stop handling this packet
                     goOn = False
@@ -390,7 +389,7 @@ class Fragmentation(object):
                     # no room for a new entry
                     self.mote.drop_packet(
                         packet = fragment,
-                        reason = 'frag_reassembly_buffer_full',
+                        reason = SimEngine.SimLog.DROPREASON_REASSEMBLY_BUFFER_FULL,
                     )
                     return
 
@@ -522,7 +521,7 @@ class FragmentForwarding(Fragmentation):
                     # no room for a new entry
                     self.mote.drop_packet(
                         packet = fragment,
-                        reason = 'frag_vrb_table_full',
+                        reason = SimEngine.SimLog.DROPREASON_VRB_TABLE_FULL,
                     )
                     return
 
