@@ -350,6 +350,7 @@ class Tsch(object):
         
         # end of radio activity, not waiting for anything
         self.waitingFor = None
+        self.pktToSend  = None
 
     def rxDone(self, packet):
         
@@ -553,202 +554,127 @@ class Tsch(object):
         )
     
     def _tsch_action_active_cell(self):
-        """
-        active slot starts, while mote is sync'ed
-        """
-        asn = self.engine.getAsn()
-        ts  = asn % self.settings.tsch_slotframeLength
+        
+        # local shorthands
+        asn  = self.engine.getAsn()
+        ts   = asn % self.settings.tsch_slotframeLength
+        cell = self.schedule[ts]
 
         # make sure this is an active slot
         assert ts in self.schedule
         
         # make sure we're not in the middle of a TX/RX operation
-        assert not self.waitingFor
-
-        cell = self.schedule[ts]
-
+        assert self.waitingFor == None
+        
+        # make sure we are not busy sending a packet
+        assert self.pktToSend == None
+        
         # signal to scheduling function that a cell to a neighbor has been triggered
         self.mote.sf.signal_cell_elapsed(
             self.mote,
             cell['neighbor'],
             cell['dir'],
         )
-
-        if  cell['dir'] == d.DIR_RX:
-
-            # =============== RX cell
-
-            # start listening
-            self.mote.radio.startRx(
-                channel       = cell['ch'],
-            )
-
-            # indicate that we're waiting for the RX operation to finish
-            self.waitingFor   = d.DIR_RX
-
-        elif cell['dir'] == d.DIR_TX:
-
-            # =============== TX cell
-
+        
+        # execute cell
+        if   cell['dir'] == d.DIR_TX:
+            # TX cell
+            
             # find packet to send
-            self.pktToSend = None
             for pkt in self.txQueue:
-            
-                # 'type', 'mac', and 'net' are mandatory fields of a packet. in this
-                # sense, a set of packet.keys() should have them.
-                assert set(['type','mac']).issubset(set(pkt.keys()))
-            
-                # send the frame if next hop matches the cell destination
                 if pkt['mac']['dstMac'] == cell['neighbor']:
                     self.pktToSend = pkt
                     break
-
+            
             # send packet
             if self.pktToSend:
-
-                # inform SF cell is used
-                self.mote.sf.signal_cell_used(
-                    self.mote,
-                    cell['neighbor'],
-                    cell['dir'],
-                    d.DIR_TX,
-                    pkt['type'],
-                )
-                
-                # update cell stats
-                cell['numTx'] += 1
-
-                '''
-                if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                    if   pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-                    elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-                    else:
-                        raise SystemError()
-
-                if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                    if self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
-                        pass
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
-                        pass
-                    else:
-                        raise SystemError()
-                '''
-                
-                # send packet to the radio
-                self.mote.radio.startTx(
-                    channel   = cell['ch'],
-                    packet    = self.pktToSend,
-                )
-
-                # indicate that we're waiting for the TX operation to finish
-                self.waitingFor   = d.DIR_TX
-                self.channel      = cell['ch']
-
+                self._tsch_action_TX(self.pktToSend)
+        
         elif cell['dir'] == d.DIR_TXRX_SHARED:
+            # TXRXSHARED cell
             
-            if cell['neighbor'] == self.mote._myNeighbors(): # FIXME, does nothing, always []==[]
-                self.pktToSend = None
-                if self.txQueue and self.backoffBroadcast == 0:
-                    for pkt in self.txQueue:
-                        if  (
-                                # DIOs and EBs always on minimal cell
-                                (
-                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
-                                )
-                                or
-                                # other frames on the minimal cell if no dedicated cells to the nextHop
-                                (
-                                    self.getTxCells(pkt['mac']['dstMac']) == []
-                                    and
-                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
-                                )
-                            ):
-                            self.pktToSend = pkt
-                            break
-                
-                # decrement backoff
-                if self.backoffBroadcast > 0:
-                    self.backoffBroadcast -= 1
-            else:
-                assert False # FIXME: apparently we never enter this branch...
-                if self.getIsSync():
-                    # check whether packet to send
-                    self.pktToSend = None
-                    if self.txQueue and self.backoffPerNeigh[cell['neighbor']] == 0:
-                        for pkt in self.txQueue:
-                            # send the frame if next hop matches the cell destination
-                            if pkt['nextHop'] == [cell['neighbor']]:
-                                self.pktToSend = pkt
-                                break
-
-                # Decrement backoffPerNeigh
-                if self.backoffPerNeigh[cell['neighbor']] > 0:
-                    self.backoffPerNeigh[cell['neighbor']] -= 1
+            # find packet to send
+            if self.backoffBroadcast == 0:
+                for pkt in self.txQueue:
+                    if  (
+                            # DIOs and EBs always on minimal cell
+                            (
+                                pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                            )
+                            or
+                            # other frames on the minimal cell if no dedicated cells to the nextHop
+                            (
+                                self.getTxCells(pkt['mac']['dstMac']) == []
+                                and
+                                self.getSharedCells(pkt['mac']['dstMac'])==[]
+                            )
+                        ):
+                        self.pktToSend = pkt
+                        break
             
-            # send packet
+            # decrement backoff
+            if self.backoffBroadcast > 0:
+                self.backoffBroadcast -= 1
+            
+            # send packet, or receive
             if self.pktToSend:
-
-                # update cell stats
-                cell['numTx'] += 1
-
-                # signal to scheduling function that a cell to a neighbor is used
-                self.mote.sf.signal_cell_used(
-                    self.mote,
-                    cell['neighbor'],
-                    cell['dir'],
-                    d.DIR_TX,
-                    pkt['type'],
-                )
-                
-                '''
-                if pkt['type'] == d.IANA_6TOP_TYPE_REQUEST:
-                    if pkt['code'] == d.IANA_6TOP_CMD_ADD:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_ADDREQUEST_SENDDONE
-                    elif pkt['code'] == d.IANA_6TOP_CMD_DELETE:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['tx']['state'] = d.SIX_STATE_WAIT_DELETEREQUEST_SENDDONE
-                    else:
-                        assert False
-
-                if pkt['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                    if self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_ADD_RECEIVED:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_REQUEST_DELETE_RECEIVED:
-                        self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] = d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_ADD_RESPONSE_SENDDONE:
-                        pass
-                    elif self.mote.sixp.getSixtopStates()[self.pktToSend['nextHop'][0].id]['rx']['state'] == d.SIX_STATE_WAIT_DELETE_RESPONSE_SENDDONE:
-                        pass
-                    else:
-                        assert False
-                '''
-
-                # send packet to the radio
-                self.mote.radio.startTx(
-                    channel   = cell['ch'],
-                    packet    = self.pktToSend,
-                )
-
-                # indicate that we're waiting for the TX operation to finish
-                self.waitingFor   = d.DIR_TX
-                self.channel      = cell['ch']
-
+                self._tsch_action_TX(self.pktToSend)
             else:
-                # start listening
-                self.mote.radio.startRx(
-                     channel       = cell['ch'],
-                )
-
-                # indicate that we're waiting for the RX operation to finish
-                self.waitingFor = d.DIR_RX
+                self._tsch_action_RX()
+        
+        elif cell['dir'] == d.DIR_RX:
+            # RX cell
+            
+            # receive
+            self._tsch_action_RX()
 
         # schedule next active cell
         self.tsch_schedule_next_active_cell()
+    
+    def _tsch_action_TX(self,pktToSend):
+        
+        # local shorthands
+        asn  = self.engine.getAsn()
+        ts   = asn % self.settings.tsch_slotframeLength
+        cell = self.schedule[ts]
+        
+        # inform SF cell is used
+        self.mote.sf.signal_cell_used(
+            self.mote,
+            cell['neighbor'],
+            cell['dir'],
+            d.DIR_TX,
+            pktToSend['type'],
+        )
+        
+        # update cell stats
+        cell['numTx'] += 1
+        
+        # send packet to the radio
+        self.mote.radio.startTx(
+            channel          = cell['ch'],
+            packet           = pktToSend,
+        )
+
+        # indicate that we're waiting for the TX operation to finish
+        self.waitingFor      = d.DIR_TX
+        self.channel         = cell['ch']
+        
+    def _tsch_action_RX(self):
+        
+        # local shorthands
+        asn  = self.engine.getAsn()
+        ts   = asn % self.settings.tsch_slotframeLength
+        cell = self.schedule[ts]
+
+        # start listening
+        self.mote.radio.startRx(
+            channel          = cell['ch'],
+        )
+
+        # indicate that we're waiting for the RX operation to finish
+        self.waitingFor      = d.DIR_RX
+        self.channel         = cell['ch']
 
     # EBs
 
