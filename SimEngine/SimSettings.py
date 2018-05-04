@@ -60,7 +60,15 @@ class SimSettings(object):
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
-            os.makedirs(dirname)
+            try:
+                os.makedirs(dirname)
+            except OSError, e:
+                if e.errno == os.errno.EEXIST:
+                    # FIXME: handle this race condition properly
+                    # Another core/CPU has already made this directory
+                    pass
+                else:
+                    raise
 
         # file
         if self.cpuID is None:
