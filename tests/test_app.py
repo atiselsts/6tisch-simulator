@@ -86,7 +86,7 @@ def test_app_ack_by_root(sim_engine):
     )
 
     # root should receive one app packet
-    assert len([log for log in logs if ((log['_mote_id'] == 0) and (log['packet']['type'] == d.APP_TYPE_DATA) )]) == 1
+    assert len([log for log in logs if ((log['_mote_id'] == 0) and (log['packet']['type'] == d.PKT_TYPE_DATA) )]) == 1
 
     # ack should be received by the mote
-    assert len([log for log in logs if ((log['_mote_id'] == 1) and (log['packet']['type'] == d.APP_TYPE_DATA) )]) == 1
+    assert len([log for log in logs if ((log['_mote_id'] == 1) and (log['packet']['type'] == d.PKT_TYPE_DATA) )]) == 1

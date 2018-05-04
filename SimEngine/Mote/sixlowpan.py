@@ -38,7 +38,7 @@ class Sixlowpan(object):
 
     def sendPacket(self, packet):
         assert sorted(packet.keys()) == sorted(['type','app','net'])
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO]
+        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO]
         assert 'srcIp' in packet['net']
         assert 'dstIp' in packet['net']
         
@@ -90,7 +90,7 @@ class Sixlowpan(object):
     
     def recvPacket(self, packet):
         
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO,d.PKT_TYPE_FRAG]
         
         goOn = True
         
@@ -105,7 +105,7 @@ class Sixlowpan(object):
         
         # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
         if goOn:
-            if packet['type'] == d.NET_TYPE_FRAG:
+            if packet['type'] == d.PKT_TYPE_FRAG:
                 packet = self.fragmentation.fragRecv(packet)
                 if not packet:
                     goOn = False
@@ -113,7 +113,7 @@ class Sixlowpan(object):
         # handle packet
         if goOn:
             if  (
-                    packet['type']!=d.NET_TYPE_FRAG # in case of fragment forwarding
+                    packet['type']!=d.PKT_TYPE_FRAG # in case of fragment forwarding
                     and
                     (
                         (packet['net']['dstIp'] == self.mote.id)
@@ -124,13 +124,13 @@ class Sixlowpan(object):
                 # packet for me
                 
                 # dispatch to upper component
-                if   packet['type'] == d.APP_TYPE_JOIN:
+                if   packet['type'] == d.PKT_TYPE_JOIN:
                     self.mote.secjoin.receiveJoinPacket(packet)
-                elif packet['type'] == d.RPL_TYPE_DAO:
+                elif packet['type'] == d.PKT_TYPE_DAO:
                     self.mote.rpl.action_receiveDAO(packet)
-                elif packet['type'] == d.RPL_TYPE_DIO:
+                elif packet['type'] == d.PKT_TYPE_DIO:
                     self.mote.rpl.action_receiveDIO(packet)
-                elif packet['type'] == d.APP_TYPE_DATA:
+                elif packet['type'] == d.PKT_TYPE_DATA:
                     self.mote.app.recvPacket(packet)
 
             else:
@@ -160,7 +160,7 @@ class Sixlowpan(object):
             # net
             fwdPacket['net']      = copy.deepcopy(packet['net'])
             # mac
-            if fwdPacket['type'] == d.NET_TYPE_FRAG:
+            if fwdPacket['type'] == d.PKT_TYPE_FRAG:
                 # fragment already has mac header (FIXME: why?)
                 fwdPacket['mac']  = copy.deepcopy(packet['mac'])
             else:
@@ -201,7 +201,7 @@ class Sixlowpan(object):
         
         # cut the forwarded packet into fragments
         if goOn:
-            if fwdPacket['type']==d.NET_TYPE_FRAG:
+            if fwdPacket['type']==d.PKT_TYPE_FRAG:
                 fwdFrags = [fwdPacket] # don't re-frag a frag
             else:
                 fwdFrags = self.fragmentation.fragmentPacket(fwdPacket)
@@ -284,14 +284,14 @@ class Fragmentation(object):
                 }
             }
         """
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        assert packet['type'] in [d.PKT_TYPE_DATA,d.PKT_TYPE_DIO,d.PKT_TYPE_DAO,d.PKT_TYPE_FRAG]
         assert 'type' in packet
         assert 'net'  in packet
         
         returnVal = []
 
         if  (
-                (packet['type'] != d.NET_TYPE_FRAG)
+                (packet['type'] != d.PKT_TYPE_FRAG)
                 and
                 ('packet_length' in packet['net'])
                 and
@@ -308,7 +308,7 @@ class Fragmentation(object):
 
                 # common part of fragment packet
                 fragment = {
-                    'type':                d.NET_TYPE_FRAG,
+                    'type':                d.PKT_TYPE_FRAG,
                     'net': {
                         'datagram_size':   packet['net']['packet_length'],
                         'datagram_tag':    outgoing_datagram_tag,

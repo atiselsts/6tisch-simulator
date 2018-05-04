@@ -143,7 +143,7 @@ class SecJoin(object):
             # create new packet
             newPacket = {
                 'asn':            self.engine.getAsn(),
-                'type':           d.APP_TYPE_JOIN,
+                'type':           d.PKT_TYPE_JOIN,
                 'code':           None,
                 'payload':        [
                     token,

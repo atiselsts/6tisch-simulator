@@ -213,8 +213,8 @@ class Tsch(object):
 
     def enqueue(self, packet):
 
-        assert packet['type'] != d.RPL_TYPE_DIO
-        assert packet['type'] != d.TSCH_TYPE_EB
+        assert packet['type'] != d.PKT_TYPE_DIO
+        assert packet['type'] != d.PKT_TYPE_EB
         assert 'srcMac' in packet['mac']
         assert 'dstMac' in packet['mac']
         
@@ -283,7 +283,7 @@ class Tsch(object):
         if self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
             # I just sent a broadcast packet
             
-            assert self.pktToSend['type'] in [d.TSCH_TYPE_EB,d.RPL_TYPE_DIO]
+            assert self.pktToSend['type'] in [d.PKT_TYPE_EB,d.PKT_TYPE_DIO]
             assert isACKed==False
             
             # DIOs and EBs were never in txQueue, no need to remove
@@ -408,9 +408,9 @@ class Tsch(object):
             isACKed = True
             
             # dispatch to the right upper layer
-            if   packet['type'] == d.IANA_6TOP_ADD_REQUEST:
+            if   packet['type'] == d.PKT_TYPE_6P_ADD_REQUEST:
                 self.mote.sixp.receive_ADD_REQUEST(packet)
-            elif packet['type'] == d.IANA_6TOP_DELETE_REQUEST:
+            elif packet['type'] == d.PKT_TYPE_6P_DELETE_REQUEST:
                 self.mote.sixp.receive_DELETE_REQUEST(packet)
             elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
                 self.mote.sixp.receive_RESPONSE(packet)
@@ -426,10 +426,10 @@ class Tsch(object):
             isACKed = False
             
             # dispatch to the right upper layer
-            if   packet['type'] == d.TSCH_TYPE_EB:
+            if   packet['type'] == d.PKT_TYPE_EB:
                 self._tsch_action_receiveEB(packet)
             elif 'net' in packet:
-                assert packet['type']==d.RPL_TYPE_DIO
+                assert packet['type']==d.PKT_TYPE_DIO
                 self.mote.sixlowpan.recvPacket(packet)
             else:
                 raise SystemError()
@@ -599,7 +599,7 @@ class Tsch(object):
                         if  (
                                 # DIOs and EBs always on minimal cell
                                 (
-                                    pkt['type'] in [d.RPL_TYPE_DIO,d.TSCH_TYPE_EB]
+                                    pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
                                 )
                                 or
                                 # other frames on the minimal cell if no dedicated cells to the nextHop
@@ -691,7 +691,7 @@ class Tsch(object):
     def _create_EB(self):
         
         newEB = {
-            'type':             d.TSCH_TYPE_EB,
+            'type':             d.PKT_TYPE_EB,
             'app': {
                 'jp':           self.mote.rpl.getDagRank(),
             },
@@ -705,7 +705,7 @@ class Tsch(object):
 
     def _tsch_action_receiveEB(self, packet):
         
-        assert packet['type'] == d.TSCH_TYPE_EB
+        assert packet['type'] == d.PKT_TYPE_EB
         
         # abort if I'm the root
         if self.mote.dagRoot:

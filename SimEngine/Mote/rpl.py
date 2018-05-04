@@ -84,7 +84,7 @@ class Rpl(object):
     
     def _create_DIO(self):
         newDIO = {
-            'type':          d.RPL_TYPE_DIO,
+            'type':          d.PKT_TYPE_DIO,
             'app': {
                 'rank':      self.rank,
             },
@@ -102,7 +102,7 @@ class Rpl(object):
     
     def action_receiveDIO(self, packet):
         
-        assert packet['type'] == d.RPL_TYPE_DIO
+        assert packet['type'] == d.PKT_TYPE_DIO
         
         # abort if I'm the DAGroot
         if self.mote.dagRoot:
@@ -211,7 +211,7 @@ class Rpl(object):
             
             # create new packet
             newDAO = {
-                'type':           d.RPL_TYPE_DAO,
+                'type':           d.PKT_TYPE_DAO,
                 'app': {
                     'child_id':   self.mote.id,
                     'parent_id':  self.preferredParent,
@@ -223,7 +223,7 @@ class Rpl(object):
             }
             
             # remove other possible DAOs from the queue
-            self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DAO)
+            self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
             
             # send the DAO via sixlowpan
             self.mote.sixlowpan.sendPacket(newDAO)

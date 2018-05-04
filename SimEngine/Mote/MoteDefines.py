@@ -14,14 +14,14 @@ WARNING                                     = 'WARNING'
 ERROR                                       = 'ERROR'
 
 # === frame types
-APP_TYPE_DATA                               = 'DATA'
-NET_TYPE_FRAG                               = 'FRAG'
-APP_TYPE_JOIN                               = 'JOIN'
-RPL_TYPE_DIO                                = 'DIO'
-RPL_TYPE_DAO                                = 'DAO'
-TSCH_TYPE_EB                                = 'EB'
-IANA_6TOP_ADD_REQUEST                       = '6P_ADD_REQUEST'
-IANA_6TOP_DELETE_REQUEST                    = '6P_DELETE_REQUEST'
+PKT_TYPE_DATA                               = 'DATA'
+PKT_TYPE_FRAG                               = 'FRAG'
+PKT_TYPE_JOIN                               = 'JOIN'
+PKT_TYPE_DIO                                = 'DIO'
+PKT_TYPE_DAO                                = 'DAO'
+PKT_TYPE_EB                                 = 'EB'
+PKT_TYPE_6P_ADD_REQUEST                     = '6P_ADD_REQUEST'
+PKT_TYPE_6P_DELETE_REQUEST                  = '6P_DELETE_REQUEST'
 
 # === 6top message types
 IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'

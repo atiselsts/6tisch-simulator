@@ -11,10 +11,10 @@ import SimEngine.Mote.MoteDefines as d
 # frame_type having "True" in "first_enqueuing" can be enqueued to TX queue
 # even if the queue is full.
 @pytest.mark.parametrize("frame_type", [
-    d.APP_TYPE_DATA,
-    d.APP_TYPE_JOIN,
-    d.NET_TYPE_FRAG,
-    d.RPL_TYPE_DAO,
+    d.PKT_TYPE_DATA,
+    d.PKT_TYPE_JOIN,
+    d.PKT_TYPE_FRAG,
+    d.PKT_TYPE_DAO,
     d.IANA_6TOP_TYPE_REQUEST,
     d.IANA_6TOP_TYPE_RESPONSE,
 ])
@@ -73,7 +73,7 @@ def test_removeTypeFromQueue(sim_engine):
     ]
 
 @pytest.mark.parametrize('destination, packet_type, expected_cell_options', [
-    ('parent',    d.APP_TYPE_DATA, d.DIR_TX),
+    ('parent',    d.PKT_TYPE_DATA, d.DIR_TX),
 ])
 def test_tx_cell_selection(
         sim_engine,
@@ -117,10 +117,10 @@ def test_tx_cell_selection(
         },
     }
 
-    # With packet_type=d.APP_TYPE_DATA, we'll test if the right cell is chosen
+    # With packet_type=d.PKT_TYPE_DATA, we'll test if the right cell is chosen
     # to send a fragment. Set 180 to packet_length so that the packet is
     # divided into two fragments.
-    if packet_type == d.APP_TYPE_DATA:
+    if packet_type == d.PKT_TYPE_DATA:
         packet['net']['packet_length'] = 180
 
     # set destination IPv6 address
@@ -141,9 +141,9 @@ def test_tx_cell_selection(
     logs = []
 
     # as mentioned above, we'll see logs for fragment packets when
-    # packet_type=d.APP_TYPE_DATA
-    if packet_type == d.APP_TYPE_DATA:
-        test_packet_type = d.NET_TYPE_FRAG
+    # packet_type=d.PKT_TYPE_DATA
+    if packet_type == d.PKT_TYPE_DATA:
+        test_packet_type = d.PKT_TYPE_FRAG
     else:
         test_packet_type = packet_type
 

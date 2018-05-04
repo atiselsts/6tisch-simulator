@@ -134,7 +134,7 @@ class AppBase(object):
 
             packet = self._generate_packet(
                 dstIp          = dstIp,
-                packet_type    = d.APP_TYPE_DATA,
+                packet_type    = d.PKT_TYPE_DATA,
                 packet_length  = packet_length
             )
 
