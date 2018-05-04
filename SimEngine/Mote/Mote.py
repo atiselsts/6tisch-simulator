@@ -99,10 +99,15 @@ class Mote(object):
                 destination  = neighbor,
                 channel      = 0, #FIXME
             )
-
-    def _myNeighbors(self):
+    
+    # ==== neighbors
+    
+    def _myNeighbors(self): # FIXME: discover neighbors
         return [n.id for n in self.engine.motes if self.engine.connectivity.get_pdr(self.id,n.id,0) > 0]
-
+    
+    def getNumNeighbors(self):
+        return len(self._myNeighbors())
+    
     # ==== location
 
     def setLocation(self, x, y):
@@ -140,12 +145,59 @@ class Mote(object):
                 mote.dagRootId  = self.id
             
             # schedule the first active cell
-            self.tsch.tsch_schedule_active_cell()
+            self.tsch.tsch_schedule_next_active_cell()
             
         else:
             # I'm NOT the DAG root
             
             # schedule the first listeningForE cell
-            self.tsch.tsch_schedule_listeningForEB_cell()
-
+            self.tsch.tsch_schedule_next_listeningForEB_cell()
+    
+    # ==== EBs and DIOs
+    
+    def clear_to_send_EBs_and_DIOs(self):
+        returnVal = True
+        
+        # I need to be synchronized
+        if returnVal==True:
+            if self.tsch.getIsSync()==False:
+                returnVal = False
+        
+        # I need to have joined
+        if returnVal==True:
+            if self.secjoin.getIsJoined()==False:
+                returnVal = False
+        
+        # I must have a preferred parent (or be the dagRoot)
+        if returnVal==True:
+            if self.dagRoot==False and self.rpl.getPreferredParent()==None:
+                returnVal = False
+        
+        # I must have at least one TX cell to my preferred parent (if running MSF)
+        if returnVal==True:
+            if type(self.sf)==sf.MSF and self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0)==0:
+                    returnVal = False
+        
+        return returnVal
+    
+    # ==== dropping
+    
+    def drop_packet(self, packet, reason):
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_PACKET_DROPPED,
+            {
+                "_mote_id":  self.id,
+                "packet":    packet,
+                "reason":    reason,
+            }
+        )
+        
+        # remove all the element of packet so it cannot be processed further
+        # Note: this is useless, but allows us to catch bugs in case packet is further processed
+        for k in packet.keys():
+            del packet[k]
+    
     #======================== private =========================================
+    

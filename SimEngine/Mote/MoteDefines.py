@@ -2,26 +2,30 @@
 # sufficient num. of tx to estimate pdr by ACK
 NUM_SUFFICIENT_TX                           = 10
 
-# === TSCH cell option bits
+# === addressing
+
+BROADCAST_ADDRESS                           = 0xffff
+
+# === TSCH cell options
 DIR_TX                                      = 'TX'
 DIR_RX                                      = 'RX'
 DIR_TXRX_SHARED                             = 'SHARED'
 
-# === log message levels
-DEBUG                                       = 'DEBUG'
-INFO                                        = 'INFO'
-WARNING                                     = 'WARNING'
-ERROR                                       = 'ERROR'
+# === packet types
+PKT_TYPE_DATA                               = 'DATA'
+PKT_TYPE_FRAG                               = 'FRAG'
+PKT_TYPE_JOIN_REQUEST                       = 'JOIN_REQUEST'
+PKT_TYPE_JOIN_RESPONSE                      = 'JOIN_RESPONSE'
+PKT_TYPE_DIO                                = 'DIO'
+PKT_TYPE_DAO                                = 'DAO'
+PKT_TYPE_EB                                 = 'EB'
+PKT_TYPE_6P_ADD_REQUEST                     = '6P_ADD_REQUEST'
+PKT_TYPE_6P_DELETE_REQUEST                  = '6P_DELETE_REQUEST'
 
-# === frame types
-APP_TYPE_DATA                               = 'DATA'
-APP_TYPE_JOIN                               = 'JOIN' # join traffic
-NET_TYPE_FRAG                               = 'FRAG'
-RPL_TYPE_DIO                                = 'DIO'
-RPL_TYPE_DAO                                = 'DAO'
-TSCH_TYPE_EB                                = 'EB'
-IANA_6TOP_ADD_REQUEST                       = '6P_ADD_REQUEST'
-IANA_6TOP_DELETE_REQUEST                    = '6P_DELETE_REQUEST'
+# === packet lengths
+PKT_LEN_DAO                                 = 20
+PKT_LEN_JOIN_REQUEST                        = 20
+PKT_LEN_JOIN_RESPONSE                       = 20
 
 # === 6top message types
 IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'
@@ -106,4 +110,3 @@ CHARGE_TxDataRxAckNone_uC                   = 54.5
 CHARGE_RxDataTxAck_uC                       = 32.6
 CHARGE_RxData_uC                            = 22.6
 
-BROADCAST_ADDRESS                           = 0xffff

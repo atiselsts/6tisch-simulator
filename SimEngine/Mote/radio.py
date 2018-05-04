@@ -49,7 +49,8 @@ class Radio(object):
         
         assert self.onGoingBroadcast    is None
         assert self.onGoingTransmission is None
-        assert set(['type','mac']).issubset(set(packet.keys()))
+        assert 'type' in packet
+        assert 'mac'  in packet
 
         # record the state of the radio
         self.state   = d.RADIO_STATE_TX
@@ -116,21 +117,3 @@ class Radio(object):
 
         # inform upper layer (TSCH)
         return self.mote.tsch.rxDone(packet)
-
-    # dropping
-
-    def drop_packet(self, pkt, reason):
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_RADIO_PKT_DROPPED,
-            {
-                "_mote_id":  self.mote.id,
-                "type":      pkt['type'],
-                "reason":    reason,
-            }
-        )
-        
-        # remove all the element of pkt so that it won't be processed further
-        for k in pkt.keys():
-            del pkt[k]

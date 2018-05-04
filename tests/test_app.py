@@ -28,8 +28,7 @@ def test_app_upstream(
             'exec_numSlotframesPerRun'                 : 11,
             'sf_type'                                  : 'SSFSymmetric',
             'conn_type'                                : 'linear',
-            'tsch_probBcast_ebProb'                    : 0,
-            'tsch_probBcast_dioProb'                   : 0,
+            'tsch_probBcast_ebDioProb'                 : 0,
             'app'                                      : app,
             'app_pkPeriod'                             : 2,
             'app_pkPeriodVar'                          : 0,
@@ -64,8 +63,7 @@ def test_app_ack_by_root(sim_engine):
             'exec_numMotes'                            : 2,
             'sf_type'                                  : 'SSFSymmetric',
             'conn_type'                                : 'linear',
-            'tsch_probBcast_ebProb'                    : 0,
-            'tsch_probBcast_dioProb'                   : 0,
+            'tsch_probBcast_ebDioProb'                 : 0,
             'app'                                      : 'AppBurst',
             'app_pkPeriod'                             : 0,
             'app_pkPeriodVar'                          : 0,
@@ -88,7 +86,7 @@ def test_app_ack_by_root(sim_engine):
     )
 
     # root should receive one app packet
-    assert len([log for log in logs if ((log['_mote_id'] == 0) and (log['packet']['type'] == d.APP_TYPE_DATA) )]) == 1
+    assert len([log for log in logs if ((log['_mote_id'] == 0) and (log['packet']['type'] == d.PKT_TYPE_DATA) )]) == 1
 
     # ack should be received by the mote
-    assert len([log for log in logs if ((log['_mote_id'] == 1) and (log['packet']['type'] == d.APP_TYPE_DATA) )]) == 1
+    assert len([log for log in logs if ((log['_mote_id'] == 1) and (log['packet']['type'] == d.PKT_TYPE_DATA) )]) == 1

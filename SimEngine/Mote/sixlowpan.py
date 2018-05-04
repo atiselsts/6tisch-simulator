@@ -38,7 +38,12 @@ class Sixlowpan(object):
 
     def sendPacket(self, packet):
         assert sorted(packet.keys()) == sorted(['type','app','net'])
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO]
+        assert packet['type'] in [
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_DATA,
+        ]
         assert 'srcIp' in packet['net']
         assert 'dstIp' in packet['net']
         
@@ -54,20 +59,12 @@ class Sixlowpan(object):
         )
         
         # find link-layer destination
-        if 'sourceRoute' in packet['net']:
-            sourceRoute = packet['net']['sourceRoute']
-        else:
-            sourceRoute = []
-
-        dstMac = self.mote.rpl.findNextHopId(
-            dstIpId     = packet['net']['dstIp'],
-            sourceRoute = sourceRoute
-        )
+        dstMac = self.mote.rpl.findNextHopId(packet)
         if dstMac==None:
             # we cannot find a next-hop; drop this packet
-            self.mote.radio.drop_packet(
-                pkt     = packet,
-                reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+            self.mote.drop_packet(
+                packet  = packet,
+                reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
             )
             # stop handling this packet
             goOn = False
@@ -90,7 +87,14 @@ class Sixlowpan(object):
     
     def recvPacket(self, packet):
         
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        assert packet['type'] in [
+            d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_DIO,
+            d.PKT_TYPE_FRAG,
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+        ]
         
         goOn = True
         
@@ -105,7 +109,7 @@ class Sixlowpan(object):
         
         # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
         if goOn:
-            if packet['type'] == d.NET_TYPE_FRAG:
+            if packet['type'] == d.PKT_TYPE_FRAG:
                 packet = self.fragmentation.fragRecv(packet)
                 if not packet:
                     goOn = False
@@ -113,7 +117,7 @@ class Sixlowpan(object):
         # handle packet
         if goOn:
             if  (
-                    packet['type']!=d.NET_TYPE_FRAG # in case of fragment forwarding
+                    packet['type']!=d.PKT_TYPE_FRAG # in case of fragment forwarding
                     and
                     (
                         (packet['net']['dstIp'] == self.mote.id)
@@ -124,13 +128,13 @@ class Sixlowpan(object):
                 # packet for me
                 
                 # dispatch to upper component
-                if   packet['type'] == d.APP_TYPE_JOIN:
-                    self.mote.secjoin.receiveJoinPacket(packet)
-                elif packet['type'] == d.RPL_TYPE_DAO:
+                if   packet['type'] in [d.PKT_TYPE_JOIN_REQUEST,d.PKT_TYPE_JOIN_RESPONSE]:
+                    self.mote.secjoin.receive(packet)
+                elif packet['type'] == d.PKT_TYPE_DAO:
                     self.mote.rpl.action_receiveDAO(packet)
-                elif packet['type'] == d.RPL_TYPE_DIO:
+                elif packet['type'] == d.PKT_TYPE_DIO:
                     self.mote.rpl.action_receiveDIO(packet)
-                elif packet['type'] == d.APP_TYPE_DATA:
+                elif packet['type'] == d.PKT_TYPE_DATA:
                     self.mote.app.recvPacket(packet)
 
             else:
@@ -160,25 +164,17 @@ class Sixlowpan(object):
             # net
             fwdPacket['net']      = copy.deepcopy(packet['net'])
             # mac
-            if fwdPacket['type'] == d.NET_TYPE_FRAG:
+            if fwdPacket['type'] == d.PKT_TYPE_FRAG:
                 # fragment already has mac header (FIXME: why?)
                 fwdPacket['mac']  = copy.deepcopy(packet['mac'])
             else:
                 # find next hop
-                if 'sourceRoute' in packet['net']:
-                    sourceRoute = packet['net']['sourceRoute']
-                else:
-                    sourceRoute = []
-                dstMac = self.mote.rpl.findNextHopId(
-                    dstIpId     = packet['net']['dstIp'],
-                    sourceRoute = sourceRoute
-                )
-
+                dstMac = self.mote.rpl.findNextHopId(packet)
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
-                    self.mote.radio.drop_packet(
-                        pkt     = packet,
-                        reason  = SimEngine.SimLog.LOG_RPL_DROP_NO_ROUTE['type']
+                    self.mote.drop_packet(
+                        packet  = packet,
+                        reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
                     )
                     # stop handling this packet
                     goOn = False
@@ -201,7 +197,7 @@ class Sixlowpan(object):
         
         # cut the forwarded packet into fragments
         if goOn:
-            if fwdPacket['type']==d.NET_TYPE_FRAG:
+            if fwdPacket['type']==d.PKT_TYPE_FRAG:
                 fwdFrags = [fwdPacket] # don't re-frag a frag
             else:
                 fwdFrags = self.fragmentation.fragmentPacket(fwdPacket)
@@ -284,19 +280,18 @@ class Fragmentation(object):
                 }
             }
         """
-        assert packet['type'] in [d.APP_TYPE_DATA,d.RPL_TYPE_DIO,d.RPL_TYPE_DAO,d.NET_TYPE_FRAG]
+        assert packet['type'] in [
+            d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_JOIN_REQUEST,
+            d.PKT_TYPE_JOIN_RESPONSE,
+        ]
         assert 'type' in packet
         assert 'net'  in packet
         
         returnVal = []
-
-        if  (
-                (packet['type'] != d.NET_TYPE_FRAG)
-                and
-                ('packet_length' in packet['net'])
-                and
-                (self.settings.tsch_max_payload_len < packet['net']['packet_length'])
-            ):
+        
+        if  self.settings.tsch_max_payload_len < packet['net']['packet_length']:
             # the packet needs fragmentation
 
             # choose tag (same for all fragments)
@@ -308,7 +303,7 @@ class Fragmentation(object):
 
                 # common part of fragment packet
                 fragment = {
-                    'type':                d.NET_TYPE_FRAG,
+                    'type':                d.PKT_TYPE_FRAG,
                     'net': {
                         'datagram_size':   packet['net']['packet_length'],
                         'datagram_tag':    outgoing_datagram_tag,
@@ -392,7 +387,10 @@ class Fragmentation(object):
                     total_reassembly_buffers_num += len(self.reassembly_buffers[i])
                 if total_reassembly_buffers_num == self.settings.sixlowpan_reassembly_buffers_num:
                     # no room for a new entry
-                    self.mote.radio.drop_packet(fragment, 'frag_reassembly_buffer_full')
+                    self.mote.drop_packet(
+                        packet = fragment,
+                        reason = SimEngine.SimLog.DROPREASON_REASSEMBLY_BUFFER_FULL,
+                    )
                     return
 
             # create a new reassembly buffer
@@ -507,15 +505,7 @@ class FragmentForwarding(Fragmentation):
 
             if fragment['net']['dstIp'] != self.mote.id:
 
-                if 'sourceRoute' in fragment['net']:
-                    sourceRoute = fragment['net']['sourceRoute']
-                else:
-                    sourceRoute = []
-
-                dstMac = self.mote.rpl.findNextHopId(
-                    dstIpId     = fragment['net']['dstIp'],
-                    sourceRoute = sourceRoute
-                )
+                dstMac = self.mote.rpl.findNextHopId(fragment)
                 if dstMac == None:
                     # no route to the destination
                     return
@@ -529,7 +519,10 @@ class FragmentForwarding(Fragmentation):
                 assert total_vrb_table_entry_num <= self.settings.fragmentation_ff_vrb_table_size
                 if total_vrb_table_entry_num == self.settings.fragmentation_ff_vrb_table_size:
                     # no room for a new entry
-                    self.mote.radio.drop_packet(fragment, 'frag_vrb_table_full')
+                    self.mote.drop_packet(
+                        packet = fragment,
+                        reason = SimEngine.SimLog.DROPREASON_VRB_TABLE_FULL,
+                    )
                     return
 
 

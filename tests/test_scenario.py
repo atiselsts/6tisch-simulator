@@ -4,15 +4,19 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-@pytest.fixture(params=[3])
+@pytest.fixture(params=[2])
 def fixture_exec_numMotes(request):
     return request.param
 
 #@pytest.fixture(params=['up', 'down', 'up-down'])
-@pytest.fixture(params=['up-down'])
+@pytest.fixture(params=['up'])
 def fixture_data_flow(request):
     return request.param
 
+@pytest.fixture(params=[True])
+def fixture_secjoin_enabled(request):
+    return request.param
+    
 #@pytest.fixture(params=[10, 100, 200])
 @pytest.fixture(params=[100])
 def fixture_app_pkLength(request):
@@ -42,6 +46,9 @@ def fixture_sf_type(request):
 def check_all_nodes_send_x(motes,x):
     senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['packet']['type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
+    
+def check_no_packet_drop():
+    assert u.read_log_file(['packet_dropped'])==[]
 
 # === app
 
@@ -118,6 +125,7 @@ def test_vanilla_scenario(
         sim_engine,
         fixture_exec_numMotes,
         fixture_data_flow,
+        fixture_secjoin_enabled,
         fixture_app_pkLength,
         fixture_fragmentation,
         fixture_ff_vrb_policy_missing_fragment,
@@ -138,11 +146,11 @@ def test_vanilla_scenario(
         diff_config = {
             'exec_numMotes':                               fixture_exec_numMotes,
             'exec_numSlotframesPerRun':                    10000,
+            'secjoin_enabled':                             fixture_secjoin_enabled,
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
             'rpl_daoPeriod':                               60,
-            'tsch_probBcast_ebProb':                       0.33/2,
-            'tsch_probBcast_dioProb':                      0.33/2,
+            'tsch_probBcast_ebDioProb':                    0.33,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
             'sf_type':                                     fixture_sf_type,
@@ -154,6 +162,9 @@ def test_vanilla_scenario(
     
     # give the network time to form
     u.run_until_asn(sim_engine, 300*100)
+    
+    # verify no packet was dropped
+    check_no_packet_drop()
     
     # verify that all nodes are sending EBs, DIOs and DAOs
     tsch_check_all_nodes_send_EBs(sim_engine.motes)
@@ -221,3 +232,8 @@ def test_vanilla_scenario(
             
             # increment appcounter
             appcounter += 1
+    
+    # === checks
+    
+    # verify no packet was dropped
+    check_no_packet_drop()

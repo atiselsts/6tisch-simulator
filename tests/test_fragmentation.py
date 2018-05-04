@@ -74,8 +74,7 @@ class TestPacketDelivery:
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 5,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
                 'app_pkLength'                             : app_pkLength,
                 'fragmentation'                            : fragmentation,
@@ -83,7 +82,7 @@ class TestPacketDelivery:
             },
             force_initial_routing_and_scheduling_state = True,
         )
-
+        
         # run the simulation for 1000 timeslots (10 seconds)
         u.run_until_asn(sim_engine, 1000)
 
@@ -136,8 +135,7 @@ class TestPacketDelivery:
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
                 'app_pkLength'                             : 270,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
                 'tsch_max_payload_len'                     : 90,
                 'fragmentation'                            : fragmentation,
@@ -154,7 +152,7 @@ class TestPacketDelivery:
         # retrieve fragments in its TX queue
         fragments = []
         for frame in leaf.tsch.txQueue:
-            if frame['type'] == d.NET_TYPE_FRAG:
+            if frame['type'] == d.PKT_TYPE_FRAG:
                 fragments.append(frame)
 
         # make sure its TX queue has three fragments
@@ -190,7 +188,7 @@ class TestPacketDelivery:
                     and
                     (log['_mote_id']       == 1)
                     and
-                    (log['packet']['type'] == d.NET_TYPE_FRAG)
+                    (log['packet']['type'] == d.PKT_TYPE_FRAG)
                ):
                 # count the fragment receptions by the intermediate node, whose
                 # _mote_id is 1
@@ -241,8 +239,7 @@ class TestPacketDelivery:
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'app_pkLength'                             : 180,
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy
@@ -276,7 +273,7 @@ class TestPacketDelivery:
             if  (
                     (log['_type'] == 'sixlowpan.pkt.tx') and
                     (log['packet']['srcMac'] == 3) and
-                    (log['packet']['type'] == d.NET_TYPE_FRAG)
+                    (log['packet']['type'] == d.PKT_TYPE_FRAG)
                 ):
                 asn_start = log['_asn']
 
@@ -321,8 +318,7 @@ class TestFragmentationAndReassembly(object):
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
-                'tsch_probBcast_ebProb'                    : 0,
-                'tsch_probBcast_dioProb'                   : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'tsch_max_payload_len'                     : self.TSCH_MAX_PAYLOAD,
                 'app_pkLength'                             : app_pkLength,
                 'fragmentation'                            : fragmentation,
@@ -342,7 +338,7 @@ class TestFragmentationAndReassembly(object):
         # check if fragment receptions happen the expected times
         logs = u.read_log_file(filter=['sixlowpan.pkt.rx'])
         assert (
-            len([log for log in logs if log['packet']['type'] == d.NET_TYPE_FRAG]) ==
+            len([log for log in logs if log['packet']['type'] == d.PKT_TYPE_FRAG]) ==
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
@@ -391,7 +387,7 @@ class TestMemoryManagement:
             # mote
             hop1.sixlowpan.recvPacket(
                 {
-                    'type': d.NET_TYPE_FRAG,
+                    'type': d.PKT_TYPE_FRAG,
                     'mac': {
                         'srcMac'               : hop2.id,
                         'dstMac'               : hop1.id
@@ -451,7 +447,7 @@ class TestMemoryManagement:
         # fragment2_0: the first fragment of a different packet
         # fragment2_1: the second fragment of the different packet
         fragment1_0 = {
-            'type':                d.NET_TYPE_FRAG,
+            'type':                d.PKT_TYPE_FRAG,
             'mac': {
                 'srcMac':          hop2.id,
                 'dstMac':          hop1.id,
@@ -471,7 +467,7 @@ class TestMemoryManagement:
         fragment2_1                                = copy.copy(fragment2_0)
         fragment2_1['net']                         = copy.deepcopy(fragment2_0['net'])
         fragment2_1['net']['datagram_offset']      = 90
-        fragment2_1['net']['original_packet_type'] = d.APP_TYPE_DATA,
+        fragment2_1['net']['original_packet_type'] = d.PKT_TYPE_DATA,
 
         # compute the lifetime of an entry
         slots_per_sec = int(1.0 / sim_settings.tsch_slotDuration)
@@ -557,7 +553,7 @@ class TestDatagramTagManagement(object):
         expected_datagram_tag = leaf_initial_next_datagram_tag
         fragments_by_leaf = []
         for fragment in leaf.tsch.txQueue:
-            assert fragment['type'] == d.NET_TYPE_FRAG
+            assert fragment['type'] == d.PKT_TYPE_FRAG
             fragments_by_leaf.append(fragment)
 
             # test datagram_tag
@@ -638,7 +634,7 @@ class TestFragmentForwarding:
         leaf.app._send_a_single_packet()
         fragments = []
         for frame in leaf.tsch.txQueue:
-            if frame['type'] == d.NET_TYPE_FRAG:
+            if frame['type'] == d.PKT_TYPE_FRAG:
                 fragments.append(frame)
 
         # inject the first fragment to root

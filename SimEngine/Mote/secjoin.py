@@ -30,193 +30,116 @@ class SecJoin(object):
 
         # local variables
         self._isJoined                      = False
-        self._joinRetransmissionPayload     = 0
-        self._joinAsn                       = 0
 
     #======================== public ==========================================
-
+    
+    # getters/setters
+    
     def setIsJoined(self, newState):
         assert newState in [True, False]
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_JOINED,
+            {
+                '_mote_id': self.mote.id,
+            }
+        )
+        
+        # record
         self._isJoined = newState
-
-    def isJoined(self):
+    def getIsJoined(self):
         return self._isJoined
-
-    def scheduleJoinProcess(self):
-        """
-        Schedule to start the join process sometimes in the future
-        """
+    
+    # admin
+    
+    def startJoinProcess(self):
+        
+        assert self.mote.dagRoot==False
+        assert self.mote.tsch.getIsSync()==True
+        assert self.mote.tsch.join_proxy!=None
+        assert self.getIsJoined()==False
         
         if self.settings.secjoin_enabled:
-            raise NotImplementedError()
-            # initiate join process
-            self.engine.scheduleIn(
-                delay            = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout * random.random(),
-                cb               = self._initiateJoinProcess,
-                uniqueTag        = (self.mote.id, 'secjoin._initiateJoinProcess'),
-                intraSlotOrder   = 2,
+            
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_JOIN_TX,
+                {
+                    '_mote_id': self.mote.id,
+                }
             )
+        
+            # create join request
+            newJoinRequest = {
+                'type':              d.PKT_TYPE_JOIN_REQUEST,
+                'app': {
+                },
+                'net': {
+                    'srcIp':         self.mote.id,              # from mote
+                    'dstIp':         self.mote.tsch.join_proxy, # to join proxy
+                    'packet_length': d.PKT_LEN_JOIN_REQUEST,
+                },
+            }
+            
+            # send join request
+            self.mote.sixlowpan.sendPacket(newJoinRequest)
+            
         else:
             # consider I'm already joined
             self.setIsJoined(True)
-
-    def receiveJoinPacket(self, srcIp, payload, timestamp):
-        """
-        Receiving a join packet (same function for join request and response).
-
-        FIXME: different functions for join request and response.
-        """
+    
+    # from lower stack
+    
+    def receive(self, packet):
         
-        raise NotImplementedError()
+        if   packet['type']== d.PKT_TYPE_JOIN_REQUEST:
         
-        # remove pending retransmission event
-        self.engine.removeFutureEvent(
-            (self.mote.id, '_join_action_retransmission')
-        )
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_JOIN_RX,
-            {
-                'source': srcIp.id,
-                "token": payload[0]
-            }
-        )
-
-        # this is a hack to allow downward routing of join packets before node has sent a DAO
-        if self.mote.dagRoot:
-            self.mote.rpl.updateDaoParents({tuple([payload[1]]): [[payload[2]]]})
-
-        if payload[0] != 0:
-            # FIXME: document
-
-            newToken = payload[0] - 1
-            self._sendJoinPacket(
-                token        = newToken,
-                destination  = srcIp,
-            )
+            if self.mote.dagRoot==False:
+                # I'm the join proxy
+                
+                # forward to DAGroot
+                raise NotImplementedError()
+            
+            else:
+                # I'm the dagRoot
+            
+                # create join response
+                newJoinResponse = {
+                    'type':              d.PKT_TYPE_JOIN_RESPONSE,
+                    'app': {
+                    },
+                    'net': {
+                        'srcIp':         self.mote.id,              # from dagRoot
+                        'dstIp':         packet['net']['srcIp'],    # to sender
+                        'packet_length': d.PKT_LEN_JOIN_RESPONSE,
+                    },
+                }
+                
+                # send join response
+                self.mote.sixlowpan.sendPacket(newJoinResponse)
+            
+        elif packet['type']== d.PKT_TYPE_JOIN_RESPONSE:
+            assert self.mote.dagRoot==False
+            
+            if self.getIsJoined()==True:
+                # I'm the join proxy
+                
+                # forward to pledge
+                raise NotImplementedError()
+            
+            else:
+                # I'm the pledge
+            
+                # I'm now joined!
+                self.setIsJoined(True)
         else:
-            # FIXME: document
-
-            # record that I'm joined
-            self._setJoined()
-
-            # initialize the rest of the stack
-            self.mote.activate_tsch_stack()
+            raise SystemError()
 
     def areAllNeighborsJoined(self):
         """
         Are all my neighbors joined?
         """
-        return [nei for nei in self.mote._myNeighbors() if self.engine.motes[nei].secjoin.isJoined is True]
+        return [nei for nei in self.mote._myNeighbors() if self.engine.motes[nei].secjoin.getIsJoined()==True]
 
     #======================== private ==========================================
-
-    def _initiateJoinProcess(self):
-        """
-        Start the join process.
-        """
-        if not self.mote.dagRoot:
-            if self.mote.rpl.getPreferredParent()!=None:
-                if not self.isJoined:
-                    self._sendJoinPacket(
-                        token          = self.settings.secjoin_numExchanges - 1,
-                        destination    = self.mote.dagRootId,
-                    )
-            else: # node doesn't have a parent yet, re-scheduling
-                self.scheduleJoinProcess()
-
-    def _sendJoinPacket(self, token, destination):
-        """
-        Send join packet (same function for join request and response).
-
-        Payload contains number of exchanges.
-
-        FIXME: different functions for join request and response.
-        """
-
-        sourceRoute = []
-        if self.mote.dagRoot:
-            sourceRoute = self.mote.rpl.computeSourceRoute([destination.id])
-
-        if sourceRoute or not self.mote.dagRoot:
-            # create new packet
-            newPacket = {
-                'asn':            self.engine.getAsn(),
-                'type':           d.APP_TYPE_JOIN,
-                'code':           None,
-                'payload':        [
-                    token,
-                    self.mote.id if not self.mote.dagRoot else None,
-                    self.mote.rpl.getPreferredParent() if not self.mote.dagRoot else None,
-                ],
-                'retriesLeft':    d.TSCH_MAXTXRETRIES,
-                'srcIp':          self, # DAG root
-                'dstIp':          destination,
-                'sourceRoute':    sourceRoute
-            }
-            
-            # increment traffic
-            self.log(
-                SimEngine.SimLog.LOG_JOIN_TX,
-                {
-                    'destination': destination.id,
-                    "token": token
-                }
-            )
-            
-            # enqueue packet in TSCH queue
-            self.mote.tsch.enqueue(newPacket)
-
-            # save last token sent
-            self._joinRetransmissionPayload = token
-
-            # schedule retransmission (will be canceled if response received)
-            if not self.mote.dagRoot:
-                self.engine.scheduleIn(
-                    delay              = self.settings.tsch_slotDuration + self.settings.secjoin_joinTimeout,
-                    cb                 = self._retransmitJoinPacket,
-                    uniqueTag          = (self.mote.id, '_join_action_retransmission'),
-                    intraSlotOrder     = 2,
-                )
-
-    def _setJoined(self):
-        """
-        Record that I'm now joined.
-        """
-        assert not self.mote.dagRoot
-
-        if not self.isJoined:
-            self.isJoined = True
-            self._joinAsn  = self.engine.getAsn()
-
-            # log
-            self.log(SimEngine.SimLog.LOG_MOTE_STATE)
-
-            # schedule bootstrap of the preferred parent
-            self.mote.sf.schedule_parent_change(self)
-
-            # check if all motes have joined, if so end the simulation after exec_numSlotframesPerRun
-            if self.settings.secjoin_enabled and all(mote.secjoin.isJoined is True for mote in self.engine.motes):
-                if self.settings.exec_numSlotframesPerRun != 0:
-                    # experiment time in ASNs
-                    simTime = self.settings.exec_numSlotframesPerRun * self.settings.tsch_slotframeLength
-                    # offset until the end of the current slotframe_iteration
-                    offset = self.settings.tsch_slotframeLength - (self.engine.asn % self.settings.tsch_slotframeLength)
-                    # experiment time + offset
-                    delay = simTime + offset
-                else:
-                    # simulation will finish in the next asn
-                    delay = 1
-                # end the simulation
-                self.engine.terminateSimulation(delay)
-
-    def _retransmitJoinPacket(self):
-        """
-        Send join packet again.
-        """
-        if not self.mote.dagRoot and not self.isJoined:
-            self._sendJoinPacket(
-                self._joinRetransmissionPayload,
-                self.mote.dagRootId,
-            )

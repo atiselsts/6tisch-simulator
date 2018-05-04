@@ -77,100 +77,32 @@ class Rpl(object):
         Initialize the RPL layer
         """
 
-        # start sending DIOs and DAOs
-        self._schedule_sendDIO()
+        # start sending DAOs
         self._schedule_sendDAO(firstDAO=True)
-
+    
     # === DIO
     
-    def _schedule_sendDIO(self):
-        """
-        Send a DIO sometimes in the future.
-        """
-
-        # schedule to send a DIO every slotframe
-        # _action_sendDIO() decides whether to actually send, based on probability
-        self.engine.scheduleAtAsn(
-            asn              = self.engine.getAsn() + int(self.settings.tsch_slotframeLength),
-            cb               = self._action_sendDIO,
-            uniqueTag        = (self.mote.id, '_action_sendDIO'),
-            intraSlotOrder   = 3,
-        )
-
-    def _action_sendDIO(self):
-        """
-        decide whether to enqueue a DIO, enqueue DIO, schedule next DIO.
-        """
+    def _create_DIO(self):
+        newDIO = {
+            'type':          d.PKT_TYPE_DIO,
+            'app': {
+                'rank':      self.rank,
+            },
+            'net': {
+                'srcIp':     self.mote.id,            # from mote
+                'dstIp':     d.BROADCAST_ADDRESS,     # broadcast (in reality "all RPL routers")
+            },
+            'mac': {
+                'srcMac':    self.mote.id,            # from mote
+                'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
+            }
+        }
         
-        # compute probability to send a DIO
-        dioProb =   (                                                           \
-                        float(self.settings.tsch_probBcast_dioProb)             \
-                        /                                                       \
-                        float(len(self.mote.secjoin.areAllNeighborsJoined()))   \
-                    )                                                           \
-                    if                                                          \
-                    len(self.mote.secjoin.areAllNeighborsJoined())              \
-                    else                                                        \
-                    float(self.settings.tsch_probBcast_dioProb)
-        sendDio =(random.random() < dioProb)
-
-        # enqueue DIO, if appropriate
-        if sendDio:
-            # probability passes
-            if  (
-                    self.mote.dagRoot
-                    or
-                    (
-                        self.preferredParent!=None
-                        and
-                        (
-                            (
-                                type(self.mote.sf)==sf.MSF
-                                and
-                                self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(),0)>0
-                            )
-                            or
-                            (
-                                type(self.mote.sf)!=sf.MSF
-                            )
-                        )
-                    )
-                ):
-                
-                # I am the root, or I have a preferred parent with dedicated cells to it
-                
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_RPL_DIO_TX,
-                    {
-                        "_mote_id": self.mote.id,
-                    }
-                )
-                
-                # create new packet
-                newDIO = {
-                    'type':            d.RPL_TYPE_DIO,
-                    'app': {
-                        'rank':        self.rank,
-                    },
-                    'net': {
-                        'srcIp':       self.mote.id,            # from mote
-                        'dstIp':       d.BROADCAST_ADDRESS,     # broadcast
-                    },
-                }
-                
-                # remove other possible DIOs from the queue
-                self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DIO)
-                
-                # send the DIO via sixlowpan
-                self.mote.sixlowpan.sendPacket(newDIO)
-
-        # schedule next DIO
-        self._schedule_sendDIO()
+        return newDIO
     
     def action_receiveDIO(self, packet):
         
-        assert packet['type'] == d.RPL_TYPE_DIO
+        assert packet['type'] == d.PKT_TYPE_DIO
         
         # abort if I'm the DAGroot
         if self.mote.dagRoot:
@@ -279,19 +211,20 @@ class Rpl(object):
             
             # create new packet
             newDAO = {
-                'type':           d.RPL_TYPE_DAO,
+                'type':                d.PKT_TYPE_DAO,
                 'app': {
-                    'child_id':   self.mote.id,
-                    'parent_id':  self.preferredParent,
+                    'child_id':        self.mote.id,
+                    'parent_id':       self.preferredParent,
                 },
                 'net': {
-                    'srcIp':      self.mote.id,            # from mote
-                    'dstIp':      self.mote.dagRootId,     # to DAGroot
+                    'srcIp':           self.mote.id,            # from mote
+                    'dstIp':           self.mote.dagRootId,     # to DAGroot
+                    'packet_length':   d.PKT_LEN_DAO,
                 },
             }
             
             # remove other possible DAOs from the queue
-            self.mote.tsch.removeTypeFromQueue(d.RPL_TYPE_DAO)
+            self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
             
             # send the DAO via sixlowpan
             self.mote.sixlowpan.sendPacket(newDAO)
@@ -346,44 +279,36 @@ class Rpl(object):
 
     # forwarding
 
-    def findNextHopId(self, dstIpId, sourceRoute = []):
-        """
-        Determines the next hop and writes that in the packet's 'nextHop' field.
-        """
-        assert dstIpId != self.mote.id
+    def findNextHopId(self, packet):
+        assert packet['net']['dstIp'] != self.mote.id
         
-        if dstIpId == d.BROADCAST_ADDRESS:
+        if    packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
             # broadcast packet
             
-            # broadcast next hop
+            # next hop is broadcast address
             nextHopId = d.BROADCAST_ADDRESS
         
-        elif sourceRoute:
+        elif 'sourceRoute' in packet['net']:
             # unicast source routed downstream packet
             
-            # nextHopId is the first item in the source route 
-            nextHopId = self.engine.motes[sourceRoute.pop(0)].id
+            # next hop is the first item in the source route 
+            nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
             
         else:
             # unicast upstream packet
             
-            if self.preferredParent==None:
-                # no preferred parent
+            if packet['net']['dstIp'] in self.mote._myNeighbors():
+                # packet to a neighbor
                 
-                nextHopId =  None
+                # next hop is that neighbor
+                nextHopId = packet['net']['dstIp']
+            elif packet['net']['dstIp'] == self.mote.dagRootId:
+                # common upstream packet
+                
+                # next hop is preferred parent (returns None if no preferred parent)
+                nextHopId = self.preferredParent
             else:
-                if   dstIpId == self.mote.dagRootId:
-                    # common upstream packet
-                    
-                    # send to preferred parent
-                    nextHopId = self.preferredParent
-                elif dstIpId in self.mote._myNeighbors():
-                    # packet to a neighbor
-                    
-                    # nexhop is that neighbor
-                    nextHopId = dstIpId
-                else:
-                    raise SystemError()
+                raise SystemError()
         
         return nextHopId
 
@@ -450,10 +375,9 @@ class Rpl(object):
                 )
             
             if (self.preferredParent==None) and (newPreferredParent is not None):
-                if not self.settings.secjoin_enabled:
-                    # if we selected a parent for the first time, add one cell to it
-                    # upon successful join, the reservation request is scheduled explicitly
-                    self.mote.sf.schedule_parent_change(self.mote)
+                # if we selected a parent for the first time, add one cell to it
+                # upon successful join, the reservation request is scheduled explicitly
+                self.mote.sf.schedule_parent_change(self.mote)
             elif self.preferredParent != newPreferredParent:
                 # log
                 self.log(
