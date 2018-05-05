@@ -21,16 +21,12 @@ import SimEngine
 
 # =========================== defines =========================================
 
-# === thread
-LOG_THREAD_STATE                 = {'type': 'thread.state', 'keys': ['state', 'name']}
-
-# === mote
-LOG_MOTE_STATE                   = {'type': 'mote.state'}
+# === simulator
+LOG_SIMULATOR_STATE              = {'type': 'simulator.state', 'keys': ['state', 'name']}
 
 # === app
-LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','dest_id','appcounter','packet_type']}
+LOG_APP_TX                       = {'type': 'app.tx',      'keys': ['_mote_id','packet']}
 LOG_APP_RX                       = {'type': 'app.rx',      'keys': ['_mote_id','packet']}
-LOG_APP_RELAYED                  = {'type': 'app.relayed'}
 
 # === join 
 LOG_JOIN_TX                      = {'type': 'join.tx',     'keys': ['_mote_id']}
@@ -38,13 +34,10 @@ LOG_JOIN_RX                      = {'type': 'join.rx',     'keys': ['_mote_id']}
 LOG_JOINED                       = {'type': 'join.joined', 'keys': ['_mote_id']}
 
 # === rpl
-LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',                 'keys': ['_mote_id']}
-LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',                 'keys': ['_mote_id','source']}
-LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',                 'keys': ['_mote_id']}
-LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',                 'keys': ['source']}
-LOG_RPL_CHURN_RANK               = {'type': 'rpl.churn_rank',             'keys': ['old_rank', 'new_rank']}
-LOG_RPL_CHURN_PREF_PARENT        = {'type': 'rpl.churn_pref_parent',      'keys': ['old_parent', 'new_parent']}
-LOG_RPL_CHURN_PARENT_SET         = {'type': 'rpl.churn_parent_set'}
+LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',                 'keys': ['_mote_id','packet']}
+LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',                 'keys': ['_mote_id','packet']}
+LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',                 'keys': ['_mote_id','packet']}
+LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',                 'keys': ['_mote_id','packet']}
 
 # === 6LoWPAN
 LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
@@ -62,10 +55,10 @@ LOG_6P_DELETE_RESPONSE_RX        = {'type': 'sixp.delete_response.rx',    'keys'
 
 # === tsch
 LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                'keys': ['_mote_id']}
-LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell'}
-LOG_TSCH_REMOVE_CELL             = {'type': 'tsch.remove_cell'}
-LOG_TSCH_TX_EB                   = {'type': 'tsch.tx_eb'}
-LOG_TSCH_RX_EB                   = {'type': 'tsch.rx_eb'}
+LOG_TSCH_EB_TX                   = {'type': 'tsch.eb.tx',                 'keys': ['_mote_id','packet']}
+LOG_TSCH_EB_RX                   = {'type': 'tsch.eb.rx',                 'keys': ['_mote_id','packet']}
+LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell',              'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
+LOG_TSCH_REMOVE_CELL             = {'type': 'tsch.remove_cell',           'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
 LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                'keys': ['_mote_id','channel','packet','isACKed']}
 LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                'keys': ['_mote_id','packet']}
 
@@ -77,9 +70,6 @@ DROPREASON_NO_TX_CELLS           = 'no_tx_cells'
 DROPREASON_MAX_RETRIES           = 'max_retries'
 DROPREASON_REASSEMBLY_BUFFER_FULL= 'reassembly_buffer_full'
 DROPREASON_VRB_TABLE_FULL        = 'vrb_table_full'
-
-# === queue
-LOG_QUEUE_DELAY                  = {'type': 'queue.delay'}
 
 # === propagation
 LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission', 'keys': ['channel','packet','destinations']}

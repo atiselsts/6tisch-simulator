@@ -155,11 +155,11 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_ADD_CELL,
             {
-                "ts":             slotoffset,
-                "channel":        channeloffset,
-                "direction":      direction,
-                "source_id":      self.mote.id,
-                "neighbor_id":    neighbor if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                '_mote_id':       self.mote.id,
+                'neighbor':       neighbor,
+                'slotOffset':     slotoffset,
+                'channelOffset':  channeloffset,
+                'direction':      direction,
             }
         )
         
@@ -193,11 +193,11 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
             {
-                "ts":              slotoffset,
-                "channel":         channeloffset,
-                "direction":       direction,
-                "source_id":       self.mote.id,
-                "neighbor_id":     neighbor,
+                '_mote_id':       self.mote.id,
+                'neighbor':       neighbor,
+                'slotOffset':     slotoffset,
+                'channelOffset':  channeloffset,
+                'direction':      direction,
             }
         )
 
@@ -694,6 +694,7 @@ class Tsch(object):
     
     def _create_EB(self):
         
+        # create
         newEB = {
             'type':               d.PKT_TYPE_EB,
             'app': {
@@ -705,11 +706,29 @@ class Tsch(object):
             },
         }
         
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_EB_TX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    newEB,
+            }
+        )
+        
         return newEB
 
     def _tsch_action_receiveEB(self, packet):
         
         assert packet['type'] == d.PKT_TYPE_EB
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_EB_RX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    packet,
+            }
+        )
         
         # abort if I'm the root
         if self.mote.dagRoot:

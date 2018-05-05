@@ -309,7 +309,7 @@ class SimEngine(DiscreteEventEngine):
     def _routine_thread_started(self):
         # log
         self.log(
-            SimLog.LOG_THREAD_STATE,
+            SimLog.LOG_SIMULATOR_STATE,
             {
                 "name":   self.name,
                 "state":  "started"
@@ -334,7 +334,7 @@ class SimEngine(DiscreteEventEngine):
     def _routine_thread_crashed(self):
         # log
         self.log(
-            SimLog.LOG_THREAD_STATE,
+            SimLog.LOG_SIMULATOR_STATE,
             {
                 "name": self.name,
                 "state": "crash"
@@ -344,7 +344,7 @@ class SimEngine(DiscreteEventEngine):
     def _routine_thread_ended(self):
         # log
         self.log(
-            SimLog.LOG_THREAD_STATE,
+            SimLog.LOG_SIMULATOR_STATE,
             {
                 "name": self.name,
                 "state": "stopped"
