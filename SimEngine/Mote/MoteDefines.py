@@ -1,11 +1,11 @@
 
-# admin
+# === admin
 NUM_SUFFICIENT_TX                           = 10      # sufficient num. of tx to estimate pdr by ACK
 
-# addressing
+# === addressing
 BROADCAST_ADDRESS                           = 0xffff
 
-# packet types
+# === packet types
 PKT_TYPE_DATA                               = 'DATA'
 PKT_TYPE_FRAG                               = 'FRAG'
 PKT_TYPE_JOIN_REQUEST                       = 'JOIN_REQUEST'
@@ -18,12 +18,12 @@ PKT_TYPE_SIXP_ADD_RESPONSE                  = 'SIXP_ADD_RESPONSE'
 PKT_TYPE_SIXP_DELETE_REQUEST                = 'SIXP_DELETE_REQUEST'
 PKT_TYPE_SIXP_DELETE_RESPONSE               = 'SIXP_DELETE_RESPONSE'
 
-# packet lengths
+# === packet lengths
 PKT_LEN_DAO                                 = 20
 PKT_LEN_JOIN_REQUEST                        = 20
 PKT_LEN_JOIN_RESPONSE                       = 20
 
-# rpl
+# === rpl
 RPL_PARENT_SWITCH_THRESHOLD                 = 768 # corresponds to 1.5 hops. RFC8180 uses 384 for 2*ETX.
 RPL_MIN_HOP_RANK_INCREASE                   = 256
 RPL_MAX_ETX                                 = 4
@@ -31,14 +31,14 @@ RPL_MAX_RANK_INCREASE                       = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCRE
 RPL_MAX_TOTAL_RANK                          = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
 RPL_PARENT_SET_SIZE                         = 3
 
-# sixlowpan
+# === sixlowpan
 SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
 SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds
 
-# sixp
+# === sixp
 SIXP_RC_SUCCESS                             = 'success'
 
-# tsch
+# === tsch
 TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 2
@@ -47,13 +47,13 @@ DIR_TX                                      = 'TX'
 DIR_RX                                      = 'RX'
 DIR_TXRX_SHARED                             = 'TXRX_SHARED'
 
-# radio
+# === radio
 RADIO_MAXDRIFT                              = 30 # in ppm
 RADIO_STATE_IDLE                            = 'idle'
 RADIO_STATE_TX                              = 'tx'
 RADIO_STATE_RX                              = 'rx'
 
-# battery
+# === battery
 CHARGE_Idle_uC                              = 6.4
 CHARGE_TxDataRxAck_uC                       = 54.5
 CHARGE_TxData_uC                            = 49.5
