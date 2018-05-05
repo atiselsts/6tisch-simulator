@@ -147,7 +147,7 @@ class MSF(SchedulingFunction):
           In the case of bootstrap, add one cell to the preferred parent.
         """
         
-        return # FIXME: enable 6P
+        return # FIXME: enable SIXP
         
         assert self.mote.rpl.getPreferredParent()!=None
 
@@ -180,7 +180,7 @@ class MSF(SchedulingFunction):
             self.log(
                 SimEngine.SimLog.LOG_6TOP_ADD_CELL,
                 {
-                    'cell_count': self.settings.sf_msf_numCellsToAddRemove,
+                    'cell_count': self.settings.sf_msf_numCellsToAddDelete,
                     'cell_options': celloptions,
                     'neighbor': self.mote.rpl.getOldPreferredParent().id,
                     'timeout': timeout
@@ -317,14 +317,14 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_increment(self, mote):
         """
-          Trigger 6P to add self.settings.sf_msf_numCellsToAddRemove cells to preferred parent
+          Trigger SIXP to add self.settings.sf_msf_numCellsToAddDelete cells to preferred parent
         """
         timeout = self.get_sixtop_timeout(mote, mote.rpl.getPreferredParent())
         celloptions = d.DIR_TXRX_SHARED
 
         mote.sixp.issue_ADD_REQUEST(
             mote.rpl.getPreferredParent(),
-            self.settings.sf_msf_numCellsToAddRemove,
+            self.settings.sf_msf_numCellsToAddDelete,
             celloptions,
             timeout,
         )
@@ -342,7 +342,7 @@ class MSF(SchedulingFunction):
 
     def action_bandwidth_decrement(self, mote):
         """
-          Trigger 6P to remove self.settings.sf_msf_numCellsToAddRemove cells from preferred parent
+          Trigger SIXP to delete self.settings.sf_msf_numCellsToAddDelete cells from preferred parent
         """
         # ensure at least one dedicated cell is kept with preferred parent
         if mote.numCellsToNeighbors.get(mote.rpl.getPreferredParent(), 0) > 1:
@@ -353,17 +353,17 @@ class MSF(SchedulingFunction):
             self.log(
                 SimEngine.SimLog.LOG_6TOP_DEL_CELL,
                 {
-                    'cell_count': self.settings.sf_msf_numCellsToAddRemove,
+                    'cell_count': self.settings.sf_msf_numCellsToAddDelete,
                     'cell_options': celloptions,
                     'neighbor': mote.rpl.getPreferredParent(),
                     'timeout': timeout
                 }
             )
 
-            # trigger 6p to remove self.settings.sf_msf_numCellsToAddRemove cells
+            # trigger SIXP to delete self.settings.sf_msf_numCellsToAddDelete cells
             mote.sixp.issue_DELETE_REQUEST(
                 mote.rpl.getPreferredParent(),
-                self.settings.sf_msf_numCellsToAddRemove,
+                self.settings.sf_msf_numCellsToAddDelete,
                 celloptions,
                 timeout,
             )

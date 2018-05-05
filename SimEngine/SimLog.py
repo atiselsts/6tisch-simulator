@@ -46,19 +46,19 @@ LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys'
 LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','packet']}
 
 # === sixp
-LOG_6P_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx',        'keys': ['_mote_id','packet']}
-LOG_6P_ADD_RESPONSE_TX           = {'type': 'sixp.add_response.tx',       'keys': ['_mote_id','packet']}
-LOG_6P_ADD_RESPONSE_RX           = {'type': 'sixp.add_response.rx',       'keys': ['_mote_id','packet']}
-LOG_6P_DELETE_REQUEST_TX         = {'type': 'sixp.delete_request.tx',     'keys': ['_mote_id','packet']}
-LOG_6P_DELETE_RESPONSE_TX        = {'type': 'sixp.delete_response.tx',    'keys': ['_mote_id','packet']}
-LOG_6P_DELETE_RESPONSE_RX        = {'type': 'sixp.delete_response.rx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx',        'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_RESPONSE_TX           = {'type': 'sixp.add_response.tx',       'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_RESPONSE_RX           = {'type': 'sixp.add_response.rx',       'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_REQUEST_TX         = {'type': 'sixp.delete_request.tx',     'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_RESPONSE_TX        = {'type': 'sixp.delete_response.tx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_RESPONSE_RX        = {'type': 'sixp.delete_response.rx',    'keys': ['_mote_id','packet']}
 
 # === tsch
 LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                'keys': ['_mote_id']}
 LOG_TSCH_EB_TX                   = {'type': 'tsch.eb.tx',                 'keys': ['_mote_id','packet']}
 LOG_TSCH_EB_RX                   = {'type': 'tsch.eb.rx',                 'keys': ['_mote_id','packet']}
 LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell',              'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
-LOG_TSCH_REMOVE_CELL             = {'type': 'tsch.remove_cell',           'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
+LOG_TSCH_DELETE_CELL             = {'type': 'tsch.delete_cell',           'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
 LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                'keys': ['_mote_id','channel','packet','isACKed']}
 LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                'keys': ['_mote_id','packet']}
 

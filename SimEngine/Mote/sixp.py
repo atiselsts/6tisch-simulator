@@ -44,7 +44,7 @@ class SixP(object):
     
     def issue_ADD_REQUEST(self, neighborid):
         
-        # new 6P command, bump the seqnum
+        # new SIXP command, bump the seqnum
         if neighborid not in self.seqnum:
             self.seqnum[neighborid] = 0
         self.seqnum[neighborid] += 1
@@ -67,7 +67,7 @@ class SixP(object):
         
         # create ADD request
         addRequest = {
-            'type':                     d.PKT_TYPE_6P_ADD_REQUEST,
+            'type':                     d.PKT_TYPE_SIXP_ADD_REQUEST,
             'app': {
                 'SeqNum':               self.seqnum[neighborid],
                 'CellOptions':          d.DIR_TX,
@@ -82,7 +82,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_ADD_REQUEST_TX,
+            SimEngine.SimLog.LOG_SIXP_ADD_REQUEST_TX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   addRequest
@@ -94,7 +94,7 @@ class SixP(object):
 
     def issue_DELETE_REQUEST(self, neighborid):
         
-        # new 6P command, bump the seqnum
+        # new SIXP command, bump the seqnum
         if neighborid not in self.seqnum:
             self.seqnum[neighborid] = 0
         self.seqnum[neighborid] += 1
@@ -115,7 +115,7 @@ class SixP(object):
         
         # create DELETE request
         deleteRequest = {
-            'type':                     d.PKT_TYPE_6P_DELETE_REQUEST,
+            'type':                     d.PKT_TYPE_SIXP_DELETE_REQUEST,
             'app': {
                 'SeqNum':               self.seqnum[neighborid],
                 'CellOptions':          d.DIR_TX,
@@ -130,7 +130,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_DELETE_REQUEST_TX,
+            SimEngine.SimLog.LOG_SIXP_DELETE_REQUEST_TX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   deleteRequest
@@ -143,13 +143,13 @@ class SixP(object):
     # from upper layers
     
     def receive(self,packet):
-        if   packet['type']==d.PKT_TYPE_6P_ADD_REQUEST:
+        if   packet['type']==d.PKT_TYPE_SIXP_ADD_REQUEST:
             self.receive_ADD_REQUEST(packet)
-        elif packet['type']==d.PKT_TYPE_6P_ADD_RESPONSE:
+        elif packet['type']==d.PKT_TYPE_SIXP_ADD_RESPONSE:
             self.receive_ADD_RESPONSE(packet)
-        elif packet['type']==d.PKT_TYPE_6P_DELETE_REQUEST:
+        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_REQUEST:
             self.receive_DELETE_REQUEST(packet)
-        elif packet['type']==d.PKT_TYPE_6P_DELETE_RESPONSE:
+        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_RESPONSE:
             self.receive_DELETE_RESPONSE(packet)
         else:
             raise SystemError()
@@ -195,7 +195,7 @@ class SixP(object):
                 }
             ]
         addResponse = {
-            'type':                     d.PKT_TYPE_6P_ADD_RESPONSE,
+            'type':                     d.PKT_TYPE_SIXP_ADD_RESPONSE,
             'app': {
                 'Code':                 d.SIXP_RC_SUCCESS,
                 'SeqNum':               packet['app']['SeqNum'],
@@ -209,7 +209,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_ADD_RESPONSE_TX,
+            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_TX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   addResponse
@@ -234,7 +234,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_ADD_RESPONSE_RX,
+            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_RX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   packet
@@ -253,7 +253,7 @@ class SixP(object):
         # delete a cell taken at random in the celllist
         cell = random.choice(packet['app']['CellList'])
         assert (cell['slotOffset'],cell['channelOffset'],packet['mac']['srcMac']) in self.mote.tsch.getRxCells(packet['mac']['srcMac'])
-        self.mote.tsch.removeCell(
+        self.mote.tsch.deleteCell(
             neighbor           = packet['mac']['srcMac'],
             slotoffset         = cell['slotOffset'],
             channeloffset      = cell['channelOffset'],
@@ -262,7 +262,7 @@ class SixP(object):
         
         # create DELETE response
         deleteResponse = {
-            'type':                     d.PKT_TYPE_6P_DELETE_RESPONSE,
+            'type':                     d.PKT_TYPE_SIXP_DELETE_RESPONSE,
             'app': {
                 'Code':                 d.SIXP_RC_SUCCESS,
                 'SeqNum':               packet['app']['SeqNum'],
@@ -281,7 +281,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_DELETE_RESPONSE_TX,
+            SimEngine.SimLog.LOG_SIXP_DELETE_RESPONSE_TX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   deleteResponse
@@ -297,7 +297,7 @@ class SixP(object):
         
         # delete cell from celllist
         cell = packet['app']['CellList'][0]
-        self.mote.tsch.removeCell(
+        self.mote.tsch.deleteCell(
             neighbor           = packet['mac']['srcMac'],
             slotoffset         = cell['slotOffset'],
             channeloffset      = cell['channelOffset'],
@@ -306,7 +306,7 @@ class SixP(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_6P_DELETE_RESPONSE_RX,
+            SimEngine.SimLog.LOG_SIXP_DELETE_RESPONSE_RX,
             {
                 '_mote_id': self.mote.id,
                 'packet':   packet

@@ -382,7 +382,7 @@ class Rpl(object):
                 # upon successful join, the reservation request is scheduled explicitly
                 self.mote.sf.schedule_parent_change(self.mote)
             elif self.preferredParent != newPreferredParent:
-                # trigger 6P add to the new parent
+                # trigger SIXP add to the new parent
                 self.oldPreferredParent = self.preferredParent
                 self.mote.sf.schedule_parent_change(self.mote)
 

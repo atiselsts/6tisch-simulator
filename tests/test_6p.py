@@ -12,7 +12,7 @@ def count_dedicated_tx_cells(mote,neighbor):
 
 # =========================== tests ===========================================
 
-def test_add_delete_6p(
+def test_add_delete_sixp(
         sim_engine,
     ):
     sim_engine = sim_engine(
@@ -44,12 +44,12 @@ def test_add_delete_6p(
         assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
         assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected
         
-        # trigger a 6P ADD
+        # trigger a SIXP ADD
         hop2.sixp.issue_ADD_REQUEST(
             neighborid = hop1.id,
         )
         
-        # give 6P transaction some time to finish
+        # give SIXP transaction some time to finish
         u.run_until_asn(sim_engine, sim_engine.getAsn()+10000)
         
         # I now expect one more cell
@@ -67,12 +67,12 @@ def test_add_delete_6p(
         assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
         assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected
         
-        # trigger a 6P DELETE
+        # trigger a SIXP DELETE
         hop2.sixp.issue_DELETE_REQUEST(
             neighborid = hop1.id,
         )
         
-        # give 6P transaction some time to finish
+        # give SIXP transaction some time to finish
         u.run_until_asn(sim_engine, sim_engine.getAsn()+10000)
         
         # I now expect one less cell

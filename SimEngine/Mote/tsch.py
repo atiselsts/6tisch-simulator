@@ -177,7 +177,7 @@ class Tsch(object):
         if self.getIsSync():
             self.tsch_schedule_next_active_cell()
 
-    def removeCell(self, neighbor, slotoffset, channeloffset, direction):
+    def deleteCell(self, neighbor, slotoffset, channeloffset, direction):
         
         assert isinstance(neighbor, int)
         assert isinstance(slotoffset, int)
@@ -191,7 +191,7 @@ class Tsch(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
+            SimEngine.SimLog.LOG_TSCH_DELETE_CELL,
             {
                 '_mote_id':       self.mote.id,
                 'neighbor':       neighbor,
@@ -201,7 +201,7 @@ class Tsch(object):
             }
         )
 
-        # remove cell
+        # delete cell
         del self.schedule[slotoffset]
 
         # reschedule the next active cell, in case it is now earlier
@@ -408,10 +408,10 @@ class Tsch(object):
             
             # dispatch to the right upper layer
             if   packet['type'] in [
-                    d.PKT_TYPE_6P_ADD_REQUEST,
-                    d.PKT_TYPE_6P_ADD_RESPONSE,
-                    d.PKT_TYPE_6P_DELETE_REQUEST,
-                    d.PKT_TYPE_6P_DELETE_RESPONSE,
+                    d.PKT_TYPE_SIXP_ADD_REQUEST,
+                    d.PKT_TYPE_SIXP_ADD_RESPONSE,
+                    d.PKT_TYPE_SIXP_DELETE_REQUEST,
+                    d.PKT_TYPE_SIXP_DELETE_RESPONSE,
                 ]:
                 self.mote.sixp.receive(packet)
             elif 'net' in packet:

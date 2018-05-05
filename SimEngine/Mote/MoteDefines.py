@@ -19,10 +19,10 @@ PKT_TYPE_JOIN_RESPONSE                      = 'JOIN_RESPONSE'
 PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
-PKT_TYPE_6P_ADD_REQUEST                     = '6P_ADD_REQUEST'
-PKT_TYPE_6P_ADD_RESPONSE                    = '6P_ADD_RESPONSE'
-PKT_TYPE_6P_DELETE_REQUEST                  = '6P_DELETE_REQUEST'
-PKT_TYPE_6P_DELETE_RESPONSE                 = '6P_DELETE_RESPONSE'
+PKT_TYPE_SIXP_ADD_REQUEST                   = 'SIXP_ADD_REQUEST'
+PKT_TYPE_SIXP_ADD_RESPONSE                  = 'SIXP_ADD_RESPONSE'
+PKT_TYPE_SIXP_DELETE_REQUEST                = 'SIXP_DELETE_REQUEST'
+PKT_TYPE_SIXP_DELETE_RESPONSE               = 'SIXP_DELETE_RESPONSE'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
@@ -74,12 +74,12 @@ IANA_6TOP_CMD_COUNT                         = 0x04 # count scheduled cells
 IANA_6TOP_CMD_LIST                          = 0x05 # list the scheduled cells
 IANA_6TOP_CMD_CLEAR                         = 0x06 # clear all cells
 
-# === 6P return code
+# === SIXP return code
 IANA_6TOP_RC_SUCCESS                        = 0x00 # operation succeeded
 IANA_6TOP_RC_ERROR                          = 0x01 # generic error
 IANA_6TOP_RC_EOL                            = 0x02 # end of list
 IANA_6TOP_RC_RESET                          = 0x03 # critical error, reset
-IANA_6TOP_RC_VER_ERR                        = 0x04 # unsupported 6P version
+IANA_6TOP_RC_VER_ERR                        = 0x04 # unsupported SIXP version
 IANA_6TOP_RC_SFID_ERR                       = 0x05 # unsupported SFID
 IANA_6TOP_RC_GEN_ERR                        = 0x06 # wrong schedule generation
 IANA_6TOP_RC_BUSY                           = 0x07 # busy

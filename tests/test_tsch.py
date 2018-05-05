@@ -16,8 +16,8 @@ import SimEngine.Mote.MoteDefines as d
     d.PKT_TYPE_JOIN_RESPONSE,
     d.PKT_TYPE_FRAG,
     d.PKT_TYPE_DAO,
-    d.PKT_TYPE_6P_ADD_REQUEST,
-    d.PKT_TYPE_6P_DELETE_REQUEST,
+    d.PKT_TYPE_SIXP_ADD_REQUEST,
+    d.PKT_TYPE_SIXP_DELETE_REQUEST,
 ])
 def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     """
