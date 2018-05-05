@@ -10,9 +10,6 @@ import SimEngine.Mote.MoteDefines as d
 def count_dedicated_tx_cells(mote,neighbor):
     return len(mote.tsch.getTxCells(neighbor=neighbor))
 
-def sixp_done_cb(seqnum, rc):
-    print seqnum, rc
-
 # =========================== tests ===========================================
 
 def test_add_delete_6p(
@@ -36,22 +33,51 @@ def test_add_delete_6p(
     # give the network time to form
     u.run_until_asn(sim_engine, 10000)
     
-    # === add a cell
+    # expected number of cells
+    numCellExpected = 0
     
-    # make sure no cell yet
-    assert len(hop2.tsch.getTxCells(hop1.id))==0
-    assert len(hop1.tsch.getRxCells(hop2.id))==0
+    # === add cells
     
-    # trigger a 6P ADD
-    hop2.sixp.issue_ADD_REQUEST(
-        neighborid = hop1.id,
-        cb         = sixp_done_cb,
-    )
+    for _ in range(3):
     
-    # give 6P transaction some time to finish
-    u.run_until_asn(sim_engine, 20000)
+        # check number of cells
+        assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
+        assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected
+        
+        # trigger a 6P ADD
+        hop2.sixp.issue_ADD_REQUEST(
+            neighborid = hop1.id,
+        )
+        
+        # give 6P transaction some time to finish
+        u.run_until_asn(sim_engine, sim_engine.getAsn()+10000)
+        
+        # I now expect one more cell
+        numCellExpected += 1
+        
+        # make cell is added
+        assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
+        assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected
     
-    # make cell is added
-    assert len(hop2.tsch.getTxCells(hop1.id))==1
-    assert len(hop1.tsch.getRxCells(hop2.id))==1
+    # === delete cells
     
+    for _ in range(3):
+    
+        # check number of cells
+        assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
+        assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected
+        
+        # trigger a 6P DELETE
+        hop2.sixp.issue_DELETE_REQUEST(
+            neighborid = hop1.id,
+        )
+        
+        # give 6P transaction some time to finish
+        u.run_until_asn(sim_engine, sim_engine.getAsn()+10000)
+        
+        # I now expect one less cell
+        numCellExpected -= 1
+        
+        # make cell is added
+        assert len(hop2.tsch.getTxCells(hop1.id))==numCellExpected
+        assert len(hop1.tsch.getRxCells(hop2.id))==numCellExpected

@@ -193,11 +193,11 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
             {
-                "ts":              cell[0],
-                "channel":         cell[1],
-                "direction":       cell[2],
+                "ts":              slotoffset,
+                "channel":         channeloffset,
+                "direction":       direction,
                 "source_id":       self.mote.id,
-                "neighbor_id":     neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                "neighbor_id":     neighbor,
             }
         )
 
