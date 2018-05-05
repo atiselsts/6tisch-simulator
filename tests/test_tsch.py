@@ -101,7 +101,7 @@ def test_tx_cell_selection(
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes'            : 3,
-            'sf_type'                  : 'SSFSymmetric',
+            'sf_type'                  : 'SFNone',
             'conn_type'                : 'linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,

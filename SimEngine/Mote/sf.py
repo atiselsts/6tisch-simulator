@@ -1,7 +1,3 @@
-"""
-This Module contains the scheduling functions and helpers to install
-static schedules
-"""
 
 # =========================== imports =========================================
 
@@ -11,70 +7,29 @@ import random
 from abc import abstractmethod
 
 import SimEngine
-import Mote
 import MoteDefines as d
 
 # =========================== defines =========================================
 
-SF_TYPE_ALL = ['MSF', 'SSFSymmetric', 'SSFCascading']
-
 # =========================== helpers =========================================
-
-#--- private helpers
-
-def _alloc_cell(transmitter, receiver, slot_offset, channel_offset):
-    """
-    Allocate cells between two motes
-    :param Mote transmitter:
-    :param Mote receiver:
-    :param int slot_offset:
-    :param int channel_offset:
-    :return: None
-    """
-
-    # cell structure: (slot_offset, channel_offset, direction)
-    transmitter.tsch.addCell(
-        neighbor        = receiver,
-        slotoffset      = slot_offset,
-        channeloffset   = channel_offset,
-        direction       = d.DIR_TX,
-    )
-        
-    if receiver not in transmitter.numCellsToNeighbors:
-        transmitter.numCellsToNeighbors[receiver] = 1
-    else:
-        transmitter.numCellsToNeighbors[receiver] += 1
-
-    receiver.tsch.addCell(
-        neighbor        = transmitter,
-        slotoffset      = slot_offset,
-        channeloffset   = channel_offset,
-        direction       = d.DIR_RX,
-    )
-    
-    if transmitter not in receiver.numCellsFromNeighbors:
-        receiver.numCellsFromNeighbors[transmitter] = 1
-    else:
-        receiver.numCellsFromNeighbors[transmitter] += 1
 
 # =========================== body ============================================
 
 class SchedulingFunction(object):
-    """
-    This class is instantiated by each mote.
-    """
-
+    
     def __init__(self, mote):
         
         # store params
-        self.numCellsElapsed = 0
-        self.numCellsUsed    = 0
         self.mote            = mote
         
         # singletons (to access quicker than recreate every time)
         self.settings        = SimEngine.SimSettings.SimSettings()
         self.engine          = SimEngine.SimEngine.SimEngine()
         self.log             = SimEngine.SimLog.SimLog().log
+        
+        # local variables
+        self.numCellsElapsed = 0
+        self.numCellsUsed    = 0
 
     def activate(self):
         self.housekeeping()
@@ -86,53 +41,54 @@ class SchedulingFunction(object):
 
     @abstractmethod
     def schedule_parent_change(self, mote):
-        """ Schedule parent change
-        :param Mote mote:
-        """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def signal_cell_elapsed(self, mote, neighbor, direction):
-        """
-        :param Mote mote:
-        :param Mote neighbor:
-        :param direction:
-        :return:
-        """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
-        """
-        :param Mote mote:
-        :param Mote neighbor:
-        :param cellOptions:
-        :param direction:
-        :param celltype:
-        :return:
-        """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abstractmethod
     def housekeeping(self):
-        raise NotImplementedError
+        raise NotImplementedError()
+
+class SFNone(SchedulingFunction):
+    
+    def __init__(self, mote):
+        super(SFNone, self).__init__(mote)
+
+    def schedule_parent_change(self, mote):
+        pass
+
+    def signal_cell_elapsed(self, mote, neighbor, direction):
+        pass
+
+    def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
+        pass
+
+    def housekeeping(self):
+        pass
 
 class MSF(SchedulingFunction):
 
-    MIN_NUM_CELLS = 5
-    DEFAULT_TIMEOUT_EXP = 1
-    MAX_TIMEOUT_EXP = 4
-    DEFAULT_SIXTOP_TIMEOUT = 15
-    SIXP_TIMEOUT_SEC_FACTOR = 3
+    MIN_NUM_CELLS            = 5
+    DEFAULT_TIMEOUT_EXP      = 1
+    MAX_TIMEOUT_EXP          = 4
+    DEFAULT_SIXTOP_TIMEOUT   = 15
+    SIXP_TIMEOUT_SEC_FACTOR  = 3
 
     def __init__(self, mote):
+        # intialize parent class
         super(MSF, self).__init__(mote)
+        
+        # (additional) local variables
         self.msfTimeoutExp = {}
 
     def schedule_parent_change(self, mote):
-        """
-          Schedule MSF parent change
-        """
+        
         self.engine.scheduleAtAsn(
             asn              = int(self.engine.asn + (1 + self.settings.tsch_slotframeLength * 16 * random.random())),
             cb               = self._action_parent_change,
@@ -141,11 +97,6 @@ class MSF(SchedulingFunction):
         )
 
     def _action_parent_change(self):
-        """
-          Trigger MSF parent change:
-              Add the same number of cells to the new parent as we had with the old one.
-          In the case of bootstrap, add one cell to the preferred parent.
-        """
         
         return # FIXME: enable SIXP
         
@@ -388,41 +339,3 @@ class MSF(SchedulingFunction):
 
         # schedule next housekeeping
         self.housekeeping()
-
-class SSFSymmetric(SchedulingFunction):
-    def __init__(self, mote):
-        super(SSFSymmetric, self).__init__(mote)
-
-    def schedule_parent_change(self, mote):
-        pass
-
-    def signal_cell_elapsed(self, mote, neighbor, direction):
-        # ignore signal
-        pass
-
-    def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
-        # ignore signal
-        pass
-
-    def housekeeping(self):
-        # ignore housekeeping
-        pass
-
-class SSFCascading(SchedulingFunction):
-    def __init__(self, mote):
-        super(SSFCascading, self).__init__(mote)
-
-    def schedule_parent_change(self, mote):
-        pass
-
-    def signal_cell_elapsed(self, mote, neighbor, direction):
-        # ignore signal
-        pass
-
-    def signal_cell_used(self, mote, neighbor, cellOptions, direction=None, celltype=None):
-        # ignore signal
-        pass
-
-    def housekeeping(self):
-        # ignore housekeeping
-        pass

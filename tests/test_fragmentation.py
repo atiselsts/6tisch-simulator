@@ -70,7 +70,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 3,
                 'exec_numSlotframesPerRun'                 : 10000,
-                'sf_type'                                  : 'SSFSymmetric',
+                'sf_type'                                  : 'SFNone',
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 5,
                 'app_pkPeriodVar'                          : 0,
@@ -129,7 +129,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 3,
                 'exec_numSlotframesPerRun'                 : 10,
-                'sf_type'                                  : 'SSFSymmetric',
+                'sf_type'                                  : 'SFNone',
                 'conn_type'                                : 'linear',
                 'app'                                      : 'AppPeriodic',
                 'app_pkPeriod'                             : 0,
@@ -235,7 +235,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 4,
                 'exec_numSlotframesPerRun'                 : 10,
-                'sf_type'                                  : 'SSFSymmetric',
+                'sf_type'                                  : 'SFNone',
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
@@ -314,7 +314,7 @@ class TestFragmentationAndReassembly(object):
             diff_config = {
                 'exec_numMotes'                            : 2,
                 'exec_numSlotframesPerRun'                 : 20,
-                'sf_type'                                  : 'SSFSymmetric',
+                'sf_type'                                  : 'SFNone',
                 'conn_type'                                : 'linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
@@ -523,7 +523,7 @@ class TestDatagramTagManagement(object):
         sim_engine = sim_engine(
             {
                 'exec_numMotes'                            : 3,
-                'sf_type'                                  : 'SSFSymmetric',
+                'sf_type'                                  : 'SFNone',
                 'conn_type'                                : 'linear',
                 'app_pkLength'                             : 180,
                 'fragmentation'                            : fragmentation,

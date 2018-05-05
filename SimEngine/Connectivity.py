@@ -494,7 +494,7 @@ class Connectivity(object):
             parent = mote
 
     def _fill_connectivity_matrix_two_branches(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def _fill_connectivity_matrix_pisterhack(self):
         """ Fill the matrix using the Pister Hack model
@@ -512,7 +512,7 @@ class Connectivity(object):
 
     def _fill_connectivity_matrix_trace(self):
         """ Fill the matrix using the connectivity trace"""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     # === update
 

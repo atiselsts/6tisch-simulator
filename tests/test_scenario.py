@@ -37,7 +37,7 @@ def fixture_ff_vrb_policy_missing_fragment(request):
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 
-@pytest.fixture(params=['SSFSymmetric'])
+@pytest.fixture(params=['SFNone'])
 def fixture_sf_type(request):
     return request.param
 
@@ -182,7 +182,7 @@ def test_vanilla_scenario(
     rpl_check_root_parentChildfromDAOs(sim_engine.motes)
     
     # verify that all nodes have a dedicated cell to their parent
-    if fixture_sf_type!='SSFSymmetric':
+    if fixture_sf_type!='SFNone':
         tsch_all_nodes_check_dedicated_cell(sim_engine.motes)
     
     # === send data up/down

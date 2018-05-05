@@ -19,7 +19,7 @@ def test_add_delete_sixp(
         diff_config = {
             'exec_numMotes':                3,
             'exec_numSlotframesPerRun':     10000,
-            'sf_type':                      'SSFSymmetric',
+            'sf_type':                      'SFNone',
             'conn_type':                    'linear',
         },
     )
