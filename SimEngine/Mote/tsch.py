@@ -407,12 +407,13 @@ class Tsch(object):
             isACKed = True
             
             # dispatch to the right upper layer
-            if   packet['type'] == d.PKT_TYPE_6P_ADD_REQUEST:
-                self.mote.sixp.receive_ADD_REQUEST(packet)
-            elif packet['type'] == d.PKT_TYPE_6P_DELETE_REQUEST:
-                self.mote.sixp.receive_DELETE_REQUEST(packet)
-            elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                self.mote.sixp.receive_RESPONSE(packet)
+            if   packet['type'] in [
+                    d.PKT_TYPE_6P_ADD_REQUEST,
+                    d.PKT_TYPE_6P_ADD_RESPONSE,
+                    d.PKT_TYPE_6P_DELETE_REQUEST,
+                    d.PKT_TYPE_6P_DELETE_RESPONSE,
+                ]:
+                self.mote.sixp.receive(packet)
             elif 'net' in packet:
                 self.mote.sixlowpan.recvPacket(packet)
             else:

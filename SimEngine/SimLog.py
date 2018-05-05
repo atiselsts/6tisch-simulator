@@ -53,7 +53,9 @@ LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys'
 LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','packet']}
 
 # === sixp
-LOG_6P_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx', 'keys': ['_mote_id','packet']}
+LOG_6P_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx',   'keys': ['_mote_id','packet']}
+LOG_6P_ADD_RESPONSE_TX           = {'type': 'sixp.add_response.tx',  'keys': ['_mote_id','packet']}
+LOG_6P_ADD_RESPONSE_RX           = {'type': 'sixp.add_response.rx',  'keys': ['_mote_id','packet']}
 
 # === tsch
 LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                  'keys': ['_mote_id']}

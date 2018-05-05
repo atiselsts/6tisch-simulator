@@ -9,7 +9,7 @@ BROADCAST_ADDRESS                           = 0xffff
 # === TSCH cell options
 DIR_TX                                      = 'TX'
 DIR_RX                                      = 'RX'
-DIR_TXRX_SHARED                             = 'SHARED'
+DIR_TXRX_SHARED                             = 'TXRX_SHARED'
 
 # === packet types
 PKT_TYPE_DATA                               = 'DATA'
@@ -20,7 +20,9 @@ PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
 PKT_TYPE_6P_ADD_REQUEST                     = '6P_ADD_REQUEST'
+PKT_TYPE_6P_ADD_RESPONSE                    = '6P_ADD_RESPONSE'
 PKT_TYPE_6P_DELETE_REQUEST                  = '6P_DELETE_REQUEST'
+PKT_TYPE_6P_DELETE_RESPONSE                 = '6P_DELETE_RESPONSE'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
@@ -30,6 +32,7 @@ PKT_LEN_JOIN_RESPONSE                       = 20
 # === 6top message types
 IANA_6TOP_TYPE_REQUEST                      = '6TOP_REQUEST'
 IANA_6TOP_TYPE_RESPONSE                     = '6TOP_RESPONSE'
+SIXP_RC_SUCCESS                             = 'success'
 
 # === rpl
 RPL_PARENT_SWITCH_THRESHOLD                 = 768 # corresponds to 1.5 hops. 6tisch minimal draft use 384 for 2*ETX.

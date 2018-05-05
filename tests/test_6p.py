@@ -8,11 +8,7 @@ import SimEngine.Mote.MoteDefines as d
 # =========================== helpers =========================================
 
 def count_dedicated_tx_cells(mote,neighbor):
-    returnVal = 0
-    for cell in mote.tsch.getTxCells():
-        if cell['neighbor']==neighbor.id:
-            returnVal += 1
-    return returnVal
+    return len(mote.tsch.getTxCells(neighbor=neighbor))
 
 def sixp_done_cb(seqnum, rc):
     print seqnum, rc
@@ -38,12 +34,13 @@ def test_add_delete_6p(
     hop2 = sim_engine.motes[2]
     
     # give the network time to form
-    u.run_until_asn(sim_engine, 1000)
+    u.run_until_asn(sim_engine, 10000)
     
     # === add a cell
     
     # make sure no cell yet
-    assert count_dedicated_tx_cells(hop2,hop1)==0
+    assert len(hop2.tsch.getTxCells(hop1.id))==0
+    assert len(hop1.tsch.getRxCells(hop2.id))==0
     
     # trigger a 6P ADD
     hop2.sixp.issue_ADD_REQUEST(
@@ -52,8 +49,9 @@ def test_add_delete_6p(
     )
     
     # give 6P transaction some time to finish
-    u.run_until_asn(sim_engine, 2000)
+    u.run_until_asn(sim_engine, 20000)
     
     # make cell is added
-    assert count_dedicated_tx_cells(hop2,hop1)==1
+    assert len(hop2.tsch.getTxCells(hop1.id))==1
+    assert len(hop1.tsch.getRxCells(hop2.id))==1
     
