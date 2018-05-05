@@ -22,58 +22,58 @@ import SimEngine
 # =========================== defines =========================================
 
 # === simulator
-LOG_SIMULATOR_STATE              = {'type': 'simulator.state',            'keys': ['state', 'name']}
+LOG_SIMULATOR_STATE               = {'type': 'simulator.state',           'keys': ['state', 'name']}
 
 # === app
-LOG_APP_TX                       = {'type': 'app.tx',                     'keys': ['_mote_id','packet']}
-LOG_APP_RX                       = {'type': 'app.rx',                     'keys': ['_mote_id','packet']}
+LOG_APP_TX                        = {'type': 'app.tx',                    'keys': ['_mote_id','packet']}
+LOG_APP_RX                        = {'type': 'app.rx',                    'keys': ['_mote_id','packet']}
 
 # === secjoin 
-LOG_SECJOIN_TX                   = {'type': 'secjoin.tx',                 'keys': ['_mote_id']}
-LOG_SECJOIN_RX                   = {'type': 'secjoin.rx',                 'keys': ['_mote_id']}
-LOG_JOINED                       = {'type': 'secjoin.joined',             'keys': ['_mote_id']}
+LOG_SECJOIN_TX                    = {'type': 'secjoin.tx',                'keys': ['_mote_id']}
+LOG_SECJOIN_RX                    = {'type': 'secjoin.rx',                'keys': ['_mote_id']}
+LOG_JOINED                        = {'type': 'secjoin.joined',            'keys': ['_mote_id']}
 
 # === rpl
-LOG_RPL_DIO_TX                   = {'type': 'rpl.dio.tx',                 'keys': ['_mote_id','packet']}
-LOG_RPL_DIO_RX                   = {'type': 'rpl.dio.rx',                 'keys': ['_mote_id','packet']}
-LOG_RPL_DAO_TX                   = {'type': 'rpl.dao.tx',                 'keys': ['_mote_id','packet']}
-LOG_RPL_DAO_RX                   = {'type': 'rpl.dao.rx',                 'keys': ['_mote_id','packet']}
+LOG_RPL_DIO_TX                    = {'type': 'rpl.dio.tx',                'keys': ['_mote_id','packet']}
+LOG_RPL_DIO_RX                    = {'type': 'rpl.dio.rx',                'keys': ['_mote_id','packet']}
+LOG_RPL_DAO_TX                    = {'type': 'rpl.dao.tx',                'keys': ['_mote_id','packet']}
+LOG_RPL_DAO_RX                    = {'type': 'rpl.dao.rx',                'keys': ['_mote_id','packet']}
 
 # === 6LoWPAN
-LOG_SIXLOWPAN_PKT_TX             = {'type': 'sixlowpan.pkt.tx',           'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_PKT_FWD            = {'type': 'sixlowpan.pkt.fwd',          'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_PKT_RX             = {'type': 'sixlowpan.pkt.rx',           'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_FRAG_GEN           = {'type': 'sixlowpan.frag.gen',         'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_TX              = {'type': 'sixlowpan.pkt.tx',          'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_FWD             = {'type': 'sixlowpan.pkt.fwd',         'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_RX              = {'type': 'sixlowpan.pkt.rx',          'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_FRAG_GEN            = {'type': 'sixlowpan.frag.gen',        'keys': ['_mote_id','packet']}
 
 # === sixp
-LOG_SIXP_ADD_REQUEST_TX            = {'type': 'sixp.add_request.tx',      'keys': ['_mote_id','packet']}
-LOG_SIXP_ADD_RESPONSE_TX           = {'type': 'sixp.add_response.tx',     'keys': ['_mote_id','packet']}
-LOG_SIXP_ADD_RESPONSE_RX           = {'type': 'sixp.add_response.rx',     'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_REQUEST_TX         = {'type': 'sixp.delete_request.tx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_RESPONSE_TX        = {'type': 'sixp.delete_response.tx',  'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_RESPONSE_RX        = {'type': 'sixp.delete_response.rx',  'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_REQUEST_TX           = {'type': 'sixp.add_request.tx',       'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_RESPONSE_TX          = {'type': 'sixp.add_response.tx',      'keys': ['_mote_id','packet']}
+LOG_SIXP_ADD_RESPONSE_RX          = {'type': 'sixp.add_response.rx',      'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_REQUEST_TX        = {'type': 'sixp.delete_request.tx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_RESPONSE_TX       = {'type': 'sixp.delete_response.tx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_DELETE_RESPONSE_RX       = {'type': 'sixp.delete_response.rx',   'keys': ['_mote_id','packet']}
 
 # === tsch
-LOG_TSCH_SYNCED                  = {'type': 'tsch.synced',                'keys': ['_mote_id']}
-LOG_TSCH_EB_TX                   = {'type': 'tsch.eb.tx',                 'keys': ['_mote_id','packet']}
-LOG_TSCH_EB_RX                   = {'type': 'tsch.eb.rx',                 'keys': ['_mote_id','packet']}
-LOG_TSCH_ADD_CELL                = {'type': 'tsch.add_cell',              'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
-LOG_TSCH_DELETE_CELL             = {'type': 'tsch.delete_cell',           'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
-LOG_TSCH_TXDONE                  = {'type': 'tsch.txdone',                'keys': ['_mote_id','channel','packet','isACKed']}
-LOG_TSCH_RXDONE                  = {'type': 'tsch.rxdone',                'keys': ['_mote_id','packet']}
+LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}
+LOG_TSCH_EB_TX                    = {'type': 'tsch.eb.tx',                'keys': ['_mote_id','packet']}
+LOG_TSCH_EB_RX                    = {'type': 'tsch.eb.rx',                'keys': ['_mote_id','packet']}
+LOG_TSCH_ADD_CELL                 = {'type': 'tsch.add_cell',             'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
+LOG_TSCH_DELETE_CELL              = {'type': 'tsch.delete_cell',          'keys': ['_mote_id','neighbor','slotOffset','channelOffset','direction']}
+LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys': ['_mote_id','channel','packet','isACKed']}
+LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','packet']}
 
 # === dropping
-LOG_PACKET_DROPPED               = {'type': 'packet_dropped',             'keys': ['_mote_id','packet','reason']}
-DROPREASON_NO_ROUTE              = 'no_route'
-DROPREASON_TXQUEUE_FULL          = 'txqueue_full'
-DROPREASON_NO_TX_CELLS           = 'no_tx_cells'
-DROPREASON_MAX_RETRIES           = 'max_retries'
-DROPREASON_REASSEMBLY_BUFFER_FULL= 'reassembly_buffer_full'
-DROPREASON_VRB_TABLE_FULL        = 'vrb_table_full'
+LOG_PACKET_DROPPED                = {'type': 'packet_dropped',            'keys': ['_mote_id','packet','reason']}
+DROPREASON_NO_ROUTE               = 'no_route'
+DROPREASON_TXQUEUE_FULL           = 'txqueue_full'
+DROPREASON_NO_TX_CELLS            = 'no_tx_cells'
+DROPREASON_MAX_RETRIES            = 'max_retries'
+DROPREASON_REASSEMBLY_BUFFER_FULL = 'reassembly_buffer_full'
+DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
 
 # === propagation
-LOG_PROP_TRANSMISSION            = {'type': 'prop.transmission',          'keys': ['channel','packet','destinations']}
-LOG_PROP_INTERFERENCE            = {'type': 'prop.interference',          'keys': ['source_id','channel','interferers']}
+LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet','destinations']}
+LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['source_id','channel','interferers']}
 
 # ============================ SimLog =========================================
 
