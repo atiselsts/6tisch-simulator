@@ -12,12 +12,16 @@ import SimEngine.Mote.MoteDefines as d
 # even if the queue is full.
 @pytest.mark.parametrize("frame_type", [
     d.PKT_TYPE_DATA,
+    d.PKT_TYPE_FRAG,
     d.PKT_TYPE_JOIN_REQUEST,
     d.PKT_TYPE_JOIN_RESPONSE,
-    d.PKT_TYPE_FRAG,
+    # not DIO (generetaed by TSCH directly)
     d.PKT_TYPE_DAO,
-    d.PKT_TYPE_6P_ADD_REQUEST,
-    d.PKT_TYPE_6P_DELETE_REQUEST,
+    # not EB (generetaed by tsch directly)
+    d.PKT_TYPE_SIXP_ADD_REQUEST,
+    d.PKT_TYPE_SIXP_ADD_RESPONSE,
+    d.PKT_TYPE_SIXP_DELETE_REQUEST,
+    d.PKT_TYPE_SIXP_DELETE_RESPONSE,
 ])
 def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     """
@@ -40,7 +44,7 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
         hop1.tsch.txQueue.append(dummy_frame)
     assert len(hop1.tsch.txQueue) == d.TSCH_QUEUE_SIZE
 
-    # prepare a test_frame
+    # prepare an additional frame
     test_frame = {
         'type': frame_type,
         'mac': {
@@ -49,7 +53,7 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
         }
     }
     
-    # ensure queuing fails
+    # make sure that queuing that frame fails
     assert hop1.tsch.enqueue(test_frame) == False
 
 def test_removeTypeFromQueue(sim_engine):
@@ -101,7 +105,7 @@ def test_tx_cell_selection(
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes'            : 3,
-            'sf_type'                  : 'SSFSymmetric',
+            'sf_type'                  : 'SFNone',
             'conn_type'                : 'linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,
@@ -180,7 +184,7 @@ def test_network_advertisement(sim_engine, fixture_adv_frame):
         }
     )
 
-    u.run_until_asn(sim_engine, 1000)
+    u.run_until_asn(sim_engine, 10000)
 
     logs = u.read_log_file(filter=['prop.transmission'])
     # root should send more than one EB in a default simulation run

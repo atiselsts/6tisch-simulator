@@ -376,7 +376,7 @@ class Fragmentation(object):
         incoming_datagram_tag     = fragment['net']['datagram_tag']
         buffer_lifetime           = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
 
-        self._remove_expired_reassembly_buffer()
+        self._delete_expired_reassembly_buffer()
 
         # make sure we can allocate a reassembly buffer if necessary
         if (srcMac not in self.reassembly_buffers) or (incoming_datagram_tag not in self.reassembly_buffers[srcMac]):
@@ -438,8 +438,7 @@ class Fragmentation(object):
         del packet['net']['datagram_offset']
         del packet['net']['original_packet_type']
 
-        # reassembly is done; we don't need the reassembly buffer for the
-        # packet any more. remove the buffer.
+        # reassembly is done, delete buffer
         del self.reassembly_buffers[srcMac][incoming_datagram_tag]
         if len(self.reassembly_buffers[srcMac]) == 0:
             del self.reassembly_buffers[srcMac]
@@ -453,17 +452,17 @@ class Fragmentation(object):
         self.next_datagram_tag = (ret + 1) % 65536
         return ret
     
-    def _remove_expired_reassembly_buffer(self):
+    def _delete_expired_reassembly_buffer(self):
         if len(self.reassembly_buffers) == 0:
             return
 
         for srcMac in self.reassembly_buffers.keys():
             for incoming_datagram_tag in self.reassembly_buffers[srcMac].keys():
-                # remove a reassembly buffer which expires
+                # delete expired reassembly buffer
                 if self.reassembly_buffers[srcMac][incoming_datagram_tag]['expiration'] < self.engine.getAsn():
                     del self.reassembly_buffers[srcMac][incoming_datagram_tag]
 
-            # remove an reassembly buffer entry if it's empty
+            # delete an reassembly buffer entry if it's empty
             if len(self.reassembly_buffers[srcMac]) == 0:
                 del self.reassembly_buffers[srcMac]
 
@@ -498,7 +497,7 @@ class FragmentForwarding(Fragmentation):
         incoming_datagram_tag = fragment['net']['datagram_tag']
         entry_lifetime        = d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME / self.settings.tsch_slotDuration
 
-        self._remove_expired_vrb_table_entry()
+        self._delete_expired_vrb_table_entry()
 
         # handle first fragments
         if datagram_offset == 0:
@@ -555,7 +554,7 @@ class FragmentForwarding(Fragmentation):
 
         # when missing_fragment is in discard_vrb_entry_policy
         # - if the incoming fragment is the expected one, update the next_offset
-        # - otherwise, remove the corresponding VRB table entry
+        # - otherwise, delete the corresponding VRB table entry
         if (
                 ('missing_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
                 (srcMac in self.vrb_table) and
@@ -603,7 +602,7 @@ class FragmentForwarding(Fragmentation):
             ret = None
 
         # when last_fragment is in discard_vrb_entry_policy
-        # - if the incoming fragment is the last fragment of a packet, remove the corresponding entry
+        # - if the incoming fragment is the last fragment of a packet, delete the corresponding entry
         # - otherwise, do nothing
         if (
                 ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
@@ -619,7 +618,7 @@ class FragmentForwarding(Fragmentation):
 
     #======================== private ==========================================
 
-    def _remove_expired_vrb_table_entry(self):
+    def _delete_expired_vrb_table_entry(self):
         if len(self.vrb_table) == 0:
             return
 

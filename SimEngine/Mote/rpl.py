@@ -83,6 +83,8 @@ class Rpl(object):
     # === DIO
     
     def _create_DIO(self):
+        
+        # create
         newDIO = {
             'type':          d.PKT_TYPE_DIO,
             'app': {
@@ -97,6 +99,15 @@ class Rpl(object):
                 'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
             }
         }
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DIO_TX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    newDIO,
+            }
+        )
         
         return newDIO
     
@@ -117,7 +128,7 @@ class Rpl(object):
             SimEngine.SimLog.LOG_RPL_DIO_RX,
             {
                 "_mote_id":  self.mote.id,
-                "source":    packet['mac']['srcMac'],
+                "packet":    packet,
             }
         )
         
@@ -201,15 +212,7 @@ class Rpl(object):
                 )
             ):
             
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_RPL_DAO_TX,
-                {
-                    "_mote_id": self.mote.id
-                }
-            )
-            
-            # create new packet
+            # create
             newDAO = {
                 'type':                d.PKT_TYPE_DAO,
                 'app': {
@@ -222,6 +225,15 @@ class Rpl(object):
                     'packet_length':   d.PKT_LEN_DAO,
                 },
             }
+            
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_RPL_DAO_TX,
+                {
+                    "_mote_id": self.mote.id,
+                    "packet":   newDAO,
+                }
+            )
             
             # remove other possible DAOs from the queue
             self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
@@ -240,7 +252,8 @@ class Rpl(object):
         self.log(
             SimEngine.SimLog.LOG_RPL_DAO_RX,
             {
-                "source": packet['mac']['srcMac']
+                "_mote_id": self.mote.id,
+                "packet":   packet,
             }
         )
 
@@ -363,31 +376,13 @@ class Rpl(object):
                         # switch preferred parent only when rank difference is large enough
                         if rank-newrank < d.RPL_PARENT_SWITCH_THRESHOLD:
                             (newPreferredParent, newrank) = (mote, rank)
-
-            # log
-            if self.rank and newrank != self.rank:
-                self.log(
-                    SimEngine.SimLog.LOG_RPL_CHURN_RANK,
-                    {
-                        "old_rank": self.rank,
-                        "new_rank": newrank
-                    }
-                )
             
             if (self.preferredParent==None) and (newPreferredParent is not None):
                 # if we selected a parent for the first time, add one cell to it
                 # upon successful join, the reservation request is scheduled explicitly
                 self.mote.sf.schedule_parent_change(self.mote)
             elif self.preferredParent != newPreferredParent:
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_RPL_CHURN_PREF_PARENT,
-                    {
-                        "old_parent": self.preferredParent,
-                        "new_parent": newPreferredParent
-                    }
-                )
-                # trigger 6P add to the new parent
+                # trigger SIXP add to the new parent
                 self.oldPreferredParent = self.preferredParent
                 self.mote.sf.schedule_parent_change(self.mote)
 

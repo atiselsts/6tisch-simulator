@@ -34,15 +34,15 @@
             "sf_msf_maxNumCells":                          16,
             "sf_msf_highUsageThres":                       12,
             "sf_msf_lowUsageThres":                        4,
-            "sf_msf_numCellsToAddRemove":                  1,
+            "sf_msf_numCellsToAddDelete":                  1,
             "sf_ssf_initMethod":                           null,
 
             "sixtop_messaging":                            1,
-            "sixtop_removeRandomCell":                     false,
+            "sixtop_deleteRandomCell":                     false,
             
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
-            "tsch_probBcast_ebDioProb":                    0.66,
+            "tsch_probBcast_ebDioProb":                    0.33,
 
             "conn_type":                                  "fully_meshed",
             "conn_trace":                                 "../traces/grenoble.k7",

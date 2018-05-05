@@ -26,7 +26,7 @@ def test_app_upstream(
         {
             'exec_numMotes'                            : 2,
             'exec_numSlotframesPerRun'                 : 11,
-            'sf_type'                                  : 'SSFSymmetric',
+            'sf_type'                                  : 'SFNone',
             'conn_type'                                : 'linear',
             'tsch_probBcast_ebDioProb'                 : 0,
             'app'                                      : app,
@@ -61,7 +61,7 @@ def test_app_ack_by_root(sim_engine):
     sim_engine = sim_engine(
         {
             'exec_numMotes'                            : 2,
-            'sf_type'                                  : 'SSFSymmetric',
+            'sf_type'                                  : 'SFNone',
             'conn_type'                                : 'linear',
             'tsch_probBcast_ebDioProb'                 : 0,
             'app'                                      : 'AppBurst',

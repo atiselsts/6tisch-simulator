@@ -142,9 +142,7 @@ class AppBase(object):
                 SimEngine.SimLog.LOG_APP_TX,
                 {
                     '_mote_id':       self.mote.id,
-                    'dest_id':        packet['net']['dstIp'],
-                    'appcounter':     packet['app']['appcounter'],
-                    'packet_type':    packet['type']
+                    'packet':         packet,
                 }
             )
 

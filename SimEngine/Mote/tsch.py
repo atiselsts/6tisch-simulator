@@ -155,11 +155,11 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_ADD_CELL,
             {
-                "ts":             slotoffset,
-                "channel":        channeloffset,
-                "direction":      direction,
-                "source_id":      self.mote.id,
-                "neighbor_id":    neighbor if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                '_mote_id':       self.mote.id,
+                'neighbor':       neighbor,
+                'slotOffset':     slotoffset,
+                'channelOffset':  channeloffset,
+                'direction':      direction,
             }
         )
         
@@ -177,7 +177,7 @@ class Tsch(object):
         if self.getIsSync():
             self.tsch_schedule_next_active_cell()
 
-    def removeCell(self, neighbor, slotoffset, channeloffset, direction):
+    def deleteCell(self, neighbor, slotoffset, channeloffset, direction):
         
         assert isinstance(neighbor, int)
         assert isinstance(slotoffset, int)
@@ -191,17 +191,17 @@ class Tsch(object):
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_TSCH_REMOVE_CELL,
+            SimEngine.SimLog.LOG_TSCH_DELETE_CELL,
             {
-                "ts":              cell[0],
-                "channel":         cell[1],
-                "direction":       cell[2],
-                "source_id":       self.mote.id,
-                "neighbor_id":     neighbor.id if not type(neighbor) == list else d.BROADCAST_ADDRESS
+                '_mote_id':       self.mote.id,
+                'neighbor':       neighbor,
+                'slotOffset':     slotoffset,
+                'channelOffset':  channeloffset,
+                'direction':      direction,
             }
         )
 
-        # remove cell
+        # delete cell
         del self.schedule[slotoffset]
 
         # reschedule the next active cell, in case it is now earlier
@@ -407,12 +407,13 @@ class Tsch(object):
             isACKed = True
             
             # dispatch to the right upper layer
-            if   packet['type'] == d.PKT_TYPE_6P_ADD_REQUEST:
-                self.mote.sixp.receive_ADD_REQUEST(packet)
-            elif packet['type'] == d.PKT_TYPE_6P_DELETE_REQUEST:
-                self.mote.sixp.receive_DELETE_REQUEST(packet)
-            elif packet['type'] == d.IANA_6TOP_TYPE_RESPONSE:
-                self.mote.sixp.receive_RESPONSE(packet)
+            if   packet['type'] in [
+                    d.PKT_TYPE_SIXP_ADD_REQUEST,
+                    d.PKT_TYPE_SIXP_ADD_RESPONSE,
+                    d.PKT_TYPE_SIXP_DELETE_REQUEST,
+                    d.PKT_TYPE_SIXP_DELETE_RESPONSE,
+                ]:
+                self.mote.sixp.receive(packet)
             elif 'net' in packet:
                 self.mote.sixlowpan.recvPacket(packet)
             else:
@@ -693,6 +694,7 @@ class Tsch(object):
     
     def _create_EB(self):
         
+        # create
         newEB = {
             'type':               d.PKT_TYPE_EB,
             'app': {
@@ -704,11 +706,29 @@ class Tsch(object):
             },
         }
         
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_EB_TX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    newEB,
+            }
+        )
+        
         return newEB
 
     def _tsch_action_receiveEB(self, packet):
         
         assert packet['type'] == d.PKT_TYPE_EB
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_EB_RX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    packet,
+            }
+        )
         
         # abort if I'm the root
         if self.mote.dagRoot:
