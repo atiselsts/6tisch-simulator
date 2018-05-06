@@ -89,12 +89,56 @@ class Mote(object):
     
     # ==== neighbors
     
-    # FIXME: see #134
-    def _myNeighbors(self):
-        return [n.id for n in self.engine.motes if self.engine.connectivity.get_pdr(self.id,n.id,0) > 0]
+    def _add_neighbor(self,neighbor_id):
+        
+        assert neighbor_id not in self.neighbors
+        
+        # create an empty entry
+        self.neighbors[neighbor_id] = {
+            'numTx':          0,
+            'numTxAck':       0,
+            'numRx':          0,
+            'lastHeardAsn':   None,
+        }
+        
+        # send indication to SF
+        self.mote.sf.indication_neighbor_added(neighbor_id)
     
-    def getNumNeighbors(self):
-        return len(self._myNeighbors())
+    def neighbors_indicate_rx(self,packet):
+        '''
+        From tsch, used to maintain neighbor table
+        '''
+        neighbor_id = packet['mac']['srcMac'] # alias
+        
+        # add neighbor, if needed
+        if neighbor_id not in self.neighbors:
+            self._add_neighbor(neighbor_id)
+        
+        # update neighbor table
+        self.neighbors[neighbor_id]['numRx']         += 1
+        self.neighbors[neighbor_id]['lastHeardAsn']   = self.engine.getAsn()
+    
+    def neighbors_indicate_tx(self,packet,isACKed):
+        '''
+        From tsch, used to maintain neighbor table
+        '''
+        neighbor_id = packet['mac']['dstMac'] # alias
+        
+        # add neighbor, if needed
+        if neighbor_id not in self.neighbors:
+            self._add_neighbor(neighbor_id)
+        
+        # update neighbor table
+        self.neighbors[neighbor_id]['numTx']         += 1
+        if isACKed:
+            self.neighbors[neighbor_id]['numTxAck']  += 1
+        self.neighbors[neighbor_id]['lastHeardAsn']   = self.engine.getAsn()
+    
+    def isNeighbor(self,neighbor_id):
+        return (neighbor_id in self.neighbors)
+    
+    def numNeighbors(self):
+        return len(self.neighbors)
     
     # ==== location
 

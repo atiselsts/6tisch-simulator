@@ -296,7 +296,7 @@ class Rpl(object):
         else:
             # unicast upstream packet
             
-            if packet['net']['dstIp'] in self.mote._myNeighbors():
+            if self.mote.isNeighbor(packet['net']['dstIp']):
                 # packet to a neighbor
                 
                 # next hop is that neighbor
