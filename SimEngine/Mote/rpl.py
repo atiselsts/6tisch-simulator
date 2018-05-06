@@ -397,14 +397,14 @@ class Rpl(object):
         numTxAck              = math.floor(pdr*numTx)
         
         for (_, cell) in self.mote.tsch.getSchedule().items():
-            if  (                                          \
-                    cell['neighbor'] == neighbor and       \
-                    cell['dir'] == d.DIR_TX                \
-                )                                          \
-                or                                         \
-                (                                          \
-                    cell['neighbor'] == neighbor and       \
-                    cell['dir'] == d.DIR_TXRX_SHARED       \
+            if  (                                               \
+                    cell['neighbor'] == neighbor and            \
+                    cell['cellOptions'] == d.DIR_TX             \
+                )                                               \
+                or                                              \
+                (                                               \
+                    cell['neighbor'] == neighbor and            \
+                    cell['cellOptions'] == d.DIR_TXRX_SHARED    \
                 ):
                 numTx        += cell['numTx']
                 numTxAck     += cell['numTxAck']

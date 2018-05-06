@@ -177,8 +177,8 @@ class Connectivity(object):
     def propagate(self):
         """ Simulate the propagation of frames in a slot. """
 
-        asn   = self.engine.getAsn()
-        ts    = asn % self.settings.tsch_slotframeLength
+        asn        = self.engine.getAsn()
+        slotOffset = asn % self.settings.tsch_slotframeLength
 
         for channel in range(self.settings.phy_numChans):
             arrivalTime   = {} # dict of frame reception time
@@ -296,7 +296,7 @@ class Connectivity(object):
                         # try to send
                         if random.random() < pdr and receiver.radio_isSync():
                             # success to receive the interference and realize collision
-                            receiver.schedule[ts]['rx_wrong_frame'] = True
+                            receiver.schedule[slotOffset]['rx_wrong_frame'] = True
 
                         # frame is not received
                         self.engine.motes[receiver].radio.rxDone(
@@ -355,7 +355,7 @@ class Connectivity(object):
                     # pick a random number
                     if random.random() < pdr and receiver.radio_isSync():
                         # success to receive the interference and realize collision
-                        receiver.schedule[ts]['rx_wrong_frame'] = True
+                        receiver.schedule[slotOffset]['rx_wrong_frame'] = True
 
                 # packet is not received
                 self.engine.motes[receiver].radio.rxDone(

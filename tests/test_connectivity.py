@@ -53,13 +53,13 @@ def test_linear_matrix(sim_engine):
     for c in range(0, num_motes):
         for p in range(0, num_motes):
             if (c == p+1) or (c+1 == p):
-                for ch in range(engine.settings.phy_numChans):
-                    assert matrix[c][p][ch]['pdr']  ==  1.00
-                    assert matrix[c][p][ch]['rssi'] ==   -10
+                for channelOffset in range(engine.settings.phy_numChans):
+                    assert matrix[c][p][channelOffset]['pdr']  ==  1.00
+                    assert matrix[c][p][channelOffset]['rssi'] ==   -10
             else:
-                for ch in range(engine.settings.phy_numChans):
-                    assert matrix[c][p][ch]['pdr']  == None
-                    assert matrix[c][p][ch]['rssi'] == None
+                for channelOffset in range(engine.settings.phy_numChans):
+                    assert matrix[c][p][channelOffset]['pdr']  == None
+                    assert matrix[c][p][channelOffset]['rssi'] == None
 
 #=== verify propagate function doesn't raise exception
 
