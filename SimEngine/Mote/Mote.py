@@ -102,7 +102,7 @@ class Mote(object):
         }
         
         # send indication to SF
-        self.mote.sf.indication_neighbor_added(neighbor_id)
+        self.sf.indication_neighbor_added(neighbor_id)
     
     def neighbors_indicate_rx(self,packet):
         '''

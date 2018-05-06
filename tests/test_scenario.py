@@ -4,21 +4,24 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-@pytest.fixture(params=[2,3])
+#@pytest.fixture(params=[2,3])
+@pytest.fixture(params=[3])
 def fixture_exec_numMotes(request):
     return request.param
 
-@pytest.fixture(params=['up', 'down', 'up-down'])
+#@pytest.fixture(params=['up', 'down', 'up-down'])
+@pytest.fixture(params=['up-down'])
 #@pytest.fixture(params=['up'])
 def fixture_data_flow(request):
     return request.param
 
-@pytest.fixture(params=[False,True])
+#@pytest.fixture(params=[False,True])
+@pytest.fixture(params=[True])
 def fixture_secjoin_enabled(request):
     return request.param
     
-@pytest.fixture(params=[10, 100, 200])
-#@pytest.fixture(params=[100])
+#@pytest.fixture(params=[10, 100, 200])
+@pytest.fixture(params=[100])
 def fixture_app_pkLength(request):
     return request.param
 
@@ -28,12 +31,12 @@ def fixture_fragmentation(request):
     return request.param
 
 #@pytest.fixture(params=[True, False])
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True])
 def fixture_ff_vrb_policy_missing_fragment(request):
     return request.param
 
 #@pytest.fixture(params=[True, False])
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True])
 def fixture_ff_vrb_policy_last_fragment(request):
     return request.param
 
@@ -46,10 +49,21 @@ def fixture_sf_type(request):
 def check_all_nodes_send_x(motes,x):
     senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['packet']['type']==x]))
     assert sorted(senders)==sorted([m.id for m in motes])
-    
+
+def check_all_nodes_x(motes,x):
+    synced =  list(set([l['_mote_id'] for l in u.read_log_file(['secjoin.joined'])]))
+    assert sorted(synced)==sorted([m.id for m in motes])
+
+# === mote
+
 def check_no_packet_drop():
     assert u.read_log_file(['packet_dropped'])==[]
 
+# === secjoin
+
+def secjoin_check_all_nodes_joined(motes):
+    check_all_nodes_x(motes,'secjoin.joined')
+    
 # === app
 
 def count_num_app_rx(appcounter):
@@ -60,18 +74,6 @@ def count_num_app_rx(appcounter):
     assert numrx==1
 
 # === RPL
-
-def rpl_check_root_parentChildfromDAOs(motes):
-    root = motes[0]
-    
-    # assuming a linear topology
-    expected = {}
-    for m in motes:
-        if m.id==0:
-            continue
-        expected[m.id] = m.id-1
-    
-    assert root.rpl.parentChildfromDAOs == expected
 
 def rpl_check_all_node_prefered_parent(motes):
     """ Verify that each mote has a prefered parent """
@@ -93,7 +95,25 @@ def rpl_check_all_motes_send_DAOs(motes):
     senders = list(set([l['_mote_id'] for l in u.read_log_file(['tsch.txdone']) if l['packet']['type']=='DAO']))
     assert sorted(senders)==sorted([m.id for m in motes if m.id!=0])
 
+def rpl_check_root_parentChildfromDAOs(motes):
+    root = motes[0]
+    
+    # assuming a linear topology
+    expected = {}
+    for m in motes:
+        if m.id==0:
+            continue
+        expected[m.id] = m.id-1
+    
+    assert root.rpl.parentChildfromDAOs == expected
+
 # === TSCH
+
+def tsch_check_all_nodes_synced(motes):
+    check_all_nodes_x(motes,'tsch.synced')
+
+def tsch_check_all_nodes_send_EBs(motes):
+    check_all_nodes_send_x(motes,'EB')
 
 def tsch_all_nodes_check_dedicated_cell(motes):
     """ Verify that each mote has at least:
@@ -111,13 +131,6 @@ def tsch_all_nodes_check_dedicated_cell(motes):
                     tx_cell_exists = True
                     break
         assert tx_cell_exists
-
-def tsch_check_all_nodes_send_EBs(motes):
-    check_all_nodes_send_x(motes,'EB')
-
-def tsch_check_all_nodes_synced(motes):
-    synced =  list(set([l['_mote_id'] for l in u.read_log_file(['tsch.synced'])]))
-    assert sorted(synced)==sorted([m.id for m in motes])
 
 # =========================== tests ===========================================
 
@@ -166,17 +179,20 @@ def test_vanilla_scenario(
     # verify no packet was dropped
     #check_no_packet_drop()
     
-    # verify that all nodes are sending EBs, DIOs and DAOs
-    tsch_check_all_nodes_send_EBs(sim_engine.motes)
-    rpl_check_all_nodes_send_DIOs(sim_engine.motes)
-    rpl_check_all_motes_send_DAOs(sim_engine.motes)
-    
     # verify that all nodes are sync'ed
     tsch_check_all_nodes_synced(sim_engine.motes)
+    
+    # verify that all nodes are join'ed
+    secjoin_check_all_nodes_joined(sim_engine.motes)
     
     # verify that all nodes have acquired rank and preferred parent
     rpl_check_all_node_prefered_parent(sim_engine.motes)
     rpl_check_all_node_rank(sim_engine.motes)
+    
+    # verify that all nodes are sending EBs, DIOs and DAOs
+    tsch_check_all_nodes_send_EBs(sim_engine.motes)
+    rpl_check_all_nodes_send_DIOs(sim_engine.motes)
+    rpl_check_all_motes_send_DAOs(sim_engine.motes)
     
     # verify that root has stored enough DAO information to compute source routes
     rpl_check_root_parentChildfromDAOs(sim_engine.motes)
