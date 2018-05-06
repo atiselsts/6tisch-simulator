@@ -122,6 +122,7 @@ class Mote(object):
     # ==== battery
 
     def boot(self):
+        
         if self.dagRoot:
             # I'm the DAG root
             
@@ -155,7 +156,7 @@ class Mote(object):
     
     # ==== EBs and DIOs
     
-    def clear_to_send_EBs_and_DIOs(self):
+    def clear_to_send_EBs_DIOs_DATA(self):
         returnVal = True
         
         # I need to be synchronized
@@ -175,13 +176,13 @@ class Mote(object):
         
         # I must have at least one TX cell to my preferred parent (if running MSF)
         if returnVal==True:
-            if (
+            if  (
                     (self.dagRoot == False)
                     and
                     (type(self.sf) == sf.MSF)
                     and
                     (self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0) == 0)
-               ):
+                ):
                     returnVal = False
         
         return returnVal

@@ -7,7 +7,6 @@ import random
 import math
 
 # Mote sub-modules
-import sf
 
 # Simulator-wide modules
 import SimEngine
@@ -195,51 +194,38 @@ class Rpl(object):
 
         assert not self.mote.dagRoot
         
-        # only send DAOs if I have a preferred parent to which I have dedicated cells
-        if  (
-                self.preferredParent!=None
-                and
-                (
-                    (
-                        type(self.mote.sf)==sf.MSF
-                        and
-                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
-                    )
-                    or
-                    (
-                        type(self.mote.sf)!=sf.MSF
-                    )
-                )
-            ):
-            
-            # create
-            newDAO = {
-                'type':                d.PKT_TYPE_DAO,
-                'app': {
-                    'child_id':        self.mote.id,
-                    'parent_id':       self.preferredParent,
-                },
-                'net': {
-                    'srcIp':           self.mote.id,            # from mote
-                    'dstIp':           self.mote.dagRootId,     # to DAGroot
-                    'packet_length':   d.PKT_LEN_DAO,
-                },
+        # abort if not ready yet
+        if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
+            return
+        
+        # create
+        newDAO = {
+            'type':                d.PKT_TYPE_DAO,
+            'app': {
+                'child_id':        self.mote.id,
+                'parent_id':       self.preferredParent,
+            },
+            'net': {
+                'srcIp':           self.mote.id,            # from mote
+                'dstIp':           self.mote.dagRootId,     # to DAGroot
+                'packet_length':   d.PKT_LEN_DAO,
+            },
+        }
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DAO_TX,
+            {
+                "_mote_id": self.mote.id,
+                "packet":   newDAO,
             }
-            
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_RPL_DAO_TX,
-                {
-                    "_mote_id": self.mote.id,
-                    "packet":   newDAO,
-                }
-            )
-            
-            # remove other possible DAOs from the queue
-            self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
-            
-            # send the DAO via sixlowpan
-            self.mote.sixlowpan.sendPacket(newDAO)
+        )
+        
+        # remove other possible DAOs from the queue
+        self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
+        
+        # send
+        self.mote.sixlowpan.sendPacket(newDAO)
     
     def action_receiveDAO(self, packet):
         """
@@ -376,15 +362,6 @@ class Rpl(object):
                         # switch preferred parent only when rank difference is large enough
                         if rank-newrank < d.RPL_PARENT_SWITCH_THRESHOLD:
                             (newPreferredParent, newrank) = (mote, rank)
-            
-            if (self.preferredParent==None) and (newPreferredParent is not None):
-                # if we selected a parent for the first time, add one cell to it
-                # upon successful join, the reservation request is scheduled explicitly
-                self.mote.sf.schedule_parent_change(self.mote)
-            elif self.preferredParent != newPreferredParent:
-                # trigger SIXP add to the new parent
-                self.oldPreferredParent = self.preferredParent
-                self.mote.sf.schedule_parent_change(self.mote)
 
             # store new preferred parent and rank
             (self.preferredParent, self.rank) = (newPreferredParent, newrank)

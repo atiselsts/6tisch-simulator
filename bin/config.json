@@ -11,7 +11,7 @@
         "regular": {
             "exec_numSlotframesPerRun":                    100,
             
-            "secjoin_enabled":                             false,
+            "secjoin_enabled":                             true,
             
             "app":                                         "AppPeriodic",
             "app_pkPeriod":                                10,
@@ -19,26 +19,16 @@
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
-            "app_e2eAck":                                  false,
 
             "rpl_daoPeriod":                               60,
 
-            "sixlowpan_reassembly_buffers_num":            1,
             "fragmentation":                               "FragmentForwarding",
+            "sixlowpan_reassembly_buffers_num":            1,
             "fragmentation_ff_discard_vrb_entry_policy":   [],
             "fragmentation_ff_vrb_table_size":             50,
             "tsch_max_payload_len":                        90,
 
-            "sf_type":                                     "MSF",
-            "sf_msf_housekeepingPeriod":                   60.0,
-            "sf_msf_maxNumCells":                          16,
-            "sf_msf_highUsageThres":                       12,
-            "sf_msf_lowUsageThres":                        4,
-            "sf_msf_numCellsToAddDelete":                  1,
-            "sf_ssf_initMethod":                           null,
-
-            "sixtop_messaging":                            1,
-            "sixtop_deleteRandomCell":                     false,
+            "sf_type":                                     "SFNone",
             
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,

@@ -6,7 +6,6 @@
 import random
 
 # Mote sub-modules
-import sf
 import MoteDefines as d
 
 # Simulator-wide modules
@@ -390,16 +389,6 @@ class Tsch(object):
         if self.getIsSync():
             self.getSchedule()[ts]['numRx'] += 1
         
-        # signal activity to SF
-        if self.getIsSync():
-            self.mote.sf.signal_cell_used(
-                self.mote,
-                self.getSchedule()[ts]['neighbor'],
-                self.getSchedule()[ts]['dir'],
-                d.DIR_RX,
-                packet['type'],
-            )
-
         if   packet['mac']['dstMac']==self.mote.id:
             # link-layer unicast to me
             
@@ -570,13 +559,6 @@ class Tsch(object):
         # make sure we are not busy sending a packet
         assert self.pktToSend == None
         
-        # signal to scheduling function that a cell to a neighbor has been triggered
-        self.mote.sf.signal_cell_elapsed(
-            self.mote,
-            cell['neighbor'],
-            cell['dir'],
-        )
-        
         # execute cell
         if   cell['dir'] == d.DIR_TX:
             # TX cell
@@ -586,6 +568,12 @@ class Tsch(object):
                 if pkt['mac']['dstMac'] == cell['neighbor']:
                     self.pktToSend = pkt
                     break
+            
+            # notify SF
+            self.mote.sf.indication_tx_cell_elapsed(
+                cell    = cell,
+                used    = (self.pktToSend!=None),
+            )
             
             # send packet
             if self.pktToSend:
@@ -618,7 +606,7 @@ class Tsch(object):
                 
                 # otherwise, generate an EB or a DIO
                 if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_and_DIOs():
+                    if self.mote.clear_to_send_EBs_DIOs_DATA():
                         prob = self.settings.tsch_probBcast_ebDioProb/self.mote.getNumNeighbors()
                         if random.random()<prob:
                             if random.random()<0.50:
@@ -651,15 +639,6 @@ class Tsch(object):
         asn  = self.engine.getAsn()
         ts   = asn % self.settings.tsch_slotframeLength
         cell = self.schedule[ts]
-        
-        # inform SF cell is used
-        self.mote.sf.signal_cell_used(
-            self.mote,
-            cell['neighbor'],
-            cell['dir'],
-            d.DIR_TX,
-            pktToSend['type'],
-        )
         
         # update cell stats
         cell['numTx'] += 1

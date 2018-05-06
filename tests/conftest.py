@@ -79,10 +79,11 @@ def set_initial_routing_and_scheduling_state(engine):
     root = engine.motes[0]
     root.rpl.setRank(256)
     
-    # activate all nodes
+    # all nodes are sync'ed, joined and activated
     for m in engine.motes:
-        m.tsch.setIsSync(True)     # declare as sync'ed
-        m.activate_tsch_stack()    # activate the TSCH stack
+        m.tsch.setIsSync(True)         # declare as sync'ed
+        m.secjoin.setIsJoined(True)    # declare as joined
+        m.activate_tsch_stack()        # activate the TSCH stack
     
     # start scheduling from slot offset 1 upwards
     cur_slot = 1
