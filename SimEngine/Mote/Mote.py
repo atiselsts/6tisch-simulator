@@ -76,18 +76,8 @@ class Mote(object):
         self.app.activate()
 
     # ==== wireless
-
-    def getCellPDR(self, cell):
-        """ returns the pdr of the cell """
-
-        assert cell['neighbor'] is not type(list)
-
-        with self.dataLock:
-            if cell['numTx'] < d.NUM_SUFFICIENT_TX:
-                return self.getPDR(cell['neighbor'])
-            else:
-                return float(cell['numTxAck']) / float(cell['numTx'])
     
+    # FIXME: see #135
     def getPDR(self, neighbor):
         """ returns the pdr to that neighbor"""
         with self.dataLock:
@@ -99,7 +89,8 @@ class Mote(object):
     
     # ==== neighbors
     
-    def _myNeighbors(self): # FIXME: discover neighbors
+    # FIXME: see #134
+    def _myNeighbors(self):
         return [n.id for n in self.engine.motes if self.engine.connectivity.get_pdr(self.id,n.id,0) > 0]
     
     def getNumNeighbors(self):

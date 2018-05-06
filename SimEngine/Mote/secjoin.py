@@ -173,10 +173,4 @@ class SecJoin(object):
         else:
             raise SystemError()
 
-    def areAllNeighborsJoined(self):
-        """
-        Are all my neighbors joined?
-        """
-        return [nei for nei in self.mote._myNeighbors() if self.engine.motes[nei].secjoin.getIsJoined()==True]
-
     #======================== private ==========================================
