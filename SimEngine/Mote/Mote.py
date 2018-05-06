@@ -36,19 +36,16 @@ class Mote(object):
         # admin
         self.dataLock                  = threading.RLock()
         
-        # identifiers
-        self.dagRoot                   = False
-        self.dagRootId                 = None
-
-        # cell usage
-        self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
-        self.numCellsFromNeighbors     = {}      # indexed by neighbor, contains int
-
         # singletons (to access quicker than recreate every time)
         self.log                       = SimEngine.SimLog.SimLog().log
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
 
+        # stack state
+        self.dagRoot                   = False
+        self.dagRootId                 = None
+        self.neighbors                 = {}
+        
         # stack
         self.app                       = app.App(self)
         self.secjoin                   = secjoin.SecJoin(self)
@@ -181,7 +178,7 @@ class Mote(object):
                     and
                     (type(self.sf) == sf.MSF)
                     and
-                    (self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0) == 0)
+                    self.tsch.getTxCells(self.rpl.getPreferredParent())== 0
                 ):
                     returnVal = False
         

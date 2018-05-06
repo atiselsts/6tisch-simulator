@@ -130,14 +130,12 @@ def set_initial_routing_and_scheduling_state(engine):
                     channeloffset   = 0,
                     direction       = d.DIR_TX,
                 )
-                child.numCellsToNeighbors[parent.id] = 1
                 parent.tsch.addCell(
                     neighbor        = child.id,
                     slotoffset      = cur_slot,
                     channeloffset   = 0,
                     direction       = d.DIR_RX,
                 )
-                parent.numCellsFromNeighbors[child.id] = 1
                 cur_slot += 1
                 # add a minimal cells (one TX/RX/SHARED cell) to child
                 child.tsch.add_minimal_cell()

@@ -4,17 +4,28 @@ Tests for SimEngine.Connectivity
 
 #============================ helpers =========================================
 
-def print_matrix(matrix):
+def print_connectivity_matrix(matrix):
+    output         = []
+    output        += ['\n']
+    
     # header
-    print "\t",
+    line           = []
     for source in matrix:
-        print "{0}\t|".format(source),
-    print "\n"
+        line      += [str(source)]
+    line           = '\t|'.join(line)
+    output        += ['\t|'+line]
+    
+    # body
     for source in matrix:
-        print "{0}\t|".format(source),
+        line       = []
+        line      += [str(source)]
         for dest in matrix:
-            print "{0}\t|".format(matrix[source][dest][11]['pdr']),
-        print "\n"
+            line  += [str(matrix[source][dest][11]['pdr'])]
+        line       = '\t|'.join(line)
+        output    += [line]
+    
+    output         = '\n'.join(output)
+    #print output
 
 #============================ tests ===========================================
 
@@ -35,7 +46,7 @@ def test_linear_matrix(sim_engine):
     motes  = engine.motes
     matrix = engine.connectivity.connectivity_matrix
 
-    print_matrix(matrix)
+    print_connectivity_matrix(matrix)
 
     assert motes[0].dagRoot is True
 
