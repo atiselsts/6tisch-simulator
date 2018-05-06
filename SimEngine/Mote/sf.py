@@ -49,16 +49,23 @@ class SchedulingFunction(object):
     # === indications from other layers
     
     @abstractmethod
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_neighbor_added(self,neighbor_id):
         '''
-        [from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
+        [from TSCH] just added a neighbor.
         '''
         raise NotImplementedError()
     
     @abstractmethod
-    def indication_updated_neighbors(self,used=False):
+    def indication_neighbor_deleted(self,neighbor_id):
         '''
-        [from TSCH] just added/deleted a neighbor.
+        [from TSCH] just deleted a neighbor.
+        '''
+        raise NotImplementedError()
+    
+    @abstractmethod
+    def indication_tx_cell_elapsed(self,cell,used):
+        '''
+        [from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
         '''
         raise NotImplementedError()
     
@@ -77,10 +84,13 @@ class SFNone(SchedulingFunction):
     def activate(self):
         pass # do nothing
     
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_neighbor_added(self,neighbor_id):
         pass # do nothing
-
-    def indication_updated_neighbors(self,used=False):
+    
+    def indication_neighbor_deleted(self,neighbor_id):
+        pass # do nothing
+    
+    def indication_tx_cell_elapsed(self,cell,used):
         pass # do nothing
 
     def indication_parent_change(self):
@@ -103,10 +113,13 @@ class MSF(SchedulingFunction):
     
     # === indications from other layers
     
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_neighbor_added(self,neighbor_id):
         raise NotImplementedError() # TODO
-
-    def indication_updated_neighbors(self,used=False):
+    
+    def indication_neighbor_deleted(self,neighbor_id):
+        raise NotImplementedError() # TODO
+    
+    def indication_tx_cell_elapsed(self,cell,used):
         raise NotImplementedError() # TODO
 
     def indication_parent_change(self):

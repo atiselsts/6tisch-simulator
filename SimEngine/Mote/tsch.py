@@ -39,13 +39,6 @@ class Tsch(object):
         self.isSync                         = False
         self.join_proxy                     = None
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
-        
-        # backoff
-        self.backoffBroadcast               = None    # FIXME: group under a single 'backoff' dict
-        self.backoffBroadcastExponent       = None    # FIXME: group under a single 'backoff' dict
-        self._resetBroadcastBackoff()
-        self.backoffPerNeigh                = {}      # FIXME: group under a single 'backoff' dict
-        self.backoffExponentPerNeigh        = {}      # FIXME: group under a single 'backoff' dict
 
     #======================== public ==========================================
 
@@ -120,17 +113,14 @@ class Tsch(object):
         - on the dagRoot, from boot
         - on the mote, after having received an EB
         '''
-
-        # FIXME
-        for m in self.mote._myNeighbors():
-            self._resetBackoffPerNeigh(m)
+        pass
     
     # minimal
 
     def add_minimal_cell(self):
 
         self.addCell(
-            neighbor         = self.mote._myNeighbors(), # FIXME: replace by None
+            neighbor         = None, # None means "any"
             slotoffset       = 0,
             channeloffset    = 0,
             direction        = d.DIR_TXRX_SHARED,
@@ -286,13 +276,14 @@ class Tsch(object):
             
             # DIOs and EBs were never in txQueue, no need to remove
             
-            # reset backoff
-            self._resetBroadcastBackoff()
         else:
             # I just sent a unicast packet...
         
             # TODO send txDone up
-        
+            
+            # indicate unicast transmission to the neighbor table
+            self.mote.neighbors_indicate_tx(self.pktToSend,isACKed)
+            
             if isACKed:
                 # ... which was ACKed
 
@@ -305,13 +296,6 @@ class Tsch(object):
                 
                 # remove packet from queue
                 self.getTxQueue().remove(self.pktToSend)
-
-                # update backoff
-                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED or (self.getSchedule()[ts]['dir'] == d.DIR_TX and not self.txQueue):
-                    if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED and self.getSchedule()[ts]['neighbor'] != self.mote._myNeighbors():
-                        self._resetBackoffPerNeigh(self.getSchedule()[ts]['neighbor'])
-                    else:
-                        self._resetBroadcastBackoff()
 
             else:
                 # ... which was NOT ACKed
@@ -331,17 +315,6 @@ class Tsch(object):
                         packet  = self.pktToSend,
                         reason  = SimEngine.SimLog.DROPREASON_MAX_RETRIES,
                     )
-
-                # update backoff
-                if self.getSchedule()[ts]['dir'] == d.DIR_TXRX_SHARED:
-                    if self.getSchedule()[ts]['neighbor'] == self.mote._myNeighbors():
-                        if self.backoffBroadcastExponent < d.TSCH_MAX_BACKOFF_EXPONENT:
-                            self.backoffBroadcastExponent += 1
-                        self.backoffBroadcast = random.randint(0, 2 ** self.backoffBroadcastExponent - 1)
-                    else:
-                        if self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] < d.TSCH_MAX_BACKOFF_EXPONENT:
-                            self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] += 1
-                        self.backoffPerNeigh[self.getSchedule()[ts]['neighbor']] = random.randint(0, 2 ** self.backoffExponentPerNeigh[self.getSchedule()[ts]['neighbor']] - 1)
         
         # end of radio activity, not waiting for anything
         self.waitingFor = None
@@ -365,6 +338,9 @@ class Tsch(object):
         # abort if received nothing (idle listen)
         if packet==None:
             return False # isACKed
+        
+        # indicate reception to the neighbor table
+        self.mote.neighbors_indicate_rx(packet)
         
         # abort if I received a frame for someone else
         if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS,self.mote.id]:
@@ -581,43 +557,36 @@ class Tsch(object):
         
         elif cell['dir'] == d.DIR_TXRX_SHARED:
             # TXRXSHARED cell
-            
-            # find packet to send
-            if self.backoffBroadcast == 0:
-                
-                # first, find packets to neighbor to which I don't have dedicated cells
-                if not self.pktToSend:
-                    for pkt in self.txQueue:
-                        if  (
-                                # DIOs and EBs always on minimal cell
-                                (
-                                    pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
-                                )
-                                or
-                                # other frames on the minimal cell if no dedicated cells to the nextHop
-                                (
-                                    self.getTxCells(pkt['mac']['dstMac']) == []
-                                    and
-                                    self.getSharedCells(pkt['mac']['dstMac'])==[]
-                                )
-                            ):
-                            self.pktToSend = pkt
-                            break
-                
-                # otherwise, generate an EB or a DIO
-                if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_DIOs_DATA():
-                        prob = self.settings.tsch_probBcast_ebDioProb/self.mote.getNumNeighbors()
-                        if random.random()<prob:
-                            if random.random()<0.50:
-                                self.pktToSend = self._create_EB()
-                            else:
-                                self.pktToSend = self.mote.rpl._create_DIO()
 
-            # decrement backoff
-            if self.backoffBroadcast > 0:
-                self.backoffBroadcast -= 1
-            
+            # first, find packets to neighbor to which I don't have dedicated cells
+            if not self.pktToSend:
+                for pkt in self.txQueue:
+                    if  (
+                            # DIOs and EBs always on minimal cell
+                            (
+                                pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
+                            )
+                            or
+                            # other frames on the minimal cell if no dedicated cells to the nextHop
+                            (
+                                self.getTxCells(pkt['mac']['dstMac']) == []
+                                and
+                                self.getSharedCells(pkt['mac']['dstMac'])==[]
+                            )
+                        ):
+                        self.pktToSend = pkt
+                        break
+
+            # otherwise, generate an EB or a DIO
+            if not self.pktToSend:
+                if self.mote.clear_to_send_EBs_DIOs_DATA():
+                    prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
+                    if random.random()<prob:
+                        if random.random()<0.50:
+                            self.pktToSend = self._create_EB()
+                        else:
+                            self.pktToSend = self.mote.rpl._create_DIO()
+
             # send packet, or receive
             if self.pktToSend:
                 self._tsch_action_TX(self.pktToSend)
@@ -722,11 +691,6 @@ class Tsch(object):
             # the mote that sent the EB is now by join proxy
             self.join_proxy = packet['mac']['srcMac']
             
-            # set neighbors variables before starting request cells to the preferred parent
-            # FIXME
-            for m in self.mote._myNeighbors():
-                self._resetBackoffPerNeigh(m)
-            
             # activate the TSCH stack
             self.mote.activate_tsch_stack()
             
@@ -735,13 +699,3 @@ class Tsch(object):
 
             # trigger join process
             self.mote.secjoin.startJoinProcess()
-
-    # backoff
-
-    def _resetBroadcastBackoff(self):
-        self.backoffBroadcast               = 0
-        self.backoffBroadcastExponent       = d.TSCH_MIN_BACKOFF_EXPONENT - 1
-
-    def _resetBackoffPerNeigh(self, neigh):
-        self.backoffPerNeigh[neigh]         = 0
-        self.backoffExponentPerNeigh[neigh] = d.TSCH_MIN_BACKOFF_EXPONENT - 1
