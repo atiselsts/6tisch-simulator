@@ -1,6 +1,8 @@
 
 # === admin
 NUM_SUFFICIENT_TX                           = 10      # sufficient num. of tx to estimate pdr by ACK
+WAITING_FOR_TX                              = 'waiting_for_tx'
+WAITING_FOR_RX                              = 'waiting_for_rx'
 
 # === addressing
 BROADCAST_ADDRESS                           = 0xffff
@@ -43,9 +45,9 @@ TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 2
 TSCH_MAX_BACKOFF_EXPONENT                   = 7
-DIR_TX                                      = 'TX'
-DIR_RX                                      = 'RX'
-DIR_TXRX_SHARED                             = 'TXRX_SHARED'
+CELLOPTION_TX                               = 'TX'
+CELLOPTION_RX                               = 'RX'
+CELLOPTION_SHARED                           = 'SHARED'
 
 # === radio
 RADIO_MAXDRIFT                              = 30 # in ppm

@@ -63,7 +63,7 @@ class SchedulingFunction(object):
         raise NotImplementedError()
     
     @abstractmethod
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_dedicated_tx_cell_elapsed(self,cell,used):
         '''
         [from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
         '''
@@ -90,7 +90,7 @@ class SFNone(SchedulingFunction):
     def indication_neighbor_deleted(self,neighbor_id):
         pass # do nothing
     
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_dedicated_tx_cell_elapsed(self,cell,used):
         pass # do nothing
 
     def indication_parent_change(self):
@@ -119,7 +119,7 @@ class MSF(SchedulingFunction):
     def indication_neighbor_deleted(self,neighbor_id):
         raise NotImplementedError() # TODO
     
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_dedicated_tx_cell_elapsed(self,cell,used):
         raise NotImplementedError() # TODO
 
     def indication_parent_change(self):

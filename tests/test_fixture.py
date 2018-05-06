@@ -87,7 +87,7 @@ def test_initial_scheduling_state(sim_engine):
     # cell. The leaf has one TX cell.
     for mote in reversed(sim_engine.motes):
         # check shared cell
-        assert len(mote.tsch.getSharedCells()) == 1
+        assert len(mote.tsch.getTxRxSharedCells()) == 1
 
         # check dedicated cell
         # FIXME: what is the best way to get mote instance by mote_id?

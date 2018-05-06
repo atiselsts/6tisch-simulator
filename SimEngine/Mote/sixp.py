@@ -38,9 +38,23 @@ class SixP(object):
         # local variables
         self.seqnum               = {} # indexed by neighborid
 
-    #======================== public ==========================================
-
+    #======================== public/private ==================================
+    
     # from upper layers
+    
+    def receive(self,packet):
+        if   packet['type']==d.PKT_TYPE_SIXP_ADD_REQUEST:
+            self._receive_ADD_REQUEST(packet)
+        elif packet['type']==d.PKT_TYPE_SIXP_ADD_RESPONSE:
+            self._receive_ADD_RESPONSE(packet)
+        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_REQUEST:
+            self._receive_DELETE_REQUEST(packet)
+        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_RESPONSE:
+            self._receive_DELETE_RESPONSE(packet)
+        else:
+            raise SystemError()
+    
+    # === ADD
     
     def issue_ADD_REQUEST(self, neighborid):
         
@@ -70,7 +84,7 @@ class SixP(object):
             'type':                     d.PKT_TYPE_SIXP_ADD_REQUEST,
             'app': {
                 'SeqNum':               self.seqnum[neighborid],
-                'CellOptions':          d.DIR_TX,
+                'CellOptions':          [d.CELLOPTION_TX],
                 'NumCells':             1,
                 'CellList':             celllist,
             },
@@ -85,13 +99,110 @@ class SixP(object):
             SimEngine.SimLog.LOG_SIXP_ADD_REQUEST_TX,
             {
                 '_mote_id': self.mote.id,
-                'packet':   addRequest
+                'packet':   addRequest,
             }
         )
         
         # enqueue
         self.mote.tsch.enqueue(addRequest)
-
+    
+    def _receive_ADD_REQUEST(self,addRequest):
+        
+        assert addRequest['app']['NumCells']==1
+        assert addRequest['app']['CellOptions']==[d.CELLOPTION_TX]
+        assert len(addRequest['app']['CellList'])==self.CELLLIST_LENGTH
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SIXP_ADD_REQUEST_RX,
+            {
+                '_mote_id': self.mote.id,
+                'packet':   addRequest,
+            }
+        )
+        
+        # look for cell that works in celllist
+        added_slotOffset    = None
+        added_channelOffset = None
+        for cell in addRequest['app']['CellList']:
+            if cell['slotOffset'] not in self.mote.tsch.getSchedule():
+                
+                # remember what I added
+                added_slotOffset       = cell['slotOffset']
+                added_channelOffset    = cell['channelOffset']
+                
+                # add to my schedule
+                self.mote.tsch.addCell(
+                    slotOffset         = cell['slotOffset'],
+                    channelOffset      = cell['channelOffset'],
+                    neighbor           = addRequest['mac']['srcMac'],
+                    cellOptions        = [d.CELLOPTION_RX],
+                )
+                
+                break
+        
+        # make sure I could use at least one of the cell (FIXME: lift assert and return error code instead)
+        assert added_slotOffset!=None
+        assert added_channelOffset!=None
+        
+        # create ADD response
+        celllist = []
+        if added_slotOffset!=None:
+            celllist += [
+                {
+                    'slotOffset':      added_slotOffset,
+                    'channelOffset':   added_channelOffset,
+                }
+            ]
+        addResponse = {
+            'type':                    d.PKT_TYPE_SIXP_ADD_RESPONSE,
+            'app': {
+                'Code':                d.SIXP_RC_SUCCESS,
+                'SeqNum':              addRequest['app']['SeqNum'],
+                'CellList':            celllist,
+            },
+            'mac': {
+                'srcMac':              self.mote.id,
+                'dstMac':              addRequest['mac']['srcMac'],
+            },
+        }
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_TX,
+            {
+                '_mote_id':            self.mote.id,
+                'packet':              addResponse,
+            }
+        )
+        
+        # enqueue
+        self.mote.tsch.enqueue(addResponse)
+    
+    def _receive_ADD_RESPONSE(self,addResponse):
+        
+        assert len(addResponse['app']['CellList'])==1
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_RX,
+            {
+                '_mote_id':  self.mote.id,
+                'packet':    addResponse,
+            }
+        )
+        
+        # add cell from celllist
+        cell = addResponse['app']['CellList'][0]
+        self.mote.tsch.addCell(
+            slotOffset         = cell['slotOffset'],
+            channelOffset      = cell['channelOffset'],
+            neighbor           = addResponse['mac']['srcMac'],
+            cellOptions        = [d.CELLOPTION_TX],
+        )
+    
+    # === DELETE
+    
     def issue_DELETE_REQUEST(self, neighborid):
         
         # new SIXP command, bump the seqnum
@@ -118,7 +229,7 @@ class SixP(object):
             'type':                     d.PKT_TYPE_SIXP_DELETE_REQUEST,
             'app': {
                 'SeqNum':               self.seqnum[neighborid],
-                'CellOptions':          d.DIR_TX,
+                'CellOptions':          [d.CELLOPTION_TX],
                 'NumCells':             1,
                 'CellList':             celllist,
             },
@@ -133,131 +244,37 @@ class SixP(object):
             SimEngine.SimLog.LOG_SIXP_DELETE_REQUEST_TX,
             {
                 '_mote_id': self.mote.id,
-                'packet':   deleteRequest
+                'packet':   deleteRequest,
             }
         )
         
         # enqueue
         self.mote.tsch.enqueue(deleteRequest)
     
-    # from upper layers
-    
-    def receive(self,packet):
-        if   packet['type']==d.PKT_TYPE_SIXP_ADD_REQUEST:
-            self.receive_ADD_REQUEST(packet)
-        elif packet['type']==d.PKT_TYPE_SIXP_ADD_RESPONSE:
-            self.receive_ADD_RESPONSE(packet)
-        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_REQUEST:
-            self.receive_DELETE_REQUEST(packet)
-        elif packet['type']==d.PKT_TYPE_SIXP_DELETE_RESPONSE:
-            self.receive_DELETE_RESPONSE(packet)
-        else:
-            raise SystemError()
-    
-    #======================== private =========================================
-    
-    # === ADD
-    
-    def receive_ADD_REQUEST(self,packet):
+    def _receive_DELETE_REQUEST(self,deleteRequest):
         
-        assert packet['app']['NumCells']==1
-        assert packet['app']['CellOptions']==d.DIR_TX
-        assert len(packet['app']['CellList'])==self.CELLLIST_LENGTH
-        
-        added_slotOffset    = None
-        added_channelOffset = None
-        
-        # look for cell that works in celllist
-        for cell in packet['app']['CellList']:
-            if cell['slotOffset'] not in self.mote.tsch.getSchedule():
-                
-                # remember what I added
-                added_slotOffset       = cell['slotOffset']
-                added_channelOffset    = cell['channelOffset']
-                
-                # add to my schedule
-                self.mote.tsch.addCell(
-                    neighbor           = packet['mac']['srcMac'],
-                    slotOffset         = cell['slotOffset'],
-                    channelOffset      = cell['channelOffset'],
-                    direction          = d.DIR_RX,
-                )
-                
-                break
-        
-        # create ADD response
-        celllist = []
-        if added_slotOffset!=None:
-            celllist += [
-                {
-                    'slotOffset':      added_slotOffset,
-                    'channelOffset':   added_channelOffset,
-                }
-            ]
-        addResponse = {
-            'type':                     d.PKT_TYPE_SIXP_ADD_RESPONSE,
-            'app': {
-                'Code':                 d.SIXP_RC_SUCCESS,
-                'SeqNum':               packet['app']['SeqNum'],
-                'CellList':             celllist,
-            },
-            'mac': {
-                'srcMac':               self.mote.id,
-                'dstMac':               packet['mac']['srcMac'],
-            },
-        }
+        assert deleteRequest['app']['NumCells']==1
+        assert deleteRequest['app']['CellOptions']==[d.CELLOPTION_TX]
+        assert len(deleteRequest['app']['CellList'])>0
+        assert len(deleteRequest['app']['CellList'])<=self.CELLLIST_LENGTH
         
         # log
         self.log(
-            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_TX,
+            SimEngine.SimLog.LOG_SIXP_DELETE_REQUEST_RX,
             {
                 '_mote_id': self.mote.id,
-                'packet':   addResponse
+                'packet':   deleteRequest,
             }
         )
-        
-        # enqueue
-        self.mote.tsch.enqueue(addResponse)
-    
-    def receive_ADD_RESPONSE(self,packet):
-        
-        assert len(packet['app']['CellList'])==1
-        
-        # add cell from celllist
-        cell = packet['app']['CellList'][0]
-        self.mote.tsch.addCell(
-            neighbor           = packet['mac']['srcMac'],
-            slotOffset         = cell['slotOffset'],
-            channelOffset      = cell['channelOffset'],
-            direction          = d.DIR_TX,
-        )
-        
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_SIXP_ADD_RESPONSE_RX,
-            {
-                '_mote_id': self.mote.id,
-                'packet':   packet
-            }
-        )
-    
-    # === DELETE
-    
-    def receive_DELETE_REQUEST(self,packet):
-        
-        assert packet['app']['NumCells']==1
-        assert packet['app']['CellOptions']==d.DIR_TX
-        assert len(packet['app']['CellList'])>0
-        assert len(packet['app']['CellList'])<=self.CELLLIST_LENGTH
         
         # delete a cell taken at random in the celllist
-        cell = random.choice(packet['app']['CellList'])
-        assert (cell['slotOffset'],cell['channelOffset'],packet['mac']['srcMac']) in self.mote.tsch.getRxCells(packet['mac']['srcMac'])
+        cell = random.choice(deleteRequest['app']['CellList'])
+        assert (cell['slotOffset'],cell['channelOffset'],deleteRequest['mac']['srcMac']) in self.mote.tsch.getRxCells(deleteRequest['mac']['srcMac'])
         self.mote.tsch.deleteCell(
-            neighbor           = packet['mac']['srcMac'],
             slotOffset         = cell['slotOffset'],
             channelOffset      = cell['channelOffset'],
-            direction          = d.DIR_RX,
+            neighbor           = deleteRequest['mac']['srcMac'],
+            cellOptions        = [d.CELLOPTION_RX],
         )
         
         # create DELETE response
@@ -265,7 +282,7 @@ class SixP(object):
             'type':                     d.PKT_TYPE_SIXP_DELETE_RESPONSE,
             'app': {
                 'Code':                 d.SIXP_RC_SUCCESS,
-                'SeqNum':               packet['app']['SeqNum'],
+                'SeqNum':               deleteRequest['app']['SeqNum'],
                 'CellList':             [
                     {
                         'slotOffset':   cell['slotOffset'],
@@ -275,7 +292,7 @@ class SixP(object):
             },
             'mac': {
                 'srcMac':               self.mote.id,
-                'dstMac':               packet['mac']['srcMac'],
+                'dstMac':               deleteRequest['mac']['srcMac'],
             },
         }
         
@@ -284,24 +301,24 @@ class SixP(object):
             SimEngine.SimLog.LOG_SIXP_DELETE_RESPONSE_TX,
             {
                 '_mote_id': self.mote.id,
-                'packet':   deleteResponse
+                'packet':   deleteResponse,
             }
         )
         
         # enqueue
         self.mote.tsch.enqueue(deleteResponse)
     
-    def receive_DELETE_RESPONSE(self,packet):
+    def _receive_DELETE_RESPONSE(self,deleteResponse):
         
-        assert len(packet['app']['CellList'])==1
+        assert len(deleteResponse['app']['CellList'])==1
         
         # delete cell from celllist
-        cell = packet['app']['CellList'][0]
+        cell = deleteResponse['app']['CellList'][0]
         self.mote.tsch.deleteCell(
-            neighbor           = packet['mac']['srcMac'],
             slotOffset         = cell['slotOffset'],
             channelOffset      = cell['channelOffset'],
-            direction          = d.DIR_TX,
+            neighbor           = deleteResponse['mac']['srcMac'],
+            cellOptions        = [d.CELLOPTION_TX],
         )
         
         # log
@@ -309,6 +326,6 @@ class SixP(object):
             SimEngine.SimLog.LOG_SIXP_DELETE_RESPONSE_RX,
             {
                 '_mote_id': self.mote.id,
-                'packet':   packet
+                'packet':   deleteResponse,
             }
         )

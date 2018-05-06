@@ -84,7 +84,7 @@ def test_removeTypeFromQueue(sim_engine):
     ]
 
 @pytest.mark.parametrize('destination, packet_type, expected_cellOptions', [
-    ('parent',    d.PKT_TYPE_DATA, d.DIR_TX),
+    ('parent',    d.PKT_TYPE_DATA, [d.CELLOPTION_TX]),
 ])
 def test_tx_cell_selection(
         sim_engine,
@@ -95,9 +95,9 @@ def test_tx_cell_selection(
 
     # cell selection rules:
     #
-    # - DIR_TX should be used for a unicast packet to a neighbor to whom a sender
+    # - [CELLOPTION_TX] should be used for a unicast packet to a neighbor to whom a sender
     #   has a dedicated TX cell
-    # - DIR_TXRX_SHARED should be used otherwise
+    # - [CELLOPTION_TX,CELLOPTION_RX,CELLOPTION_SHARED] should be used otherwise
     #
     # With force_initial_routing_and_scheduling_state True, each mote has one
     # shared (TX/RX/SHARED) cell and one TX cell to its parent.
