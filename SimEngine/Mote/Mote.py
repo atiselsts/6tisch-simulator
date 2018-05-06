@@ -36,19 +36,16 @@ class Mote(object):
         # admin
         self.dataLock                  = threading.RLock()
         
-        # identifiers
-        self.dagRoot                   = False
-        self.dagRootId                 = None
-
-        # cell usage
-        self.numCellsToNeighbors       = {}      # indexed by neighbor, contains int
-        self.numCellsFromNeighbors     = {}      # indexed by neighbor, contains int
-
         # singletons (to access quicker than recreate every time)
         self.log                       = SimEngine.SimLog.SimLog().log
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
 
+        # stack state
+        self.dagRoot                   = False
+        self.dagRootId                 = None
+        self.neighbors                 = {}
+        
         # stack
         self.app                       = app.App(self)
         self.secjoin                   = secjoin.SecJoin(self)
@@ -122,6 +119,7 @@ class Mote(object):
     # ==== battery
 
     def boot(self):
+        
         if self.dagRoot:
             # I'm the DAG root
             
@@ -155,7 +153,7 @@ class Mote(object):
     
     # ==== EBs and DIOs
     
-    def clear_to_send_EBs_and_DIOs(self):
+    def clear_to_send_EBs_DIOs_DATA(self):
         returnVal = True
         
         # I need to be synchronized
@@ -175,13 +173,13 @@ class Mote(object):
         
         # I must have at least one TX cell to my preferred parent (if running MSF)
         if returnVal==True:
-            if (
+            if  (
                     (self.dagRoot == False)
                     and
                     (type(self.sf) == sf.MSF)
                     and
-                    (self.numCellsToNeighbors.get(self.rpl.getPreferredParent(),0) == 0)
-               ):
+                    self.tsch.getTxCells(self.rpl.getPreferredParent())== 0
+                ):
                     returnVal = False
         
         return returnVal

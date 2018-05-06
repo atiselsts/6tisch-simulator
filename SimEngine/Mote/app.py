@@ -8,7 +8,6 @@ from abc import abstractmethod
 import random
 
 # Mote sub-modules
-import sf
 
 # Simulator-wide modules
 import SimEngine
@@ -20,7 +19,6 @@ import MoteDefines as d
 
 # =========================== body ============================================
 
-
 def App(mote):
     """factory method for application
     """
@@ -31,18 +29,15 @@ def App(mote):
     # mote.dagRoot because mote.dagRoot is not initialized when application is
     # instantiated
     if mote.id == 0:
-        return AppSink(mote)
+        return AppRoot(mote)
     else:
         return globals()[settings.app](mote)
-
 
 class AppBase(object):
     """Base class for Applications.
     """
 
     def __init__(self, mote, **kwargs):
-        # local variables
-        self.appcounter = 0
 
         # store params
         self.mote       = mote
@@ -51,6 +46,9 @@ class AppBase(object):
         self.engine     = SimEngine.SimEngine.SimEngine()
         self.settings   = SimEngine.SimSettings.SimSettings()
         self.log        = SimEngine.SimLog.SimLog().log
+        
+        # local variables
+        self.appcounter = 0
 
     #======================== public ==========================================
 
@@ -82,8 +80,9 @@ class AppBase(object):
             packet_type,
             packet_length,
         ):
-
-        packet = {
+        
+        # create data packet
+        dataPacket = {
             'type':              packet_type,
             'net': {
                 'srcIp':         self.mote.id,
@@ -95,61 +94,42 @@ class AppBase(object):
             }
 
         }
-
-
+        
+        # add source route for downstream packets (FIXME: done by RPL)
         if self.mote.dagRoot:
-            packet['net']['sourceRoute'] = self.mote.rpl.computeSourceRoute(dstIp)
+            dataPacket['net']['sourceRoute'] = self.mote.rpl.computeSourceRoute(dstIp)
 
         # update appcounter
         self.appcounter += 1
 
-        return packet
+        return dataPacket
 
     def _send_packet(self, dstIp, packet_length):
+        
+        # abort if I'm not ready to send DATA yet
+        if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
+            return
+        
+        # create
+        packet = self._generate_packet(
+            dstIp          = dstIp,
+            packet_type    = d.PKT_TYPE_DATA,
+            packet_length  = packet_length
+        )
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_APP_TX,
+            {
+                '_mote_id':       self.mote.id,
+                'packet':         packet,
+            }
+        )
+        
+        # send
+        self.mote.sixlowpan.sendPacket(packet)
 
-        # check whether the mote is ready to send a packet
-        if self.mote.dagRoot:
-            ready_to_send = True
-        elif (
-                self.mote.rpl.getPreferredParent() != None
-                and
-                (
-                    (
-                        type(self.mote.sf)==sf.MSF
-                        and
-                        self.mote.numCellsToNeighbors.get(self.mote.rpl.getPreferredParent(), 0) > 0
-                    )
-                    or
-                    (
-                        type(self.mote.sf)!=sf.MSF
-                    )
-                )
-             ):
-            # send a packet only if the mote has TSCH cells to its preferred parent
-            ready_to_send = True
-        else:
-            ready_to_send = False
-
-        if ready_to_send:
-
-            packet = self._generate_packet(
-                dstIp          = dstIp,
-                packet_type    = d.PKT_TYPE_DATA,
-                packet_length  = packet_length
-            )
-
-            self.log(
-                SimEngine.SimLog.LOG_APP_TX,
-                {
-                    '_mote_id':       self.mote.id,
-                    'packet':         packet,
-                }
-            )
-
-            self.mote.sixlowpan.sendPacket(packet)
-
-
-class AppSink(AppBase):
+class AppRoot(AppBase):
     """Handle application packets from motes
     """
 
@@ -157,7 +137,7 @@ class AppSink(AppBase):
     APP_PK_LENGTH = 10
 
     def __init__(self, mote):
-        super(AppSink, self).__init__(mote)
+        super(AppRoot, self).__init__(mote)
 
     #======================== public ==========================================
 
@@ -177,17 +157,13 @@ class AppSink(AppBase):
             }
         )
 
-        # send end-to-end ACK back to mote, if applicable
-        if self.settings.app_e2eAck:
-            self._send_ack(packet['net']['srcIp'])
-
     #======================== private ==========================================
+    
     def _send_ack(self, destination):
         self._send_packet(
             dstIp          = destination,
             packet_length  = self.APP_PK_LENGTH
         )
-
 
 class AppPeriodic(AppBase):
 
@@ -243,7 +219,6 @@ class AppPeriodic(AppBase):
         )
         # schedule the next transmission
         self._schedule_transmission()
-
 
 class AppBurst(AppBase):
     """Generate burst traffic to the root at the specified time (only once)
