@@ -59,6 +59,16 @@ def check_all_nodes_x(motes,x):
 def check_no_packet_drop():
     assert u.read_log_file(['packet_dropped'])==[]
 
+def check_neighbor_tables(motes):
+    for mote in motes:
+        if   mote.id==0:
+            expectedNeighbors = [1]
+        elif mote.id==len(motes)-1:
+            expectedNeighbors = [len(motes)-2]
+        else:
+            expectedNeighbors = [mote.id-1,mote.id+1]
+        assert sorted(mote.neighbors.keys())==sorted(expectedNeighbors)
+    
 # === secjoin
 
 def secjoin_check_all_nodes_joined(motes):
@@ -184,6 +194,9 @@ def test_vanilla_scenario(
     
     # verify that all nodes are join'ed
     secjoin_check_all_nodes_joined(sim_engine.motes)
+    
+    # verify neighbor tables
+    check_neighbor_tables(sim_engine.motes)
     
     # verify that all nodes have acquired rank and preferred parent
     rpl_check_all_node_prefered_parent(sim_engine.motes)
