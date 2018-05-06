@@ -178,8 +178,8 @@ class SixP(object):
                 # add to my schedule
                 self.mote.tsch.addCell(
                     neighbor           = packet['mac']['srcMac'],
-                    slotoffset         = cell['slotOffset'],
-                    channeloffset      = cell['channelOffset'],
+                    slotOffset         = cell['slotOffset'],
+                    channelOffset      = cell['channelOffset'],
                     direction          = d.DIR_RX,
                 )
                 
@@ -227,8 +227,8 @@ class SixP(object):
         cell = packet['app']['CellList'][0]
         self.mote.tsch.addCell(
             neighbor           = packet['mac']['srcMac'],
-            slotoffset         = cell['slotOffset'],
-            channeloffset      = cell['channelOffset'],
+            slotOffset         = cell['slotOffset'],
+            channelOffset      = cell['channelOffset'],
             direction          = d.DIR_TX,
         )
         
@@ -255,8 +255,8 @@ class SixP(object):
         assert (cell['slotOffset'],cell['channelOffset'],packet['mac']['srcMac']) in self.mote.tsch.getRxCells(packet['mac']['srcMac'])
         self.mote.tsch.deleteCell(
             neighbor           = packet['mac']['srcMac'],
-            slotoffset         = cell['slotOffset'],
-            channeloffset      = cell['channelOffset'],
+            slotOffset         = cell['slotOffset'],
+            channelOffset      = cell['channelOffset'],
             direction          = d.DIR_RX,
         )
         
@@ -299,8 +299,8 @@ class SixP(object):
         cell = packet['app']['CellList'][0]
         self.mote.tsch.deleteCell(
             neighbor           = packet['mac']['srcMac'],
-            slotoffset         = cell['slotOffset'],
-            channeloffset      = cell['channelOffset'],
+            slotOffset         = cell['slotOffset'],
+            channelOffset      = cell['channelOffset'],
             direction          = d.DIR_TX,
         )
         

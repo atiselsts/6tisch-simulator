@@ -126,14 +126,14 @@ def set_initial_routing_and_scheduling_state(engine):
                 # add a cell from child to parent
                 child.tsch.addCell(
                     neighbor        = parent.id,
-                    slotoffset      = cur_slot,
-                    channeloffset   = 0,
+                    slotOffset      = cur_slot,
+                    channelOffset   = 0,
                     direction       = d.DIR_TX,
                 )
                 parent.tsch.addCell(
                     neighbor        = child.id,
-                    slotoffset      = cur_slot,
-                    channeloffset   = 0,
+                    slotOffset      = cur_slot,
+                    channelOffset   = 0,
                     direction       = d.DIR_RX,
                 )
                 cur_slot += 1

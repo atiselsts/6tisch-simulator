@@ -83,14 +83,14 @@ def test_removeTypeFromQueue(sim_engine):
         {'type': 5},
     ]
 
-@pytest.mark.parametrize('destination, packet_type, expected_cell_options', [
+@pytest.mark.parametrize('destination, packet_type, expected_cellOptions', [
     ('parent',    d.PKT_TYPE_DATA, d.DIR_TX),
 ])
 def test_tx_cell_selection(
         sim_engine,
         packet_type,
         destination,
-        expected_cell_options
+        expected_cellOptions
     ):
 
     # cell selection rules:
@@ -171,7 +171,7 @@ def test_tx_cell_selection(
 
     for log in logs:
         timeslot_offset = log['_asn'] % sim_engine.settings.tsch_slotframeLength
-        assert mote.tsch.schedule[timeslot_offset]['dir'] == expected_cell_options
+        assert mote.tsch.schedule[timeslot_offset]['cellOptions'] == expected_cellOptions
 
 @pytest.fixture(params=[d.PKT_TYPE_EB, d.PKT_TYPE_DIO])
 def fixture_adv_frame(request):
