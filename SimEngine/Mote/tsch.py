@@ -72,7 +72,7 @@ class Tsch(object):
         )
         self.tsch_schedule_next_active_cell()    # schedule next active cell
     
-    def _getCells(self, direction, neighbor):
+    def _getCells(self, neighbor, cellOptions):
         if neighbor!=None:
             assert type(neighbor)==int
         
@@ -80,29 +80,29 @@ class Tsch(object):
             return [
                 (slotOffset, c['channelOffset'], c['neighbor'])
                     for (slotOffset, c) in self.schedule.items()
-                        if c['cellOptions'] == direction
+                        if sorted(c['cellOptions']) == sorted(cellOptions)
             ]
         else:
             return [
                 (slotOffset, c['channelOffset'], c['neighbor'])
                     for (slotOffset, c) in self.schedule.items()
-                        if c['cellOptions'] == direction and c['neighbor'] == neighbor
+                        if sorted(c['cellOptions']) == sorted(cellOptions) and c['neighbor'] == neighbor
             ]
     
     def getTxCells(self, neighbor = None):
         return self._getCells(
-            direction = d.DIR_TX,
-            neighbor  = neighbor,
+            neighbor    = neighbor,
+            cellOptions = [d.CELLOPTION_TX],
         )
     def getRxCells(self, neighbor = None):
         return self._getCells(
-            direction = d.DIR_RX,
-            neighbor  = neighbor,
+            neighbor    = neighbor,
+            cellOptions = [d.CELLOPTION_RX],
         )
-    def getSharedCells(self, neighbor = None):
+    def getTxRxSharedCells(self, neighbor = None):
         return self._getCells(
-            direction = d.DIR_TXRX_SHARED,
-            neighbor  = neighbor,
+            neighbor    = neighbor,
+            cellOptions = [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED],
         )
     
     # admin
@@ -120,22 +120,21 @@ class Tsch(object):
     def add_minimal_cell(self):
 
         self.addCell(
-            neighbor         = None, # None means "any"
             slotOffset       = 0,
             channelOffset    = 0,
-            direction        = d.DIR_TXRX_SHARED,
+            neighbor         = None, # None means "any"
+            cellOptions      = [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED],
         )
 
     # schedule interface
 
-    def addCell(self, neighbor, slotOffset, channelOffset, direction):
-        
-        ''' FIXME
-        if neighbor!=None:
-            assert isinstance(neighbor, int)
-        '''
+    def addCell(self, slotOffset, channelOffset, neighbor, cellOptions):
+    
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
+        if neighbor!=None:
+            assert isinstance(neighbor, int)
+        assert isinstance(cellOptions, list)
         
         # make sure I have no activity at that slotOffset already
         assert slotOffset not in self.schedule.keys()
@@ -145,18 +144,18 @@ class Tsch(object):
             SimEngine.SimLog.LOG_TSCH_ADD_CELL,
             {
                 '_mote_id':       self.mote.id,
-                'neighbor':       neighbor,
                 'slotOffset':     slotOffset,
                 'channelOffset':  channelOffset,
-                'direction':      direction,
+                'neighbor':       neighbor,
+                'cellOptions':    cellOptions,
             }
         )
         
         # add cell
         self.schedule[slotOffset] = {
             'channelOffset':      channelOffset,
-            'cellOptions':        direction,
             'neighbor':           neighbor,
+            'cellOptions':        cellOptions,
             'numTx':              0,
             'numTxAck':           0,
             'numRx':              0,
@@ -166,27 +165,27 @@ class Tsch(object):
         if self.getIsSync():
             self.tsch_schedule_next_active_cell()
 
-    def deleteCell(self, neighbor, slotOffset, channelOffset, direction):
-        
-        assert isinstance(neighbor, int)
+    def deleteCell(self, slotOffset, channelOffset, neighbor, cellOptions):
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
+        assert isinstance(neighbor, int)
+        assert isinstance(cellOptions, list)
         
         # make sure I'm removing a cell that I have in my schedule
         assert slotOffset in self.schedule.keys()
         assert self.schedule[slotOffset]['channelOffset']  == channelOffset
-        assert self.schedule[slotOffset]['cellOptions']    == direction
         assert self.schedule[slotOffset]['neighbor']       == neighbor
+        assert self.schedule[slotOffset]['cellOptions']    == cellOptions
         
         # log
         self.log(
             SimEngine.SimLog.LOG_TSCH_DELETE_CELL,
             {
                 '_mote_id':       self.mote.id,
-                'neighbor':       neighbor,
                 'slotOffset':     slotOffset,
                 'channelOffset':  channelOffset,
-                'direction':      direction,
+                'neighbor':       neighbor,
+                'cellOptions':    cellOptions,
             }
         )
 
@@ -224,7 +223,7 @@ class Tsch(object):
         
         # check that I have cell to transmit on
         if goOn:
-            if (not self.getTxCells()) and (not self.getSharedCells()):
+            if (not self.getTxCells()) and (not self.getTxRxSharedCells()):
                 # I don't have any cell to transmit on
                 
                 # drop
@@ -254,8 +253,8 @@ class Tsch(object):
         slotOffset = asn % self.settings.tsch_slotframeLength
 
         assert slotOffset in self.getSchedule()
-        assert self.getSchedule()[slotOffset]['cellOptions'] == d.DIR_TX or self.getSchedule()[slotOffset]['cellOptions'] == d.DIR_TXRX_SHARED
-        assert self.waitingFor == d.DIR_TX
+        assert d.CELLOPTION_TX in self.getSchedule()[slotOffset]['cellOptions']
+        assert self.waitingFor == d.WAITING_FOR_TX
         
         # log
         self.log(
@@ -329,8 +328,8 @@ class Tsch(object):
         # make sure I'm in the right state
         if self.getIsSync():
             assert slotOffset in self.getSchedule()
-            assert self.getSchedule()[slotOffset]['cellOptions'] == d.DIR_RX or self.getSchedule()[slotOffset]['cellOptions'] == d.DIR_TXRX_SHARED
-            assert self.waitingFor == d.DIR_RX
+            assert d.CELLOPTION_RX in self.getSchedule()[slotOffset]['cellOptions']
+            assert self.waitingFor == d.WAITING_FOR_RX
         
         # not waiting for anything anymore
         self.waitingFor = None
@@ -476,7 +475,7 @@ class Tsch(object):
         )
 
         # indicate that we're waiting for the RX operation to finish
-        self.waitingFor = d.DIR_RX
+        self.waitingFor = d.WAITING_FOR_RX
         
         # schedule next listeningForEB cell
         self.tsch_schedule_next_listeningForEB_cell()
@@ -536,8 +535,8 @@ class Tsch(object):
         assert self.pktToSend == None
         
         # execute cell
-        if   cell['cellOptions'] == d.DIR_TX:
-            # TX cell
+        if   cell['cellOptions'] == [d.CELLOPTION_TX]:
+            # dedicated TX cell
             
             # find packet to send
             for pkt in self.txQueue:
@@ -546,7 +545,7 @@ class Tsch(object):
                     break
             
             # notify SF
-            self.mote.sf.indication_tx_cell_elapsed(
+            self.mote.sf.indication_dedicated_tx_cell_elapsed(
                 cell    = cell,
                 used    = (self.pktToSend!=None),
             )
@@ -555,8 +554,8 @@ class Tsch(object):
             if self.pktToSend:
                 self._tsch_action_TX(self.pktToSend)
         
-        elif cell['cellOptions'] == d.DIR_TXRX_SHARED:
-            # TXRXSHARED cell
+        elif sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
+            # minimal cell
 
             # first, find packets to neighbor to which I don't have dedicated cells
             if not self.pktToSend:
@@ -571,7 +570,7 @@ class Tsch(object):
                             (
                                 self.getTxCells(pkt['mac']['dstMac']) == []
                                 and
-                                self.getSharedCells(pkt['mac']['dstMac'])==[]
+                                self.getTxRxSharedCells(pkt['mac']['dstMac'])==[]
                             )
                         ):
                         self.pktToSend = pkt
@@ -593,8 +592,8 @@ class Tsch(object):
             else:
                 self._tsch_action_RX()
         
-        elif cell['cellOptions'] == d.DIR_RX:
-            # RX cell
+        elif cell['cellOptions'] == [d.CELLOPTION_RX]:
+            # dedicated RX cell
             
             # receive
             self._tsch_action_RX()
@@ -619,7 +618,7 @@ class Tsch(object):
         )
 
         # indicate that we're waiting for the TX operation to finish
-        self.waitingFor      = d.DIR_TX
+        self.waitingFor      = d.WAITING_FOR_TX
         self.channel         = cell['channelOffset']
         
     def _tsch_action_RX(self):
@@ -635,7 +634,7 @@ class Tsch(object):
         )
 
         # indicate that we're waiting for the RX operation to finish
-        self.waitingFor      = d.DIR_RX
+        self.waitingFor      = d.WAITING_FOR_RX
         self.channel         = cell['channelOffset']
 
     # EBs
