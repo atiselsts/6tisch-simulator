@@ -7,12 +7,17 @@ if __name__ == '__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..'))
 
-# ========================== imports =========================================
+# ========================== imports ==========================================
 
 import json
 import glob
 
 from SimEngine import SimLog
+
+# =========================== defines =========================================
+
+DAGROOT_ID = 0 # we assume first mote is DAGRoot
+DAGROOT_IP = 0  # we assume DAGRoot IP is 0
 
 # =========================== decorators ======================================
 
@@ -26,87 +31,122 @@ def openfile(func):
 
 @openfile
 def kpi_formation(inputfile):
-    join_times = []
+    joins  = {} # indexed by run_id
 
-    file_settings = json.loads(inputfile.readline()) # first line contains settings
+    # read file settings
+    file_settings = json.loads(inputfile.readline())
+
     for line in inputfile:
         log = json.loads(line)
+
         if log['_type'] == SimLog.LOG_JOINED['type']:
-            join_times.append(log['_asn'] * file_settings['tsch_slotDuration'])
+            run_id = log['_run_id']
+            mote_id = log['_mote_id']
+
+            if run_id not in joins:
+                joins[run_id] = {} # indexed by mote_id
+
+            if mote_id not in joins[run_id]:
+                joins[run_id][mote_id] = [] # list of times
+
+            # convert and save time to join
+            if mote_id != DAGROOT_ID: # do not log DAGRoot join
+                joins[run_id][mote_id] = log['_asn'] * file_settings['tsch_slotDuration']
+
+    # make sure all motes joined
+    for run_id in joins.iterkeys():
+        assert len(joins[run_id]) == file_settings['exec_numMotes']
+
+    # calculate average max join time
+    max_join_time_list = []
+    for run_id in joins.iterkeys():
+        max_join_time_list.append(max([t for t in joins[run_id].itervalues()]))
+    avg_max_join_time = sum(max_join_time_list) / float(len(max_join_time_list))
 
     returnVal = {
-        'result': max(join_times),
+        'result': avg_max_join_time,
         # per node?
     }
     return returnVal
 
 @openfile
 def kpi_reliability(inputfile):
-    rx_packets_at_dagroot = []
-    tx_packets_to_dagroot = []
-    DAGROOT_ID = 0 # we assume first mote is DAGRoot
-    DAGROOT_IP = 0 # we assume DAGRoot IP is 0
+    rx_packets_at_dagroot = {} # indexed by run_id
+    tx_packets_to_dagroot = {} # indexed by run_id
 
     for line in inputfile:
         log = json.loads(line)
         if log['_type'] == SimLog.LOG_APP_RX['type'] and log['_mote_id'] == DAGROOT_ID:
-            rx_packets_at_dagroot.append(log['packet'])
+            rx_packets_at_dagroot.setdefault(log['_run_id'], []).append(log['packet'])
         elif log['_type'] == SimLog.LOG_APP_TX['type']:
             if log['packet']['net']['dstIp'] == DAGROOT_IP:
-                tx_packets_to_dagroot.append(log['packet'])
+                tx_packets_to_dagroot.setdefault(log['_run_id'], []).append(log['packet'])
+
+    # === calculate average e2e reliability
+    avg_reliabilities = []
+    for run_id in tx_packets_to_dagroot.iterkeys():
+        avg_reliabilities.append(
+            len(rx_packets_at_dagroot[run_id]) /
+            float(len(tx_packets_to_dagroot[run_id]))
+        )
+    avg_reliability = sum(avg_reliabilities) / float(len(avg_reliabilities))
+    # === end calculate average e2e reliability
 
     returnVal = {
-        'result': len(rx_packets_at_dagroot)/ float(len(tx_packets_to_dagroot)),
+        'result': avg_reliability,
         # per node?
     }
     return returnVal
 
 @openfile
 def kpi_latency(inputfile):
-    rx_packets_at_dagroot = []
-    tx_packets_to_dagroot = []
-    DAGROOT_ID = 0  # we assume first mote is DAGRoot
-    DAGROOT_IP = 0  # we assume DAGRoot IP is 0
+    rx_packets_at_dagroot = {} # indexed by run_id
+    tx_packets_to_dagroot = {} # indexed by run_id
 
     # get logs
     file_settings = json.loads(inputfile.readline())  # first line contains settings
     for line in inputfile:
         log = json.loads(line)
         if log['_type'] == SimLog.LOG_APP_RX['type'] and log['_mote_id'] == DAGROOT_ID:
-            rx_packets_at_dagroot.append(log)
+            rx_packets_at_dagroot.setdefault(log['_run_id'], []).append(log)
         elif log['_type'] == SimLog.LOG_APP_TX['type']:
             if log['packet']['net']['dstIp'] == DAGROOT_IP:
-                tx_packets_to_dagroot.append(log)
+                tx_packets_to_dagroot.setdefault(log['_run_id'], []).append(log)
 
-    # === calculate latency
-    packets = {} # index by srcIp then appcounter
-    time_deltas = []
+    # === calculate average e2e latency
+    avg_latencies = []
+    for run_id in tx_packets_to_dagroot.iterkeys():
+        packets = {} # index by srcIp then appcounter
+        time_deltas = []
 
-    # loop through tx
-    for log in tx_packets_to_dagroot:
-        src_id = log['packet']['net']['srcIp']
-        pkt_id = log['packet']['app']['appcounter']
+        # loop through tx
+        for log in tx_packets_to_dagroot[run_id]:
+            src_id = log['packet']['net']['srcIp']
+            pkt_id = log['packet']['app']['appcounter']
 
-        # create dict
-        if not src_id in packets:
-            packets[src_id] = {}
+            # create dict
+            if not src_id in packets:
+                packets[src_id] = {}
 
-        # save asn
-        packets[src_id][pkt_id] = log['_asn']
+            # save asn
+            packets[src_id][pkt_id] = log['_asn']
 
-    # loop through rx
-    for log in rx_packets_at_dagroot:
-        src_id = log['packet']['net']['srcIp']
-        pkt_id = log['packet']['app']['appcounter']
+        # loop through rx
+        for log in rx_packets_at_dagroot[run_id]:
+            src_id = log['packet']['net']['srcIp']
+            pkt_id = log['packet']['app']['appcounter']
 
-        # calculate time delta
-        if src_id in packets and pkt_id in packets[src_id]:
-            asn_delta = log['_asn'] - packets[src_id][pkt_id]
-            time_deltas.append(asn_delta * file_settings['tsch_slotDuration'])
+            # calculate time delta
+            if src_id in packets and pkt_id in packets[src_id]:
+                asn_delta = log['_asn'] - packets[src_id][pkt_id]
+                time_deltas.append(asn_delta * file_settings['tsch_slotDuration'])
+
+        avg_latencies.append(sum(time_deltas) / float(len(time_deltas)))
+    avg_latency = sum(avg_latencies) / float(len(avg_latencies))
     # === end calculate latency
 
     returnVal = {
-        'result': sum(time_deltas) / float(len(time_deltas)),
+        'result': avg_latency,
         # per node?
         # min/avg/max?
         # std
