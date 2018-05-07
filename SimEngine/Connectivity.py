@@ -546,7 +546,7 @@ class Connectivity(object):
             asn              = self.engine.getAsn() + 1, # so propagation happens in next slot
             cb               = self.propagate,
             uniqueTag        = (None, 'propagation'),
-            intraSlotOrder   = 1,
+            intraSlotOrder   = d.INTRASLOTORDER_PROPAGATE,
         )
 
     # === sinr and pdr

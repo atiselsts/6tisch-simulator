@@ -173,7 +173,7 @@ class Rpl(object):
             asn              = asnNow + asnDiff,
             cb               = self._action_sendDAO,
             uniqueTag        = (self.mote.id, '_action_sendDAO'),
-            intraSlotOrder   = 3,
+            intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS,
         )
 
     def _action_sendDAO(self):

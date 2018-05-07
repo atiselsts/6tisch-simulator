@@ -496,7 +496,7 @@ class Tsch(object):
             asn              = self.engine.getAsn()+1,
             cb               = self._tsch_action_listeningForEB_cell,
             uniqueTag        = (self.mote.id, '_tsch_action_listeningForEB_cell'),
-            intraSlotOrder   = 0,
+            intraSlotOrder   = d.INTRASLOTORDER_STARTSLOT,
         )
     
     def _tsch_action_listeningForEB_cell(self):
@@ -555,7 +555,7 @@ class Tsch(object):
             asn              = asn+tsDiffMin,
             cb               = self._tsch_action_active_cell,
             uniqueTag        = (self.mote.id, '_tsch_action_active_cell'),
-            intraSlotOrder   = 0,
+            intraSlotOrder   = d.INTRASLOTORDER_STARTSLOT,
         )
     
     def _tsch_action_active_cell(self):
