@@ -14,9 +14,6 @@ import MoteDefines as d
 
 # =========================== defines =========================================
 
-class NoSourceRouteError(Exception):
-    pass
-
 # =========================== helpers =========================================
 
 # =========================== body ============================================
@@ -245,23 +242,25 @@ class Rpl(object):
         :param destAddr: [in] The EUI64 address of the final destination.
 
         :returns: The source route, a list of EUI64 address, ordered from
-            destination to source.
+            destination to source, or None
         """
         assert type(dest_id)==int
         
-        sourceRoute = []
-        cur_id = dest_id
-        while cur_id!=0:
-            sourceRoute += [cur_id]
-            try:
-                cur_id = self.parentChildfromDAOs[cur_id]
-            except KeyError:
-                raise NoSourceRouteError()
-        
-        # reverse (so goes from source to destination)
-        sourceRoute.reverse()
-        
-        return sourceRoute
+        try:
+            sourceRoute = []
+            cur_id = dest_id
+            while cur_id!=0:
+                sourceRoute += [cur_id]
+                cur_id       = self.parentChildfromDAOs[cur_id]
+        except KeyError:
+            returnVal = None
+        else:
+            # reverse (so goes from source to destination)
+            sourceRoute.reverse()
+            
+            returnVal = sourceRoute
+            
+        return returnVal
 
     # forwarding
 

@@ -81,7 +81,5 @@ def test_source_route_calculation(sim_engine):
     assert mote.rpl.computeSourceRoute(3) == [1,2,3]
     assert mote.rpl.computeSourceRoute(4) == [1,4]
     assert mote.rpl.computeSourceRoute(5) == [1,4,5]
-    with pytest.raises(rpl.NoSourceRouteError):
-        mote.rpl.computeSourceRoute(6)
-    with pytest.raises(rpl.NoSourceRouteError):
-        mote.rpl.computeSourceRoute(7)
+    assert mote.rpl.computeSourceRoute(6) == None
+    assert mote.rpl.computeSourceRoute(7) == None

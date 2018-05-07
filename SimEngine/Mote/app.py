@@ -94,10 +94,6 @@ class AppBase(object):
             }
 
         }
-        
-        # add source route for downstream packets (FIXME: done by RPL)
-        if self.mote.dagRoot:
-            dataPacket['net']['sourceRoute'] = self.mote.rpl.computeSourceRoute(dstIp)
 
         # update appcounter
         self.appcounter += 1
