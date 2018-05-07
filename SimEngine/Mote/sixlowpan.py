@@ -58,16 +58,34 @@ class Sixlowpan(object):
             }
         )
         
+        # add source route, if needed
+        if goOn:
+            if self.mote.dagRoot:
+                sourceRoute = self.mote.rpl.computeSourceRoute(packet['net']['dstIp'])
+                if sourceRoute==None:
+                    
+                    # we cannot find a next-hop; drop this packet
+                    self.mote.drop_packet(
+                        packet  = packet,
+                        reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
+                    )
+                    
+                    # stop handling this packet
+                    goOn = False
+                else:
+                    packet['net']['sourceRoute'] = sourceRoute
+        
         # find link-layer destination
-        dstMac = self.mote.rpl.findNextHopId(packet)
-        if dstMac==None:
-            # we cannot find a next-hop; drop this packet
-            self.mote.drop_packet(
-                packet  = packet,
-                reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
-            )
-            # stop handling this packet
-            goOn = False
+        if goOn:
+            dstMac = self.mote.rpl.findNextHopId(packet)
+            if dstMac==None:
+                # we cannot find a next-hop; drop this packet
+                self.mote.drop_packet(
+                    packet  = packet,
+                    reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
+                )
+                # stop handling this packet
+                goOn = False
         
         # add MAC header
         if goOn:

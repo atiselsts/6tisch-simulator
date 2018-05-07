@@ -84,7 +84,7 @@ class Mote(object):
             return self.engine.connectivity.get_pdr(
                 source       = self.id,
                 destination  = neighbor,
-                channel      = 0, #FIXME
+                channel      = 0, #FIXME channel
             )
     
     # ==== neighbors
@@ -175,7 +175,7 @@ class Mote(object):
             self.sf.activate()
             self.app.activate()
             
-            # give DAGroot's ID to each mote FIXME: remove
+            # give DAGroot's ID to each mote FIXME: see #145
             for mote in self.engine.motes:
                 mote.dagRootId  = self.id
             
