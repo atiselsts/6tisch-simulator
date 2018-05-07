@@ -43,19 +43,14 @@ def kpi_formation(inputfile):
             run_id = log['_run_id']
             mote_id = log['_mote_id']
 
-            if run_id not in joins:
-                joins[run_id] = {} # indexed by mote_id
-
-            if mote_id not in joins[run_id]:
-                joins[run_id][mote_id] = [] # list of times
-
             # convert and save time to join
             if mote_id != DAGROOT_ID: # do not log DAGRoot join
-                joins[run_id][mote_id] = log['_asn'] * file_settings['tsch_slotDuration']
+                joins.setdefault(run_id, {})[mote_id] = \
+                    log['_asn'] * file_settings['tsch_slotDuration']
 
     # make sure all motes joined
     for run_id in joins.iterkeys():
-        assert len(joins[run_id]) == file_settings['exec_numMotes']
+        assert len(joins[run_id]) == (file_settings['exec_numMotes'] -1)
 
     # calculate average max join time
     max_join_time_list = []
@@ -155,11 +150,29 @@ def kpi_latency(inputfile):
 
 @openfile
 def kpi_consumption(inputfile):
+    batt_logs = {} # indexed by run_id
+
+    # get logs
     for line in inputfile:
-        pass
+        log = json.loads(line)
+        if log['_type'] == SimLog.LOG_BATT_CHARGE['type']:
+            batt_logs.setdefault(log['_run_id'], {})\
+                     .setdefault(log['_mote_id'], []).append(log)
+
+    # find average max consumption
+    max_consumptions = []
+    for run in batt_logs.itervalues():
+        max_consumption = 0
+        for mote in run.itervalues():
+            max_consumption = max(
+                sum([l['charge'] for l in mote]),
+                max_consumption
+            )
+        max_consumptions.append(max_consumption)
+    avg_max_consumptions = sum(max_consumptions) / float(len(max_consumptions))
 
     returnVal = {
-        'result': 'TODO',
+        'result': avg_max_consumptions / 1000,
         # per node?
         # per hop?
         # first death?
@@ -194,6 +207,5 @@ def main():
         with open('{0}_kpis.json'.format(file_path), 'w') as f:
             f.write(json.dumps(kpis, indent=4))
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
-
