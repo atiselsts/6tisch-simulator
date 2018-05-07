@@ -52,9 +52,10 @@ def parseCliParams():
 
 def printOrLog(cpuID, output, verbose):
     assert cpuID is not None
+    hostname = platform.uname()[1]
 
     if not verbose:
-        with open('cpu{0}.templog'.format(cpuID), 'w') as f:
+        with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'w') as f:
             f.write(output)
     else:
         print output
@@ -135,12 +136,13 @@ def runSimCombinations(params):
 
 keep_printing_progress = True
 def printProgressPerCpu(cpuIDs):
+    hostname = platform.uname()[1]
     while keep_printing_progress:
         time.sleep(1)
         output     = []
         for cpuID in cpuIDs:
             try:
-                with open('cpu{0}.templog'.format(cpuID), 'r') as f:
+                with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'r') as f:
                     output += ['[cpu {0}] {1}'.format(cpuID, f.read())]
             except IOError:
                 output += ['[cpu {0}] no info (yet?)'.format(cpuID)]
@@ -298,8 +300,9 @@ def main():
                 print_progress_thread.join()
 
         # cleanup
+        hostname = platform.uname()[1]
         for i in range(numCPUs):
-            os.remove('cpu{0}.templog'.format(i))
+            os.remove('{0}-cpu{1}.templog'.format(hostname, i))
 
     # merge output files
     folder_path = os.path.join('simData', log_directory_name)
