@@ -161,13 +161,13 @@ class Sixlowpan(object):
                 # forward
                 self.forward(packet)
     
-    def forward(self, packet):
+    def forward(self, rxPacket):
         # packet can be:
         # - an IPv6 packet (which may need fragmentation)
         # - a fragment (fragment forwarding)
         
-        assert 'type' in packet
-        assert 'net' in packet
+        assert 'type' in rxPacket
+        assert 'net' in rxPacket
         
         goOn = True
         
@@ -175,23 +175,23 @@ class Sixlowpan(object):
         if goOn:
             fwdPacket             = {}
             # type
-            fwdPacket['type']     = copy.deepcopy(packet['type'])
+            fwdPacket['type']     = copy.deepcopy(rxPacket['type'])
             # app
-            if 'app' in packet:
-                fwdPacket['app']  = copy.deepcopy(packet['app'])
+            if 'app' in rxPacket:
+                fwdPacket['app']  = copy.deepcopy(rxPacket['app'])
             # net
-            fwdPacket['net']      = copy.deepcopy(packet['net'])
+            fwdPacket['net']      = copy.deepcopy(rxPacket['net'])
             # mac
             if fwdPacket['type'] == d.PKT_TYPE_FRAG:
                 # fragment already has mac header (FIXME: why?)
-                fwdPacket['mac']  = copy.deepcopy(packet['mac'])
+                fwdPacket['mac']  = copy.deepcopy(rxPacket['mac'])
             else:
                 # find next hop
-                dstMac = self.mote.rpl.findNextHopId(packet)
+                dstMac = self.mote.rpl.findNextHopId(fwdPacket)
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
                     self.mote.drop_packet(
-                        packet  = packet,
+                        packet  = rxPacket,
                         reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
                     )
                     # stop handling this packet
