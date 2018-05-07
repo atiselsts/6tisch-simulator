@@ -36,7 +36,7 @@ class Mote(object):
         # admin
         self.dataLock                  = threading.RLock()
         
-        # singletons (to access quicker than recreate every time)
+        # singletons (quicker access, instead of recreating every time)
         self.log                       = SimEngine.SimLog.SimLog().log
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()

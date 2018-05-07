@@ -42,7 +42,7 @@ class AppBase(object):
         # store params
         self.mote       = mote
 
-        # singletons (to access quicker than recreate every time)
+        # singletons (quicker access, instead of recreating every time)
         self.engine     = SimEngine.SimEngine.SimEngine()
         self.settings   = SimEngine.SimSettings.SimSettings()
         self.log        = SimEngine.SimLog.SimLog().log

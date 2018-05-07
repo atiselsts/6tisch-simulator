@@ -7,11 +7,11 @@ import pytest
 import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.rpl as rpl
 
-@pytest.fixture(params=['fully_meshed','linear'])
-def fixture_conn_type(request):
+@pytest.fixture(params=['FullyMeshed','Linear'])
+def fixture_conn_class(request):
     return request.param
 
-def test_ranks_forced_state(sim_engine,fixture_conn_type):
+def test_ranks_forced_state(sim_engine,fixture_conn_class):
     '''
     Verify the force_initial_routing_and_scheduling_state option
     create the expected RPL state.
@@ -20,7 +20,7 @@ def test_ranks_forced_state(sim_engine,fixture_conn_type):
     sim_engine = sim_engine(
         {
             'exec_numMotes': 3,
-            'conn_type':     fixture_conn_type,
+            'conn_class':    fixture_conn_class,
         },
         force_initial_routing_and_scheduling_state = True
     )
@@ -39,17 +39,19 @@ def test_ranks_forced_state(sim_engine,fixture_conn_type):
     assert hop1.rpl.getRank()                 ==     768
     assert hop1.rpl.getDagRank()              ==       3
     
-    if   fixture_conn_type=='fully_meshed':
+    if   fixture_conn_class=='FullyMeshed':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == root.id
         assert hop2.rpl.getRank()             ==     768
         assert hop2.rpl.getDagRank()          ==       3
-    elif fixture_conn_type=='linear':
+    elif fixture_conn_class=='Linear':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == hop1.id
         assert hop2.rpl.getRank()             ==    1280
         assert hop2.rpl.getDagRank()          ==       5
-        
+    else:
+        raise SystemError()
+
 def test_source_route_calculation(sim_engine):
     
     sim_engine = sim_engine(

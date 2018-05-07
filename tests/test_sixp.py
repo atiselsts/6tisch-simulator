@@ -20,7 +20,7 @@ def test_add_delete_sixp(
             'exec_numMotes':                3,
             'exec_numSlotframesPerRun':     10000,
             'sf_type':                      'SFNone',
-            'conn_type':                    'linear',
+            'conn_class':                   'Linear',
         },
     )
     

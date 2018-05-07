@@ -21,7 +21,7 @@ class SchedulingFunction(object):
         # store params
         self.mote            = mote
         
-        # singletons (to access quicker than recreate every time)
+        # singletons (quicker access, instead of recreating every time)
         self.settings        = SimEngine.SimSettings.SimSettings()
         self.engine          = SimEngine.SimEngine.SimEngine()
         self.log             = SimEngine.SimLog.SimLog().log
