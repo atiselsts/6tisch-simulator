@@ -60,7 +60,7 @@ class Sixlowpan(object):
         
         # add source route, if needed
         if goOn:
-            if self.mote.dagRoot:
+            if (self.mote.dagRoot) and (packet['net']['dstIp'] not in self.mote.neighbors):
                 sourceRoute = self.mote.rpl.computeSourceRoute(packet['net']['dstIp'])
                 if sourceRoute==None:
                     
