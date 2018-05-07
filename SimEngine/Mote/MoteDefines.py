@@ -43,7 +43,7 @@ SIXP_RC_SUCCESS                             = 'success'
 # === tsch
 TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
-TSCH_MIN_BACKOFF_EXPONENT                   = 2
+TSCH_MIN_BACKOFF_EXPONENT                   = 1
 TSCH_MAX_BACKOFF_EXPONENT                   = 7
 CELLOPTION_TX                               = 'TX'
 CELLOPTION_RX                               = 'RX'

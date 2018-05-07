@@ -156,6 +156,10 @@ class Tsch(object):
             'channelOffset':      channelOffset,
             'neighbor':           neighbor,
             'cellOptions':        cellOptions,
+            # backoff management
+            'backoff':            0,
+            'backoffExponent':    d.TSCH_MIN_BACKOFF_EXPONENT,
+            # per-cell statistics
             'numTx':              0,
             'numTxAck':           0,
             'numRx':              0,
@@ -251,9 +255,10 @@ class Tsch(object):
         
         asn        = self.engine.getAsn()
         slotOffset = asn % self.settings.tsch_slotframeLength
-
+        cell       = self.schedule[slotOffset]
+        
         assert slotOffset in self.getSchedule()
-        assert d.CELLOPTION_TX in self.getSchedule()[slotOffset]['cellOptions']
+        assert d.CELLOPTION_TX in cell['cellOptions']
         assert self.waitingFor == d.WAITING_FOR_TX
         
         # log
@@ -280,6 +285,41 @@ class Tsch(object):
         
             # TODO send txDone up
             
+            # update the cell's backoff
+            newBackoff         = cell['backoff']
+            newBackoffExponent = cell['backoffExponent']
+            if d.CELLOPTION_SHARED in cell['cellOptions']:
+                # just transmitted in a SHARED cell
+                
+                # update backoff according to Section 6.2.5.3 of IEEE802.15.4-2015
+                if isACKed==True:
+                    newBackoff              = 0
+                    newBackoffExponent      = d.TSCH_MIN_BACKOFF_EXPONENT
+                else:
+                    newBackoff              = random.randint(0,(2**cell['backoffExponent'])-1)
+                    if cell['backoffExponent']<d.TSCH_MAX_BACKOFF_EXPONENT:
+                        newBackoffExponent  = cell['backoffExponent']+1
+            else:
+                # just transmitted in a dedicated cell
+                
+                # Section 6.2.5.3 of IEEE802.15.4-2015: "The backoff window is reset to the minimum value if the transmission in a dedicated link is successful and the transmit queue is then empty."
+                if (isACKed==True) and (not self.txQueue):
+                    newBackoff                   = 0
+                    newBackoffExponent           = d.TSCH_MIN_BACKOFF_EXPONENT
+            if (newBackoff!=cell['backoff']) or (newBackoffExponent!=cell['backoffExponent']):
+                # apply
+                cell['backoff']             = newBackoff
+                cell['backoffExponent']     = newBackoffExponent
+                
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_TSCH_BACKOFFCHANGED,
+                    {
+                        '_mote_id':       self.mote.id,
+                        'cell':           cell,
+                    }
+                )
+            
             # indicate unicast transmission to the neighbor table
             self.mote.neighbors_indicate_tx(self.pktToSend,isACKed)
             
@@ -287,10 +327,10 @@ class Tsch(object):
                 # ... which was ACKed
 
                 # update schedule stats
-                self.getSchedule()[slotOffset]['numTxAck'] += 1
+                cell['numTxAck'] += 1
 
                 # time correction
-                if self.getSchedule()[slotOffset]['neighbor'] == self.mote.rpl.getPreferredParent():
+                if cell['neighbor'] == self.mote.rpl.getPreferredParent():
                     self.asnLastSync = asn # ACK-based sync
                 
                 # remove packet from queue
@@ -556,35 +596,44 @@ class Tsch(object):
         
         elif sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
             # minimal cell
+            
+            # look for packet to send
+            if cell['backoff']>0:
+                # backoff is active, we cannot send
+                
+                # decrement backoff
+                cell['backoff']-=1
+            else:
+                # no backoff in place, look for packet
+                
+                # try to find a packet to neighbor to which I don't have any dedicated cell(s)...
+                if not self.pktToSend:
+                    for pkt in self.txQueue:
+                        if  (
+                                # DIOs and EBs always on minimal cell
+                                (
+                                    pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
+                                )
+                                or
+                                # other frames on the minimal cell if no dedicated cells to the nextHop
+                                (
+                                    self.getTxCells(pkt['mac']['dstMac']) == []
+                                    and
+                                    self.getTxRxSharedCells(pkt['mac']['dstMac'])==[]
+                                )
+                            ):
+                            self.pktToSend = pkt
+                            break
 
-            # first, find packets to neighbor to which I don't have dedicated cells
-            if not self.pktToSend:
-                for pkt in self.txQueue:
-                    if  (
-                            # DIOs and EBs always on minimal cell
-                            (
-                                pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
-                            )
-                            or
-                            # other frames on the minimal cell if no dedicated cells to the nextHop
-                            (
-                                self.getTxCells(pkt['mac']['dstMac']) == []
-                                and
-                                self.getTxRxSharedCells(pkt['mac']['dstMac'])==[]
-                            )
-                        ):
-                        self.pktToSend = pkt
-                        break
-
-            # otherwise, generate an EB or a DIO
-            if not self.pktToSend:
-                if self.mote.clear_to_send_EBs_DIOs_DATA():
-                    prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
-                    if random.random()<prob:
-                        if random.random()<0.50:
-                            self.pktToSend = self._create_EB()
-                        else:
-                            self.pktToSend = self.mote.rpl._create_DIO()
+                # ... if no such packet, probabilistically generate an EB or a DIO
+                if not self.pktToSend:
+                    if self.mote.clear_to_send_EBs_DIOs_DATA():
+                        prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
+                        if random.random()<prob:
+                            if random.random()<0.50:
+                                self.pktToSend = self._create_EB()
+                            else:
+                                self.pktToSend = self.mote.rpl._create_DIO()
 
             # send packet, or receive
             if self.pktToSend:
