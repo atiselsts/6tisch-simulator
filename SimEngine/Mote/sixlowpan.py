@@ -26,7 +26,7 @@ class Sixlowpan(object):
         # store params
         self.mote                 = mote
         
-        # singletons
+        # singletons (quicker access, instead of recreating every time)
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.log                  = SimEngine.SimLog.SimLog().log
@@ -219,7 +219,7 @@ class Fragmentation(object):
         # store params
         self.sixlowpan            = sixlowpan
         
-        # singletons
+        # singletons (quicker access, instead of recreating every time)
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.log                  = SimEngine.SimLog.SimLog().log

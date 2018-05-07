@@ -177,7 +177,7 @@ def test_vanilla_scenario(
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
             'sf_type':                                     fixture_sf_type,
-            'conn_type':                                   'linear',
+            'conn_class':                                  'Linear',
         },
     )
     

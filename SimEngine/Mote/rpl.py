@@ -28,7 +28,7 @@ class Rpl(object):
         # store params
         self.mote                      = mote
 
-        # singletons (to access quicker than recreate every time)
+        # singletons (quicker access, instead of recreating every time)
         self.engine                    = SimEngine.SimEngine.SimEngine()
         self.settings                  = SimEngine.SimSettings.SimSettings()
         self.log                       = SimEngine.SimLog.SimLog().log
@@ -283,7 +283,7 @@ class Rpl(object):
         else:
             # unicast upstream packet
             
-            if self.mote.isNeighbor(packet['net']['dstIp']):
+            if   self.mote.isNeighbor(packet['net']['dstIp']):
                 # packet to a neighbor
                 
                 # next hop is that neighbor

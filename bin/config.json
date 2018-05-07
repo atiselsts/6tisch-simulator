@@ -34,8 +34,7 @@
             "tsch_slotframeLength":                        101,
             "tsch_probBcast_ebDioProb":                    0.33,
 
-            "conn_type":                                  "fully_meshed",
-            "conn_trace":                                 "../traces/grenoble.k7",
+            "conn_class":                                  "Linear",
 
             "phy_numChans":                                16,
             "phy_minRssi":                                 -97,

@@ -29,7 +29,7 @@ def print_connectivity_matrix(matrix):
 
 #============================ tests ===========================================
 
-#=== verify the connectivity matrix for the 'linear' is expected
+#=== verify the connectivity matrix for the 'Linear' is expected
 
 def test_linear_matrix(sim_engine):
     """ creates a static connectivity linear path
@@ -40,7 +40,7 @@ def test_linear_matrix(sim_engine):
     engine = sim_engine(
         diff_config = {
             'exec_numMotes': num_motes,
-            'conn_type':     'linear',
+            'conn_class':    'Linear',
         }
     )
     motes  = engine.motes
@@ -58,8 +58,8 @@ def test_linear_matrix(sim_engine):
                     assert matrix[c][p][channelOffset]['rssi'] ==   -10
             else:
                 for channelOffset in range(engine.settings.phy_numChans):
-                    assert matrix[c][p][channelOffset]['pdr']  == None
-                    assert matrix[c][p][channelOffset]['rssi'] == None
+                    assert matrix[c][p][channelOffset]['pdr']  ==  0.00
+                    assert matrix[c][p][channelOffset]['rssi'] == -1000
 
 #=== verify propagate function doesn't raise exception
 

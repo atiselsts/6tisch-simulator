@@ -106,7 +106,7 @@ def test_tx_cell_selection(
         diff_config = {
             'exec_numMotes'            : 3,
             'sf_type'                  : 'SFNone',
-            'conn_type'                : 'linear',
+            'conn_class'               : 'Linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,
             'tsch_probBcast_ebDioProb' : 0,
@@ -180,7 +180,8 @@ def fixture_adv_frame(request):
 def test_network_advertisement(sim_engine, fixture_adv_frame):
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes'            : 1,
+            'exec_numMotes':                1,
+            'exec_numSlotframesPerRun':     100, # with 101 slots per slotframe, that's 10,100 slot total
         }
     )
 

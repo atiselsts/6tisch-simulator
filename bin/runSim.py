@@ -122,8 +122,8 @@ def runSimCombinations(params):
             # destroy singletons
             simlog.destroy()
             simengine.destroy()
-            settings.destroy()
             Connectivity.Connectivity().destroy()
+            settings.destroy() # destroy last, Connectivity needs it
 
         # printOrLog
         output  = 'simulation ended after {0:.0f}s ({1} runs).'.format(
