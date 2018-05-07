@@ -89,7 +89,7 @@ class SecJoin(object):
             
         else:
             # consider I'm already joined
-            self.setIsJoined(True)
+            self.setIsJoined(True) # forced (secjoin_enabled==False)
     
     # from lower stack
     
@@ -99,6 +99,8 @@ class SecJoin(object):
             
             if self.mote.dagRoot==False:
                 # I'm the join proxy
+                
+                assert self.mote.dodagId!=None
                 
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {
@@ -110,7 +112,7 @@ class SecJoin(object):
                     },
                     'net': {
                         'srcIp':            self.mote.id,                      # join proxy (this mote)
-                        'dstIp':            self.mote.dagRootId,              # from dagRoot
+                        'dstIp':            self.mote.dodagId,                 # from dagRoot
                         'packet_length':    packet['net']['packet_length'],
                     },
                 }
@@ -169,7 +171,7 @@ class SecJoin(object):
                 # I'm the pledge
             
                 # I'm now joined!
-                self.setIsJoined(True)
+                self.setIsJoined(True) # mote
         else:
             raise SystemError()
 

@@ -53,7 +53,7 @@ class AppBase(object):
     #======================== public ==========================================
 
     @abstractmethod
-    def activate(self):
+    def startSendingData(self):
         """Starts the application process.
 
         Typically, this methods schedules an event to send a packet to the root.
@@ -137,7 +137,7 @@ class AppRoot(AppBase):
 
     #======================== public ==========================================
 
-    def activate(self):
+    def startSendingData(self):
         # nothing to schedule
         pass
 
@@ -178,8 +178,9 @@ class AppPeriodic(AppBase):
 
     #======================== public ==========================================
 
-    def activate(self):
-        self._schedule_transmission()
+    def startSendingData(self):
+        if self.sending_first_packet:
+            self._schedule_transmission()
 
     #======================== public ==========================================
 
@@ -209,8 +210,10 @@ class AppPeriodic(AppBase):
         )
 
     def _send_a_single_packet(self):
+        assert self.mote.dodagId!=None
+        
         self._send_packet(
-            dstIp          = self.mote.dagRootId,
+            dstIp          = self.mote.dodagId,
             packet_length  = self.settings.app_pkLength
         )
         # schedule the next transmission
@@ -222,7 +225,7 @@ class AppBurst(AppBase):
 
     #======================== public ==========================================
 
-    def activate(self):
+    def startSendingData(self):
         # schedule app_burstNumPackets packets at pkScheduleAt
         self.engine.scheduleIn(
             delay           = self.settings.app_burstTimestamp,
@@ -237,8 +240,10 @@ class AppBurst(AppBase):
     #======================== private ==========================================
 
     def _send_burst_packets(self):
+        assert self.mote.dodagId!=None
+        
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
-                dstIp         = self.mote.dagRootId,
+                dstIp         = self.mote.dodagId,
                 packet_length = self.settings.app_pkLength
             )
