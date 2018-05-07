@@ -38,6 +38,8 @@ class Tsch(object):
         self.asnLastSync                    = None
         self.isSync                         = False
         self.join_proxy                     = None
+        self.iAmSendingEBs                  = False
+        self.iAmSendingDIOs                 = False
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
 
     #======================== public ==========================================
@@ -105,15 +107,13 @@ class Tsch(object):
             cellOptions = [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED],
         )
     
-    # admin
+    # activate
     
-    def activate(self):
-        '''
-        Active the TSCH state machine.
-        - on the dagRoot, from boot
-        - on the mote, after having received an EB
-        '''
-        pass
+    def startSendingEBs(self):
+        self.iAmSendingEBs  = True
+    
+    def startSendingDIOs(self):
+        self.iAmSendingDIOs = True
     
     # minimal
 
@@ -631,9 +631,11 @@ class Tsch(object):
                         prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
                         if random.random()<prob:
                             if random.random()<0.50:
-                                self.pktToSend = self._create_EB()
+                                if self.iAmSendingEBs:
+                                    self.pktToSend = self._create_EB()
                             else:
-                                self.pktToSend = self.mote.rpl._create_DIO()
+                                if self.iAmSendingDIOs:
+                                    self.pktToSend = self.mote.rpl._create_DIO()
 
             # send packet, or receive
             if self.pktToSend:
@@ -734,13 +736,13 @@ class Tsch(object):
             # receiving EB while not sync'ed
             
             # I'm now sync'ed!
-            self.setIsSync(True)
+            self.setIsSync(True) # mote
             
             # the mote that sent the EB is now by join proxy
             self.join_proxy = packet['mac']['srcMac']
             
-            # activate the TSCH stack
-            self.mote.activate_tsch_stack()
+            # activate different services
+            self.mote.sf.startMonitoring() # mote
             
             # add the minimal cell to the schedule (read from EB)
             self.add_minimal_cell()

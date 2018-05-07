@@ -43,7 +43,7 @@ class Mote(object):
 
         # stack state
         self.dagRoot                   = False
-        self.dagRootId                 = None
+        self.dodagId                   = None
         self.neighbors                 = {}
         
         # stack
@@ -62,19 +62,9 @@ class Mote(object):
     # ===== role
 
     def setDagRoot(self):
-        self.dagRoot              = True
-
-    # ==== stack
-
-    def activate_tsch_stack(self):
-        # start the stack layer by layer, we are sync'ed and joined
-
-        # activate different layers
-        self.tsch.activate()
-        self.rpl.activate()
-        self.sf.activate()
-        self.app.activate()
-
+        self.dagRoot         = True
+        self.dodagId         = self.id
+    
     # ==== wireless
     
     # FIXME: see #135
@@ -160,24 +150,19 @@ class Mote(object):
         if self.dagRoot:
             # I'm the DAG root
             
+            # app
+            self.app.startSendingData()    # dagRoot
             # secjoin
-            self.secjoin.setIsJoined(True)
+            self.secjoin.setIsJoined(True) # dagRoot
             # rpl
             self.rpl.setRank(256)
-            self.parentChildfromDAOs  = {}  # from DAOs, {'c': 'p', ...}
+            # sf
+            self.sf.startMonitoring()    # dagRoot
             # tsch
             self.tsch.add_minimal_cell()
-            self.tsch.setIsSync(True)
-            
-            # activate the entire upper stack
-            self.tsch.activate()
-            self.rpl.activate()
-            self.sf.activate()
-            self.app.activate()
-            
-            # give DAGroot's ID to each mote FIXME: see #145
-            for mote in self.engine.motes:
-                mote.dagRootId  = self.id
+            self.tsch.setIsSync(True)    # dagRoot
+            self.tsch.startSendingEBs()  # dagRoot
+            self.tsch.startSendingDIOs() # dagRoot
             
             # schedule the first active cell
             self.tsch.tsch_schedule_next_active_cell()

@@ -34,6 +34,7 @@ class Rpl(object):
         self.rank                      = None
         self.preferredParent           = None
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
+        self.iAmSendingDAOs            = False
 
     #======================== public ==========================================
 
@@ -59,23 +60,30 @@ class Rpl(object):
 
     # admin
 
-    def activate(self):
-        """
-        Initialize the RPL layer
-        """
-
+    def startSendingDAOs(self):
+        
+        # abort if I'm already sending DAOs
+        if self.iAmSendingDAOs:
+            return
+        
         # start sending DAOs
         self._schedule_sendDAO(firstDAO=True)
+        
+        # I am now sending DAOS
+        self.iAmSendingDAOs = True
     
     # === DIO
     
     def _create_DIO(self):
+        
+        assert self.mote.dodagId!=None
         
         # create
         newDIO = {
             'type':          d.PKT_TYPE_DIO,
             'app': {
                 'rank':      self.rank,
+                'dodagId':   self.mote.dodagId,
             },
             'net': {
                 'srcIp':     self.mote.id,            # from mote
@@ -102,14 +110,18 @@ class Rpl(object):
         
         assert packet['type'] == d.PKT_TYPE_DIO
         
-        # abort if I'm the DAGroot
-        if self.mote.dagRoot:
-            return
-
-        # abort if I'm not sync'ed
+        # abort if I'm not sync'ed (I cannot decrypt the DIO)
         if not self.mote.tsch.getIsSync():
             return
-
+        
+        # abort if I'm not join'ed (I cannot decrypt the DIO)
+        if not self.mote.secjoin.getIsJoined():
+            return
+        
+        # abort if I'm the DAGroot (I don't need to parse a DIO)
+        if self.mote.dagRoot:
+            return
+        
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_DIO_RX,
@@ -119,11 +131,17 @@ class Rpl(object):
             }
         )
         
+        # record dodagId
+        self.mote.dodagId = packet['app']['dodagId']
+        
         # update rank with sender's information
         self.mote.neighbors[packet['mac']['srcMac']]['rank']  = packet['app']['rank']
-
+        
         # trigger RPL housekeeping
         self._updateMyRankAndPreferredParent()
+        
+        # start sending DAOs (do after my rank is acquired/updated)
+        self.startSendingDAOs() # mote
 
     # === DAO
     
@@ -132,10 +150,8 @@ class Rpl(object):
         Schedule to send a DAO sometimes in the future.
         """
         
-        # abort it I'm the root
-        if self.mote.dagRoot:
-            return
-
+        assert self.mote.dagRoot==False
+        
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
             return
@@ -168,6 +184,13 @@ class Rpl(object):
         # enqueue
         self._action_enqueueDAO()
 
+        # the root now knows a source route to me
+        # I can serve as join proxy: start sending DIOs and EBs
+        # I can send data back-and-forth with an app
+        self.mote.tsch.startSendingEBs()    # mote
+        self.mote.tsch.startSendingDIOs()   # mote
+        self.mote.app.startSendingData()    # mote
+        
         # schedule next DAO
         self._schedule_sendDAO()
 
@@ -177,6 +200,7 @@ class Rpl(object):
         """
 
         assert not self.mote.dagRoot
+        assert self.mote.dodagId!=None
         
         # abort if not ready yet
         if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
@@ -191,7 +215,7 @@ class Rpl(object):
             },
             'net': {
                 'srcIp':           self.mote.id,            # from mote
-                'dstIp':           self.mote.dagRootId,     # to DAGroot
+                'dstIp':           self.mote.dodagId,       # to DAGroot
                 'packet_length':   d.PKT_LEN_DAO,
             },
         }
@@ -287,12 +311,14 @@ class Rpl(object):
                 
                 # next hop is that neighbor
                 nextHopId = packet['net']['dstIp']
-            elif packet['net']['dstIp'] == self.mote.dagRootId:
+            elif packet['net']['dstIp'] == self.mote.dodagId:
                 # common upstream packet
                 
                 # next hop is preferred parent (returns None if no preferred parent)
                 nextHopId = self.preferredParent
             else:
+                print self.mote.id
+                print packet
                 raise SystemError()
         
         return nextHopId

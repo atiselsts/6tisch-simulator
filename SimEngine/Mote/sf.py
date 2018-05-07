@@ -40,7 +40,7 @@ class SchedulingFunction(object):
     # === admin
     
     @abstractmethod
-    def activate(self):
+    def startMonitoring(self):
         '''
         tells SF when should start working
         '''
@@ -81,7 +81,7 @@ class SFNone(SchedulingFunction):
     def __init__(self, mote):
         super(SFNone, self).__init__(mote)
     
-    def activate(self):
+    def startMonitoring(self):
         pass # do nothing
     
     def indication_neighbor_added(self,neighbor_id):
@@ -108,7 +108,7 @@ class MSF(SchedulingFunction):
     
     # === admin
     
-    def activate(self):
+    def startMonitoring(self):
         raise NotImplementedError() # TODO
     
     # === indications from other layers

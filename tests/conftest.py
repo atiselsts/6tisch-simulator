@@ -77,13 +77,20 @@ def set_initial_routing_and_scheduling_state(engine):
 
     # root is mote 0
     root = engine.motes[0]
+    root.setDagRoot()
     root.rpl.setRank(256)
     
-    # all nodes are sync'ed, joined and activated
+    # all nodes are sync'ed and joined, all services activated
     for m in engine.motes:
-        m.tsch.setIsSync(True)         # declare as sync'ed
-        m.secjoin.setIsJoined(True)    # declare as joined
-        m.activate_tsch_stack()        # activate the TSCH stack
+        m.tsch.setIsSync(True)        # forced
+        m.secjoin.setIsJoined(True)   # forced (fixture)
+        m.tsch.startSendingEBs()      # forced
+        m.tsch.startSendingDIOs()     # forced
+        m.sf.startMonitoring()        # forced
+        m.dodagId = root.id           # forced
+        if m.dagRoot==False:
+            m.rpl.startSendingDAOs()  # forced
+            m.app.startSendingData()  # forced
     
     # start scheduling from slot offset 1 upwards
     cur_slot = 1
