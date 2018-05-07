@@ -95,10 +95,13 @@ class Mote(object):
         
         # create an empty entry
         self.neighbors[neighbor_id] = {
+            'rank':           None,
+            # freshness
+            'lastHeardAsn':   None,
+            # usage statistics
             'numTx':          0,
             'numTxAck':       0,
             'numRx':          0,
-            'lastHeardAsn':   None,
         }
         
         # send indication to SF
@@ -124,9 +127,8 @@ class Mote(object):
         '''
         neighbor_id = packet['mac']['dstMac'] # alias
         
-        # add neighbor, if needed
-        if neighbor_id not in self.neighbors:
-            self._add_neighbor(neighbor_id)
+        # make sure I have that neighbor in my neighbor table
+        assert neighbor_id in self.neighbors
         
         # update neighbor table
         self.neighbors[neighbor_id]['numTx']         += 1

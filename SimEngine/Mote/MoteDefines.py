@@ -26,12 +26,8 @@ PKT_LEN_JOIN_REQUEST                        = 20
 PKT_LEN_JOIN_RESPONSE                       = 20
 
 # === rpl
-RPL_PARENT_SWITCH_THRESHOLD                 = 768 # corresponds to 1.5 hops. RFC8180 uses 384 for 2*ETX.
-RPL_MIN_HOP_RANK_INCREASE                   = 256
-RPL_MAX_ETX                                 = 4
-RPL_MAX_RANK_INCREASE                       = RPL_MAX_ETX*RPL_MIN_HOP_RANK_INCREASE*2 # 4 transmissions allowed for rank increase for parents
-RPL_MAX_TOTAL_RANK                          = 256*RPL_MIN_HOP_RANK_INCREASE*2 # 256 transmissions allowed for total path cost for parents
-RPL_PARENT_SET_SIZE                         = 3
+RPL_MINHOPRANKINCREASE                      = 256
+RPL_PARENT_SWITCH_THRESHOLD                 = 640
 
 # === sixlowpan
 SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
