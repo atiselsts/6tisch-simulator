@@ -25,6 +25,15 @@ import SimEngine
 # === simulator
 LOG_SIMULATOR_STATE               = {'type': 'simulator.state',           'keys': ['state', 'name']}
 
+# === packet drops
+LOG_PACKET_DROPPED                = {'type': 'packet_dropped',            'keys': ['_mote_id','packet','reason']}
+DROPREASON_NO_ROUTE               = 'no_route'
+DROPREASON_TXQUEUE_FULL           = 'txqueue_full'
+DROPREASON_NO_TX_CELLS            = 'no_tx_cells'
+DROPREASON_MAX_RETRIES            = 'max_retries'
+DROPREASON_REASSEMBLY_BUFFER_FULL = 'reassembly_buffer_full'
+DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
+
 # === app
 LOG_APP_TX                        = {'type': 'app.tx',                    'keys': ['_mote_id','packet']}
 LOG_APP_RX                        = {'type': 'app.rx',                    'keys': ['_mote_id','packet']}
@@ -67,14 +76,8 @@ LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys'
 LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','packet']}
 LOG_TSCH_BACKOFFCHANGED           = {'type': 'tsch.backoff.changed',      'keys': ['_mote_id','cell']}
 
-# === dropping
-LOG_PACKET_DROPPED                = {'type': 'packet_dropped',            'keys': ['_mote_id','packet','reason']}
-DROPREASON_NO_ROUTE               = 'no_route'
-DROPREASON_TXQUEUE_FULL           = 'txqueue_full'
-DROPREASON_NO_TX_CELLS            = 'no_tx_cells'
-DROPREASON_MAX_RETRIES            = 'max_retries'
-DROPREASON_REASSEMBLY_BUFFER_FULL = 'reassembly_buffer_full'
-DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
+# === batt
+LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
 
 # === propagation
 LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet','destinations']}

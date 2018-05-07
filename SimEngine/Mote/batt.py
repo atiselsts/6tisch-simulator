@@ -8,6 +8,7 @@ Keeps track of charge consumed.
 
 # Simulator-wide modules
 import SimEngine
+import MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -20,14 +21,17 @@ class Batt(object):
     def __init__(self, mote):
 
         # store params
-        self.mote                           = mote
+        self.mote            = mote
 
         # singletons (quicker access, instead of recreating every time)
-        self.engine                         = SimEngine.SimEngine.SimEngine()
-        self.log                            = SimEngine.SimLog.SimLog().log
+        self.engine          = SimEngine.SimEngine.SimEngine()
+        self.settings        = SimEngine.SimSettings.SimSettings()
+        self.log             = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.chargeConsumed                 = 0 # charge consumed so far, in uC
+        self.chargeConsumed  = 0 # charge consumed so far, in uC
+        
+        self._schedule_log_charge()
 
     #======================== public ==========================================
 
@@ -36,3 +40,26 @@ class Batt(object):
         self.chargeConsumed += charge
 
     #======================== private =========================================
+    
+    def _schedule_log_charge(self):
+        # schedule at that ASN
+        self.engine.scheduleAtAsn(
+            asn              = self.engine.getAsn() + int(float(self.settings.charge_log_period_s)/self.settings.tsch_slotDuration),
+            cb               = self._action_log_charge,
+            uniqueTag        = (self.mote.id, '_action_log_charge'),
+            intraSlotOrder   = d.INTRASLOTORDER_ADMINTASKS,
+        )
+    
+    def _action_log_charge(self):
+        
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_BATT_CHARGE,
+            {
+                "_mote_id":   self.mote.id,
+                "charge":     self.chargeConsumed,
+            }
+        )
+        
+        # schedule next
+        self._schedule_log_charge()

@@ -151,18 +151,18 @@ class Mote(object):
             # I'm the DAG root
             
             # app
-            self.app.startSendingData()    # dagRoot
+            self.app.startSendingData()     # dagRoot
             # secjoin
-            self.secjoin.setIsJoined(True) # dagRoot
+            self.secjoin.setIsJoined(True)  # dagRoot
             # rpl
             self.rpl.setRank(256)
             # sf
-            self.sf.startMonitoring()    # dagRoot
+            self.sf.startMonitoring()       # dagRoot
             # tsch
-            self.tsch.add_minimal_cell()
-            self.tsch.setIsSync(True)    # dagRoot
-            self.tsch.startSendingEBs()  # dagRoot
-            self.tsch.startSendingDIOs() # dagRoot
+            self.tsch.add_minimal_cell()    # dagRpot
+            self.tsch.setIsSync(True)       # dagRoot
+            self.tsch.startSendingEBs()     # dagRoot
+            self.tsch.startSendingDIOs()    # dagRoot
             
             # schedule the first active cell
             self.tsch.tsch_schedule_next_active_cell()
