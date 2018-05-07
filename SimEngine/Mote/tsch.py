@@ -745,7 +745,7 @@ class Tsch(object):
             self.mote.sf.startMonitoring() # mote
             
             # add the minimal cell to the schedule (read from EB)
-            self.add_minimal_cell()
+            self.add_minimal_cell() # mote
 
             # trigger join process
             self.mote.secjoin.startJoinProcess()

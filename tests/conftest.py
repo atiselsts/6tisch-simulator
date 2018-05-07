@@ -148,7 +148,7 @@ def set_initial_routing_and_scheduling_state(engine):
                 )
                 cur_slot += 1
                 # add a minimal cells (one TX/RX/SHARED cell) to child
-                child.tsch.add_minimal_cell()
+                child.tsch.add_minimal_cell() # force
                 # mark child as active
                 state[child]  = 'active'
 
