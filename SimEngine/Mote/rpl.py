@@ -35,11 +35,8 @@ class Rpl(object):
 
         # local variables
         self.rank                      = None
-        self.parentSet                 = []
         self.preferredParent           = None
-        self.oldPreferredParent        = None    # preserve old preferred parent upon a change
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
-        self.neighborRank              = {}      # indexed by neighbor
 
     #======================== public ==========================================
 
@@ -50,7 +47,7 @@ class Rpl(object):
     def getRank(self):
         return self.rank
     def getDagRank(self):
-        return int(self.rank/d.RPL_MIN_HOP_RANK_INCREASE)
+        return int(self.rank/d.RPL_MINHOPRANKINCREASE)
     
     def addParentChildfromDAOs(self, parent_id, child_id):
         assert type(parent_id)==int
@@ -62,12 +59,6 @@ class Rpl(object):
     def setPreferredParent(self, newVal):
         assert type(newVal)==int
         self.preferredParent = newVal
-
-    def getOldPreferredParent(self):
-        return self.oldPreferredParent
-    def setOldPreferredParent(self, newVal):
-        assert type(newVal)==int
-        self.oldPreferredParent = newVal
 
     # admin
 
@@ -131,15 +122,11 @@ class Rpl(object):
             }
         )
         
-        # don't update poor link
-        if self._calcRankIncrease(packet['mac']['srcMac']) > d.RPL_MAX_RANK_INCREASE:
-            return
-
-        # update rank/DAGrank with sender
-        self.neighborRank[packet['mac']['srcMac']]    = packet['app']['rank']
+        # update rank with sender's information
+        self.mote.neighbors[packet['mac']['srcMac']]['rank']  = packet['app']['rank']
 
         # trigger RPL housekeeping
-        self._housekeeping()
+        self._updateMyRankAndPreferredParent()
 
     # === DAO
     
@@ -315,90 +302,58 @@ class Rpl(object):
     
     # misc
 
-    def _housekeeping(self):
+    def _updateMyRankAndPreferredParent(self):
         """
         RPL housekeeping tasks.
 
         This routine refreshes
-        - self.preferredParent
         - self.rank
-        - self.parentSet
+        - self.preferredParent
         """
 
-        # calculate my potential rank with each of the motes I have heard a DIO from
-        potentialRanks = {}
-        for (neighbor, neighborRank) in self.neighborRank.items():
-            # calculate the rank increase to that neighbor
-            rankIncrease = self._calcRankIncrease(neighbor)
-            if (rankIncrease is not None) and (rankIncrease <= min([d.RPL_MAX_RANK_INCREASE, d.RPL_MAX_TOTAL_RANK-neighborRank])):
-                # record this potential rank
-                potentialRanks[neighbor] = neighborRank+rankIncrease
+        # calculate the rank I would have if choosing each of my neighbor as my preferred parent
+        allPotentialRanks = {}
+        for (nid,n) in self.mote.neighbors.items():
+            if n['rank']==None:
+                # I haven't received a DIO from that neighbor yet, so I don't konw its rank (normal)
+                continue
+            etx                        = self._estimateETX(nid)
+            rank_increment             = (1*((3*etx)-2) + 0) * d.RPL_MINHOPRANKINCREASE # https://tools.ietf.org/html/rfc8180#section-5.1.1
+            allPotentialRanks[nid]     = n['rank']+rank_increment
         
-        # sort potential ranks
-        sorted_potentialRanks = sorted(potentialRanks.iteritems(), key=lambda x: x[1])
+        # pick lowest potential rank
+        (myPotentialParent,myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
         
-        # switch parents only when rank difference is large enough
-        for i in range(1, len(sorted_potentialRanks)):
-            if sorted_potentialRanks[i][0] in self.parentSet:
-                # compare the selected current parent with motes who have lower potential ranks
-                # and who are not in the current parent set
-                for j in range(i):
-                    if sorted_potentialRanks[j][0] not in self.parentSet:
-                        if sorted_potentialRanks[i][1]-sorted_potentialRanks[j][1] < d.RPL_PARENT_SWITCH_THRESHOLD:
-                            mote_rank = sorted_potentialRanks.pop(i)
-                            sorted_potentialRanks.insert(j, mote_rank)
-                            break
-
-        # pick my preferred parent and resulting rank
-        if sorted_potentialRanks:
-            oldParentSet = set(self.parentSet)
-
-            (newPreferredParent, newrank) = sorted_potentialRanks[0]
-
-            # compare a current preferred parent with new one
-            if (self.preferredParent!=None) and (newPreferredParent!=self.preferredParent):
-                for (mote, rank) in sorted_potentialRanks[:d.RPL_PARENT_SET_SIZE]:
-                    if mote == self.preferredParent:
-                        # switch preferred parent only when rank difference is large enough
-                        if rank-newrank < d.RPL_PARENT_SWITCH_THRESHOLD:
-                            (newPreferredParent, newrank) = (mote, rank)
-
-            # store new preferred parent and rank
-            (self.preferredParent, self.rank) = (newPreferredParent, newrank)
-
-            # pick my parent set
-            self.parentSet = [n for (n, _) in sorted_potentialRanks if self.neighborRank[n] < self.rank][:d.RPL_PARENT_SET_SIZE]
-            assert self.preferredParent in self.parentSet
+        # switch parents
+        if self.rank!=myPotentialRank or self.preferredParent!=myPotentialParent:
+            
+            # update
+            self.rank            = myPotentialRank
+            self.preferredParent = myPotentialParent
+            
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_RPL_CHURN,
+                {
+                    "_mote_id":        self.mote.id,
+                    "rank":            self.rank,
+                    "preferredParent": self.preferredParent,
+                }
+            )
+    
+    def _estimateETX(self, neighbor_id):
         
-    def _calcRankIncrease(self, neighbor):
-        """
-        calculate the RPL rank increase with a particular neighbor.
-        """
-        
-        assert type(neighbor)==int
-        
-        # estimate the ETX to that neighbor
-        etx = self._estimateETX(neighbor)
-        
-        # return if that failed
-        if not etx:
-            return
-
-        # per draft-ietf-6tisch-minimal, rank increase is (3*ETX-2)*d.RPL_MIN_HOP_RANK_INCREASE
-        return int(((3*etx) - 2)*d.RPL_MIN_HOP_RANK_INCREASE)
-
-    def _estimateETX(self, neighbor):
-        
-        assert type(neighbor)==int
+        assert type(neighbor_id)==int
         
         # set initial values for numTx and numTxAck assuming PDR is exactly estimated
-        pdr                   = self.mote.getPDR(neighbor)
+        # FIXME
+        pdr                   = self.mote.getPDR(neighbor_id)
         numTx                 = d.NUM_SUFFICIENT_TX
         numTxAck              = math.floor(pdr*numTx)
         
         for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (
-                    (cell['neighbor'] == neighbor)
+                    (cell['neighbor'] == neighbor_id)
                     and
                     (d.CELLOPTION_TX in cell['cellOptions'])
                 ):

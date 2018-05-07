@@ -114,6 +114,9 @@ def set_initial_routing_and_scheduling_state(engine):
             if pdr_not_null(child,parent,engine):
                 # there is a non-zero PDR on the child->parent link
 
+                # update both child's and parent's neighbor table
+                child._add_neighbor(parent.id)
+                parent._add_neighbor(child.id)
                 # set child's preferredparent to parent
                 child.rpl.setPreferredParent(parent.id)
                 # set child's rank
