@@ -172,7 +172,7 @@ def kpi_consumption(inputfile):
     avg_max_consumptions = sum(max_consumptions) / float(len(max_consumptions))
 
     returnVal = {
-        'result': avg_max_consumptions / 1000,
+        'result': avg_max_consumptions / 3600, # uC to uA
         # per node?
         # per hop?
         # first death?
