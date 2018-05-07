@@ -156,6 +156,10 @@ class Tsch(object):
             'channelOffset':      channelOffset,
             'neighbor':           neighbor,
             'cellOptions':        cellOptions,
+            # backoff management
+            'backoff':            0,
+            'backoffExponent':    d.TSCH_MIN_BACKOFF_EXPONENT,
+            # per-cell statistics
             'numTx':              0,
             'numTxAck':           0,
             'numRx':              0,
