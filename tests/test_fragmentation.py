@@ -406,7 +406,6 @@ class TestMemoryManagement:
         # the memory usage should be the same as memory_limit
         assert get_memory_usage(hop1, fragmentation) == memory_limit
     
-    @pytest.mark.takeslong
     def test_entry_expiration(
             self,
             sim_engine,
@@ -430,6 +429,7 @@ class TestMemoryManagement:
                 'exec_numSlotframesPerRun'                 : 60,
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
                 'sixlowpan_reassembly_buffers_num'         : 2,
                 'fragmentation_ff_vrb_table_size'          : 2,
                 'fragmentation'                            : fragmentation,
