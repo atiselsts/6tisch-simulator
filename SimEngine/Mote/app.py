@@ -209,8 +209,8 @@ class AppPeriodic(AppBase):
                 'AppPeriodic',
                 'scheduled_by_{0}'.format(self.mote.id)
             ),
-            intraSlotOrder  = 2,
-            )
+            intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
+        )
 
     def _send_a_single_packet(self):
         self._send_packet(
@@ -235,7 +235,7 @@ class AppBurst(AppBase):
                 'AppBurst',
                 'scheduled_by_{0}'.format(self.mote.id)
             ),
-            intraSlotOrder  = 2,
+            intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
         )
 
     #======================== private ==========================================

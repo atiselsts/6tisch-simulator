@@ -46,9 +46,10 @@ def test_exception_at_runtime(sim_engine, repeat4times):
     """
     sim_engine = sim_engine()
     sim_engine.scheduleAtAsn(
-        asn         = 10,
-        cb          = _raiseException,
-        uniqueTag   = ('engine','_raiseException'),
+        asn             = 10,
+        cb              = _raiseException,
+        uniqueTag       = ('engine','_raiseException'),
+        intraSlotOrder  = 1,
     )
     
     with pytest.raises(MyException):

@@ -175,7 +175,7 @@ class DiscreteEventEngine(threading.Thread):
     
     #=== scheduling
     
-    def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder=0):
+    def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder):
         """
         Schedule an event at a particular ASN in the future.
         Also removed all future events with the same uniqueTag.
@@ -197,7 +197,7 @@ class DiscreteEventEngine(threading.Thread):
             # add to schedule
             self.events.insert(i, (asn, intraSlotOrder, cb, uniqueTag))
     
-    def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder=0):
+    def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder):
         """
         Schedule an event 'delay' ASNs into the future.
         Also removed all future events with the same uniqueTag.
@@ -215,9 +215,10 @@ class DiscreteEventEngine(threading.Thread):
 
     def pauseAtAsn(self,asn):
         self.scheduleAtAsn(
-            asn         = asn,
-            cb          = self._actionPauseSim,
-            uniqueTag   = ('DiscreteEventEngine', '_actionPauseSim'),
+            asn              = asn,
+            cb               = self._actionPauseSim,
+            uniqueTag        = ('DiscreteEventEngine', '_actionPauseSim'),
+            intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
     # === misc
@@ -235,9 +236,10 @@ class DiscreteEventEngine(threading.Thread):
         with self.dataLock:
             self.asnEndExperiment = self.asn+delay
             self.scheduleAtAsn(
-                    asn         = self.asn+delay,
-                    cb          = self._actionEndSim,
-                    uniqueTag   = ('DiscreteEventEngine', '_actionEndSim'),
+                    asn                = self.asn+delay,
+                    cb                 = self._actionEndSim,
+                    uniqueTag          = ('DiscreteEventEngine', '_actionEndSim'),
+                    intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
             )
 
     # ======================== private ========================================
@@ -270,7 +272,7 @@ class DiscreteEventEngine(threading.Thread):
             asn              = self.asn + self.settings.tsch_slotframeLength,
             cb               = self._actionEndSlotframe,
             uniqueTag        = ('DiscreteEventEngine', '_actionEndSlotframe'),
-            intraSlotOrder   = 10,
+            intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
     
     # ======================== abstract =======================================
@@ -318,9 +320,10 @@ class SimEngine(DiscreteEventEngine):
         
         # schedule end of simulation
         self.scheduleAtAsn(
-            asn         = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
-            cb          = self._actionEndSim,
-            uniqueTag   = ('SimEngine','_actionEndSim'),
+            asn              = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
+            cb               = self._actionEndSim,
+            uniqueTag        = ('SimEngine','_actionEndSim'),
+            intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
         # schedule action at every end of slotframe_iteration
@@ -328,7 +331,7 @@ class SimEngine(DiscreteEventEngine):
             asn              = self.asn + self.settings.tsch_slotframeLength - 1,
             cb               = self._actionEndSlotframe,
             uniqueTag        = ('SimEngine', '_actionEndSlotframe'),
-            intraSlotOrder   = 10,
+            intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
     def _routine_thread_crashed(self):

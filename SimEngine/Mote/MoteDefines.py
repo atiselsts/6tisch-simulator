@@ -48,6 +48,10 @@ TSCH_MAX_BACKOFF_EXPONENT                   = 7
 CELLOPTION_TX                               = 'TX'
 CELLOPTION_RX                               = 'RX'
 CELLOPTION_SHARED                           = 'SHARED'
+INTRASLOTORDER_STARTSLOT                    = 0
+INTRASLOTORDER_PROPAGATE                    = 1
+INTRASLOTORDER_STACKTASKS                   = 2
+INTRASLOTORDER_ADMINTASKS                   = 3
 
 # === radio
 RADIO_MAXDRIFT                              = 30 # in ppm

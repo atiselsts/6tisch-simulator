@@ -17,17 +17,18 @@ class StateOfTest(object):
         self.events += ['1.1']
     def _cb_asn_1_2(self):
         self.events += ['1.2']
-    def _cb_asn_2(self):
-        self.events += ['2']
+    def _cb_asn_2_0(self):
+        self.events += ['2.0']
 
 def test_event_execution_order(repeat4times):
 
     # create engine
     engine = SimEngine.DiscreteEventEngine()
     engine.scheduleAtAsn(
-        asn         = 10,
-        cb          = engine._actionEndSim,
-        uniqueTag   = ('engine','_actionEndSim'),
+        asn             = 10,
+        cb              = engine._actionEndSim,
+        uniqueTag       = ('engine','_actionEndSim'),
+        intraSlotOrder  = 3,
     )
     stateoftest = StateOfTest()
 
@@ -39,15 +40,16 @@ def test_event_execution_order(repeat4times):
         intraSlotOrder  = 1,
     )
     engine.scheduleAtAsn(
+        asn             = 2,
+        cb              = stateoftest._cb_asn_2_0,
+        uniqueTag       = ('stateoftest','_cb_asn_2_0'),
+        intraSlotOrder  = 0,
+    )
+    engine.scheduleAtAsn(
         asn             = 1,
         cb              = stateoftest._cb_asn_1_2,
         uniqueTag       = ('stateoftest','_cb_asn_1_2'),
         intraSlotOrder  = 2,
-    )
-    engine.scheduleAtAsn(
-        asn             = 2,
-        cb              = stateoftest._cb_asn_2,
-        uniqueTag       = ('stateoftest','_cb_asn_2'),
     )
 
     # run engine, run until done
@@ -57,4 +59,4 @@ def test_event_execution_order(repeat4times):
     assert not engine.is_alive()
 
     # verify we got the right events
-    assert stateoftest.events == ['1.1','1.2','2']
+    assert stateoftest.events == ['1.1','1.2','2.0']
