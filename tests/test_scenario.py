@@ -4,8 +4,8 @@ import test_utils as u
 
 # =========================== fixtures ========================================
 
-#@pytest.fixture(params=[2,3])
-@pytest.fixture(params=[3])
+#@pytest.fixture(params=[2,3,4])
+@pytest.fixture(params=[4])
 def fixture_exec_numMotes(request):
     return request.param
 
@@ -184,7 +184,7 @@ def test_vanilla_scenario(
     # === network forms
     
     # give the network time to form
-    u.run_until_asn(sim_engine, 300*100)
+    u.run_until_asn(sim_engine, 5*60*100)
     
     # verify no packet was dropped
     #check_no_packet_drop()
