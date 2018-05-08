@@ -74,15 +74,16 @@ class Radio(object):
         assert self.onGoingTransmission
 
         # log charge consumed
-        if   isACKed:
-            # ACK received
-            self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
-        elif self.onGoingBroadcast:
-            # no ACK expected (link-layer bcast)
-            self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
-        else:
-            # ACK expected, but not received
-            self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAckNone_uC)
+        if self.mote.tsch.getIsSync():
+            if   isACKed:
+                # ACK received
+                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
+            elif self.onGoingBroadcast:
+                # no ACK expected (link-layer bcast)
+                self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
+            else:
+                # ACK expected, but not received
+                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAckNone_uC)
 
         # nothing ongoing anymore
         self.onGoingBroadcast    = None
@@ -105,15 +106,16 @@ class Radio(object):
         self.channel = None
 
         # log charge consumed
-        if not packet:
-            # didn't receive any frame (idle listen)
-            self.mote.batt.logChargeConsumed(d.CHARGE_Idle_uC)
-        elif packet['mac']['dstMac'] == self.mote.id:
-            # unicast frame for me, I sent an ACK
-            self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
-        else:
-            # either not for me, or broadcast. In any case, I didn't send an ACK
-            self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
+        if self.mote.tsch.getIsSync():
+            if not packet:
+                # didn't receive any frame (idle listen)
+                self.mote.batt.logChargeConsumed(d.CHARGE_Idle_uC)
+            elif packet['mac']['dstMac'] == self.mote.id:
+                # unicast frame for me, I sent an ACK
+                self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
+            else:
+                # either not for me, or broadcast. In any case, I didn't send an ACK
+                self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
 
         # inform upper layer (TSCH)
         return self.mote.tsch.rxDone(packet)

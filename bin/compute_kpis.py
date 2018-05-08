@@ -16,7 +16,7 @@ from SimEngine import SimLog
 
 # =========================== defines =========================================
 
-DAGROOT_ID = 0 # we assume first mote is DAGRoot
+DAGROOT_ID = 0  # we assume first mote is DAGRoot
 DAGROOT_IP = 0  # we assume DAGRoot IP is 0
 
 # =========================== decorators ======================================
@@ -30,182 +30,201 @@ def openfile(func):
 # =========================== helpers =========================================
 
 @openfile
-def kpi_formation(inputfile):
-    joins  = {} # indexed by run_id
-
-    # read file settings
-    file_settings = json.loads(inputfile.readline())
-
-    for line in inputfile:
-        log = json.loads(line)
-
-        if log['_type'] == SimLog.LOG_JOINED['type']:
-            run_id = log['_run_id']
-            mote_id = log['_mote_id']
-
-            # convert and save time to join
-            if mote_id != DAGROOT_ID: # do not log DAGRoot join
-                joins.setdefault(run_id, {})[mote_id] = \
-                    log['_asn'] * file_settings['tsch_slotDuration']
-
-    # make sure all motes joined
-    for run_id in joins.iterkeys():
-        assert len(joins[run_id]) == (file_settings['exec_numMotes'] -1)
-
-    # calculate average max join time
-    max_join_time_list = []
-    for run_id in joins.iterkeys():
-        max_join_time_list.append(max([t for t in joins[run_id].itervalues()]))
-    avg_max_join_time = sum(max_join_time_list) / float(len(max_join_time_list))
-
-    returnVal = {
-        'result': avg_max_join_time,
-        # per node?
-    }
-    return returnVal
-
-@openfile
-def kpi_reliability(inputfile):
-    rx_packets_at_dagroot = {} # indexed by run_id
-    tx_packets_to_dagroot = {} # indexed by run_id
-
-    for line in inputfile:
-        log = json.loads(line)
-        if log['_type'] == SimLog.LOG_APP_RX['type'] and log['_mote_id'] == DAGROOT_ID:
-            rx_packets_at_dagroot.setdefault(log['_run_id'], []).append(log['packet'])
-        elif log['_type'] == SimLog.LOG_APP_TX['type']:
-            if log['packet']['net']['dstIp'] == DAGROOT_IP:
-                tx_packets_to_dagroot.setdefault(log['_run_id'], []).append(log['packet'])
-
-    # === calculate average e2e reliability
-    avg_reliabilities = []
-    for run_id in tx_packets_to_dagroot.iterkeys():
-        avg_reliabilities.append(
-            len(rx_packets_at_dagroot[run_id]) /
-            float(len(tx_packets_to_dagroot[run_id]))
-        )
-    avg_reliability = sum(avg_reliabilities) / float(len(avg_reliabilities))
-    # === end calculate average e2e reliability
-
-    returnVal = {
-        'result': avg_reliability,
-        # per node?
-    }
-    return returnVal
-
-@openfile
-def kpi_latency(inputfile):
-    rx_packets_at_dagroot = {} # indexed by run_id
-    tx_packets_to_dagroot = {} # indexed by run_id
-
-    # get logs
+def kpis_all(inputfile):
+    
+    allstats = {} # indexed by run_id, srcIp
+    
     file_settings = json.loads(inputfile.readline())  # first line contains settings
+    
+    # === gather raw stats
+    
     for line in inputfile:
-        log = json.loads(line)
-        if log['_type'] == SimLog.LOG_APP_RX['type'] and log['_mote_id'] == DAGROOT_ID:
-            rx_packets_at_dagroot.setdefault(log['_run_id'], []).append(log)
-        elif log['_type'] == SimLog.LOG_APP_TX['type']:
-            if log['packet']['net']['dstIp'] == DAGROOT_IP:
-                tx_packets_to_dagroot.setdefault(log['_run_id'], []).append(log)
+        logline = json.loads(line)
+        
+        # shorthands
+        run_id = logline['_run_id']
+        
+        # populate
+        if run_id not in allstats:
+            allstats[run_id] = {}
+        
+        if   logline['_type'] == SimLog.LOG_TSCH_SYNCED['type']:
+            # sync'ed
+            
+            # shorthands
+            mote_id    = logline['_mote_id']
+            asn        = logline['_asn']
+            
+            # only log non-dagRoot sync times
+            if mote_id == DAGROOT_ID:
+                continue
+            
+            # populate
+            if mote_id not in allstats[run_id]:
+                allstats[run_id][mote_id] = {}
+            
+            allstats[run_id][mote_id]['sync_asn']  = asn
+            allstats[run_id][mote_id]['sync_time_s'] = asn*file_settings['tsch_slotDuration']
+        
+        elif logline['_type'] == SimLog.LOG_JOINED['type']:
+            # joined
+            
+            # shorthands
+            mote_id    = logline['_mote_id']
+            asn        = logline['_asn']
+            
+            # only log non-dagRoot join times
+            if mote_id == DAGROOT_ID:
+                continue
+            
+            # populate
+            assert mote_id in allstats[run_id]
+            
+            allstats[run_id][mote_id]['join_asn']  = asn
+            allstats[run_id][mote_id]['join_time_s'] = asn*file_settings['tsch_slotDuration']
+        
+        elif logline['_type'] == SimLog.LOG_APP_TX['type']:
+            # packet transmission
+            
+            # shorthands
+            srcIp      = logline['packet']['net']['srcIp']
+            dstIp      = logline['packet']['net']['dstIp']
+            appcounter = logline['packet']['app']['appcounter']
+            tx_asn     = logline['_asn']
+            
+            # only log upstream packets
+            if dstIp != DAGROOT_IP:
+                continue
+            
+            # populate
+            assert srcIp in allstats[run_id]
+            if 'upstream_pkts' not in allstats[run_id][srcIp]:
+                allstats[run_id][srcIp]['upstream_pkts'] = {}
+            if appcounter not in allstats[run_id][srcIp]['upstream_pkts']:
+                allstats[run_id][srcIp]['upstream_pkts'][appcounter] = {
+                    'hops': 0,
+                }
+            
+            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['tx_asn'] = tx_asn
+        
+        elif logline['_type'] == SimLog.LOG_SIXLOWPAN_PKT_FWD['type']:
+            # packet transmission
+            
+            # shorthands
+            pk_type    = logline['packet']['type']
+            
+            # only consider DATA packets
+            if pk_type != 'DATA':
+                continue
+            
+            srcIp      = logline['packet']['net']['srcIp']
+            dstIp      = logline['packet']['net']['dstIp']
+            appcounter = logline['packet']['app']['appcounter']
+            
+            # only consider upstream packets
+            if dstIp != DAGROOT_IP:
+                continue
+            
+            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops'] += 1
+        
+        elif logline['_type'] == SimLog.LOG_APP_RX['type']:
+            # packet reception
+            
+            # shorthands
+            srcIp      = logline['packet']['net']['srcIp']
+            dstIp      = logline['packet']['net']['dstIp']
+            appcounter = logline['packet']['app']['appcounter']
+            rx_asn     = logline['_asn']
+            
+            # only log upstream packets
+            if dstIp != DAGROOT_IP:
+                continue
+            
+            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops'] += 1
+            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['rx_asn'] = rx_asn
+        
+        elif logline['_type'] == SimLog.LOG_BATT_CHARGE['type']:
+            # battery charge
+            
+            # shorthands
+            mote_id    = logline['_mote_id']
+            asn        = logline['_asn']
+            charge     = logline['charge']
+            
+            # only log non-dagRoot charge
+            if mote_id == DAGROOT_ID:
+                continue
+            
+            # populate
+            if mote_id not in allstats[run_id]:
+                allstats[run_id][mote_id] = {}
+            if 'charge' in allstats[run_id][mote_id]:
+                assert charge>=allstats[run_id][mote_id]['charge']
+            
+            allstats[run_id][mote_id]['charge_asn'] = asn
+            allstats[run_id][mote_id]['charge']     = charge
+    
+    # === compute advanced motestats
+    
+    for (run_id,per_mote_stats) in allstats.items():
+        for (srcIp,motestats) in per_mote_stats.items():
+            # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
+            motestats['latencies'] =  []
+            motestats['hops']      =  []
+            motestats['upstream_num_tx'] =     0
+            motestats['upstream_num_rx'] =     0
+            motestats['upstream_num_lost'] =   0
+            for (appcounter,pktstats) in allstats[run_id][srcIp]['upstream_pkts'].items():
+                motestats['upstream_num_tx']      += 1
+                if 'rx_asn' in pktstats:
+                    motestats['upstream_num_rx']  += 1
+                    thislatency = (pktstats['rx_asn']-pktstats['tx_asn'])*file_settings['tsch_slotDuration']
+                    motestats['latencies']  += [thislatency]
+                    motestats['hops']       +=  [pktstats['hops']]
+                else:
+                    motestats['upstream_num_lost']+= 1
+            # ave_current, lifetime_AA
+            motestats['ave_current_uA'] = float(motestats['charge'])/float( (motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
+            motestats['lifetime_AA_years'] = (float(2200*1000)/float(motestats['ave_current_uA']))/(24.0*365)
+        for (srcIp,motestats) in allstats[run_id].items():
+            motestats['latency_min_s'] = min(motestats['latencies'])
+            motestats['latency_avg_s'] = float(sum(motestats['latencies']))/float(len(motestats['latencies']))
+            motestats['latency_max_s'] = max(motestats['latencies'])
+            motestats['upstream_reliability'] = float(motestats['upstream_num_rx'])/float(motestats['upstream_num_tx'])
+            motestats['avg_hops'] = float(sum(motestats['hops']))/float(len(motestats['hops']))
+    
+    # === remove unnecessary stats
+    
+    for (run_id,per_mote_stats) in allstats.items():
+        for (srcIp,motestats) in per_mote_stats.items():
+            del motestats['upstream_pkts']
+            del motestats['hops']
+            del motestats['latencies']
+            del motestats['join_asn']
+            del motestats['sync_asn']
+            del motestats['charge_asn']
+            del motestats['charge']
 
-    # === calculate average e2e latency
-    avg_latencies = []
-    for run_id in tx_packets_to_dagroot.iterkeys():
-        packets = {} # index by srcIp then appcounter
-        time_deltas = []
-
-        # loop through tx
-        for log in tx_packets_to_dagroot[run_id]:
-            src_id = log['packet']['net']['srcIp']
-            pkt_id = log['packet']['app']['appcounter']
-
-            # create dict
-            if not src_id in packets:
-                packets[src_id] = {}
-
-            # save asn
-            packets[src_id][pkt_id] = log['_asn']
-
-        # loop through rx
-        for log in rx_packets_at_dagroot[run_id]:
-            src_id = log['packet']['net']['srcIp']
-            pkt_id = log['packet']['app']['appcounter']
-
-            # calculate time delta
-            if src_id in packets and pkt_id in packets[src_id]:
-                asn_delta = log['_asn'] - packets[src_id][pkt_id]
-                time_deltas.append(asn_delta * file_settings['tsch_slotDuration'])
-
-        avg_latencies.append(sum(time_deltas) / float(len(time_deltas)))
-    avg_latency = sum(avg_latencies) / float(len(avg_latencies))
-    # === end calculate latency
-
-    returnVal = {
-        'result': avg_latency,
-        # per node?
-        # min/avg/max?
-        # std
-    }
-    return returnVal
-
-@openfile
-def kpi_consumption(inputfile):
-    batt_logs = {} # indexed by run_id
-
-    # get logs
-    for line in inputfile:
-        log = json.loads(line)
-        if log['_type'] == SimLog.LOG_BATT_CHARGE['type']:
-            batt_logs.setdefault(log['_run_id'], {})\
-                     .setdefault(log['_mote_id'], []).append(log)
-
-    # find average max consumption
-    max_consumptions = []
-    for run in batt_logs.itervalues():
-        max_consumption = 0
-        for mote in run.itervalues():
-            max_consumption = max(
-                sum([l['charge'] for l in mote]),
-                max_consumption
-            )
-        max_consumptions.append(max_consumption)
-    avg_max_consumptions = sum(max_consumptions) / float(len(max_consumptions))
-
-    returnVal = {
-        'result': avg_max_consumptions / 3600, # uC to uA
-        # per node?
-        # per hop?
-        # first death?
-        # last death?
-        # lifetime for different batteries?
-    }
-    return returnVal
+    return allstats
 
 # =========================== main ============================================
 
-def kpis_all(inputfile):
-    kpis = {
-        'formation':    kpi_formation(inputfile),
-        'reliability':  kpi_reliability(inputfile),
-        'latency':      kpi_latency(inputfile),
-        'consumption':  kpi_consumption(inputfile),
-    }
-    return kpis
-
 def main():
     subfolder = sorted(os.listdir('simData'))[-1] # chose latest results
-    for file_path in glob.glob(os.path.join('simData', subfolder, '*.dat')):
-        print file_path
+    for infile in glob.glob(os.path.join('simData', subfolder, '*.dat')):
+        print 'generating KPIs for {0}'.format(infile)
 
         # gather the kpis
-        kpis = kpis_all(file_path)
+        kpis = kpis_all(infile)
 
         # print on the terminal
         print json.dumps(kpis, indent=4)
 
         # add to the data folder
-        with open('{0}_kpis.json'.format(file_path), 'w') as f:
+        outfile = '{0}.kpi'.format(infile)
+        with open(outfile, 'w') as f:
             f.write(json.dumps(kpis, indent=4))
+        print 'KPIs saved in {0}'.format(outfile)
 
 if __name__ == '__main__':
     main()
