@@ -158,7 +158,7 @@ def test_tx_cell_selection(
     else:
         test_packet_type = packet_type
 
-    for log in u.read_log_file(filter=['prop.transmission']):
+    for log in u.read_log_file(filter=['tsch.txdone']):
         if  (
                 (log['packet']['mac']['srcMac'] == mote.id)
                 and
@@ -187,6 +187,6 @@ def test_network_advertisement(sim_engine, fixture_adv_frame):
 
     u.run_until_asn(sim_engine, 10000)
 
-    logs = u.read_log_file(filter=['prop.transmission'])
+    logs = u.read_log_file(filter=['tsch.txdone'])
     # root should send more than one EB in a default simulation run
     assert len([l for l in logs if l['packet']['type'] == fixture_adv_frame]) > 0
