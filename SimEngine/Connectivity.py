@@ -233,6 +233,7 @@ class ConnectivityBase(object):
                         )
                         assert sentAnAck==False
             
+            # verify no more listener on this channel
             assert self._get_listeners(channel)==[]
             
             # === decide whether transmitters get an ACK (txDone)
@@ -251,11 +252,15 @@ class ConnectivityBase(object):
                 # indicate to source packet was sent
                 self.engine.motes[t['packet']['mac']['srcMac']].radio.txDone(isACKed)
             
-            # verify all radios OFF
+            # verify no more radios active on this channel
             for mote in self.engine.motes:
-                assert mote.radio.state   == d.RADIO_STATE_OFF
-                assert mote.radio.channel == None
-
+                assert mote.radio.channel != channel
+        
+        # verify all radios off
+        for mote in self.engine.motes:
+            assert mote.radio.state == d.RADIO_STATE_OFF
+            assert mote.radio.channel == None
+        
         # schedule next propagation
         self._schedule_propagate()
 
