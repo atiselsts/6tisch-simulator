@@ -143,6 +143,23 @@ def kpis_all(inputfile):
             allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops'] += 1
             allstats[run_id][srcIp]['upstream_pkts'][appcounter]['rx_asn'] = rx_asn
         
+        elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
+            # packet dropped
+            
+            # shorthands
+            mote_id    = logline['_mote_id']
+            reason     = logline['reason']
+            
+            # populate
+            if mote_id not in allstats[run_id]:
+                allstats[run_id][mote_id] = {}
+            if 'packet_drops' not in allstats[run_id][mote_id]:
+                allstats[run_id][mote_id]['packet_drops'] = {}
+            if reason not in allstats[run_id][mote_id]['packet_drops']:
+                allstats[run_id][mote_id]['packet_drops'][reason] = 0
+            
+            allstats[run_id][mote_id]['packet_drops'][reason] += 1
+        
         elif logline['_type'] == SimLog.LOG_BATT_CHARGE['type']:
             # battery charge
             

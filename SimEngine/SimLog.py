@@ -80,8 +80,8 @@ LOG_TSCH_BACKOFFCHANGED           = {'type': 'tsch.backoff.changed',      'keys'
 LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
 
 # === propagation
-LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet','destinations']}
-LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['source_id','channel','interferers']}
+LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet']}
+LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['_mote_id','channel','lockon_transmission','interfering_transmissions']}
 
 # ============================ SimLog =========================================
 

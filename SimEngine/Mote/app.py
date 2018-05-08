@@ -58,7 +58,7 @@ class AppBase(object):
 
         Typically, this methods schedules an event to send a packet to the root.
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # abstractmethod
 
     def recvPacket(self, packet):
         """Receive a packet destined to this application

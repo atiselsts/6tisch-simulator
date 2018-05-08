@@ -38,7 +38,7 @@ class Radio(object):
         self.txPower                        = 0       # dBm
         self.antennaGain                    = 0       # dBi
         self.noisepower                     = -105    # dBm
-        self.state                          = d.RADIO_STATE_IDLE  # idle, tx or rx
+        self.state                          = d.RADIO_STATE_OFF
         self.channel                        = None
 
     # ======================= public ==========================================
@@ -67,7 +67,7 @@ class Radio(object):
 
     def txDone(self, isACKed):
         """end of tx slot"""
-        self.state = d.RADIO_STATE_IDLE
+        self.state = d.RADIO_STATE_OFF
         self.channel = None
 
         assert self.onGoingBroadcast in [True, False]
@@ -102,7 +102,7 @@ class Radio(object):
         """end of RX radio activity"""
         
         # switch radio state
-        self.state   = d.RADIO_STATE_IDLE
+        self.state   = d.RADIO_STATE_OFF
         self.channel = None
 
         # log charge consumed

@@ -44,7 +44,7 @@ class SchedulingFunction(object):
         '''
         tells SF when should start working
         '''
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
     
     # === indications from other layers
     
@@ -53,28 +53,28 @@ class SchedulingFunction(object):
         '''
         [from TSCH] just added a neighbor.
         '''
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
     
     @abstractmethod
     def indication_neighbor_deleted(self,neighbor_id):
         '''
         [from TSCH] just deleted a neighbor.
         '''
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
     
     @abstractmethod
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
         '''
         [from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
         '''
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
     
     @abstractmethod
     def indication_parent_change(self):
         '''
         [from RPL] decided to change parents.
         '''
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
 
 class SFNone(SchedulingFunction):
     
