@@ -99,7 +99,7 @@ def runSimCombinations(params):
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(
                simParamNum+1,
                len(simParams),
-               run_id+1,
+               run_id+1-first_run,
                numRuns
             )
             printOrLog(cpuID, output, verbose)
