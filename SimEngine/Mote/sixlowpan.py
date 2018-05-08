@@ -385,7 +385,7 @@ class Fragmentation(object):
 
         This could return None.
         """
-        raise NotImplementedError()
+        raise NotImplementedError() # abstractmethod
     
     def reassemblePacket(self, fragment):
         srcMac                    = fragment['mac']['srcMac']
