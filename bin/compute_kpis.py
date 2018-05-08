@@ -185,42 +185,52 @@ def kpis_all(inputfile):
     
     for (run_id,per_mote_stats) in allstats.items():
         for (srcIp,motestats) in per_mote_stats.items():
-            # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
-            motestats['latencies'] =  []
-            motestats['hops']      =  []
-            motestats['upstream_num_tx'] =     0
-            motestats['upstream_num_rx'] =     0
-            motestats['upstream_num_lost'] =   0
-            for (appcounter,pktstats) in allstats[run_id][srcIp]['upstream_pkts'].items():
-                motestats['upstream_num_tx']      += 1
-                if 'rx_asn' in pktstats:
-                    motestats['upstream_num_rx']  += 1
-                    thislatency = (pktstats['rx_asn']-pktstats['tx_asn'])*file_settings['tsch_slotDuration']
-                    motestats['latencies']  += [thislatency]
-                    motestats['hops']       +=  [pktstats['hops']]
+            if srcIp != 0:
+            
+                if 'sync_asn' in motestats:
+                    # ave_current, lifetime_AA
+                    motestats['ave_current_uA'] = float(motestats['charge'])/float( (motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
+                    motestats['lifetime_AA_years'] = (float(2200*1000)/float(motestats['ave_current_uA']))/(24.0*365)
                 else:
-                    motestats['upstream_num_lost']+= 1
-            # ave_current, lifetime_AA
-            motestats['ave_current_uA'] = float(motestats['charge'])/float( (motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
-            motestats['lifetime_AA_years'] = (float(2200*1000)/float(motestats['ave_current_uA']))/(24.0*365)
-        for (srcIp,motestats) in allstats[run_id].items():
-            motestats['latency_min_s'] = min(motestats['latencies'])
-            motestats['latency_avg_s'] = float(sum(motestats['latencies']))/float(len(motestats['latencies']))
-            motestats['latency_max_s'] = max(motestats['latencies'])
-            motestats['upstream_reliability'] = float(motestats['upstream_num_rx'])/float(motestats['upstream_num_tx'])
-            motestats['avg_hops'] = float(sum(motestats['hops']))/float(len(motestats['hops']))
+                    motestats['WARNING'] = 'mote didn\'t sync'
+                
+                if 'join_asn' in motestats:
+                    # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
+                    motestats['latencies'] =  []
+                    motestats['hops']      =  []
+                    motestats['upstream_num_tx'] =     0
+                    motestats['upstream_num_rx'] =     0
+                    motestats['upstream_num_lost'] =   0
+                    for (appcounter,pktstats) in allstats[run_id][srcIp]['upstream_pkts'].items():
+                        motestats['upstream_num_tx']      += 1
+                        if 'rx_asn' in pktstats:
+                            motestats['upstream_num_rx']  += 1
+                            thislatency = (pktstats['rx_asn']-pktstats['tx_asn'])*file_settings['tsch_slotDuration']
+                            motestats['latencies']  += [thislatency]
+                            motestats['hops']       +=  [pktstats['hops']]
+                        else:
+                            motestats['upstream_num_lost']+= 1
+                    motestats['latency_min_s'] = min(motestats['latencies'])
+                    motestats['latency_avg_s'] = float(sum(motestats['latencies']))/float(len(motestats['latencies']))
+                    motestats['latency_max_s'] = max(motestats['latencies'])
+                    motestats['upstream_reliability'] = float(motestats['upstream_num_rx'])/float(motestats['upstream_num_tx'])
+                    motestats['avg_hops'] = float(sum(motestats['hops']))/float(len(motestats['hops']))
+                else:
+                    motestats['WARNING'] = 'mote didn\'t join'
     
     # === remove unnecessary stats
     
     for (run_id,per_mote_stats) in allstats.items():
         for (srcIp,motestats) in per_mote_stats.items():
-            del motestats['upstream_pkts']
-            del motestats['hops']
-            del motestats['latencies']
-            del motestats['join_asn']
-            del motestats['sync_asn']
-            del motestats['charge_asn']
-            del motestats['charge']
+            if 'sync_asn' in motestats:
+                del motestats['sync_asn']
+                del motestats['charge_asn']
+                del motestats['charge']
+            if 'join_asn' in motestats:
+                del motestats['upstream_pkts']
+                del motestats['hops']
+                del motestats['latencies']
+                del motestats['join_asn']
 
     return allstats
 

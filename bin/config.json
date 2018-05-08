@@ -1,8 +1,8 @@
 {
     "version":                                             0,
     "execution": {
-        "numCPUs":                                         1,
-        "numRuns":                                         1
+        "numCPUs":                                         -1,
+        "numRuns":                                         8
     },
     "settings": {
         "combination": {
