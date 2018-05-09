@@ -27,10 +27,15 @@ def main(options):
     yparam, key = options.yparam.split(';')
 
     # chose lastest results
-    subfolder = sorted(os.listdir(options.inputfolder))[-1]
+    subfolders = list(
+        map(lambda x: os.path.join(options.inputfolder, x),
+            os.listdir(options.inputfolder)
+        )
+    )
+    subfolder = max(subfolders, key=os.path.getmtime)
 
     # read config file
-    config_path = os.path.join(options.inputfolder, subfolder, 'config.json')
+    config_path = os.path.join(subfolder, 'config.json')
     with open(config_path, 'r') as config_file:
         config = json.load(config_file)
 
