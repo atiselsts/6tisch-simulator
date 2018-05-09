@@ -237,8 +237,17 @@ def kpis_all(inputfile):
 # =========================== main ============================================
 
 def main():
-    subfolder = sorted(os.listdir('simData'))[-1] # chose latest results
-    for infile in glob.glob(os.path.join('simData', subfolder, '*.dat')):
+
+    # FIXME: This logic could be a helper method for other scripts
+    # Identify simData having the latest results. That directory should have
+    # the latest "mtime".
+    subfolders = list(
+        map(lambda x: os.path.join('simData', x),
+            os.listdir('simData')
+        )
+    )
+    subfolder = max(subfolders, key=os.path.getmtime)
+    for infile in glob.glob(os.path.join(subfolder, '*.dat')):
         print 'generating KPIs for {0}'.format(infile)
 
         # gather the kpis
