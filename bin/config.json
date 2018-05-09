@@ -37,6 +37,7 @@
             "charge_log_period_s":                         10,
             
             "conn_class":                                  "Linear",
+            "conn_trace":                                  null,
 
             "phy_numChans":                                16,
             "phy_minRssi":                                 -97,

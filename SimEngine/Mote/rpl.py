@@ -46,7 +46,7 @@ class Rpl(object):
         return self.rank
     def getDagRank(self):
         return int(self.rank/d.RPL_MINHOPRANKINCREASE)
-    
+
     def addParentChildfromDAOs(self, parent_id, child_id):
         assert type(parent_id)==int
         assert type(child_id) ==int
@@ -61,23 +61,23 @@ class Rpl(object):
     # admin
 
     def startSendingDAOs(self):
-        
+
         # abort if I'm already sending DAOs
         if self.iAmSendingDAOs:
             return
-        
+
         # start sending DAOs
         self._schedule_sendDAO(firstDAO=True)
-        
+
         # I am now sending DAOS
         self.iAmSendingDAOs = True
-    
+
     # === DIO
-    
+
     def _create_DIO(self):
-        
+
         assert self.mote.dodagId!=None
-        
+
         # create
         newDIO = {
             'type':          d.PKT_TYPE_DIO,
@@ -94,7 +94,7 @@ class Rpl(object):
                 'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
             }
         }
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_DIO_TX,
@@ -103,25 +103,25 @@ class Rpl(object):
                 "packet":    newDIO,
             }
         )
-        
+
         return newDIO
-    
+
     def action_receiveDIO(self, packet):
-        
+
         assert packet['type'] == d.PKT_TYPE_DIO
-        
+
         # abort if I'm not sync'ed (I cannot decrypt the DIO)
         if not self.mote.tsch.getIsSync():
             return
-        
+
         # abort if I'm not join'ed (I cannot decrypt the DIO)
         if not self.mote.secjoin.getIsJoined():
             return
-        
+
         # abort if I'm the DAGroot (I don't need to parse a DIO)
         if self.mote.dagRoot:
             return
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_DIO_RX,
@@ -130,32 +130,32 @@ class Rpl(object):
                 "packet":    packet,
             }
         )
-        
+
         # record dodagId
         self.mote.dodagId = packet['app']['dodagId']
-        
+
         # update rank with sender's information
         self.mote.neighbors[packet['mac']['srcMac']]['rank']  = packet['app']['rank']
-        
+
         # trigger RPL housekeeping
         self._updateMyRankAndPreferredParent()
-        
+
         # start sending DAOs (do after my rank is acquired/updated)
         self.startSendingDAOs() # mote
 
     # === DAO
-    
+
     def _schedule_sendDAO(self, firstDAO=False):
         """
         Schedule to send a DAO sometimes in the future.
         """
-        
+
         assert self.mote.dagRoot==False
-        
+
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
             return
-        
+
         asnNow = self.engine.getAsn()
 
         if firstDAO:
@@ -180,7 +180,7 @@ class Rpl(object):
         """
         Enqueue a DAO and schedule next one.
         """
-        
+
         # enqueue
         self._action_enqueueDAO()
 
@@ -190,7 +190,7 @@ class Rpl(object):
         self.mote.tsch.startSendingEBs()    # mote
         self.mote.tsch.startSendingDIOs()   # mote
         self.mote.app.startSendingData()    # mote
-        
+
         # schedule next DAO
         self._schedule_sendDAO()
 
@@ -201,11 +201,11 @@ class Rpl(object):
 
         assert not self.mote.dagRoot
         assert self.mote.dodagId!=None
-        
+
         # abort if not ready yet
         if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
             return
-        
+
         # create
         newDAO = {
             'type':                d.PKT_TYPE_DAO,
@@ -219,7 +219,7 @@ class Rpl(object):
                 'packet_length':   d.PKT_LEN_DAO,
             },
         }
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_DAO_TX,
@@ -228,20 +228,20 @@ class Rpl(object):
                 "packet":   newDAO,
             }
         )
-        
+
         # remove other possible DAOs from the queue
         self.mote.tsch.removeTypeFromQueue(d.PKT_TYPE_DAO)
-        
+
         # send
         self.mote.sixlowpan.sendPacket(newDAO)
-    
+
     def action_receiveDAO(self, packet):
         """
         DAGroot receives DAO, store parent/child relationship for source route calculation.
         """
 
         assert self.mote.dagRoot
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_RPL_DAO_RX,
@@ -269,7 +269,7 @@ class Rpl(object):
             destination to source, or None
         """
         assert type(dest_id)==int
-        
+
         try:
             sourceRoute = []
             cur_id = dest_id
@@ -281,50 +281,50 @@ class Rpl(object):
         else:
             # reverse (so goes from source to destination)
             sourceRoute.reverse()
-            
+
             returnVal = sourceRoute
-            
+
         return returnVal
 
     # forwarding
 
     def findNextHopId(self, packet):
         assert packet['net']['dstIp'] != self.mote.id
-        
+
         if    packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
             # broadcast packet
-            
+
             # next hop is broadcast address
             nextHopId = d.BROADCAST_ADDRESS
-        
+
         elif 'sourceRoute' in packet['net']:
             # unicast source routed downstream packet
-            
-            # next hop is the first item in the source route 
+
+            # next hop is the first item in the source route
             nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
-            
+
         else:
             # unicast upstream packet
-            
+
             if   self.mote.isNeighbor(packet['net']['dstIp']):
                 # packet to a neighbor
-                
+
                 # next hop is that neighbor
                 nextHopId = packet['net']['dstIp']
             elif packet['net']['dstIp'] == self.mote.dodagId:
                 # common upstream packet
-                
+
                 # next hop is preferred parent (returns None if no preferred parent)
                 nextHopId = self.preferredParent
             else:
                 print self.mote.id
                 print packet
                 raise SystemError()
-        
+
         return nextHopId
 
     #======================== private ==========================================
-    
+
     # misc
 
     def _updateMyRankAndPreferredParent(self):
@@ -338,24 +338,26 @@ class Rpl(object):
 
         # calculate the rank I would have if choosing each of my neighbor as my preferred parent
         allPotentialRanks = {}
-        for (nid,n) in self.mote.neighbors.items():
-            if n['rank']==None:
-                # I haven't received a DIO from that neighbor yet, so I don't konw its rank (normal)
+        for (nid, n) in self.mote.neighbors.items():
+            if n['rank'] is None:
+                # I haven't received a DIO from that neighbor yet, so I don't know its rank (normal)
                 continue
             etx                        = self._estimateETX(nid)
+            if etx is None: # FIXME
+                etx = 9999
             rank_increment             = (1*((3*etx)-2) + 0) * d.RPL_MINHOPRANKINCREASE # https://tools.ietf.org/html/rfc8180#section-5.1.1
             allPotentialRanks[nid]     = n['rank']+rank_increment
-        
+
         # pick lowest potential rank
         (myPotentialParent,myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
-        
+
         # switch parents
         if self.rank!=myPotentialRank or self.preferredParent!=myPotentialParent:
-            
+
             # update
             self.rank            = myPotentialRank
             self.preferredParent = myPotentialParent
-            
+
             # log
             self.log(
                 SimEngine.SimLog.LOG_RPL_CHURN,
@@ -365,17 +367,17 @@ class Rpl(object):
                     "preferredParent": self.preferredParent,
                 }
             )
-    
+
     def _estimateETX(self, neighbor_id):
-        
+
         assert type(neighbor_id)==int
-        
+
         # set initial values for numTx and numTxAck assuming PDR is exactly estimated
         # FIXME
         pdr                   = self.mote.getPDR(neighbor_id)
         numTx                 = d.NUM_SUFFICIENT_TX
         numTxAck              = math.floor(pdr*numTx)
-        
+
         for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (
                     (cell['neighbor'] == neighbor_id)
@@ -384,7 +386,7 @@ class Rpl(object):
                 ):
                 numTx        += cell['numTx']
                 numTxAck     += cell['numTxAck']
-        
+
         # abort if about to divide by 0
         if not numTxAck:
             return
