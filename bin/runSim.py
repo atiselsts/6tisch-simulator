@@ -256,11 +256,18 @@ def main():
             target = printProgressPerCpu,
             args   = ([cpuIDs])
         )
-        print_progress_thread.start()
+        if simconfig.log_directory_name == 'startTime':
 
-        # wait for the thread ready
-        while print_progress_thread.is_alive() == False:
-            time.sleep(0.5)
+            # We assume the simulator doesn't run over a cluster system when
+            # 'log_directory_name' is 'startTime'. Under a cluster system, we
+            # disable printing progress because the simulator would run without
+            # console. It could cause "'unknown': I need something more
+            # specific." error.
+            print_progress_thread.start()
+
+            # wait for the thread ready
+            while print_progress_thread.is_alive() == False:
+                time.sleep(0.5)
 
         # start simulations
         pool = multiprocessing.Pool(numCPUs)
