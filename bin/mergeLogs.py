@@ -214,7 +214,7 @@ def main():
 
     # get user's confirmation
     print 'Log files under the following directories will be merged:'
-    for sub_dir in targetSubDirs:
+    for sub_dir in sorted(targetSubDirs):
         print '  {0}'.format(sub_dir)
     print 'These directories will be removed.'
     print 'A new log directory is: {0}'.format(logDir)
