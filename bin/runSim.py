@@ -135,7 +135,7 @@ def runSimCombinations(params):
         printOrLog(cpuID, output, verbose)
 
 keep_printing_progress = True
-def printProgressPerCpu(cpuIDs):
+def printProgressPerCpu(cpuIDs, clear_console=True):
     hostname = platform.uname()[1]
     while keep_printing_progress:
         time.sleep(1)
@@ -151,7 +151,8 @@ def printProgressPerCpu(cpuIDs):
             if line.count('ended') == 0:
                 allDone = False
         output = '\n'.join(output)
-        os.system('cls' if os.name == 'nt' else 'clear')
+        if clear_console:
+            os.system('cls' if os.name == 'nt' else 'clear')
         print output
         if allDone:
             break
@@ -254,23 +255,24 @@ def main():
 
         # print progress, wait until done
         cpuIDs                = [i for i in range(numCPUs)]
-        print_progress_thread = threading.Thread(
-            target = printProgressPerCpu,
-            args   = ([cpuIDs])
-        )
         if simconfig.log_directory_name == 'hostname':
             # We assume the simulator run over a cluster system when
             # 'log_directory_name' is 'hostname'. Under a cluster system, we
-            # disable printing progress because the simulator would run without
-            # console. It could cause "'unknown': I need something more
-            # specific." error.
-            pass
+            # disable "clear" on console because it could cause "'unknown': I
+            # need something more specific." error.
+            clear_console = False
         else:
-            print_progress_thread.start()
+            clear_console = True
+        print_progress_thread = threading.Thread(
+            target = printProgressPerCpu,
+            args   = (cpuIDs, clear_console)
+        )
 
-            # wait for the thread ready
-            while print_progress_thread.is_alive() == False:
-                time.sleep(0.5)
+        print_progress_thread.start()
+
+        # wait for the thread ready
+        while print_progress_thread.is_alive() == False:
+            time.sleep(0.5)
 
         # start simulations
         pool = multiprocessing.Pool(numCPUs)
