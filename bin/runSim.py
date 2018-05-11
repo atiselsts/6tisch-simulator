@@ -8,6 +8,7 @@
 # =========================== adjust path =====================================
 
 import os
+import platform
 import sys
 
 if __name__ == '__main__':
@@ -51,9 +52,10 @@ def parseCliParams():
 
 def printOrLog(cpuID, output, verbose):
     assert cpuID is not None
+    hostname = platform.uname()[1]
 
     if not verbose:
-        with open('cpu{0}.templog'.format(cpuID), 'w') as f:
+        with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'w') as f:
             f.write(output)
     else:
         print output
@@ -64,12 +66,12 @@ def runSimCombinations(params):
     This function may run independently on different CPUs.
     """
 
-    cpuID = params['cpuID']
-    numRuns = params['numRuns']
-    first_run = params['first_run']
-    configfile = params['configfile']
-    verbose = params['verbose']
-    start_time = params['start_time']
+    cpuID              = params['cpuID']
+    numRuns            = params['numRuns']
+    first_run          = params['first_run']
+    configfile         = params['configfile']
+    verbose            = params['verbose']
+    log_directory_name = params['log_directory_name']
 
     # sim config (need to re-load, as executing on different CPUs)
     simconfig = SimConfig.SimConfig(configfile)
@@ -106,7 +108,7 @@ def runSimCombinations(params):
 
             # create singletons
             settings         = SimSettings.SimSettings(cpuID=cpuID, run_id=run_id, **simParam)
-            settings.setStartTime(start_time)
+            settings.setLogDirectory(log_directory_name)
             settings.setCombinationKeys(combinationKeys)
             simlog           = SimLog.SimLog()
             simlog.set_log_filters(simconfig.logging)
@@ -134,12 +136,13 @@ def runSimCombinations(params):
 
 keep_printing_progress = True
 def printProgressPerCpu(cpuIDs):
+    hostname = platform.uname()[1]
     while keep_printing_progress:
         time.sleep(1)
         output     = []
         for cpuID in cpuIDs:
             try:
-                with open('cpu{0}.templog'.format(cpuID), 'r') as f:
+                with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'r') as f:
                     output += ['[cpu {0}] {1}'.format(cpuID, f.read())]
             except IOError:
                 output += ['[cpu {0}] no info (yet?)'.format(cpuID)]
@@ -186,9 +189,29 @@ def main():
 
     #=== run simulations
 
-    # record run start time
-    start_time = time.strftime("%Y%m%d-%H%M%S")
-    
+    # determine log_directory_name
+    if   simconfig.log_directory_name == 'startTime':
+        log_directory_name = time.strftime("%Y%m%d-%H%M%S")
+    elif simconfig.log_directory_name == 'hostname':
+        # hostname is stored in platform.uname()[1]
+        hostname = platform.uname()[1]
+        log_directory_path = os.path.join(
+            SimSettings.SimSettings.LOG_ROOT_DIR,
+            hostname
+        )
+        # add suffix if there is a directory having the same hostname
+        if os.path.exists(log_directory_path):
+            index = len(glob.glob(log_directory_path + '*'))
+            log_directory_name = '_'.join((hostname, str(index)))
+        else:
+            log_directory_name = hostname
+    else:
+        raise NotImplementedError(
+            'log_directory_name "{0}" is not supported'.format(
+                simconfig.log_directory_name
+            )
+        )
+
     # decide number of CPUs to run on
     multiprocessing.freeze_support()
     max_numCPUs = multiprocessing.cpu_count()
@@ -202,12 +225,12 @@ def main():
         # run on single CPU
 
         runSimCombinations({
-            'cpuID':          0,
-            'numRuns':        simconfig.execution.numRuns,
-            'first_run':      0,
-            'configfile':     cliparams['config'],
-            'verbose':        True,
-            'start_time':     start_time,
+            'cpuID':              0,
+            'numRuns':            simconfig.execution.numRuns,
+            'first_run':          0,
+            'configfile':         cliparams['config'],
+            'verbose':            True,
+            'log_directory_name': log_directory_name
         })
 
     else:
@@ -235,11 +258,18 @@ def main():
             target = printProgressPerCpu,
             args   = ([cpuIDs])
         )
-        print_progress_thread.start()
+        if simconfig.log_directory_name == 'startTime':
 
-        # wait for the thread ready
-        while print_progress_thread.is_alive() == False:
-            time.sleep(0.5)
+            # We assume the simulator doesn't run over a cluster system when
+            # 'log_directory_name' is 'startTime'. Under a cluster system, we
+            # disable printing progress because the simulator would run without
+            # console. It could cause "'unknown': I need something more
+            # specific." error.
+            print_progress_thread.start()
+
+            # wait for the thread ready
+            while print_progress_thread.is_alive() == False:
+                time.sleep(0.5)
 
         # start simulations
         pool = multiprocessing.Pool(numCPUs)
@@ -247,12 +277,12 @@ def main():
             runSimCombinations,
             [
                 {
-                    'cpuID':      cpuID,
-                    'numRuns':    runs,
-                    'first_run':  first_run,
-                    'configfile': cliparams['config'],
-                    'verbose':    False,
-                    'start_time': start_time,
+                    'cpuID':              cpuID,
+                    'numRuns':            runs,
+                    'first_run':          first_run,
+                    'configfile':         cliparams['config'],
+                    'verbose':            False,
+                    'log_directory_name': log_directory_name
                 } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
             ]
         )
@@ -270,11 +300,12 @@ def main():
                 print_progress_thread.join()
 
         # cleanup
+        hostname = platform.uname()[1]
         for i in range(numCPUs):
-            os.remove('cpu{0}.templog'.format(i))
+            os.remove('{0}-cpu{1}.templog'.format(hostname, i))
 
     # merge output files
-    folder_path = os.path.join('simData', start_time)
+    folder_path = os.path.join('simData', log_directory_name)
     merge_output_files(folder_path)
 
     # copy config file into output directory

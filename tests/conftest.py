@@ -49,7 +49,7 @@ def sim_engine(request):
 
         # create sim settings
         sim_settings = SimSettings.SimSettings(**config)
-        sim_settings.setStartTime(
+        sim_settings.setLogDirectory(
             '{0}-{1:03d}'.format(
                 time.strftime('%Y%m%d-%H%M%S'),
                 int(round(time.time() * 1000))%1000

@@ -18,6 +18,9 @@ import os
 
 class SimSettings(object):
 
+    # ==== class attributes / definitions
+    LOG_ROOT_DIR   = 'simData'
+
     # ==== start singleton
     _instance      = None
     _init          = False
@@ -46,8 +49,8 @@ class SimSettings(object):
 
         self.__dict__.update(kwargs)
 
-    def setStartTime(self, startTime):
-        self.startTime       = startTime
+    def setLogDirectory(self, log_directory_name):
+        self.logDirectory    = log_directory_name
 
     def setCombinationKeys(self, combinationKeys):
         self.combinationKeys = combinationKeys
@@ -55,8 +58,8 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            'simData',
-            self.startTime,
+            self.LOG_ROOT_DIR,
+            self.logDirectory,
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
         if not os.path.exists(dirname):
