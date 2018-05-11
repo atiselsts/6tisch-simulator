@@ -258,13 +258,14 @@ def main():
             target = printProgressPerCpu,
             args   = ([cpuIDs])
         )
-        if simconfig.log_directory_name == 'startTime':
-
-            # We assume the simulator doesn't run over a cluster system when
-            # 'log_directory_name' is 'startTime'. Under a cluster system, we
+        if simconfig.log_directory_name == 'hostname':
+            # We assume the simulator run over a cluster system when
+            # 'log_directory_name' is 'hostname'. Under a cluster system, we
             # disable printing progress because the simulator would run without
             # console. It could cause "'unknown': I need something more
             # specific." error.
+            pass
+        else:
             print_progress_thread.start()
 
             # wait for the thread ready
@@ -313,10 +314,17 @@ def main():
 
     #=== post-simulation actions
 
-    for c in simconfig.post:
-        print 'calling "{0}"'.format(c)
-        rc = subprocess.call(c, shell=True)
-        assert rc==0
+    if simconfig.log_directory_name == 'hostname':
+        # We assume the simulator run over a cluster system when
+        # 'log_directory_name' is 'hostname'. Under a cluster system, we
+        # disable post actions. Users should perform post actions manually
+        # after merging log files by mergeLogs.py.
+        pass
+    else:
+        for c in simconfig.post:
+            print 'calling "{0}"'.format(c)
+            rc = subprocess.call(c, shell=True)
+            assert rc==0
 
 if __name__ == '__main__':
     main()
