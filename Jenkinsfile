@@ -8,6 +8,7 @@ pipeline {
     stages() {
         stage('Setup') {
             steps {
+                sh 'git clean -f -d -x'
                 sh 'pip install --user -r requirements.txt'
             }
         }
