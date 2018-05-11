@@ -3,7 +3,7 @@
 Creates a connectivity matrix and provide methods to get the connectivity
 between two motes.
 
-The connectivity matrix is index by source id, destination id and channel.
+The connectivity matrix is indexed by source id, destination id and channel offset.
 Each cell of the matrix is a dict with the fields `pdr` and `rssi`
 
 The connectivity matrix can be filled statically at startup or be updated along
@@ -20,6 +20,9 @@ import sys
 import random
 import math
 from abc import abstractmethod
+import gzip
+from datetime import datetime
+import json
 
 import SimSettings
 import SimEngine
@@ -60,9 +63,9 @@ class ConnectivityBase(object):
             return
         cls._init = True
         # ==== end singleton
-        
+
         # store params
-        
+
         # singletons (quicker access, instead of recreating every time)
         self.settings = SimSettings.SimSettings()
         self.engine   = SimEngine.SimEngine()
@@ -71,7 +74,7 @@ class ConnectivityBase(object):
         # local variables
         self.connectivity_matrix = {} # described at the top of the file
         self.connectivity_matrix_timestamp = 0
-        
+
         # at the beginning, connectivity matrix indicates no connectivity at all
         for source in self.engine.motes:
             self.connectivity_matrix[source.id] = {}
@@ -82,7 +85,7 @@ class ConnectivityBase(object):
                         "pdr":      0,
                         "rssi": -1000,
                     }
-        
+
         # introduce some connectivity in the matrix
         self._init_connectivity_matrix()
 
@@ -93,47 +96,47 @@ class ConnectivityBase(object):
         cls           = type(self)
         cls._instance = None
         cls._init     = False
-    
+
     # ======================== abstract =======================================
-    
+
     @abstractmethod
     def _init_connectivity_matrix(self):
         raise NotImplementedError() # abstractmethod
-    
+
     # ======================== public =========================================
-    
+
     # === getters
-    
+
     def get_pdr(self, source, destination, channel):
-        
+
         assert type(source)==int
         assert type(destination)==int
         assert type(channel)==int
-        
+
         return self.connectivity_matrix[source][destination][channel]["pdr"]
 
     def get_rssi(self, source, destination, channel):
-        
+
         assert type(source)==int
         assert type(destination)==int
         assert type(channel)==int
-        
+
         return self.connectivity_matrix[source][destination][channel]["rssi"]
-    
+
     # === propagation
-    
+
     def propagate(self):
         """ Simulate the propagation of frames in a slot. """
-        
+
         # local shorthands
         asn        = self.engine.getAsn()
         slotOffset = asn % self.settings.tsch_slotframeLength
-        
+
         # repeat propagation for each channel
         for channel in range(self.settings.phy_numChans):
-            
+
             # === accounting
-            
+
             # list all transmissions at that frequency
             alltransmissions = []
             for mote in self.engine.motes:
@@ -141,27 +144,27 @@ class ConnectivityBase(object):
                     assert mote.radio.state == d.RADIO_STATE_TX
                     if mote.radio.onGoingTransmission['channel'] == channel:
                         thisTran = {}
-                        
+
                         # channel
                         thisTran['channel'] = channel
-                        
+
                         # packet
                         thisTran['packet']  = mote.radio.onGoingTransmission['packet']
                         srcMac              = thisTran['packet']['mac']['srcMac']
                         srcMote             = self.engine.motes[srcMac]
-                        
+
                         # time at which the packet starts transmitting
                         thisTran['txTime']  = srcMote.tsch.computeTimeOffsetToDagRoot()
-                        
+
                         # number of ACKs received by this packet
                         thisTran['numACKs'] = 0
-                        
+
                         alltransmissions   += [thisTran]
-            
+
             # === decide which listener gets which packet (rxDone)
-            
+
             for listener in self._get_listeners(channel):
-                
+
                 # list the transmissions that listener can hear
                 transmissions = []
                 for t in alltransmissions:
@@ -172,10 +175,10 @@ class ConnectivityBase(object):
                     )
                     if self.settings.phy_minRssi < rssi:
                         transmissions += [t]
-                
+
                 if transmissions==[]:
                     # no transmissions
-                    
+
                     # idle listen
                     sentAnAck = self.engine.motes[listener].radio.rxDone(
                         packet = None,
@@ -183,17 +186,17 @@ class ConnectivityBase(object):
                     assert sentAnAck==False
                 else:
                     # there are transmissions
-                    
+
                     # listener locks onto the earliest transmission
                     lockon_transmission = None
                     for t in transmissions:
                         if lockon_transmission==None or t['txTime']<lockon_transmission['txTime']:
                             lockon_transmission = t
-                    
+
                     # all other transmissions are now intereferers
                     interfering_transmissions = [t for t in transmissions if t!=lockon_transmission]
                     assert len(transmissions) == len(interfering_transmissions)+1
-                    
+
                     # log
                     if interfering_transmissions:
                         self.log(
@@ -216,12 +219,12 @@ class ConnectivityBase(object):
                     # decide whether listener receives lockon_transmission or not
                     if random.random() < pdr:
                         # listener receives!
-                        
+
                         # lockon_transmission received correctly
                         sentAnAck = self.engine.motes[listener].radio.rxDone(
                             packet = lockon_transmission['packet'],
                         )
-                        
+
                         # keep track of the number of ACKs received by that transmission
                         if sentAnAck:
                             lockon_transmission['numACKs'] += 1
@@ -232,14 +235,14 @@ class ConnectivityBase(object):
                             packet = None,
                         )
                         assert sentAnAck==False
-            
+
             # verify no more listener on this channel
             assert self._get_listeners(channel)==[]
-            
+
             # === decide whether transmitters get an ACK (txDone)
-            
+
             for t in alltransmissions:
-                
+
                 # decide whether transmitter received an ACK
                 if   t['numACKs']==0:
                     isACKed = False
@@ -248,24 +251,24 @@ class ConnectivityBase(object):
                 else:
                     # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
                     raise SystemError()
-                
+
                 # indicate to source packet was sent
                 self.engine.motes[t['packet']['mac']['srcMac']].radio.txDone(isACKed)
-            
+
             # verify no more radios active on this channel
             for mote in self.engine.motes:
                 assert mote.radio.channel != channel
-        
+
         # verify all radios off
         for mote in self.engine.motes:
             assert mote.radio.state == d.RADIO_STATE_OFF
             assert mote.radio.channel == None
-        
+
         # schedule next propagation
         self._schedule_propagate()
 
     # ======================= private =========================================
-    
+
     # === schedule
 
     def _schedule_propagate(self):
@@ -288,23 +291,23 @@ class ConnectivityBase(object):
             if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
                 returnVal.append(mote.id)
         return returnVal
-    
+
     # === wireless
-    
+
     def _compute_pdr_with_interference(self, listener, lockon_transmission, interfering_transmissions):
-    
+
         # shorthand
         channel = lockon_transmission['channel']
         for t in interfering_transmissions:
             assert t['channel'] == channel
         lockon_srcMac  = lockon_transmission['packet']['mac']['srcMac']
-        
+
         # === compute the SINR
-        
+
         noise_mW   = self._dBm_to_mW(self.engine.motes[listener].radio.noisepower)
-        
+
         # S = RSSI - N
-        
+
         signal_mW = self._dBm_to_mW(self.get_rssi(lockon_srcMac, listener, channel)) - noise_mW
         if signal_mW < 0.0:
             # RSSI has not to be below the noise level.
@@ -312,7 +315,7 @@ class ConnectivityBase(object):
             return -10.0
 
         # I = RSSI - N
-        
+
         totalInterference_mW = 0.0
         for interfering_tran in interfering_transmissions:
             interfering_srcMac = interfering_tran['packet']['mac']['srcMac']
@@ -324,39 +327,39 @@ class ConnectivityBase(object):
             totalInterference_mW += interference_mW
 
         sinr_dB = self._mW_to_dBm( signal_mW / (totalInterference_mW + noise_mW) )
-        
+
         # === compute the interference PDR
-        
+
         # shorthand
         noise_dBm = self.engine.motes[listener].radio.noisepower
-        
+
         # RSSI of the interfering transmissions
         interference_rssi = self._mW_to_dBm(
             self._dBm_to_mW(sinr_dB + noise_dBm) +
             self._dBm_to_mW(noise_dBm)
         )
-        
+
         # PDR of the interfering transmissions
         interference_pdr = self._rssi_to_pdr(interference_rssi)
-        
+
         # === compute the resulting PDR
-        
+
         lockon_pdr = self.get_pdr(
             source      = lockon_srcMac,
             destination = listener,
             channel     = channel)
         returnVal  = lockon_pdr * interference_pdr
-        
+
         return returnVal
-    
+
     # === helpers
-    
+
     def _dBm_to_mW(self,dBm):
         return math.pow(10.0, dBm / 10.0)
-    
+
     def _mW_to_dBm(self,mW):
         return 10 * math.log10(mW)
-    
+
     def _rssi_to_pdr(self,rssi):
         """
         rssi and pdr relationship obtained by experiment below
@@ -389,12 +392,12 @@ class ConnectivityBase(object):
         minRssi = min(rssi_pdr_table.keys())
         maxRssi = max(rssi_pdr_table.keys())
 
-        if  rssi < minRssi:
+        floorRssi = int(math.floor(rssi))
+        if  floorRssi < minRssi:
             pdr = 0.0
-        elif rssi > maxRssi:
+        elif floorRssi >= maxRssi:
             pdr = 1.0
         else:
-            floorRssi = int(math.floor(rssi))
             pdrLow    = rssi_pdr_table[floorRssi]
             pdrHigh   = rssi_pdr_table[floorRssi+1]
             # linear interpolation
@@ -408,7 +411,7 @@ class ConnectivityFullyMeshed(ConnectivityBase):
     """
     All nodes can hear all nodes with PDR=100%.
     """
-    
+
     def _init_connectivity_matrix(self):
         for source in self.engine.motes:
             for destination in self.engine.motes:
@@ -424,7 +427,7 @@ class ConnectivityLinear(ConnectivityBase):
            100%     100%     100%       100%
         0 <----> 1 <----> 2 <----> ... <----> num_motes-1
     """
-    
+
     def _init_connectivity_matrix(self):
         parent = None
         for mote in self.engine.motes:
@@ -444,71 +447,152 @@ class ConnectivityK7(ConnectivityBase):
     """
     Replay K7 connectivity trace.
     """
-    
+
     # ======================= inheritance =====================================
-    
+
     # definitions of abstract methods
-    
+
     def _init_connectivity_matrix(self):
         """ Fill the matrix using the connectivity trace"""
-        raise NotImplementedError() # TODO
-    
+
+        # create the matrix (You take the red pill and stay in Wonderland)
+        for source in self.engine.motes:
+            self.connectivity_matrix[source.id] = {}
+            for dest in self.engine.motes:
+                self.connectivity_matrix[source.id][dest.id] = {}
+                for chan in range(self.settings.phy_numChans):
+                    self.connectivity_matrix[source.id][dest.id][chan] = {}
+
+        # load first trace transaction and init
+        self.first_date = None
+        with gzip.open(self.settings.conn_trace, 'r') as trace:
+            trace_header = json.loads(trace.readline())
+            csv_header = trace.readline().strip().split(',')
+
+            for line in trace:
+                # parse line
+                row = self._parse_line(csv_header, line)
+
+                # only read first transaction
+                if row['transaction_id'] > 0:
+                    break
+
+                # save file position
+                self.trace_position = trace.tell()
+
+                # update matrix value
+                first_channel = trace_header['channels'][0]
+                for channel in row['channels']:
+                    channel_offset = channel - first_channel
+                    self.connectivity_matrix[row['src']][row['dst']][channel_offset] = {
+                        'pdr': float(row['pdr']),
+                        'rssi': row['mean_rssi'],
+                    }
+
+                # save matrix timestamp
+                self.connectivity_matrix_timestamp = row['asn']
+
     # overloaded methods
-    
+
     def get_pdr(self, source, destination, channel):
-        
         # update PDR matrix if we are a new row in our K7 file
         if  self.connectivity_matrix_timestamp < self.engine.asn:
-            self._update_connectivity_matrix_from_trace()
-        
+            self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
+
         # then call the parent's method
         return super(ConnectivityK7, self).get_pdr(source, destination, channel)
-    
+
     def get_rssi(self, source, destination, channel):
-        
         # update PDR matrix if we are a new row in our K7 file
         if  self.connectivity_matrix_timestamp < self.engine.asn:
-            self._update_connectivity_matrix_from_trace()
-        
+            self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
+
         # then call the parent's method
         return super(ConnectivityK7, self).get_rssi(source, destination, channel)
-    
+
     # ======================= private =========================================
-    
+
     def _update_connectivity_matrix_from_trace(self):
-        """
+        """ Read the connectivity trace and fill the connectivity matrix
         :return: Timestamp when to update the matrix again
         """
 
-        first_line = None
-        with open(self.settings.conn_trace, 'r') as trace:
-            trace.readline()  # ignore header
-            self.csv_header = trace.readline().split(',')
-            for line in trace:
-                # read and parse line
-                vals = line.split(',')
-                row = dict(zip(self.csv_header, vals))
+        with gzip.open(self.settings.conn_trace, 'r') as trace:
+            trace_header = json.loads(trace.readline())
+            csv_header = trace.readline().strip().split(',')
 
-                if first_line is None:
-                    first_line = line
-                else:
-                    if line == first_line:
-                        return row['datetime']
+            # move to last recorded position
+            trace.seek(self.trace_position)
+
+            for line in trace:
+                # parse line
+                row = self._parse_line(csv_header, line)
+
+                # save file position
+                self.trace_position = trace.tell()
+
+                # return next update ASN
+                if row['asn'] > self.engine.asn:
+                    return row['asn']
 
                 # update matrix value
-                self.connectivity_matrix[row['src']][row['dst']][row['channel']] = row['pdr']
+                first_channel = trace_header['channels'][0]
+                for channel in row['channels']:
+                    channel_offset = channel - first_channel
+                    self.connectivity_matrix[row['src']][row['dst']][channel_offset] = {
+                        'pdr': float(row['pdr']),
+                        'rssi': row['mean_rssi'],
+                    }
+
+        raise Exception("""
+                        Reached the end of the trace file without finding a matching row.
+                        The simulation duration is longer than the trace duration.
+                        """)
+
+    def _parse_line(self, csv_header, line):
+        # === read and parse line
+        vals = line.strip().split(',')
+        row = dict(zip(csv_header, vals))
+
+        # === change row format
+
+        row['src'] = int(row['src'])
+        row['dst'] = int(row['dst'])
+        row['transaction_id'] = int(row['transaction_id'])
+        row['datetime'] = datetime.strptime(row['datetime'], "%Y-%m-%d %H:%M:%S")
+
+        # rssi
+        if row['mean_rssi'] == '':
+            row['mean_rssi'] = -1000
+        else:
+            row['mean_rssi'] = float(row['mean_rssi'])
+
+        # channel string to list
+        row['channels'] = [int(c) for c in row['channels'].strip("[]").split(';')]
+
+        # === add ASN value to row
+
+        # save first row datetime if it does not exits
+        if self.first_date is None:
+            self.first_date = row['datetime']
+
+        # convert row datetime to ASN
+        time_delta = row['datetime'] - self.first_date
+        row['asn'] = int(time_delta.total_seconds() / float(self.settings.tsch_slotDuration))
+
+        return row
 
 class ConnectivityPisterHack(ConnectivityBase):
     """
     Pister-Hack connectivity.
     """
-    
+
     PISTER_HACK_LOWER_SHIFT =         40 # dB
     TWO_DOT_FOUR_GHZ        = 2400000000 # Hz
     SPEED_OF_LIGHT          =  299792458 # m/s
-    
+
     def _init_connectivity_matrix(self):
-        
+
         for source in self.engine.motes:
             for destination in self.engine.motes:
                 for channel in range(self.settings.phy_numChans):
@@ -518,7 +602,7 @@ class ConnectivityPisterHack(ConnectivityBase):
                         "pdr": pdr,
                         "rssi": rssi,
                     }
-    
+
     def _compute_rssi_pisterhack(mote, neighbor):
         """
         computes RSSI between any two nodes (not only neighbors)
@@ -540,7 +624,7 @@ class ConnectivityPisterHack(ConnectivityBase):
         rssi = pr - random.uniform(0, self.PISTER_HACK_LOWER_SHIFT)
 
         return rssi
-    
+
     def _get_distance(mote, neighbor):
         """
         mote.x and mote.y are in km. This function returns the distance in m.
