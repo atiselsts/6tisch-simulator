@@ -106,7 +106,7 @@ def runSimCombinations(params):
 
             # create singletons
             settings         = SimSettings.SimSettings(cpuID=cpuID, run_id=run_id, **simParam)
-            settings.setStartTime(start_time)
+            settings.setLogDirectory(start_time)
             settings.setCombinationKeys(combinationKeys)
             simlog           = SimLog.SimLog()
             simlog.set_log_filters(simconfig.logging)
