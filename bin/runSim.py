@@ -135,7 +135,7 @@ def runSimCombinations(params):
         printOrLog(cpuID, output, verbose)
 
 keep_printing_progress = True
-def printProgressPerCpu(cpuIDs):
+def printProgressPerCpu(cpuIDs, clear_console=True):
     hostname = platform.uname()[1]
     while keep_printing_progress:
         time.sleep(1)
@@ -151,7 +151,8 @@ def printProgressPerCpu(cpuIDs):
             if line.count('ended') == 0:
                 allDone = False
         output = '\n'.join(output)
-        os.system('cls' if os.name == 'nt' else 'clear')
+        if clear_console:
+            os.system('cls' if os.name == 'nt' else 'clear')
         print output
         if allDone:
             break
@@ -254,22 +255,24 @@ def main():
 
         # print progress, wait until done
         cpuIDs                = [i for i in range(numCPUs)]
+        if simconfig.log_directory_name == 'hostname':
+            # We assume the simulator run over a cluster system when
+            # 'log_directory_name' is 'hostname'. Under a cluster system, we
+            # disable "clear" on console because it could cause "'unknown': I
+            # need something more specific." error.
+            clear_console = False
+        else:
+            clear_console = True
         print_progress_thread = threading.Thread(
             target = printProgressPerCpu,
-            args   = ([cpuIDs])
+            args   = (cpuIDs, clear_console)
         )
-        if simconfig.log_directory_name == 'startTime':
 
-            # We assume the simulator doesn't run over a cluster system when
-            # 'log_directory_name' is 'startTime'. Under a cluster system, we
-            # disable printing progress because the simulator would run without
-            # console. It could cause "'unknown': I need something more
-            # specific." error.
-            print_progress_thread.start()
+        print_progress_thread.start()
 
-            # wait for the thread ready
-            while print_progress_thread.is_alive() == False:
-                time.sleep(0.5)
+        # wait for the thread ready
+        while print_progress_thread.is_alive() == False:
+            time.sleep(0.5)
 
         # start simulations
         pool = multiprocessing.Pool(numCPUs)
@@ -313,10 +316,17 @@ def main():
 
     #=== post-simulation actions
 
-    for c in simconfig.post:
-        print 'calling "{0}"'.format(c)
-        rc = subprocess.call(c, shell=True)
-        assert rc==0
+    if simconfig.log_directory_name == 'hostname':
+        # We assume the simulator run over a cluster system when
+        # 'log_directory_name' is 'hostname'. Under a cluster system, we
+        # disable post actions. Users should perform post actions manually
+        # after merging log files by mergeLogs.py.
+        pass
+    else:
+        for c in simconfig.post:
+            print 'calling "{0}"'.format(c)
+            rc = subprocess.call(c, shell=True)
+            assert rc==0
 
 if __name__ == '__main__':
     main()
