@@ -87,12 +87,12 @@ class SecJoin(object):
 
     def receive(self, packet):
 
-        if   packet['type']== d.PKT_TYPE_JOIN_REQUEST:
+        if   packet['type'] == d.PKT_TYPE_JOIN_REQUEST:
 
-            if self.mote.dagRoot==False:
+            if self.mote.dagRoot is False:
                 # I'm the join proxy
 
-                assert self.mote.dodagId!=None
+                assert self.mote.dodagId is not None
 
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {

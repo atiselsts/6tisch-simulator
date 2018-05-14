@@ -62,8 +62,8 @@ class Tsch(object):
 
     def getIsSync(self):
         return self.isSync
-    def setIsSync(self,val):
 
+    def setIsSync(self,val):
         # set
         self.isSync      = val
 
@@ -103,37 +103,54 @@ class Tsch(object):
             )
             self.tsch_schedule_next_listeningForEB_cell()
 
-    def _getCells(self, neighbor, cellOptions):
-        if neighbor!=None:
-            assert type(neighbor)==int
+    def _getCells(self, neighbor, cellOptions=None):
+        """
+        Returns a dict containing the cells
+        The dict keys are the cell slotOffset
+        :param neighbor:
+        :param cellOptions:
+        :rtype: dict
+        """
+        if neighbor is not None:
+            assert type(neighbor) == int
 
-        if neighbor is None:
-            return [
-                (slotOffset, c['channelOffset'], c['neighbor'])
-                    for (slotOffset, c) in self.schedule.items()
-                        if sorted(c['cellOptions']) == sorted(cellOptions)
-            ]
-        else:
-            return [
-                (slotOffset, c['channelOffset'], c['neighbor'])
-                    for (slotOffset, c) in self.schedule.items()
-                        if sorted(c['cellOptions']) == sorted(cellOptions) and c['neighbor'] == neighbor
-            ]
+        # configure filtering condition
+        if (neighbor is None) and (cellOptions is not None):    # filter by cellOptions
+            condition = lambda (_, c): sorted(c['cellOptions']) == sorted(cellOptions)
+        elif (neighbor is not None) and (cellOptions is None):  # filter by neighbor
+            condition = lambda (_, c): c['neighbor'] == neighbor
+        elif (neighbor is None) and (cellOptions is None):      # don't filter
+            condition = lambda (_, c): True
+        else:                                                   # filter by cellOptions and neighbor
+            condition = lambda (_, c): (
+                    sorted(c['cellOptions']) == sorted(cellOptions) and
+                    c['neighbor'] == neighbor
+            )
 
-    def getTxCells(self, neighbor = None):
+        # apply filter
+        return dict(filter(condition, self.schedule.items()))
+
+    def getTxCells(self, neighbor=None):
         return self._getCells(
             neighbor    = neighbor,
             cellOptions = [d.CELLOPTION_TX],
         )
-    def getRxCells(self, neighbor = None):
+
+    def getRxCells(self, neighbor=None):
         return self._getCells(
             neighbor    = neighbor,
             cellOptions = [d.CELLOPTION_RX],
         )
-    def getTxRxSharedCells(self, neighbor = None):
+
+    def getTxRxSharedCells(self, neighbor=None):
         return self._getCells(
             neighbor    = neighbor,
-            cellOptions = [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED],
+            cellOptions = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+        )
+
+    def getDedicatedCells(self, neighbor):
+        return self._getCells(
+            neighbor    = neighbor,
         )
 
     # activate
@@ -328,9 +345,10 @@ class Tsch(object):
                     if cell['backoffExponent']<d.TSCH_MAX_BACKOFF_EXPONENT:
                         newBackoffExponent  = cell['backoffExponent']+1
             else:
-                # just transmitted in a dedicated cell
+                # just transmitted in a dedicated link (which is different from a dedicated cell)
 
-                # Section 6.2.5.3 of IEEE802.15.4-2015: "The backoff window is reset to the minimum value if the transmission in a dedicated link is successful and the transmit queue is then empty."
+                # Section 6.2.5.3 of IEEE802.15.4-2015: "The backoff window is reset to the minimum value if the
+                # transmission in a dedicated link is successful and the transmit queue is then empty."
                 if (isACKed==True) and (not self.txQueue):
                     newBackoff                   = 0
                     newBackoffExponent           = d.TSCH_MIN_BACKOFF_EXPONENT
@@ -416,7 +434,7 @@ class Tsch(object):
         self.mote.neighbors_indicate_rx(packet)
 
         # abort if I received a frame for someone else
-        if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS,self.mote.id]:
+        if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS, self.mote.id]:
             return False # isACKed
 
         # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
@@ -438,7 +456,7 @@ class Tsch(object):
         if self.getIsSync():
             self.getSchedule()[slotOffset]['numRx'] += 1
 
-        if   packet['mac']['dstMac']==self.mote.id:
+        if   packet['mac']['dstMac'] == self.mote.id:
             # link-layer unicast to me
 
             # ACK frame
@@ -450,6 +468,10 @@ class Tsch(object):
                     d.PKT_TYPE_SIXP_ADD_RESPONSE,
                     d.PKT_TYPE_SIXP_DELETE_REQUEST,
                     d.PKT_TYPE_SIXP_DELETE_RESPONSE,
+                    d.PKT_TYPE_SIXP_CLEAR_REQUEST,
+                    d.PKT_TYPE_SIXP_CLEAR_RESPONSE,
+                    d.PKT_TYPE_SIXP_RELOCATE_REQUEST,
+                    d.PKT_TYPE_SIXP_RELOCATE_RESPONSE,
                 ]:
                 self.mote.sixp.receive(packet)
             elif 'net' in packet:
@@ -550,7 +572,7 @@ class Tsch(object):
         assert not self.getIsSync()
 
         # choose random channel
-        channel = 0 # FIXME
+        channel = random.randint(0, self.settings.phy_numChans-1)
 
         # start listening
         self.mote.radio.startRx(
@@ -630,7 +652,7 @@ class Tsch(object):
             # notify SF
             self.mote.sf.indication_dedicated_tx_cell_elapsed(
                 cell    = cell,
-                used    = (self.pktToSend!=None),
+                used    = (self.pktToSend is not None),
             )
 
             # send packet
@@ -660,9 +682,9 @@ class Tsch(object):
                                 or
                                 # other frames on the minimal cell if no dedicated cells to the nextHop
                                 (
-                                    self.getTxCells(pkt['mac']['dstMac']) == []
+                                    len(self.getTxCells(pkt['mac']['dstMac'])) == 0
                                     and
-                                    self.getTxRxSharedCells(pkt['mac']['dstMac'])==[]
+                                    len(self.getTxRxSharedCells(pkt['mac']['dstMac'])) == 0
                                 )
                             ):
                             self.pktToSend = pkt

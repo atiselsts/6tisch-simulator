@@ -38,7 +38,7 @@ DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
 LOG_APP_TX                        = {'type': 'app.tx',                    'keys': ['_mote_id','packet']}
 LOG_APP_RX                        = {'type': 'app.rx',                    'keys': ['_mote_id','packet']}
 
-# === secjoin 
+# === secjoin
 LOG_SECJOIN_TX                    = {'type': 'secjoin.tx',                'keys': ['_mote_id']}
 LOG_SECJOIN_RX                    = {'type': 'secjoin.rx',                'keys': ['_mote_id']}
 LOG_JOINED                        = {'type': 'secjoin.joined',            'keys': ['_mote_id']}
@@ -65,6 +65,14 @@ LOG_SIXP_DELETE_REQUEST_TX        = {'type': 'sixp.delete_request.tx',    'keys'
 LOG_SIXP_DELETE_REQUEST_RX        = {'type': 'sixp.delete_request.rx',    'keys': ['_mote_id','packet']}
 LOG_SIXP_DELETE_RESPONSE_TX       = {'type': 'sixp.delete_response.tx',   'keys': ['_mote_id','packet']}
 LOG_SIXP_DELETE_RESPONSE_RX       = {'type': 'sixp.delete_response.rx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_CLEAR_REQUEST_TX         = {'type': 'sixp.clear_request.tx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_CLEAR_REQUEST_RX         = {'type': 'sixp.clear_request.rx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_CLEAR_RESPONSE_TX        = {'type': 'sixp.clear_response.tx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_CLEAR_RESPONSE_RX        = {'type': 'sixp.clear_response.rx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_RELOCATE_REQUEST_TX      = {'type': 'sixp.relocate_request.tx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_RELOCATE_REQUEST_RX      = {'type': 'sixp.relocate_request.rx',    'keys': ['_mote_id','packet']}
+LOG_SIXP_RELOCATE_RESPONSE_TX     = {'type': 'sixp.relocate_response.tx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_RELOCATE_RESPONSE_RX     = {'type': 'sixp.relocate_response.rx',   'keys': ['_mote_id','packet']}
 
 # === tsch
 LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}

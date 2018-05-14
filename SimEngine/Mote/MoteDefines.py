@@ -19,6 +19,10 @@ PKT_TYPE_SIXP_ADD_REQUEST                   = 'SIXP_ADD_REQUEST'
 PKT_TYPE_SIXP_ADD_RESPONSE                  = 'SIXP_ADD_RESPONSE'
 PKT_TYPE_SIXP_DELETE_REQUEST                = 'SIXP_DELETE_REQUEST'
 PKT_TYPE_SIXP_DELETE_RESPONSE               = 'SIXP_DELETE_RESPONSE'
+PKT_TYPE_SIXP_CLEAR_REQUEST                 = 'SIXP_CLEAR_REQUEST'
+PKT_TYPE_SIXP_CLEAR_RESPONSE                = 'SIXP_CLEAR_RESPONSE'
+PKT_TYPE_SIXP_RELOCATE_REQUEST              = 'SIXP_RELOCATE_REQUEST'
+PKT_TYPE_SIXP_RELOCATE_RESPONSE             = 'SIXP_RELOCATE_RESPONSE'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
@@ -35,6 +39,17 @@ SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds
 
 # === sixp
 SIXP_RC_SUCCESS                             = 'success'
+SIXP_RC_ERR                                 = 'error'
+SIXP_RC_ERR_CELLLIST                        = 'error_celllist'
+SIXP_RC_ERR_SEQNUM                          = 'error_seqnum'
+
+# === sf
+MSF_MAX_NUMCELLS                            = 12
+MSF_LIM_NUMCELLSUSED_HIGH                   = 0.75 # in percent [0-1]
+MSF_LIM_NUMCELLSUSED_LOW                    = 0.25 # in percent [0-1]
+MSF_HOUSEKEEPINGCOLLISION_PERIOD            = 60   # in seconds
+MSF_RELOCATE_PDRTHRES                       = 0.5  # in percent [0-1]
+MSF_MIN_NUM_TX                              = 100  # min number for PDR to be significant
 
 # === tsch
 TSCH_QUEUE_SIZE                             = 10

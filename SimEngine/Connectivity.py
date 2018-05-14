@@ -117,10 +117,12 @@ class ConnectivityBase(object):
 
     def get_rssi(self, source, destination, channel):
 
-        assert type(source)==int
-        assert type(destination)==int
-        assert type(channel)==int
+        assert type(source) == int
+        assert type(destination) == int
+        assert type(channel) == int
 
+        if "rssi" not in self.connectivity_matrix[source][destination][channel]:
+            pass
         return self.connectivity_matrix[source][destination][channel]["rssi"]
 
     # === propagation
@@ -176,7 +178,7 @@ class ConnectivityBase(object):
                     if self.settings.phy_minRssi < rssi:
                         transmissions += [t]
 
-                if transmissions==[]:
+                if transmissions == []:
                     # no transmissions
 
                     # idle listen
@@ -190,7 +192,7 @@ class ConnectivityBase(object):
                     # listener locks onto the earliest transmission
                     lockon_transmission = None
                     for t in transmissions:
-                        if lockon_transmission==None or t['txTime']<lockon_transmission['txTime']:
+                        if lockon_transmission is None or t['txTime']<lockon_transmission['txTime']:
                             lockon_transmission = t
 
                     # all other transmissions are now intereferers
@@ -508,6 +510,7 @@ class ConnectivityK7(ConnectivityBase):
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
+        print source, destination, channel
         return super(ConnectivityK7, self).get_rssi(source, destination, channel)
 
     # ======================= private =========================================

@@ -51,7 +51,7 @@ class Mote(object):
         self.secjoin                   = secjoin.SecJoin(self)
         self.rpl                       = rpl.Rpl(self)
         self.sixlowpan                 = sixlowpan.Sixlowpan(self)
-        self.sf                        = sf.SchedulingFunction.get_sf(self)
+        self.sf                        = sf.SchedulingFunction(self)
         self.sixp                      = sixp.SixP(self)
         self.tsch                      = tsch.Tsch(self)
         self.radio                     = radio.Radio(self)
@@ -196,9 +196,9 @@ class Mote(object):
             if  (
                     (self.dagRoot == False)
                     and
-                    (type(self.sf) == sf.MSF)
+                    (type(self.sf) == sf.SchedulingFunctionMSF)
                     and
-                    self.tsch.getTxCells(self.rpl.getPreferredParent())== 0
+                    len(self.tsch.getTxCells(self.rpl.getPreferredParent())) == 0
                 ):
                     returnVal = False
 

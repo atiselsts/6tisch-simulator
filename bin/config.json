@@ -28,7 +28,7 @@
             "fragmentation_ff_vrb_table_size":             50,
             "tsch_max_payload_len":                        90,
 
-            "sf_type":                                     "SFNone",
+            "sf_class":                                    "SFNone",
 
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
