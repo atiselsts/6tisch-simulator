@@ -462,7 +462,16 @@ class Tsch(object):
         else:
             parent_id        = self.mote.tsch.join_proxy
         parent               = self.engine.motes[parent_id]
+        parents              = []
         while True:
+
+            if parent.id in parents:
+                # loop is detected; return the current offset value
+                return offset
+            else:
+                # record the current parent for loop detection
+                parents.append(parent.id)
+
             secSinceSync     = (self.engine.getAsn()-child.tsch.asnLastSync)*self.settings.tsch_slotDuration
             # FIXME: for ppm, should we not /10^6?
             relDrift         = child.tsch.drift - parent.tsch.drift  # ppm
