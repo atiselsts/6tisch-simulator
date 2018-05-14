@@ -38,6 +38,10 @@ def run_until_asn(sim_engine, target_asn):
         # ensure the simulation hasn't finished
         assert sim_engine.is_alive()
 
+    # flush the internal log buffer so that test code can see data in the log
+    # files.
+    SimEngine.SimLog.SimLog().flush()
+
 def read_log_file(filter=[]):
     """return contents in a log file as a list of log objects
 

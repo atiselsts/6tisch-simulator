@@ -116,20 +116,19 @@ class SimLog(object):
         # local variables
         self.log_filters = []
 
+        # open log file
+        self.log_output_file = open(self.settings.getOutputFile(), 'a')
+
         # write config to log file; if a file with the same file name exists,
         # append logs to the file. this happens if you multiple runs on the
-        # same CPU.
-        with open(self.settings.getOutputFile(), 'a') as f:
-
-            # amend config line:
-            # config line in log file should have '_type' field. And 'run_id'
-            # type should be '_run_id'
-            config_line = copy.deepcopy(self.settings.__dict__)
-            config_line['_type']   = 'config'
-            config_line['_run_id'] = config_line['run_id']
-            del config_line['run_id']
-            json.dump(config_line, f)
-            f.write('\n')
+        # same CPU. And amend config line; config line in log file should have
+        # '_type' field. And 'run_id' type should be '_run_id'
+        config_line = copy.deepcopy(self.settings.__dict__)
+        config_line['_type']   = 'config'
+        config_line['_run_id'] = config_line['run_id']
+        del config_line['run_id']
+        json.dump(config_line, self.log_output_file)
+        self.log_output_file.write('\n')
 
     def log(self, simlog, content):
         """
@@ -161,25 +160,29 @@ class SimLog(object):
         )
 
         # write line
-        with open(self.settings.getOutputFile(), 'a') as f:
-            try:
-                json.dump(content, f, sort_keys=True)
-            except Exception as err:
-                output  = []
-                output += ['----------------------']
-                output += ['']
-                output += ['log() FAILED for content']
-                output += [str(content)]
-                output += ['']
-                output += [str(err)]
-                output += ['']
-                output += [traceback.format_exc(err)]
-                output += ['']
-                output += ['----------------------']
-                output  = '\n'.join(output)
-                print output
-                raise
-            f.write('\n')
+        try:
+            json.dump(content, self.log_output_file, sort_keys=True)
+        except Exception as err:
+            output  = []
+            output += ['----------------------']
+            output += ['']
+            output += ['log() FAILED for content']
+            output += [str(content)]
+            output += ['']
+            output += [str(err)]
+            output += ['']
+            output += [traceback.format_exc(err)]
+            output += ['']
+            output += ['----------------------']
+            output  = '\n'.join(output)
+            print output
+            raise
+        self.log_output_file.write('\n')
+
+    def flush(self):
+        # flush the internal buffer, write data to the file
+        assert not self.log_output_file.closed
+        self.log_output_file.flush()
 
     def set_simengine(self, engine):
         self.engine = engine
@@ -188,6 +191,10 @@ class SimLog(object):
         self.log_filters = log_filters
 
     def destroy(self):
+        # close log file
+        if not self.log_output_file.closed:
+            self.log_output_file.close()
+
         cls = type(self)
         cls._instance       = None
         cls._init           = False
