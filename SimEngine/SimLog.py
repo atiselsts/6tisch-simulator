@@ -127,8 +127,8 @@ class SimLog(object):
         config_line['_type']   = 'config'
         config_line['_run_id'] = config_line['run_id']
         del config_line['run_id']
-        json.dump(config_line, self.log_output_file)
-        self.log_output_file.write('\n')
+        json_string = json.dumps(config_line)
+        self.log_output_file.write(json_string + '\n')
 
     def log(self, simlog, content):
         """
@@ -161,7 +161,8 @@ class SimLog(object):
 
         # write line
         try:
-            json.dump(content, self.log_output_file, sort_keys=True)
+            json_string = json.dumps(content, sort_keys=True)
+            self.log_output_file.write(json_string + '\n')
         except Exception as err:
             output  = []
             output += ['----------------------']
@@ -177,7 +178,6 @@ class SimLog(object):
             output  = '\n'.join(output)
             print output
             raise
-        self.log_output_file.write('\n')
 
     def flush(self):
         # flush the internal buffer, write data to the file
