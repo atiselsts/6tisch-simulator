@@ -34,12 +34,12 @@ class SecJoin(object):
         self._isJoined                      = False
 
     #======================== public ==========================================
-    
+
     # getters/setters
-    
+
     def setIsJoined(self, newState):
         assert newState in [True, False]
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_JOINED,
@@ -47,23 +47,23 @@ class SecJoin(object):
                 '_mote_id': self.mote.id,
             }
         )
-        
+
         # record
         self._isJoined = newState
     def getIsJoined(self):
         return self._isJoined
-    
+
     # admin
-    
+
     def startJoinProcess(self):
-        
+
         assert self.mote.dagRoot==False
         assert self.mote.tsch.getIsSync()==True
         assert self.mote.tsch.join_proxy!=None
         assert self.getIsJoined()==False
-        
+
         if self.settings.secjoin_enabled:
-            
+
             # log
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_TX,
@@ -71,7 +71,7 @@ class SecJoin(object):
                     '_mote_id': self.mote.id,
                 }
             )
-            
+
             # create join request
             joinRequest = {
                 'type':                     d.PKT_TYPE_JOIN_REQUEST,
@@ -83,25 +83,25 @@ class SecJoin(object):
                     'packet_length':        d.PKT_LEN_JOIN_REQUEST,
                 },
             }
-            
+
             # send join request
             self.mote.sixlowpan.sendPacket(joinRequest)
-            
+
         else:
             # consider I'm already joined
             self.setIsJoined(True) # forced (secjoin_enabled==False)
-    
+
     # from lower stack
-    
+
     def receive(self, packet):
-        
+
         if   packet['type']== d.PKT_TYPE_JOIN_REQUEST:
-            
+
             if self.mote.dagRoot==False:
                 # I'm the join proxy
-                
+
                 assert self.mote.dodagId!=None
-                
+
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {
                     'type':                 d.PKT_TYPE_JOIN_REQUEST,
@@ -116,18 +116,18 @@ class SecJoin(object):
                         'packet_length':    packet['net']['packet_length'],
                     },
                 }
-                
+
                 # send proxied join response
                 self.mote.sixlowpan.sendPacket(proxiedJoinRequest)
-            
+
             else:
                 # I'm the dagRoot
-            
+
                 # echo back 'stateless_proxy' element in the join response, if present in the join request
                 app = {}
                 if 'stateless_proxy' in packet['app']:
                     app['stateless_proxy'] = copy.deepcopy(packet['app']['stateless_proxy'])
-                
+
                 # format join response
                 joinResponse = {
                     'type':                 d.PKT_TYPE_JOIN_RESPONSE,
@@ -138,21 +138,21 @@ class SecJoin(object):
                         'packet_length':    d.PKT_LEN_JOIN_RESPONSE,
                     },
                 }
-                
+
                 # send join response
                 self.mote.sixlowpan.sendPacket(joinResponse)
-            
+
         elif packet['type']== d.PKT_TYPE_JOIN_RESPONSE:
             assert self.mote.dagRoot==False
-            
+
             if self.getIsJoined()==True:
                 # I'm the join proxy
-                
+
                 # remove the 'stateless_proxy' element from the app payload
                 app       = copy.deepcopy(packet['app'])
                 pledge_id = app['stateless_proxy']['pledge_id']
                 del app['stateless_proxy']
-                
+
                 # proxy join response to pledge
                 proxiedJoinResponse = {
                     'type':                 d.PKT_TYPE_JOIN_RESPONSE,
@@ -163,13 +163,13 @@ class SecJoin(object):
                         'packet_length':    packet['net']['packet_length'],
                     },
                 }
-                
+
                 # send proxied join response
                 self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
-            
+
             else:
                 # I'm the pledge
-            
+
                 # I'm now joined!
                 self.setIsJoined(True) # mote
         else:
