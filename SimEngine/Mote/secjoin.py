@@ -5,6 +5,7 @@ Secure joining layer of a mote.
 # =========================== imports =========================================
 
 import copy
+import random
 
 # Mote sub-modules
 import MoteDefines as d
@@ -20,6 +21,11 @@ import SimEngine
 
 class SecJoin(object):
 
+    # parameters from draft-ietf-6tisch-minimal-security
+    TIMEOUT_BASE          = 10
+    TIMEOUT_RANDOM_FACTOR = 1.5
+    MAX_RETRANSMIT        = 4
+
     def __init__(self, mote):
 
         # store params
@@ -32,6 +38,9 @@ class SecJoin(object):
 
         # local variables
         self._isJoined                      = False
+        self._request_timeout               = None
+        self._retransmission_count          = None
+        self._retransmission_tag            = (self.mote.id, '_retransmit_join_request')
 
     #======================== public ==========================================
 
@@ -63,30 +72,13 @@ class SecJoin(object):
         assert self.getIsJoined()==False
 
         if self.settings.secjoin_enabled:
+            self._retransmission_count = 0
 
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_SECJOIN_TX,
-                {
-                    '_mote_id': self.mote.id,
-                }
-            )
+            # initialize request timeout; pick a number randomly between
+            # TIMEOUT_BASE and (TIMEOUT_BASE * TIMEOUT_RANDOM_FACTOR)
+            self._request_timeout  = self.TIMEOUT_BASE * random.uniform(1, self.TIMEOUT_RANDOM_FACTOR)
 
-            # create join request
-            joinRequest = {
-                'type':                     d.PKT_TYPE_JOIN_REQUEST,
-                'app': {
-                },
-                'net': {
-                    'srcIp':                self.mote.id,                      # from pledge (this mote)
-                    'dstIp':                self.mote.tsch.join_proxy,         # to join proxy
-                    'packet_length':        d.PKT_LEN_JOIN_REQUEST,
-                },
-            }
-
-            # send join request
-            self.mote.sixlowpan.sendPacket(joinRequest)
-
+            self._send_join_request()
         else:
             # consider I'm already joined
             self.setIsJoined(True) # forced (secjoin_enabled==False)
@@ -148,27 +140,40 @@ class SecJoin(object):
             if self.getIsJoined()==True:
                 # I'm the join proxy
 
-                # remove the 'stateless_proxy' element from the app payload
-                app       = copy.deepcopy(packet['app'])
-                pledge_id = app['stateless_proxy']['pledge_id']
-                del app['stateless_proxy']
+                if 'stateless_proxy' not in packet['app']:
+                    # this must be a duplicate response; ignore it
+                    pass
+                else:
+                    # remove the 'stateless_proxy' element from the app payload
+                    app       = copy.deepcopy(packet['app'])
+                    pledge_id = app['stateless_proxy']['pledge_id']
+                    del app['stateless_proxy']
 
-                # proxy join response to pledge
-                proxiedJoinResponse = {
-                    'type':                 d.PKT_TYPE_JOIN_RESPONSE,
-                    'app':                  app,
-                    'net': {
-                        'srcIp':            self.mote.id,                      # join proxy (this mote)
-                        'dstIp':            pledge_id,                         # to pledge
-                        'packet_length':    packet['net']['packet_length'],
-                    },
-                }
+                    # proxy join response to pledge
+                    proxiedJoinResponse = {
+                        'type':                 d.PKT_TYPE_JOIN_RESPONSE,
+                        'app':                  app,
+                        'net': {
+                            'srcIp':            self.mote.id,                      # join proxy (this mote)
+                            'dstIp':            pledge_id,                         # to pledge
+                            'packet_length':    packet['net']['packet_length'],
+                        },
+                    }
 
-                # send proxied join response
-                self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
+                    # send proxied join response
+                    self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
 
             else:
                 # I'm the pledge
+
+                if self._retransmission_count is None:
+                    # now it's not in the middle of a secjoin process:
+                    # this response corresponds to a request which this mote
+                    # had sent before it left the network; ignore this response
+                    return
+
+                # cancel the event for retransmission
+                self.engine.removeFutureEvent(self._retransmission_tag)
 
                 # I'm now joined!
                 self.setIsJoined(True) # mote
@@ -176,3 +181,60 @@ class SecJoin(object):
             raise SystemError()
 
     #======================== private ==========================================
+
+    def _retransmit_join_request(self):
+        if  self._retransmission_count == self.MAX_RETRANSMIT:
+
+            # Back to listening phase, although
+            # draft-ietf-6tisch-minimal-security says, "If the retransmission
+            # counter reaches MAX_RETRANSMIT on a timeout, the pledge SHOULD
+            # attempt to join the next advertised 6TiSCH network."
+            self._request_timeout      = None
+            self._retransmission_count = None
+            self.mote.tsch.setIsSync(False)
+            return
+        elif self._retransmission_count < self.MAX_RETRANSMIT:
+            # double the timeout value
+            self._request_timeout *= 2
+        else:
+            # shouldn't happen
+            assert False
+
+        self._send_join_request()
+        self._retransmission_count += 1
+
+    def _send_join_request(self):
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_SECJOIN_TX,
+            {
+                '_mote_id': self.mote.id,
+            }
+        )
+
+        # create join request
+        joinRequest = {
+            'type':                     d.PKT_TYPE_JOIN_REQUEST,
+            'app': {
+            },
+            'net': {
+                'srcIp':                self.mote.id,                      # from pledge (this mote)
+                'dstIp':                self.mote.tsch.join_proxy,         # to join proxy
+                'packet_length':        d.PKT_LEN_JOIN_REQUEST,
+            },
+        }
+
+        # send join request
+        self.mote.sixlowpan.sendPacket(joinRequest)
+
+        # convert seconds to slots
+        target_asn = (
+            self.engine.getAsn() +
+            int(self._request_timeout / self.settings.tsch_slotDuration)
+        )
+        self.engine.scheduleAtAsn(
+            asn              = target_asn,
+            cb               = self._retransmit_join_request,
+            uniqueTag        = self._retransmission_tag,
+            intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS
+        )
