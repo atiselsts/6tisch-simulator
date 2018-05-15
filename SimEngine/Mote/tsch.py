@@ -19,6 +19,13 @@ import SimEngine
 
 class Tsch(object):
 
+    MINIMAL_SHARED_CELL = {
+        'slotOffset'   : 0,
+        'channelOffset': 0,
+        'neighbor'     : None, # None means "any"
+        'cellOptions'  : [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]
+    }
+
     def __init__(self, mote):
 
         # store params
@@ -56,23 +63,44 @@ class Tsch(object):
         return self.isSync
     def setIsSync(self,val):
 
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_SYNCED,
-            {
-                "_mote_id":   self.mote.id,
-            }
-        )
-
         # set
         self.isSync      = val
-        self.asnLastSync = self.engine.getAsn()
 
-        # transition: listeningForEB->active
-        self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
-            uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
-        )
-        self.tsch_schedule_next_active_cell()    # schedule next active cell
+        if self.isSync:
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_SYNCED,
+                {
+                    "_mote_id":   self.mote.id,
+                }
+            )
+
+            self.asnLastSync = self.engine.getAsn()
+
+            # transition: listeningForEB->active
+            self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
+                uniqueTag=(self.mote.id, '_tsch_action_listeningForEB_cell')
+            )
+            self.tsch_schedule_next_active_cell()    # schedule next active cell
+        else:
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_DESYNCED,
+                {
+                    "_mote_id":   self.mote.id,
+                }
+            )
+
+            self.delete_minimal_cell()
+            self.mote.sf.stopMonitoring()
+            self.join_proxy  = None
+            self.asnLastSync = None
+
+            # transition: active->listeningForEB
+            self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
+                uniqueTag=(self.mote.id, '_tsch_action_active_cell')
+            )
+            self.tsch_schedule_next_listeningForEB_cell()
 
     def _getCells(self, neighbor, cellOptions):
         if neighbor!=None:
@@ -119,12 +147,11 @@ class Tsch(object):
 
     def add_minimal_cell(self):
 
-        self.addCell(
-            slotOffset       = 0,
-            channelOffset    = 0,
-            neighbor         = None, # None means "any"
-            cellOptions      = [d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED],
-        )
+        self.addCell(**self.MINIMAL_SHARED_CELL)
+
+    def delete_minimal_cell(self):
+
+        self.deleteCell(**self.MINIMAL_SHARED_CELL)
 
     # schedule interface
 
@@ -172,7 +199,7 @@ class Tsch(object):
     def deleteCell(self, slotOffset, channelOffset, neighbor, cellOptions):
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
-        assert isinstance(neighbor, int)
+        assert (neighbor is None) or (isinstance(neighbor, int))
         assert isinstance(cellOptions, list)
 
         # make sure I'm removing a cell that I have in my schedule
