@@ -10,9 +10,9 @@
         },
         "regular": {
             "exec_numSlotframesPerRun":                    1000,
-            
+
             "secjoin_enabled":                             true,
-            
+
             "app":                                         "AppPeriodic",
             "app_pkPeriod":                                10,
             "app_pkPeriodVar":                             0.05,
@@ -29,13 +29,13 @@
             "tsch_max_payload_len":                        90,
 
             "sf_type":                                     "SFNone",
-            
+
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
             "tsch_probBcast_ebDioProb":                    0.33,
-            
+
             "charge_log_period_s":                         10,
-            
+
             "conn_class":                                  "Linear",
             "conn_trace":                                  null,
 
@@ -47,7 +47,7 @@
     "logging":                                             "all",
     "log_directory_name":                                  "startTime",
     "post": [
-        "python plot.py",
-        "python compute_kpis.py"
+        "python compute_kpis.py",
+        "python plot.py"
     ]
 }
