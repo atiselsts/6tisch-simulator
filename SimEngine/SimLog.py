@@ -68,6 +68,7 @@ LOG_SIXP_DELETE_RESPONSE_RX       = {'type': 'sixp.delete_response.rx',   'keys'
 
 # === tsch
 LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}
+LOG_TSCH_DESYNCED                 = {'type': 'tsch.desynced',             'keys': ['_mote_id']}
 LOG_TSCH_EB_TX                    = {'type': 'tsch.eb.tx',                'keys': ['_mote_id','packet']}
 LOG_TSCH_EB_RX                    = {'type': 'tsch.eb.rx',                'keys': ['_mote_id','packet']}
 LOG_TSCH_ADD_CELL                 = {'type': 'tsch.add_cell',             'keys': ['_mote_id','slotOffset','channelOffset','neighbor','cellOptions']}
