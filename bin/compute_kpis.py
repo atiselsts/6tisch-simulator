@@ -209,14 +209,14 @@ def kpis_all(inputfile):
                             motestats['hops']       += [pktstats['hops']]
                         else:
                             motestats['upstream_num_lost'] += 1
-                    if len(allstats[run_id][srcIp]['upstream_pkts']) > 0:
+                    if (motestats['upstream_num_rx'] > 0) and (motestats['upstream_num_tx'] > 0):
                         motestats['latency_min_s'] = min(motestats['latencies'])
                         motestats['latency_avg_s'] = sum(motestats['latencies'])/float(len(motestats['latencies']))
                         motestats['latency_max_s'] = max(motestats['latencies'])
                         motestats['upstream_reliability'] = motestats['upstream_num_rx']/float(motestats['upstream_num_tx'])
                         motestats['avg_hops'] = sum(motestats['hops'])/float(len(motestats['hops']))
                     else:
-                        motestats['WARNING'] = "mote didn't send pkts"
+                        motestats['WARNING'] = "mote didn't send or receive pkts"
                 else:
                     motestats['WARNING'] = "mote didn't join"
 
