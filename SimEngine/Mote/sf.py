@@ -45,6 +45,13 @@ class SchedulingFunction(object):
         tells SF when should start working
         '''
         raise NotImplementedError() # abstractmethod
+
+    @abstractmethod
+    def stopMonitoring(self):
+        '''
+        tells SF when should stop working
+        '''
+        raise NotImplementedError() # abstractmethod
     
     # === indications from other layers
     
@@ -83,7 +90,10 @@ class SFNone(SchedulingFunction):
     
     def startMonitoring(self):
         pass # do nothing
-    
+
+    def stopMonitoring(self):
+        pass # do nothing
+
     def indication_neighbor_added(self,neighbor_id):
         pass # do nothing
     
@@ -109,6 +119,9 @@ class MSF(SchedulingFunction):
     # === admin
     
     def startMonitoring(self):
+        raise NotImplementedError() # TODO
+
+    def stoptMonitoring(self):
         raise NotImplementedError() # TODO
     
     # === indications from other layers
