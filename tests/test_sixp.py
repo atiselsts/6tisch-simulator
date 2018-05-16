@@ -21,7 +21,11 @@ def test_add_delete_sixp(
             'exec_numSlotframesPerRun':     10000,
             'sf_type':                      'SFNone',
             'conn_class':                   'Linear',
+            'app_pkPeriod':                 0,
+            'tsch_probBcast_ebDioProb':     0,
+            'rpl_daoPeriod':                0
         },
+        force_initial_routing_and_scheduling_state = True
     )
     
     # === network forms
@@ -33,8 +37,10 @@ def test_add_delete_sixp(
     # give the network time to form
     u.run_until_asn(sim_engine, 10000)
     
-    # expected number of cells
-    numCellExpected = 0
+    # expected number of cells:
+    # '1' is the initial value here since hop1 and hop2 have one TX cell each
+    # which is installed via force_initial_routing_and_scheduling_state
+    numCellExpected = 1
     
     # === add cells
     
