@@ -3,6 +3,7 @@
 
 # =========================== imports =========================================
 
+import copy
 import random
 
 # Mote sub-modules
@@ -391,6 +392,12 @@ class Tsch(object):
         # local variables
         asn        = self.engine.getAsn()
         slotOffset = asn % self.settings.tsch_slotframeLength
+
+        # copy the received packet to a new packet instance since the passed
+        # "packet" should be kept as it is so that Connectivity can use it
+        # after this rxDone() process.
+        new_packet = copy.deepcopy(packet)
+        packet = new_packet
 
         # make sure I'm in the right state
         if self.getIsSync():
