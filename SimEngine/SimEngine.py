@@ -143,7 +143,7 @@ class DiscreteEventEngine(threading.Thread):
             output += ['==============================']
             output += ['']
             output  = '\n'.join(output)
-            print output
+            sys.stderr.write(output)
             
         else:
             # thread ended (gracefully)
