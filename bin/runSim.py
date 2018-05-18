@@ -164,7 +164,17 @@ def merge_output_files(folder_path):
     """
 
     for subfolder in os.listdir(folder_path):
-        file_path_list = sorted(glob.glob(os.path.join(folder_path, subfolder, 'output_cpu*.dat')))
+        # subfolder could have '[' in its name, which is a special character
+        # for glob. This needs to be escaped.
+        file_path_list = sorted(
+            glob.glob(
+                os.path.join(
+                    folder_path,
+                    subfolder.replace('[', '[[]'),
+                    'output_cpu*.dat'
+                )
+            )
+        )
 
         # read files and concatenate results
         with open(os.path.join(folder_path, subfolder + ".dat"), 'w') as outputfile:
