@@ -11,6 +11,7 @@
 # =========================== imports =========================================
 
 import os
+import re
 
 # =========================== defines =========================================
 
@@ -62,6 +63,12 @@ class SimSettings(object):
             self.logDirectory,
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
+
+        # direname could have sub-strings which look like u'...'. This would
+        # happen if a combination key is a list having unicode strings. We'll
+        # remove the "u" prefixed quotations.
+        dirname = re.sub(r"u'(.*?)'", r"\1", dirname)
+
         if not os.path.exists(dirname):
             try:
                 os.makedirs(dirname)
