@@ -97,6 +97,26 @@ The simulator can be run on a cluster system. Here is an example for a cluster b
    $ python mergeLogs.py
    ```
 
+The following commands could be useful to manage your jobs:
+
+* `$ oarstat`: show all the current jobs
+* `$ oarstat -u`: show *your* jobs
+* `$ oarstat -u -f`: show details of your jobs 
+* `$ oardel 87132`: delete a job whose job ID is 87132
+* `$ oardel --array 87132`: delete all the jobs whose array ID is 87132
+
+You can find your job IDs and array ID in `oarsub` outputs:
+
+```
+$ oarsub --array 4 -S "runSim.sh"
+...
+OAR_JOB_ID=87132
+OAR_JOB_ID=87133
+OAR_JOB_ID=87134
+OAR_JOB_ID=87135
+OAR_ARRAY_ID=87132
+```
+
 ## Code Organization
 
 * `SimEngine/`: the simulator
