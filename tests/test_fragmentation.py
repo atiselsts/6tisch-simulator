@@ -43,6 +43,63 @@ def fragmentation_ff_discard_vrb_entry_policy(request):
 
 # =========================== tests ===========================================
 
+class TestFreeRun:
+    @pytest.fixture(params=[0, 1])
+    def sixlowpan_reassembly_buffers_num(self, request):
+        return request.param
+
+    @pytest.fixture(params=[0, 50])
+    def fragmentation_ff_vrb_table_size(self, request):
+        return request.param
+
+    def test_with_no_memory_for_fragment(
+            self,
+            sim_engine,
+            sixlowpan_reassembly_buffers_num,
+            fragmentation_ff_vrb_table_size,
+            fragmentation,
+            fragmentation_ff_discard_vrb_entry_policy
+        ):
+
+        # We allocate no memory for PerHopReassembly and for FragmentForwarding
+        # in order to see the stack behavior under the situation where it
+        # cannot add an reassembly buffer nor VRB Table entry for an incoming
+        # fragment.
+
+        if (
+                (sixlowpan_reassembly_buffers_num > 0)
+                and
+                (fragmentation_ff_vrb_table_size > 0)
+            ):
+            # we skip this combination of parameters
+            return
+
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'                            : 3,
+                'sf_type'                                  : 'SFNone',
+                'conn_class'                               : 'Linear',
+                'app_pkPeriod'                             : 5,
+                'app_pkPeriodVar'                          : 0,
+                'tsch_probBcast_ebDioProb'                 : 0,
+                'sixlowpan_reassembly_buffers_num'         : sixlowpan_reassembly_buffers_num,
+                'fragmentation_ff_vrb_table_size'          : fragmentation_ff_vrb_table_size,
+                'app_pkLength'                             : 180,
+                'fragmentation'                            : fragmentation,
+                'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy
+            },
+            force_initial_routing_and_scheduling_state = True,
+            )
+
+        u.run_until_asn(sim_engine, 5000)
+
+        # send an application packet from root to the other motes for test with
+        # downward traffic
+        sim_engine.motes[0].app._send_ack(sim_engine.motes[1].id, 180)
+        sim_engine.motes[0].app._send_ack(sim_engine.motes[2].id, 180)
+
+        u.run_until_asn(sim_engine, 10100)
+
 class TestPacketDelivery:
     """ Behavioral Testing for Fragmentation
     """
