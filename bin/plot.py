@@ -67,9 +67,9 @@ def main(options):
         plt.boxplot(data.values())
         plt.xticks(range(1, len(data) + 1), data.keys())
         plt.ylabel(key)
-        savefig(options.outputfolder, key)
+        savefig(subfolder, key)
         plt.clf()
-    print "Plots are saved in the {0} folder.".format(options.outputfolder)
+    print "Plots are saved in the {0} folder.".format(subfolder)
 
 # =========================== helpers =========================================
 
@@ -93,11 +93,6 @@ def parse_args():
         '--inputfolder',
         help       = 'The simulation result folder.',
         default    = 'simData',
-    )
-    parser.add_argument(
-        '--outputfolder',
-        help       = 'The plots output folder.',
-        default    = 'simPlots',
     )
     parser.add_argument(
         '-k','--kpis',
