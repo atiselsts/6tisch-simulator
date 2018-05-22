@@ -22,15 +22,15 @@ import MoteDefines as d
 class Sixlowpan(object):
 
     def __init__(self, mote):
-    
+
         # store params
         self.mote                 = mote
-        
+
         # singletons (quicker access, instead of recreating every time)
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.log                  = SimEngine.SimLog.SimLog().log
-        
+
         # local variables
         self.fragmentation        = globals()[self.settings.fragmentation](self)
 
@@ -46,9 +46,9 @@ class Sixlowpan(object):
         ]
         assert 'srcIp' in packet['net']
         assert 'dstIp' in packet['net']
-        
+
         goOn = True
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_PKT_TX,
@@ -57,24 +57,24 @@ class Sixlowpan(object):
                 'packet':         packet,
             }
         )
-        
+
         # add source route, if needed
         if goOn:
             if (self.mote.dagRoot) and (packet['net']['dstIp'] not in self.mote.neighbors):
                 sourceRoute = self.mote.rpl.computeSourceRoute(packet['net']['dstIp'])
                 if sourceRoute==None:
-                    
+
                     # we cannot find a next-hop; drop this packet
                     self.mote.drop_packet(
                         packet  = packet,
                         reason  = SimEngine.SimLog.DROPREASON_NO_ROUTE,
                     )
-                    
+
                     # stop handling this packet
                     goOn = False
                 else:
                     packet['net']['sourceRoute'] = sourceRoute
-        
+
         # find link-layer destination
         if goOn:
             dstMac = self.mote.rpl.findNextHopId(packet)
@@ -86,25 +86,25 @@ class Sixlowpan(object):
                 )
                 # stop handling this packet
                 goOn = False
-        
+
         # add MAC header
         if goOn:
             packet['mac'] = {
                 'srcMac': self.mote.id,
                 'dstMac': dstMac
             }
-        
+
         # cut packet into fragments
         if goOn:
             frags = self.fragmentation.fragmentPacket(packet)
-        
+
         # enqueue each fragment
         if goOn:
             for frag in frags:
                 self.mote.tsch.enqueue(frag)
-    
+
     def recvPacket(self, packet):
-        
+
         assert packet['type'] in [
             d.PKT_TYPE_DATA,
             d.PKT_TYPE_DAO,
@@ -113,9 +113,9 @@ class Sixlowpan(object):
             d.PKT_TYPE_JOIN_REQUEST,
             d.PKT_TYPE_JOIN_RESPONSE,
         ]
-        
+
         goOn = True
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_SIXLOWPAN_PKT_RX,
@@ -124,14 +124,14 @@ class Sixlowpan(object):
                 'packet':          packet,
             }
         )
-        
+
         # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
         if goOn:
             if packet['type'] == d.PKT_TYPE_FRAG:
                 packet = self.fragmentation.fragRecv(packet)
                 if not packet:
                     goOn = False
-        
+
         # handle packet
         if goOn:
             if  (
@@ -144,7 +144,7 @@ class Sixlowpan(object):
                     )
                 ):
                 # packet for me
-                
+
                 # dispatch to upper component
                 if   packet['type'] in [d.PKT_TYPE_JOIN_REQUEST,d.PKT_TYPE_JOIN_RESPONSE]:
                     self.mote.secjoin.receive(packet)
@@ -160,17 +160,17 @@ class Sixlowpan(object):
 
                 # forward
                 self.forward(packet)
-    
+
     def forward(self, rxPacket):
         # packet can be:
         # - an IPv6 packet (which may need fragmentation)
         # - a fragment (fragment forwarding)
-        
+
         assert 'type' in rxPacket
         assert 'net' in rxPacket
-        
+
         goOn = True
-        
+
         # === create forwarded packet
         if goOn:
             fwdPacket             = {}
@@ -212,19 +212,19 @@ class Sixlowpan(object):
                     'packet':         fwdPacket,
                 }
             )
-        
+
         # cut the forwarded packet into fragments
         if goOn:
             if fwdPacket['type']==d.PKT_TYPE_FRAG:
                 fwdFrags = [fwdPacket] # don't re-frag a frag
             else:
                 fwdFrags = self.fragmentation.fragmentPacket(fwdPacket)
-        
+
         # enqueue all frags
         if goOn:
             for fwdFrag in fwdFrags:
                 self.mote.tsch.enqueue(fwdFrag)
-    
+
     #======================== private ==========================================
 
 
@@ -233,15 +233,15 @@ class Fragmentation(object):
     """
 
     def __init__(self, sixlowpan):
-        
+
         # store params
         self.sixlowpan            = sixlowpan
-        
+
         # singletons (quicker access, instead of recreating every time)
         self.settings             = SimEngine.SimSettings.SimSettings()
         self.engine               = SimEngine.SimEngine.SimEngine()
         self.log                  = SimEngine.SimLog.SimLog().log
-        
+
         # local variables
         self.mote                 = sixlowpan.mote
         self.next_datagram_tag    = random.randint(0, 2**16-1)
@@ -257,7 +257,7 @@ class Fragmentation(object):
         self.reassembly_buffers   = {}
 
     #======================== public ==========================================
-    
+
     def fragmentPacket(self, packet):
         """Fragments a packet into fragments
 
@@ -285,7 +285,7 @@ class Fragmentation(object):
                     'datagram_offset':      offset_for_this_fragment,
                 }
             }
-            
+
         Last fragment (app, no srcIp/dstIp):
             {
                 'app':                      (if applicable)
@@ -306,9 +306,9 @@ class Fragmentation(object):
         ]
         assert 'type' in packet
         assert 'net'  in packet
-        
+
         returnVal = []
-        
+
         if  self.settings.tsch_max_payload_len < packet['net']['packet_length']:
             # the packet needs fragmentation
 
@@ -332,7 +332,7 @@ class Fragmentation(object):
                 # put additional fields to the first and the last fragment
                 if   i == 0:
                     # first fragment
-                    
+
                     # add srcIp, dstIp, sourceRoute
                     fragment['net']['srcIp']                = packet['net']['srcIp']
                     fragment['net']['dstIp']                = packet['net']['dstIp']
@@ -340,7 +340,7 @@ class Fragmentation(object):
                         fragment['net']['sourceRoute']      = copy.deepcopy(packet['net']['sourceRoute'])
                 elif i == (number_of_fragments - 1):
                     # the last fragment
-                    
+
                     # add original_packet_type and 'app' field
                     fragment['app']                         = copy.deepcopy(packet['app'])
                     fragment['net']['original_packet_type'] = packet['type']
@@ -378,7 +378,7 @@ class Fragmentation(object):
             returnVal += [packet]
 
         return returnVal
-    
+
     @abstractmethod
     def fragRecv(self, fragment):
         """This method is supposed to return a packet to be processed further
@@ -386,7 +386,7 @@ class Fragmentation(object):
         This could return None.
         """
         raise NotImplementedError() # abstractmethod
-    
+
     def reassemblePacket(self, fragment):
         srcMac                    = fragment['mac']['srcMac']
         datagram_size             = fragment['net']['datagram_size']
@@ -462,14 +462,14 @@ class Fragmentation(object):
             del self.reassembly_buffers[srcMac]
 
         return packet
-    
+
     # ======================= private =========================================    
-    
+
     def _get_next_datagram_tag(self):
         ret = self.next_datagram_tag
         self.next_datagram_tag = (ret + 1) % 65536
         return ret
-    
+
     def _delete_expired_reassembly_buffer(self):
         if len(self.reassembly_buffers) == 0:
             return
@@ -513,6 +513,7 @@ class FragmentForwarding(Fragmentation):
         datagram_size         = fragment['net']['datagram_size']
         datagram_offset       = fragment['net']['datagram_offset']
         incoming_datagram_tag = fragment['net']['datagram_tag']
+        packet_length         = fragment['net']['packet_length']
         entry_lifetime        = d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME / self.settings.tsch_slotDuration
 
         self._delete_expired_vrb_table_entry()
@@ -579,7 +580,7 @@ class FragmentForwarding(Fragmentation):
                 (incoming_datagram_tag in self.vrb_table[srcMac])
            ):
             if datagram_offset == self.vrb_table[srcMac][incoming_datagram_tag]['next_offset']:
-                self.vrb_table[srcMac][incoming_datagram_tag]['next_offset'] += fragment['net']['packet_length']
+                self.vrb_table[srcMac][incoming_datagram_tag]['next_offset'] += packet_length
             else:
                 del self.vrb_table[srcMac][incoming_datagram_tag]
                 if len(self.vrb_table[srcMac]) == 0:
@@ -626,7 +627,7 @@ class FragmentForwarding(Fragmentation):
                 ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
                 (srcMac in self.vrb_table) and
                 (incoming_datagram_tag in self.vrb_table[srcMac]) and
-                ((fragment['net']['datagram_offset'] + fragment['net']['packet_length']) == fragment['net']['datagram_size'])
+                ((datagram_offset + packet_length) == datagram_size)
            ):
             del self.vrb_table[srcMac][incoming_datagram_tag]
             if len(self.vrb_table[srcMac]) == 0:

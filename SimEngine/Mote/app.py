@@ -155,10 +155,14 @@ class AppRoot(AppBase):
 
     #======================== private ==========================================
     
-    def _send_ack(self, destination):
+    def _send_ack(self, destination, packet_length=None):
+
+        if packet_length is None:
+            packet_length = self.APP_PK_LENGTH
+
         self._send_packet(
             dstIp          = destination,
-            packet_length  = self.APP_PK_LENGTH
+            packet_length  = packet_length
         )
 
 class AppPeriodic(AppBase):
