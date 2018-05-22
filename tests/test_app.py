@@ -40,7 +40,7 @@ def test_app_upstream(
     )
 
     # give the network time to form
-    u.run_until_asn(sim_engine, 1000)
+    u.run_until_asn(sim_engine, 1010)
 
     # the number of 'app.tx' is the same as the number of generated packets.
     logs = u.read_log_file(filter=['app.tx'])
