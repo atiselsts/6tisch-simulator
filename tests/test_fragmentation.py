@@ -667,7 +667,7 @@ class TestFragmentForwarding:
             trigger_fragment_type
         ):
         """Test discard_vrb_entry_policy
-        - objective   : test if a specified policy is implemented
+        - objective   : test if a specified policy is implemented correctly
         - precondition: form a 2-mote linear topology
         - precondition: make root to create a VRB table entry
         - expectation : if the trigger matches the policy, the entry should be removed
