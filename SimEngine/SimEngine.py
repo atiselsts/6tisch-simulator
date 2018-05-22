@@ -142,6 +142,13 @@ class DiscreteEventEngine(threading.Thread):
             output += [traceback.format_exc()]
             output += ['==============================']
             output += ['']
+            output += ['The following settings are used:']
+            output += ['']
+            for k, v in SimSettings.SimSettings().__dict__.iteritems():
+                output += ['{0}: {1}'.format(str(k), str(v))]
+            output += ['']
+            output += ['==============================']
+            output += ['']
             output  = '\n'.join(output)
             print output
             
