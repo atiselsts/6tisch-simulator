@@ -6,7 +6,7 @@ import test_utils as u
 # =========================== fixtures ========================================
 
 #@pytest.fixture(params=[2,3,4])
-@pytest.fixture(params=[4])
+@pytest.fixture(params=[3])
 def fixture_exec_numMotes(request):
     return request.param
 
