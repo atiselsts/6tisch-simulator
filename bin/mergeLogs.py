@@ -21,7 +21,7 @@ def parseCliParams():
     )
 
     parser.add_argument(
-        '--logRootDir',
+        '-l', '-logRootDir',
         dest            = 'logRootDir',
         action          = 'store',
         default         = './simData',
@@ -29,11 +29,27 @@ def parseCliParams():
     )
 
     parser.add_argument(
-        '--dry-run',
+        '-d', '--dry-run',
         dest            = 'dryRun',
         action          = 'store_true',
         default         = False,
         help            = 'Run without any change to the file system'
+    )
+
+    parser.add_argument(
+        '-k', '--keep-src',
+        dest            = 'keepSource',
+        action          = 'store_true',
+        default         = False,
+        help            = 'Not remove source files/directories after the merger'
+    )
+
+    parser.add_argument(
+        '-y', '--yes',
+        dest            = 'noPrompt',
+        action          = 'store_true',
+        default         = False,
+        help            = 'Run without user input (confirmation)'
     )
 
     cliparams      = parser.parse_args()
@@ -136,6 +152,7 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
     run_id_offset = 0
     cpu_id_list   = []
     run_id_list   = []
+    skipped_lines = []
 
     for targetDir in targetSubDirs:
 
@@ -167,7 +184,13 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
 
                         for line in infile:
                             # read a log line
-                            log = json.loads(line)
+                            try:
+                                log = json.loads(line)
+                            except ValueError:
+                                # input line cannot be parsed as a json
+                                # string. it may be corrupted
+                                skipped_lines.append((infile_path, line))
+                                continue
 
                             # collect cpuID and _runid that are used to compute
                             # cpu_id_offset and run_id_offset
@@ -191,6 +214,15 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
 
     assert total_processed_file_num == total_target_file_num
     print '[100%] merger done'
+
+    if len(skipped_lines) > 0:
+        # we have skipped lines; dump them into a file
+        skipped_lines_file = os.path.join(logDir, 'skipped-lines.txt')
+        print 'We have log lines which are not parsed correctly.'
+        print 'You can find them in {0}'.format(skipped_lines_file)
+        with open(skipped_lines_file, 'w') as f:
+            for (file_name, line) in skipped_lines:
+                f.write('{0}, {1}'.format(file_name, line))
 
 # =========================== main ============================================
 
@@ -216,20 +248,26 @@ def main():
     print 'Log files under the following directories will be merged:'
     for sub_dir in sorted(targetSubDirs):
         print '  {0}'.format(sub_dir)
-    print 'These directories will be removed.'
+
+    if cliparams['keepSource'] is False:
+        print 'These directories will be removed.'
+
     print 'A new log directory is: {0}'.format(logDir)
-    print 'Hit "return" to proceed'
-    raw_input()
+
+    if cliparams['noPrompt'] is False:
+        print 'Hit "return" to proceed'
+        raw_input()
 
     # create new log files under logDir which have all the log data under the
     # target sub-directories.
     mergeLogFiles(logDir, targetSubDirs, cliparams['dryRun'])
 
     # remove target sub-directories
-    for subdir in targetSubDirs:
-        print 'removing {0}'.format(subdir)
-        if not cliparams['dryRun']:
-            shutil.rmtree(subdir)
+    if cliparams['keepSource'] is False:
+        for subdir in targetSubDirs:
+            print 'removing {0}'.format(subdir)
+            if not cliparams['dryRun']:
+                shutil.rmtree(subdir)
 
 if __name__ == '__main__':
     main()
