@@ -15,7 +15,7 @@ def run_until_asn(sim_engine, target_asn):
     """
     (re)start the simulator, run until some ASN, pause
     """
-    
+
     # arm a pause at the target ASN
     sim_engine.pauseAtAsn(target_asn)
 
@@ -25,7 +25,7 @@ def run_until_asn(sim_engine, target_asn):
     else:
         # start for the first time
         sim_engine.start()
-    
+
     # wait until simulator pauses
     while not sim_engine.simPaused:
         # wait...
@@ -34,7 +34,7 @@ def run_until_asn(sim_engine, target_asn):
         # ensure the simulator hasn't crashed
         if sim_engine.exc:
             raise sim_engine.exc
-        
+
         # ensure the simulation hasn't finished
         assert sim_engine.is_alive()
 
@@ -42,7 +42,7 @@ def run_until_asn(sim_engine, target_asn):
     # files.
     SimEngine.SimLog.SimLog().flush()
 
-def read_log_file(filter=[]):
+def read_log_file(filter=[], after_asn=0):
     """return contents in a log file as a list of log objects
 
     You can get only logs which match types specified in "filter"
@@ -55,7 +55,7 @@ def read_log_file(filter=[]):
         f.readline()
         for line in f:
             log = json.loads(line)
-            if (len(filter) == 0) or (log['_type'] in filter):
+            if (log["_asn"] >= after_asn) and ((len(filter) == 0) or (log['_type'] in filter)):
                 logs.append(log)
 
     return logs

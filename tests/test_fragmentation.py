@@ -12,7 +12,7 @@ import SimEngine
 import SimEngine.Mote.MoteDefines as d
 
 # =========================== helpers =========================================
-    
+
 def get_memory_usage(mote, fragmentation):
     if fragmentation == 'PerHopReassembly':
         memory_structure = mote.sixlowpan.fragmentation.reassembly_buffers
@@ -77,7 +77,7 @@ class TestFreeRun:
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes'                            : 3,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app_pkPeriod'                             : 5,
                 'app_pkPeriodVar'                          : 0,
@@ -127,7 +127,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 3,
                 'exec_numSlotframesPerRun'                 : 10000,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app_pkPeriod'                             : 5,
                 'app_pkPeriodVar'                          : 0,
@@ -139,7 +139,7 @@ class TestPacketDelivery:
             },
             force_initial_routing_and_scheduling_state = True,
         )
-        
+
         # run the simulation for 1000 timeslots (10 seconds)
         u.run_until_asn(sim_engine, 1000)
 
@@ -186,7 +186,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 3,
                 'exec_numSlotframesPerRun'                 : 10,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app'                                      : 'AppPeriodic',
                 'app_pkPeriod'                             : 0,
@@ -292,7 +292,7 @@ class TestPacketDelivery:
             {
                 'exec_numMotes'                            : 4,
                 'exec_numSlotframesPerRun'                 : 10,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
@@ -371,7 +371,7 @@ class TestFragmentationAndReassembly(object):
             diff_config = {
                 'exec_numMotes'                            : 2,
                 'exec_numSlotframesPerRun'                 : 20,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app_pkPeriod'                             : 0,
                 'app_pkPeriodVar'                          : 0,
@@ -462,7 +462,7 @@ class TestMemoryManagement:
 
         # the memory usage should be the same as memory_limit
         assert get_memory_usage(hop1, fragmentation) == memory_limit
-    
+
     def test_entry_expiration(
             self,
             sim_engine,
@@ -581,7 +581,7 @@ class TestDatagramTagManagement(object):
         sim_engine = sim_engine(
             {
                 'exec_numMotes'                            : 3,
-                'sf_type'                                  : 'SFNone',
+                'sf_class'                                 : 'SFNone',
                 'conn_class'                               : 'Linear',
                 'app_pkLength'                             : 180,
                 'fragmentation'                            : fragmentation,

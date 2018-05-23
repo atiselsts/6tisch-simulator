@@ -51,7 +51,7 @@ def test_exception_at_runtime(sim_engine, repeat4times):
         uniqueTag       = ('engine','_raiseException'),
         intraSlotOrder  = 1,
     )
-    
+
     with pytest.raises(MyException):
         u.run_until_asn(
             sim_engine,
@@ -80,7 +80,7 @@ def test_initial_scheduling_state(sim_engine):
         force_initial_routing_and_scheduling_state    = True
     )
 
-    # Each mote should have one TX/RX/SHRAED cell and one TX dedicated cell to
+    # Each mote should have one TX/RX/SHARED cell and one TX dedicated cell to
     # its parent. In this sense, a mote has the same number of RX dedicated
     # cells as its children. We'll have a linear topology with
     # force_initial_routing_and_scheduling_state True, each mote except for the
@@ -120,9 +120,9 @@ def test_run_until_asn(sim_engine, repeat4times):
             'exec_numSlotframesPerRun': 1,
         }
     )
-    
+
     assert sim_engine.getAsn() == 0
-    
+
     for target_asn in range(1,10,5):
         u.run_until_asn(
             sim_engine,

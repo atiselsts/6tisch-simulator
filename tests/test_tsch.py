@@ -52,7 +52,7 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
             'dstMac': root.id,
         }
     }
-    
+
     # make sure that queuing that frame fails
     assert hop1.tsch.enqueue(test_frame) == False
 
@@ -62,9 +62,9 @@ def test_removeTypeFromQueue(sim_engine):
             'exec_numMotes': 1,
         },
     )
-    
+
     mote = sim_engine.motes[0]
-    
+
     mote.tsch.txQueue = [
         {'type': 1},
         {'type': 2},
@@ -105,7 +105,7 @@ def test_tx_cell_selection(
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes'            : 3,
-            'sf_type'                  : 'SFNone',
+            'sf_class'                  : 'SFNone',
             'conn_class'               : 'Linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,

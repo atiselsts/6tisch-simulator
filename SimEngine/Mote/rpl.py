@@ -349,12 +349,16 @@ class Rpl(object):
             allPotentialRanks[nid]     = n['rank']+rank_increment
 
         # pick lowest potential rank
-        (myPotentialParent,myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
+        (myPotentialParent, myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
 
         # switch parents
-        if self.rank!=myPotentialRank or self.preferredParent!=myPotentialParent:
+        if (
+                (myPotentialRank is not None and myPotentialParent is not None) and
+                (self.rank != myPotentialRank or self.preferredParent != myPotentialParent)
+        ):
 
             # update
+            old_parent           = self.preferredParent
             self.rank            = myPotentialRank
             self.preferredParent = myPotentialParent
 
@@ -367,6 +371,13 @@ class Rpl(object):
                     "preferredParent": self.preferredParent,
                 }
             )
+
+            # trigger 6P ADD if parent changed # FIXME: layer violation
+            if old_parent != self.preferredParent:
+                self.mote.sixp.issue_ADD_REQUEST(
+                    self.preferredParent,
+                    cell_options=[d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+                )
 
     def _estimateETX(self, neighbor_id):
 

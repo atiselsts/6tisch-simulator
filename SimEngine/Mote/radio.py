@@ -46,7 +46,7 @@ class Radio(object):
     # TX
 
     def startTx(self, channel, packet):
-        
+
         assert self.onGoingBroadcast    is None
         assert self.onGoingTransmission is None
         assert 'type' in packet
@@ -55,7 +55,7 @@ class Radio(object):
         # record the state of the radio
         self.state   = d.RADIO_STATE_TX
         self.channel = channel
-        
+
         # record ongoing, for propagation model
         self.onGoingTransmission = {
             'channel': channel,
@@ -95,12 +95,13 @@ class Radio(object):
     # RX
 
     def startRx(self, channel):
+        assert self.state != d.RADIO_STATE_RX
         self.state = d.RADIO_STATE_RX
         self.channel = channel
 
     def rxDone(self, packet):
         """end of RX radio activity"""
-        
+
         # switch radio state
         self.state   = d.RADIO_STATE_OFF
         self.channel = None

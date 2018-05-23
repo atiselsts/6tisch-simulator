@@ -26,7 +26,7 @@ def test_app_upstream(
         {
             'exec_numMotes'                            : 2,
             'exec_numSlotframesPerRun'                 : 11,
-            'sf_type'                                  : 'SFNone',
+            'sf_class'                                  : 'SFNone',
             'conn_class'                               : 'Linear',
             'tsch_probBcast_ebDioProb'                 : 0,
             'app'                                      : app,
