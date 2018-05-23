@@ -21,7 +21,7 @@ def parseCliParams():
     )
 
     parser.add_argument(
-        '--logRootDir',
+        '-l', '-logRootDir',
         dest            = 'logRootDir',
         action          = 'store',
         default         = './simData',
@@ -29,11 +29,27 @@ def parseCliParams():
     )
 
     parser.add_argument(
-        '--dry-run',
+        '-d', '--dry-run',
         dest            = 'dryRun',
         action          = 'store_true',
         default         = False,
         help            = 'Run without any change to the file system'
+    )
+
+    parser.add_argument(
+        '-k', '--keep-src',
+        dest            = 'keepSource',
+        action          = 'store_true',
+        default         = False,
+        help            = 'Not remove source files/directories after the merger'
+    )
+
+    parser.add_argument(
+        '-y', '--yes',
+        dest            = 'noPrompt',
+        action          = 'store_true',
+        default         = False,
+        help            = 'Run without user input (confirmation)'
     )
 
     cliparams      = parser.parse_args()
@@ -216,20 +232,26 @@ def main():
     print 'Log files under the following directories will be merged:'
     for sub_dir in sorted(targetSubDirs):
         print '  {0}'.format(sub_dir)
-    print 'These directories will be removed.'
+
+    if cliparams['keepSource'] is False:
+        print 'These directories will be removed.'
+
     print 'A new log directory is: {0}'.format(logDir)
-    print 'Hit "return" to proceed'
-    raw_input()
+
+    if cliparams['noPrompt'] is False:
+        print 'Hit "return" to proceed'
+        raw_input()
 
     # create new log files under logDir which have all the log data under the
     # target sub-directories.
     mergeLogFiles(logDir, targetSubDirs, cliparams['dryRun'])
 
     # remove target sub-directories
-    for subdir in targetSubDirs:
-        print 'removing {0}'.format(subdir)
-        if not cliparams['dryRun']:
-            shutil.rmtree(subdir)
+    if cliparams['keepSource'] is False:
+        for subdir in targetSubDirs:
+            print 'removing {0}'.format(subdir)
+            if not cliparams['dryRun']:
+                shutil.rmtree(subdir)
 
 if __name__ == '__main__':
     main()
