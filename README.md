@@ -97,6 +97,12 @@ The simulator can be run on a cluster system. Here is an example for a cluster b
    $ python mergeLogs.py
    ```
 
+If you want to avoid using a specific host, use `-p` option with `oarsub`:
+```
+$ oarsub -p "not host like 'node063'" --array 10 -S "./runSim.sh"
+```
+In this case, `node063` won't be selected for submitted jobs.
+
 The following commands could be useful to manage your jobs:
 
 * `$ oarstat`: show all the current jobs
