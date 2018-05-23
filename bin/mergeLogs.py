@@ -152,6 +152,7 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
     run_id_offset = 0
     cpu_id_list   = []
     run_id_list   = []
+    skipped_lines = []
 
     for targetDir in targetSubDirs:
 
@@ -183,7 +184,13 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
 
                         for line in infile:
                             # read a log line
-                            log = json.loads(line)
+                            try:
+                                log = json.loads(line)
+                            except ValueError:
+                                # input line cannot be parsed as a json
+                                # string. it may be corrupted
+                                skipped_lines.append((infile_path, line))
+                                continue
 
                             # collect cpuID and _runid that are used to compute
                             # cpu_id_offset and run_id_offset
@@ -207,6 +214,15 @@ def mergeLogFiles(logDir, targetSubDirs, dryRun):
 
     assert total_processed_file_num == total_target_file_num
     print '[100%] merger done'
+
+    if len(skipped_lines) > 0:
+        # we have skipped lines; dump them into a file
+        skipped_lines_file = os.path.join(logDir, 'skipped-lines.txt')
+        print 'We have log lines which are not parsed correctly.'
+        print 'You can find them in {0}'.format(skipped_lines_file)
+        with open(skipped_lines_file, 'w') as f:
+            for (file_name, line) in skipped_lines:
+                f.write('{0}, {1}'.format(file_name, line))
 
 # =========================== main ============================================
 
