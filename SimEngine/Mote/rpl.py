@@ -351,33 +351,34 @@ class Rpl(object):
         # pick lowest potential rank
         (myPotentialParent, myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
 
-        # switch parents
         if (
-                (myPotentialRank is not None and myPotentialParent is not None) and
-                (self.rank != myPotentialRank or self.preferredParent != myPotentialParent)
-        ):
-
-            # update
+                (myPotentialRank is not None)
+                and
+                (myPotentialParent is not None)
+                and
+                (self.rank != myPotentialRank)
+            ):
+            # my rank changes; update states
             old_parent           = self.preferredParent
             self.rank            = myPotentialRank
             self.preferredParent = myPotentialParent
 
-            # log
-            self.log(
-                SimEngine.SimLog.LOG_RPL_CHURN,
-                {
-                    "_mote_id":        self.mote.id,
-                    "rank":            self.rank,
-                    "preferredParent": self.preferredParent,
-                }
-            )
-
-            # trigger 6P ADD if parent changed # FIXME: layer violation
-            if old_parent != self.preferredParent:
-                self.mote.sixp.issue_ADD_REQUEST(
-                    self.preferredParent,
-                    cell_options=[d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+            if self.preferredParent != old_parent:
+                # log
+                self.log(
+                    SimEngine.SimLog.LOG_RPL_CHURN,
+                    {
+                        "_mote_id":        self.mote.id,
+                        "rank":            self.rank,
+                        "preferredParent": self.preferredParent,
+                    }
                 )
+
+                # trigger 6P ADD if parent changed # FIXME: layer violation
+                self.mote.sf.indication_parent_change(old_parent, self.preferredParent)
+            else:
+                # my rank changes without parent switch
+                pass
 
     def _estimateETX(self, neighbor_id):
 
