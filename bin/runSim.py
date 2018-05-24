@@ -130,7 +130,7 @@ def runSimCombinations(params):
         # printOrLog
         output  = 'simulation ended after {0:.0f}s ({1} runs).'.format(
             time.time()-simStartTime,
-            numRuns
+            numRuns * len(simParams)
         )
         printOrLog(cpuID, output, verbose)
 
