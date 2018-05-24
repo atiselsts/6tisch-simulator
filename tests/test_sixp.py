@@ -12,6 +12,7 @@ def count_dedicated_tx_cells(mote,neighbor):
 
 # =========================== tests ===========================================
 
+@pytest.mark.skip(reason='WIP')
 def test_add_delete_sixp(
         sim_engine,
     ):
