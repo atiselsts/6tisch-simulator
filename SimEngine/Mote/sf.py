@@ -146,11 +146,17 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self._adapt_to_traffic(preferred_parent)
 
     def indication_parent_change(self, old_parent, new_parent):
+        assert old_parent != new_parent
+
         # count number of dedicated cell with old preferred parent
         num_cells = len(self.mote.tsch.getDedicatedCells(old_parent))
 
         # trigger 6P ADD command to add cell with new parent
-        self.mote.sixp.issue_ADD_REQUEST(new_parent, num_cells)
+        self.mote.sixp.issue_ADD_REQUEST(
+            neighborid   = new_parent,
+            num_cells    = num_cells,
+            cell_options = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+        )
 
         # trigger 6P CLEAR command to old preferred parent
         self.mote.sixp.issue_CLEAR_REQUEST(old_parent)

@@ -373,11 +373,7 @@ class Rpl(object):
             )
 
             # trigger 6P ADD if parent changed # FIXME: layer violation
-            if old_parent != self.preferredParent:
-                self.mote.sixp.issue_ADD_REQUEST(
-                    self.preferredParent,
-                    cell_options=[d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
-                )
+            self.mote.sf.indicate_parent_change(old_parent, self.preferredParent)
 
     def _estimateETX(self, neighbor_id):
 
