@@ -74,7 +74,7 @@ LOG_TSCH_ADD_CELL                 = {'type': 'tsch.add_cell',             'keys'
 LOG_TSCH_DELETE_CELL              = {'type': 'tsch.delete_cell',          'keys': ['_mote_id','slotOffset','channelOffset','neighbor','cellOptions']}
 LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys': ['_mote_id','channel','packet','isACKed']}
 LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','packet']}
-LOG_TSCH_BACKOFFCHANGED           = {'type': 'tsch.backoff.changed',      'keys': ['_mote_id','cell']}
+LOG_TSCH_BACKOFF_EXPONENT_UPDATED = {'type': 'tsch.be.updated',           'keys': ['_mote_id','old_be', 'new_be']}
 
 # === batt
 LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
