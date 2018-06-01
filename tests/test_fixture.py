@@ -129,3 +129,27 @@ def test_run_until_asn(sim_engine, repeat4times):
             target_asn = target_asn,
         )
         assert sim_engine.getAsn() == target_asn
+
+#=== test that run_until_end() works
+
+@pytest.fixture(params=[100, 200, 1000])
+def num_slotframes(request):
+    return request.param
+
+@pytest.fixture(params=[100, 101])
+def slotframe_length(request):
+    return request.param
+
+def test_run_until_end(sim_engine, num_slotframes, slotframe_length):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numSlotframesPerRun': num_slotframes,
+            'tsch_slotframeLength':     slotframe_length
+        }
+    )
+
+    u.run_until_end(sim_engine)
+
+    assert sim_engine.getAsn() == slotframe_length * num_slotframes
+
+#=== test that run_until_everyone_joined() works

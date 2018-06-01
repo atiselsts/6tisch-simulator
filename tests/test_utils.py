@@ -42,6 +42,15 @@ def run_until_asn(sim_engine, target_asn):
     # files.
     SimEngine.SimLog.SimLog().flush()
 
+def run_until_end(sim_engine):
+    """
+    (re)start the simulator, run until the simulation ends
+    """
+    slotframe_length = sim_engine.settings.tsch_slotframeLength
+    num_slotframes   = sim_engine.settings.exec_numSlotframesPerRun
+    asn_at_end = slotframe_length * num_slotframes
+    run_until_asn(sim_engine, asn_at_end)
+
 def read_log_file(filter=[], after_asn=0):
     """return contents in a log file as a list of log objects
 
