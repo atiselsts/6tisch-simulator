@@ -56,23 +56,14 @@ LOG_SIXLOWPAN_PKT_FWD             = {'type': 'sixlowpan.pkt.fwd',         'keys'
 LOG_SIXLOWPAN_PKT_RX              = {'type': 'sixlowpan.pkt.rx',          'keys': ['_mote_id','packet']}
 LOG_SIXLOWPAN_FRAG_GEN            = {'type': 'sixlowpan.frag.gen',        'keys': ['_mote_id','packet']}
 
+# === MSF
+LOG_MSF_CELL_UTILIZATION          = {'type': 'msf.cell_utilization',      'keys': ['_mote_id','neighbor_id','value']}
+
 # === sixp
-LOG_SIXP_ADD_REQUEST_TX           = {'type': 'sixp.add_request.tx',       'keys': ['_mote_id','packet']}
-LOG_SIXP_ADD_REQUEST_RX           = {'type': 'sixp.add_request.rx',       'keys': ['_mote_id','packet']}
-LOG_SIXP_ADD_RESPONSE_TX          = {'type': 'sixp.add_response.tx',      'keys': ['_mote_id','packet']}
-LOG_SIXP_ADD_RESPONSE_RX          = {'type': 'sixp.add_response.rx',      'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_REQUEST_TX        = {'type': 'sixp.delete_request.tx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_REQUEST_RX        = {'type': 'sixp.delete_request.rx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_RESPONSE_TX       = {'type': 'sixp.delete_response.tx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_DELETE_RESPONSE_RX       = {'type': 'sixp.delete_response.rx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_CLEAR_REQUEST_TX         = {'type': 'sixp.clear_request.tx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_CLEAR_REQUEST_RX         = {'type': 'sixp.clear_request.rx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_CLEAR_RESPONSE_TX        = {'type': 'sixp.clear_response.tx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_CLEAR_RESPONSE_RX        = {'type': 'sixp.clear_response.rx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_RELOCATE_REQUEST_TX      = {'type': 'sixp.relocate_request.tx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_RELOCATE_REQUEST_RX      = {'type': 'sixp.relocate_request.rx',    'keys': ['_mote_id','packet']}
-LOG_SIXP_RELOCATE_RESPONSE_TX     = {'type': 'sixp.relocate_response.tx',   'keys': ['_mote_id','packet']}
-LOG_SIXP_RELOCATE_RESPONSE_RX     = {'type': 'sixp.relocate_response.rx',   'keys': ['_mote_id','packet']}
+LOG_SIXP_TX                       = {'type': 'sixp.tx',                   'keys': ['_mote_id','packet']}
+LOG_SIXP_RX                       = {'type': 'sixp.rx',                   'keys': ['_mote_id','packet']}
+LOG_SIXP_TRANSACTION_COMPLETED    = {'type': 'sixp.comp',                 'keys': ['_mote_id','peerMac','seqNum', 'cmd']}
+LOG_SIXP_TRANSACTION_TIMEOUT      = {'type': 'sixp.timeout',              'keys': ['_mote_id','peerMac','seqNum', 'cmd']}
 
 # === tsch
 LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}

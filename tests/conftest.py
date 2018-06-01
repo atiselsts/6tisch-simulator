@@ -86,7 +86,7 @@ def set_initial_routing_and_scheduling_state(engine):
         m.secjoin.setIsJoined(True)   # forced (fixture)
         m.tsch.startSendingEBs()      # forced
         m.tsch.startSendingDIOs()     # forced
-        m.sf.startMonitoring()        # forced
+        m.sf.start()        # forced
         m.dodagId = root.id           # forced
         if m.dagRoot==False:
             m.rpl.startSendingDAOs()  # forced

@@ -18,10 +18,7 @@ import SimEngine.Mote.MoteDefines as d
     # not DIO (generetaed by TSCH directly)
     d.PKT_TYPE_DAO,
     # not EB (generetaed by tsch directly)
-    d.PKT_TYPE_SIXP_ADD_REQUEST,
-    d.PKT_TYPE_SIXP_ADD_RESPONSE,
-    d.PKT_TYPE_SIXP_DELETE_REQUEST,
-    d.PKT_TYPE_SIXP_DELETE_RESPONSE,
+    d.PKT_TYPE_SIXP,
 ])
 def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     """

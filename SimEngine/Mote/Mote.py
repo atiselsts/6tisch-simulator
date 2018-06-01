@@ -154,8 +154,6 @@ class Mote(object):
             self.secjoin.setIsJoined(True)  # dagRoot
             # rpl
             self.rpl.setRank(256)
-            # sf
-            self.sf.startMonitoring()       # dagRoot
             # tsch
             self.tsch.add_minimal_cell()    # dagRpot
             self.tsch.setIsSync(True)       # dagRoot
@@ -191,14 +189,16 @@ class Mote(object):
             if self.dagRoot==False and self.rpl.getPreferredParent()==None:
                 returnVal = False
 
-        # I must have at least one TX cell to my preferred parent (if running MSF)
+
+        # I must have at least one TX/RX/SHARED cell to my preferred parent (if
+        # running MSF)
         if returnVal==True:
             if  (
                     (self.dagRoot == False)
                     and
                     (type(self.sf) == sf.SchedulingFunctionMSF)
                     and
-                    len(self.tsch.getTxCells(self.rpl.getPreferredParent())) == 0
+                    len(self.tsch.getTxRxSharedCells(self.rpl.getPreferredParent())) == 0
                 ):
                     returnVal = False
 
