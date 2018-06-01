@@ -3,6 +3,7 @@
 import json
 import os
 import time
+import types
 
 import SimEngine
 
@@ -41,6 +42,55 @@ def run_until_asn(sim_engine, target_asn):
     # flush the internal log buffer so that test code can see data in the log
     # files.
     SimEngine.SimLog.SimLog().flush()
+
+def run_until_end(sim_engine):
+    """
+    (re)start the simulator, run until the simulation ends
+    """
+    slotframe_length = sim_engine.settings.tsch_slotframeLength
+    num_slotframes   = sim_engine.settings.exec_numSlotframesPerRun
+    asn_at_end       = slotframe_length * num_slotframes
+    run_until_asn(sim_engine, asn_at_end)
+
+def run_until_everyone_joined(sim_engine):
+    """
+    (re)start the simulator, run until every mote gets joined
+    """
+
+    # this list is shared among all the motes; collect all the motes who have
+    # already joined
+    joined_node_set = set(
+        [
+            mote for mote in sim_engine.motes if mote.secjoin.getIsJoined()
+        ]
+    )
+
+    def new_setIsJoined(self, newState):
+        self.original_setIsJoined(newState)
+        # update joined_node_set
+        if newState is True:
+            joined_node_set.add(self.mote.id)
+        elif self.mote_id in joined_node_set:
+            joined_node_set.remove(self.mote_id)
+        else:
+            # newState == False and self.mote_id not in joined_node_set
+            # do nothing
+            pass
+
+        # stop the simulator if it's time to do
+        if len(joined_node_set) == len(sim_engine.motes):
+            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
+
+    # install new_setIsJoined to the motes
+    for mote in sim_engine.motes:
+        mote.secjoin.original_setIsJoined = mote.secjoin.setIsJoined
+        mote.secjoin.setIsJoined = types.MethodType(
+            new_setIsJoined,
+            mote.secjoin
+        )
+
+    # run until the simulator is paused
+    run_until_end(sim_engine)
 
 def read_log_file(filter=[], after_asn=0):
     """return contents in a log file as a list of log objects
