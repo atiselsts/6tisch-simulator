@@ -344,7 +344,7 @@ class Rpl(object):
                 continue
             etx                        = self._estimateETX(nid)
             if etx is None: # FIXME
-                etx = 9999
+                etx = 16
             rank_increment             = (1*((3*etx)-2) + 0) * d.RPL_MINHOPRANKINCREASE # https://tools.ietf.org/html/rfc8180#section-5.1.1
             allPotentialRanks[nid]     = n['rank']+rank_increment
 
