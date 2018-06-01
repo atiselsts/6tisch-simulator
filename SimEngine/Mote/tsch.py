@@ -49,6 +49,9 @@ class Tsch(object):
         self.iAmSendingEBs                  = False
         self.iAmSendingDIOs                 = False
         self.drift                          = random.uniform(-d.RADIO_MAXDRIFT, d.RADIO_MAXDRIFT)
+        # backoff state
+        self.backoff_exponent               = d.TSCH_MIN_BACKOFF_EXPONENT
+        self.backoff_remaining_delay        = 0
 
     #======================== public ==========================================
 
@@ -201,9 +204,6 @@ class Tsch(object):
             'channelOffset':      channelOffset,
             'neighbor':           neighbor,
             'cellOptions':        cellOptions,
-            # backoff management
-            'backoff':            0,
-            'backoffExponent':    d.TSCH_MIN_BACKOFF_EXPONENT,
             # per-cell statistics
             'numTx':              0,
             'numTxAck':           0,
@@ -336,41 +336,12 @@ class Tsch(object):
                 ):
                 self.mote.sixp.recv_mac_ack(self.pktToSend)
 
-            # update the cell's backoff
-            newBackoff         = cell['backoff']
-            newBackoffExponent = cell['backoffExponent']
-            if d.CELLOPTION_SHARED in cell['cellOptions']:
-                # just transmitted in a SHARED cell
-
-                # update backoff according to Section 6.2.5.3 of IEEE802.15.4-2015
-                if isACKed==True:
-                    newBackoff              = 0
-                    newBackoffExponent      = d.TSCH_MIN_BACKOFF_EXPONENT
-                else:
-                    newBackoff              = random.randint(0,(2**cell['backoffExponent'])-1)
-                    if cell['backoffExponent']<d.TSCH_MAX_BACKOFF_EXPONENT:
-                        newBackoffExponent  = cell['backoffExponent']+1
-            else:
-                # just transmitted in a dedicated link (which is different from a dedicated cell)
-
-                # Section 6.2.5.3 of IEEE802.15.4-2015: "The backoff window is reset to the minimum value if the
-                # transmission in a dedicated link is successful and the transmit queue is then empty."
-                if (isACKed==True) and (not self.txQueue):
-                    newBackoff                   = 0
-                    newBackoffExponent           = d.TSCH_MIN_BACKOFF_EXPONENT
-            if (newBackoff!=cell['backoff']) or (newBackoffExponent!=cell['backoffExponent']):
-                # apply
-                cell['backoff']             = newBackoff
-                cell['backoffExponent']     = newBackoffExponent
-
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_TSCH_BACKOFFCHANGED,
-                    {
-                        '_mote_id':       self.mote.id,
-                        'cell':           cell,
-                    }
-                )
+            # update the backoff exponent
+            self._update_backoff_state(
+                isRetransmission = self._is_retransmission(self.pktToSend),
+                isSharedLink     = d.CELLOPTION_SHARED in cell['cellOptions'],
+                isTXSuccess      = isACKed
+            )
 
             # indicate unicast transmission to the neighbor table
             self.mote.neighbors_indicate_tx(self.pktToSend,isACKed)
@@ -637,37 +608,10 @@ class Tsch(object):
         assert self.pktToSend == None
 
         # execute cell
-        if   cell['cellOptions'] == [d.CELLOPTION_TX]:
-            # dedicated TX cell
-
-            # find packet to send
-            for pkt in self.txQueue:
-                if pkt['mac']['dstMac'] == cell['neighbor']:
-                    self.pktToSend = pkt
-                    break
-
-            # notify SF
-            self.mote.sf.indication_dedicated_tx_cell_elapsed(
-                cell    = cell,
-                used    = (self.pktToSend is not None),
-            )
-
-            # send packet
-            if self.pktToSend:
-                self._tsch_action_TX(self.pktToSend)
-
-        elif sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
-            # minimal cell
-
-            # look for packet to send
-            if cell['backoff']>0:
-                # backoff is active, we cannot send
-
-                # decrement backoff
-                cell['backoff']-=1
-            else:
-                # no backoff in place, look for packet
-
+        if cell['neighbor'] is None:
+            # on a shared cell
+            if sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
+                # on minimal cell
                 # try to find a packet to neighbor to which I don't have any dedicated cell(s)...
                 if not self.pktToSend:
                     for pkt in self.txQueue:
@@ -687,6 +631,21 @@ class Tsch(object):
                             self.pktToSend = pkt
                             break
 
+                # retransmission backoff algorithm
+                if (
+                        self.pktToSend
+                        and
+                        self._is_retransmission(self.pktToSend)
+                    ):
+                        if self.backoff_remaining_delay > 0:
+                            # need to wait for retransmission
+                            self.pktToSend = None
+                            # decrement the remaining delay
+                            self.backoff_remaining_delay -= 1
+                        else:
+                            # ready for retransmission
+                            pass
+
                 # ... if no such packet, probabilistically generate an EB or a DIO
                 if not self.pktToSend:
                     if self.mote.clear_to_send_EBs_DIOs_DATA():
@@ -699,17 +658,64 @@ class Tsch(object):
                                 if self.iAmSendingDIOs:
                                     self.pktToSend = self.mote.rpl._create_DIO()
 
-            # send packet, or receive
-            if self.pktToSend:
-                self._tsch_action_TX(self.pktToSend)
+                # send packet, or receive
+                if self.pktToSend:
+                    self._tsch_action_TX(self.pktToSend)
+                else:
+                    self._tsch_action_RX()
             else:
+                # We don't support shared cells which are not [TX=1, RX=1,
+                # SHARED=1]
+                raise NotImplementedError()
+        else:
+            # on a dedicated cell
+
+            # find a possible pktToSend first
+            _pktToSend = None
+            for pkt in self.txQueue:
+                if pkt['mac']['dstMac'] == cell['neighbor']:
+                    _pktToSend = pkt
+                    break
+
+            # retransmission backoff algorithm
+            if (
+                    (_pktToSend is not None)
+                    and
+                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                    and
+                    self._is_retransmission(_pktToSend)
+                ):
+                    if self.backoff_remaining_delay > 0:
+                        # need to wait for retransmission
+                        _pktToSend = None
+                        # decrement the remaining delay
+                        self.backoff_remaining_delay -= 1
+                    else:
+                        # ready for retransmission
+                        pass
+
+            if (
+                    (_pktToSend is not None)
+                    and
+                    (d.CELLOPTION_TX in cell['cellOptions'])
+                ):
+                # we're going to transmit the packet
+                self.pktToSend = _pktToSend
+                self._tsch_action_TX(self.pktToSend)
+
+            elif d.CELLOPTION_RX in cell['cellOptions']:
+                # receive
                 self._tsch_action_RX()
+            else:
+                # do nothing
+                pass
 
-        elif cell['cellOptions'] == [d.CELLOPTION_RX]:
-            # dedicated RX cell
-
-            # receive
-            self._tsch_action_RX()
+            # notify SF
+            if d.CELLOPTION_TX in cell['cellOptions']:
+                self.mote.sf.indication_dedicated_tx_cell_elapsed(
+                    cell    = cell,
+                    used    = (self.pktToSend is not None),
+                )
 
         # schedule next active cell
         self.tsch_schedule_next_active_cell()
@@ -816,3 +822,98 @@ class Tsch(object):
 
             # trigger join process
             self.mote.secjoin.startJoinProcess()
+
+    # Retransmission backoff algorithm
+    def _is_retransmission(self, packet):
+        assert packet is not None
+        return packet['mac']['retriesLeft'] < d.TSCH_MAXTXRETRIES
+
+    def _decide_backoff_delay(self):
+        # Section 6.2.5.3 of IEEE 802.15.4-2015: "The MAC sublayer shall delay
+        # for a random number in the range 0 to (2**BE - 1) shared links (on
+        # any slotframe) before attempting a retransmission on a shared link."
+        self.backoff_remaining_delay = random.randint(
+            0,
+            pow(2, self.backoff_exponent) - 1
+        )
+
+    def _reset_backoff_state(self):
+        old_be = self.backoff_exponent
+        self.backoff_exponent = d.TSCH_MIN_BACKOFF_EXPONENT
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_BACKOFF_EXPONENT_UPDATED,
+            {
+                '_mote_id': self.mote.id,
+                'old_be'  : old_be,
+                'new_be'  : self.backoff_exponent
+            }
+        )
+        self._decide_backoff_delay()
+
+    def _increase_backoff_state(self):
+        old_be = self.backoff_exponent
+        # In Figure 6-6 of IEEE 802.15.4, BE (backoff exponent) is updated as
+        # "BE - min(BE 0 1, macMinBe)". However, it must be incorrect. The
+        # right formula should be "BE = min(BE + 1, macMaxBe)", that we apply
+        # here.
+        self.backoff_exponent = min(
+            self.backoff_exponent + 1,
+            d.TSCH_MAX_BACKOFF_EXPONENT
+        )
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_BACKOFF_EXPONENT_UPDATED,
+            {
+                '_mote_id': self.mote.id,
+                'old_be'  : old_be,
+                'new_be'  : self.backoff_exponent
+            }
+        )
+        self._decide_backoff_delay()
+
+    def _update_backoff_state(
+            self,
+            isRetransmission,
+            isSharedLink,
+            isTXSuccess
+        ):
+        if isSharedLink:
+            if isTXSuccess:
+                # Section 6.2.5.3 of IEEE 802.15.4-2015: "A successful
+                # transmission in a shared link resets the backoff window to
+                # the minimum value."
+                self._reset_backoff_state()
+            else:
+                if isRetransmission:
+                    # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff window
+                    # increases for each consecutive failed transmission in a
+                    # shared link."
+                    self._increase_backoff_state()
+                else:
+                    # First attempt to transmit the packet
+                    #
+                    # Section 6.2.5.3 of IEEE 802.15.4-2015: "A device upon
+                    # encountering a transmission failure in a shared link
+                    # shall initialize the BE to macMinBe."
+                    self._reset_backoff_state()
+
+        else:
+            # dedicated link (which is different from a dedicated *cell*)
+            if isTXSuccess:
+                # successful transmission
+                if len(self.getTxQueue()) == 0:
+                    # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff
+                    # window is reset to the minimum value if the transmission
+                    # in a dedicated link is successful and the transmit queue
+                    # is then empty."
+                    self._reset_backoff_state()
+                else:
+                    # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff
+                    # window does not change when a transmission is successful
+                    # in a dedicated link and the transmission queue is still
+                    # not empty afterwards."
+                    pass
+            else:
+                # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff window
+                # does not change when a transmission is a failure in a
+                # dedicated link."
+                pass
