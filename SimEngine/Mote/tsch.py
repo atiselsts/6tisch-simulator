@@ -93,7 +93,7 @@ class Tsch(object):
             )
 
             self.delete_minimal_cell()
-            self.mote.sf.stopMonitoring()
+            self.mote.sf.stop()
             self.join_proxy  = None
             self.asnLastSync = None
 
@@ -328,7 +328,13 @@ class Tsch(object):
         else:
             # I just sent a unicast packet...
 
-            # TODO send txDone up
+            # TODO send txDone up; need a more general way
+            if (
+                    (isACKed is True)
+                    and
+                    (self.pktToSend['type'] == d.PKT_TYPE_SIXP)
+                ):
+                self.mote.sixp.recv_mac_ack(self.pktToSend)
 
             # update the cell's backoff
             newBackoff         = cell['backoff']
@@ -463,17 +469,8 @@ class Tsch(object):
             isACKed = True
 
             # dispatch to the right upper layer
-            if   packet['type'] in [
-                    d.PKT_TYPE_SIXP_ADD_REQUEST,
-                    d.PKT_TYPE_SIXP_ADD_RESPONSE,
-                    d.PKT_TYPE_SIXP_DELETE_REQUEST,
-                    d.PKT_TYPE_SIXP_DELETE_RESPONSE,
-                    d.PKT_TYPE_SIXP_CLEAR_REQUEST,
-                    d.PKT_TYPE_SIXP_CLEAR_RESPONSE,
-                    d.PKT_TYPE_SIXP_RELOCATE_REQUEST,
-                    d.PKT_TYPE_SIXP_RELOCATE_RESPONSE,
-                ]:
-                self.mote.sixp.receive(packet)
+            if   packet['type'] == d.PKT_TYPE_SIXP:
+                self.mote.sixp.recv_packet(packet)
             elif 'net' in packet:
                 self.mote.sixlowpan.recvPacket(packet)
             else:
@@ -727,6 +724,14 @@ class Tsch(object):
         # update cell stats
         cell['numTx'] += 1
 
+        # Seciton 4.3 of draft-chang-6tisch-msf-01: "When NumTx reaches 256,
+        # both NumTx and NumTxAck MUST be divided by 2.  That is, for example,
+        # from NumTx=256 and NumTxAck=128, they become NumTx=128 and
+        # NumTxAck=64."
+        if cell['numTx'] == 256:
+            cell['numTx']    /= 2
+            cell['numTxAck'] /= 2
+
         # send packet to the radio
         self.mote.radio.startTx(
             channel          = cell['channelOffset'],
@@ -805,9 +810,6 @@ class Tsch(object):
 
             # the mote that sent the EB is now by join proxy
             self.join_proxy = packet['mac']['srcMac']
-
-            # activate different services
-            self.mote.sf.startMonitoring() # mote
 
             # add the minimal cell to the schedule (read from EB)
             self.add_minimal_cell() # mote

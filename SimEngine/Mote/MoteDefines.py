@@ -15,14 +15,7 @@ PKT_TYPE_JOIN_RESPONSE                      = 'JOIN_RESPONSE'
 PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
-PKT_TYPE_SIXP_ADD_REQUEST                   = 'SIXP_ADD_REQUEST'
-PKT_TYPE_SIXP_ADD_RESPONSE                  = 'SIXP_ADD_RESPONSE'
-PKT_TYPE_SIXP_DELETE_REQUEST                = 'SIXP_DELETE_REQUEST'
-PKT_TYPE_SIXP_DELETE_RESPONSE               = 'SIXP_DELETE_RESPONSE'
-PKT_TYPE_SIXP_CLEAR_REQUEST                 = 'SIXP_CLEAR_REQUEST'
-PKT_TYPE_SIXP_CLEAR_RESPONSE                = 'SIXP_CLEAR_RESPONSE'
-PKT_TYPE_SIXP_RELOCATE_REQUEST              = 'SIXP_RELOCATE_REQUEST'
-PKT_TYPE_SIXP_RELOCATE_RESPONSE             = 'SIXP_RELOCATE_RESPONSE'
+PKT_TYPE_SIXP                               = '6P'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
@@ -38,17 +31,46 @@ SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
 SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds
 
 # === sixp
-SIXP_RC_SUCCESS                             = 'success'
-SIXP_RC_ERR                                 = 'error'
-SIXP_RC_ERR_CELLLIST                        = 'error_celllist'
-SIXP_RC_ERR_SEQNUM                          = 'error_seqnum'
+SIXP_MSG_TYPE_REQUEST                       = 'Request'
+SIXP_MSG_TYPE_RESPONSE                      = 'Response'
+SIXP_MSG_TYPE_CONFIRMATION                  = 'Confirmation'
+
+SIXP_CMD_ADD                                = 'ADD'
+SIXP_CMD_DELETE                             = 'DELETE'
+SIXP_CMD_RELOCATE                           = 'RELOCATE'
+SIXP_CMD_COUNT                              = 'COUNT'
+SIXP_CMD_LIST                               = 'LIST'
+SIXP_CMD_SIGNAL                             = 'SIGNAL'
+SIXP_CMD_CLEAR                              = 'CLEAR'
+
+SIXP_RC_SUCCESS                             = 'RC_SUCCESS'
+SIXP_RC_EOL                                 = 'RC_EOL'
+SIXP_RC_ERR                                 = 'RC_ERR'
+SIXP_RC_RESET                               = 'RC_RESET'
+SIXP_RC_ERR_VERSION                         = 'RC_ERR_VERSION'
+SIXP_RC_ERR_SFID                            = 'RC_ERR_SFID'
+SIXP_RC_ERR_SEQNUM                          = 'RC_ERR_SEQNUM'
+SIXP_RC_ERR_CELLLIST                        = 'RC_ERR_CELLLIST'
+SIXP_RC_ERR_BUSY                            = 'RC_ERR_BUSY'
+SIXP_RC_ERR_LOCKED                          = 'RC_ERR_LOCKED'
+
+SIXP_TRANSACTION_TYPE_2_STEP                = '2-step transaction'
+SIXP_TRANSACTION_TYPE_3_STEP                = '3-step transaction'
+
+SIXP_TRANSACTION_TYPE_TWO_STEP              = 'two-step transaction'
+SIXP_TRANSACTION_TYPE_THREE_STEP            = 'three-step transaction'
+
+SIXP_CALLBACK_EVENT_PACKET_RECEPTION        = 'packet-reception'
+SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION       = 'mac-ack-reception'
+SIXP_CALLBACK_EVENT_TIMEOUT                 = 'timeout'
+SIXP_CALLBACK_EVENT_FAILURE                 = 'failure'
 
 # === sf
 MSF_MAX_NUMCELLS                            = 12
-MSF_LIM_NUMCELLSUSED_HIGH                   = 0.75 # in percent [0-1]
-MSF_LIM_NUMCELLSUSED_LOW                    = 0.25 # in percent [0-1]
+MSF_LIM_NUMCELLSUSED_HIGH                   = 0.75 # in [0-1]
+MSF_LIM_NUMCELLSUSED_LOW                    = 0.25 # in [0-1]
 MSF_HOUSEKEEPINGCOLLISION_PERIOD            = 60   # in seconds
-MSF_RELOCATE_PDRTHRES                       = 0.5  # in percent [0-1]
+MSF_RELOCATE_PDRTHRES                       = 0.5  # in [0-1]
 MSF_MIN_NUM_TX                              = 100  # min number for PDR to be significant
 
 # === tsch
