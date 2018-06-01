@@ -637,79 +637,92 @@ class Tsch(object):
         assert self.pktToSend == None
 
         # execute cell
-        if   cell['cellOptions'] == [d.CELLOPTION_TX]:
-            # dedicated TX cell
+        if cell['neighbor'] is None:
+            # on a shared cell
+            if sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
+                # minimal cell
 
-            # find packet to send
+                # look for packet to send
+                if cell['backoff']>0:
+                    # backoff is active, we cannot send
+
+                    # decrement backoff
+                    cell['backoff']-=1
+                else:
+                    # no backoff in place, look for packet
+
+                    # try to find a packet to neighbor to which I don't have any dedicated cell(s)...
+                    if not self.pktToSend:
+                        for pkt in self.txQueue:
+                            if  (
+                                    # DIOs and EBs always on minimal cell
+                                    (
+                                        pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
+                                    )
+                                    or
+                                    # other frames on the minimal cell if no dedicated cells to the nextHop
+                                    (
+                                        len(self.getTxCells(pkt['mac']['dstMac'])) == 0
+                                        and
+                                        len(self.getTxRxSharedCells(pkt['mac']['dstMac'])) == 0
+                                    )
+                                ):
+                                self.pktToSend = pkt
+                                break
+
+                    # ... if no such packet, probabilistically generate an EB or a DIO
+                    if not self.pktToSend:
+                        if self.mote.clear_to_send_EBs_DIOs_DATA():
+                            prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
+                            if random.random()<prob:
+                                if random.random()<0.50:
+                                    if self.iAmSendingEBs:
+                                        self.pktToSend = self._create_EB()
+                                else:
+                                    if self.iAmSendingDIOs:
+                                        self.pktToSend = self.mote.rpl._create_DIO()
+
+                # send packet, or receive
+                if self.pktToSend:
+                    self._tsch_action_TX(self.pktToSend)
+                else:
+                    self._tsch_action_RX()
+            else:
+                # We don't support shared cells which are not [TX=1, RX=1,
+                # SHARED=1]
+                raise NotImplementedError()
+        else:
+            # on a dedicated cell
+
+            # find a possible pktToSend first
+            _pktToSend = None
             for pkt in self.txQueue:
                 if pkt['mac']['dstMac'] == cell['neighbor']:
-                    self.pktToSend = pkt
+                    _pktToSend = pkt
                     break
 
-            # notify SF
-            self.mote.sf.indication_dedicated_tx_cell_elapsed(
-                cell    = cell,
-                used    = (self.pktToSend is not None),
-            )
-
-            # send packet
-            if self.pktToSend:
+            if (
+                    (_pktToSend is not None)
+                    and
+                    (d.CELLOPTION_TX in cell['cellOptions'])
+                ):
+                # we're going to transmit the packet
+                self.pktToSend = _pktToSend
                 self._tsch_action_TX(self.pktToSend)
 
-        elif sorted(cell['cellOptions']) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
-            # minimal cell
-
-            # look for packet to send
-            if cell['backoff']>0:
-                # backoff is active, we cannot send
-
-                # decrement backoff
-                cell['backoff']-=1
-            else:
-                # no backoff in place, look for packet
-
-                # try to find a packet to neighbor to which I don't have any dedicated cell(s)...
-                if not self.pktToSend:
-                    for pkt in self.txQueue:
-                        if  (
-                                # DIOs and EBs always on minimal cell
-                                (
-                                    pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
-                                )
-                                or
-                                # other frames on the minimal cell if no dedicated cells to the nextHop
-                                (
-                                    len(self.getTxCells(pkt['mac']['dstMac'])) == 0
-                                    and
-                                    len(self.getTxRxSharedCells(pkt['mac']['dstMac'])) == 0
-                                )
-                            ):
-                            self.pktToSend = pkt
-                            break
-
-                # ... if no such packet, probabilistically generate an EB or a DIO
-                if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_DIOs_DATA():
-                        prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
-                        if random.random()<prob:
-                            if random.random()<0.50:
-                                if self.iAmSendingEBs:
-                                    self.pktToSend = self._create_EB()
-                            else:
-                                if self.iAmSendingDIOs:
-                                    self.pktToSend = self.mote.rpl._create_DIO()
-
-            # send packet, or receive
-            if self.pktToSend:
-                self._tsch_action_TX(self.pktToSend)
-            else:
+            elif d.CELLOPTION_RX in cell['cellOptions']:
+                # receive
                 self._tsch_action_RX()
+            else:
+                # do nothing
+                pass
 
-        elif cell['cellOptions'] == [d.CELLOPTION_RX]:
-            # dedicated RX cell
-
-            # receive
-            self._tsch_action_RX()
+            # notify SF
+            if d.CELLOPTION_TX in cell['cellOptions']:
+                self.mote.sf.indication_dedicated_tx_cell_elapsed(
+                    cell    = cell,
+                    used    = (self.pktToSend is not None),
+                )
 
         # schedule next active cell
         self.tsch_schedule_next_active_cell()
