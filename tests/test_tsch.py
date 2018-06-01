@@ -4,9 +4,11 @@ Test for TSCH layer
 
 import copy
 import pytest
+import types
 
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
+from SimEngine import SimLog
 
 # frame_type having "True" in "first_enqueuing" can be enqueued to TX queue
 # even if the queue is full.
@@ -187,3 +189,119 @@ def test_network_advertisement(sim_engine, fixture_adv_frame):
     logs = u.read_log_file(filter=['tsch.txdone'])
     # root should send more than one EB in a default simulation run
     assert len([l for l in logs if l['packet']['type'] == fixture_adv_frame]) > 0
+
+
+@pytest.fixture(params=['dedicated-cell', 'shared-cell'])
+def cell_type(request):
+    return request.param
+
+def test_retransmission_backoff_algorithm(sim_engine, cell_type):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numSlotframesPerRun': 10000,
+            'exec_numMotes'           : 2,
+            'app_pkPeriod'            : 0,
+            'secjoin_enabled'         : False
+        }
+    )
+    sim_log = SimLog.SimLog()
+
+    # filter logs to make this test faster; we need only SimLog.LOG_TSCH_TXDONE
+    sim_log.set_log_filters([SimLog.LOG_TSCH_TXDONE['type']])
+
+    # for quick access
+    root  = sim_engine.motes[0]
+    hop_1 = sim_engine.motes[1]
+    slotframe_length = sim_engine.settings.tsch_slotframeLength
+
+    # increase TSCH_MAXTXRETRIES so that we can have enough retransmission
+    # samples to validate
+    d.TSCH_MAXTXRETRIES = 100
+
+    #== test setup ==
+
+    u.run_until_everyone_joined(sim_engine)
+
+    # make hop_1 ready to send an application packet
+    assert hop_1.dodagId is None
+    dio = root.rpl._create_DIO()
+    hop_1.rpl.action_receiveDIO(dio)
+    assert hop_1.dodagId is not None
+
+    # make root ignore all the incoming frame for this test
+    def ignoreRx(self, packet):
+        self.waitingFor = None
+        isACKed         = False
+        return isACKed
+    root.tsch.rxDone = types.MethodType(ignoreRx, root.tsch)
+
+    if cell_type == 'dedicated-cell':
+        # allocate one TX=1/RX=1/SHARED=1 cell to the motes as their dedicate cell.
+        cellOptions   = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+
+        assert len(root.tsch.getTxRxSharedCells(hop_1.id)) == 0
+        root.tsch.addCell(1, 1, hop_1.id, cellOptions)
+        assert len(root.tsch.getTxRxSharedCells(hop_1.id)) == 1
+
+        assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 0
+        hop_1.tsch.addCell(1, 1, root.id, cellOptions)
+        assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 1
+
+    # make sure hop_1 send a application packet when the simulator starts
+    hop_1.txQueue = []
+    hop_1.app._send_a_single_packet()
+    assert len(hop_1.tsch.txQueue) == 1
+
+    #== start test ==
+    asn_starting_test = sim_engine.getAsn()
+    # run the simulator until hop_1 drops the packet or the simulation ends
+    def drop_packet(self, packet, reason):
+        if packet['type'] == d.PKT_TYPE_DATA:
+            # pause the simulator
+            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
+    hop_1.drop_packet = types.MethodType(drop_packet, hop_1)
+    u.run_until_end(sim_engine)
+
+    # confirm
+    # - hop_1 sent the application packet to the root
+    # - retransmission backoff worked
+    logs = u.read_log_file(
+        filter     = [SimLog.LOG_TSCH_TXDONE['type']],
+        after_asn  = asn_starting_test
+    )
+    app_data_tx_logs = []
+    for log in logs:
+        if (
+                (log['_mote_id'] == hop_1.id)
+                and
+                (log['packet']['mac']['dstMac'] == root.id)
+                and
+                (log['packet']['type'] == d.PKT_TYPE_DATA)
+            ):
+            app_data_tx_logs.append(log)
+
+    # in this implementation, TSCH_MAXTXRETRIES includes the very first
+    # transmission
+    assert len(app_data_tx_logs) == d.TSCH_MAXTXRETRIES
+
+    # all transmission should have happened only on the dedicated cell if it's
+    # available (it shouldn't transmit a unicast frame to the root on the
+    # minimal (shared) cell.
+    if   cell_type == 'dedicated-cell':
+        expected_cell_offset, _ = hop_1.tsch.getTxRxSharedCells(root.id).items()[0]
+    elif cell_type == 'shared-cell':
+        expected_cell_offset = 0   # the minimal (shared) cell
+    else:
+        raise NotImplementedError()
+
+    for log in app_data_tx_logs:
+        slot_offset = log['_asn'] % slotframe_length
+        assert slot_offset == expected_cell_offset
+
+    # retransmission should be performed after backoff wait; we should see gaps
+    # between consecutive retransmissions. If all the gaps are 101 slots, that
+    # is, one slotframe, this means there was no backoff wait between
+    # transmissions.
+    timestamps = [log['_asn'] for log in app_data_tx_logs]
+    diffs = map(lambda x: x[1] - x[0], zip(timestamps[:-1], timestamps[1:]))
+    assert len([diff for diff in diffs if diff != slotframe_length]) > 0
