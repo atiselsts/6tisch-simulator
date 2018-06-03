@@ -4,6 +4,7 @@
 
 # ========================== imports =========================================
 
+import random
 import sys
 import threading
 import traceback
@@ -303,10 +304,28 @@ class SimEngine(DiscreteEventEngine):
     
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
+
+        # set random seed
+        if self.settings.exec_randomSeed == 'random':
+            random_seed = random.randint(0, sys.maxint)
+        else:
+            assert isinstance(self.settings.exec_randomSeed, int)
+            random_seed = self.settings.exec_randomSeed
+        # apply the random seed; log the seed after self.log is initialized
+        random.seed(a=random_seed)
+
         self.motes                      = [Mote.Mote.Mote(m) for m in range(self.settings.exec_numMotes)]
         self.connectivity               = Connectivity.Connectivity()
         self.log                        = SimLog.SimLog().log
         SimLog.SimLog().set_simengine(self)
+
+        # log the random seed
+        self.log(
+            SimLog.LOG_SIMULATOR_RANDOM_SEED,
+            {
+                'value': random_seed
+            }
+        )
         
         # select dagRoot
         self.motes[self.DAGROOT_ID].setDagRoot()
