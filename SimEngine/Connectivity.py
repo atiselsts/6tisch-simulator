@@ -604,6 +604,7 @@ class ConnectivityRandom(ConnectivityBase):
 
         # attributes specific to ConnectivityRandom
         self.coordinates = {}  # (x, y) indexed by mote_id
+        self.pister_hack = PisterHackModel()
 
         # initialize the singleton
         super(ConnectivityRandom, self).__init__()
@@ -656,7 +657,7 @@ class ConnectivityRandom(ConnectivityBase):
                     # mote
                     good_pdr_count = 0
                     for mote_id in self.coordinates.keys():
-                        pdr = PisterHackModel.compute_pdr(
+                        pdr = self.pister_hack.compute_pdr(
                             {
                                 'mote'      : mote,
                                 'coordinate': coordinate
@@ -691,7 +692,7 @@ class ConnectivityRandom(ConnectivityBase):
                         continue
 
     def get_pdr(self, source, destination, channel):
-        return PisterHackModel.compute_pdr(
+        return self.pister_hack.compute_pdr(
             src = {
                 'mote'      : self._get_mote(source),
                 'coordinate': self.coordinates[source]
@@ -703,7 +704,7 @@ class ConnectivityRandom(ConnectivityBase):
         )
 
     def get_rssi(self, source, destination, channel):
-        return PisterHackModel.compute_rssi(
+        return self.pister_hack.compute_rssi(
             src = {
                 'mote'      : self._get_mote(source),
                 'coordinate': self.coordinates[source]
@@ -718,6 +719,7 @@ class ConnectivityRandom(ConnectivityBase):
         # there must be a mote having mote_id. otherwise, the following line
         # raises an exception.
         return [mote for mote in self.engine.motes if mote.id == mote_id][0]
+
 
 class PisterHackModel(object):
 
@@ -751,55 +753,91 @@ class PisterHackModel(object):
         -79:    1.0000,  # this value is not from experiment
     }
 
-    @classmethod
-    def compute_rssi(cls, src, dst):
+    def __init__(self):
+
+        # singleton
+        self.engine   = SimEngine.SimEngine()
+
+        # remember what RSSI value is computed for a mote at an ASN; the same
+        # RSSI value will be returned for the same motes and the ASN.
+        self.rssi_cache = {} # indexed by (src_mote.id, dst_mote.id)
+
+    def compute_rssi(self, src, dst):
         """Compute RSSI between the points of a and b using Pister Hack"""
 
-        settings = SimSettings.SimSettings()
+        assert sorted(src.keys()) == sorted(['mote', 'coordinate'])
+        assert sorted(dst.keys()) == sorted(['mote', 'coordinate'])
 
-        # distance in meters
-        distance = cls._get_distance_in_meters(
-            src['coordinate'],
-            dst['coordinate']
-        )
+        # we cache computed RSSI values so that we can return the same RSSI
+        # value for the same combination of src, dst, and ASN. The caching is
+        # disabled on ASN 0. Otherwise,
+        # ConnectivityRandom._init_connectivity_matrix() never finished.
+        cache_key = (src['mote'].id, dst['mote'].id)
 
-        # sqrt and inverse of the free space path loss (fspl)
-        free_space_path_loss = (
-            cls.SPEED_OF_LIGHT / (4 * math.pi * distance * cls.TWO_DOT_FOUR_GHZ)
-        )
+        if (
+                (self.engine.getAsn() > 0)
+                and
+                (cache_key in self.rssi_cache)
+                and
+                (self.rssi_cache[cache_key]['asn'] == self.engine.getAsn())
+            ):
+            # We've already computed the RSSI value for the src, dst, and ASN
+            rssi = self.rssi_cache[cache_key]['rssi']
 
-        # simple friis equation in Pr = Pt + Gt + Gr + 20log10(fspl)
-        pr = (
-            src['mote'].radio.txPower     +
-            src['mote'].radio.antennaGain +
-            dst['mote'].radio.antennaGain +
-            (20 * math.log10(free_space_path_loss))
-        )
+        else:
+            # compute RSSI
 
-        # according to the receiver power (RSSI) we can apply the Pister hack
-        # model.
-        mu = pr - cls.PISTER_HACK_LOWER_SHIFT / 2    # chosing the "mean" value
-
-        # the receiver will receive the packet with an rssi uniformly
-        # distributed between friis and friis -40
-        rssi = (
-            mu +
-            random.uniform(
-                -cls.PISTER_HACK_LOWER_SHIFT/2,
-                +cls.PISTER_HACK_LOWER_SHIFT/2
+            # distance in meters
+            distance = self._get_distance_in_meters(
+                src['coordinate'],
+                dst['coordinate']
             )
-        )
+
+            # sqrt and inverse of the free space path loss (fspl)
+            free_space_path_loss = (
+                self.SPEED_OF_LIGHT / (4 * math.pi * distance * self.TWO_DOT_FOUR_GHZ)
+            )
+
+            # simple friis equation in Pr = Pt + Gt + Gr + 20log10(fspl)
+            pr = (
+                src['mote'].radio.txPower     +
+                src['mote'].radio.antennaGain +
+                dst['mote'].radio.antennaGain +
+                (20 * math.log10(free_space_path_loss))
+            )
+
+            # according to the receiver power (RSSI) we can apply the Pister hack
+            # model.
+            mu = pr - self.PISTER_HACK_LOWER_SHIFT / 2    # chosing the "mean" value
+
+            # the receiver will receive the packet with an rssi uniformly
+            # distributed between friis and friis -40
+            rssi = (
+                mu +
+                random.uniform(
+                    -self.PISTER_HACK_LOWER_SHIFT/2,
+                    +self.PISTER_HACK_LOWER_SHIFT/2
+                )
+            )
+
+            # cached the RSSI value
+            self.rssi_cache[cache_key] = {
+                'asn' : self.engine.getAsn(),
+                'rssi': rssi
+            }
 
         return rssi
 
-    @classmethod
-    def compute_pdr(cls, src, dst):
-        """Compute PDR between the points of a and b"""
+    def compute_pdr(self, src, dst):
+        """Compute PDR between the points of src and dst"""
 
-        rssi    = cls.compute_rssi(src, dst)
+        assert sorted(src.keys()) == sorted(['mote', 'coordinate'])
+        assert sorted(dst.keys()) == sorted(['mote', 'coordinate'])
 
-        minRssi = min(cls.RSSI_PDR_TABLE.keys())
-        maxRssi = max(cls.RSSI_PDR_TABLE.keys())
+        rssi    = self.compute_rssi(src, dst)
+
+        minRssi = min(self.RSSI_PDR_TABLE.keys())
+        maxRssi = max(self.RSSI_PDR_TABLE.keys())
 
         if rssi < minRssi:
             pdr = 0.0
@@ -807,8 +845,8 @@ class PisterHackModel(object):
             pdr = 1.0
         else:
             floor_rssi = int(math.floor(rssi))
-            pdr_low    = cls.RSSI_PDR_TABLE[floor_rssi]
-            pdr_high   = cls.RSSI_PDR_TABLE[floor_rssi + 1]
+            pdr_low    = self.RSSI_PDR_TABLE[floor_rssi]
+            pdr_high   = self.RSSI_PDR_TABLE[floor_rssi + 1]
             # linear interpolation
             pdr = (pdr_high - pdr_low) * (rssi - float(floor_rssi)) + pdr_low
 

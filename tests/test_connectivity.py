@@ -130,11 +130,43 @@ class TestRandom(object):
         sim_engine = sim_engine(
             diff_config = {
                 'conn_class'                    : 'Random',
+                'exec_numMotes'                 : 2,
+                'conn_random_init_min_neighbors': 1,
                 'phy_numChans'                  : 2,
             }
         )
 
-        # PDR and RSSI are not always the same
+        # PDR and RSSI should not be always the same over the slots
+        for src, dst in zip(sim_engine.motes[:-1], sim_engine.motes[1:]):
+            for channel in range(sim_engine.settings.phy_numChans):
+                pdr  = []
+                rssi = []
+
+                for _ in range(100):
+                    pdr.append(
+                        sim_engine.connectivity.get_pdr(
+                            source      = src.id,
+                            destination = dst.id,
+                            channel     = channel
+                        )
+                    )
+                    rssi.append(
+                        sim_engine.connectivity.get_rssi(
+                            source      = src.id,
+                            destination = dst.id,
+                            channel     = channel
+                        )
+                    )
+                    # proceed the simulator
+                    u.run_until_asn(sim_engine, sim_engine.getAsn() + 1)
+
+                # compare two consecutive PDRs and RSSIs; if we have even one
+                # True in the comparison, i != j, something should be wrong
+                # with PisterHackModel class
+                assert sum([(i != j) for i, j in zip(pdr[:-1], pdr[1:])])   > 0
+                assert sum([(i != j) for i, j in zip(rssi[:-1], rssi[1:])]) > 0
+
+        # PDR and RSSI should be the same within the same slot
         for src, dst in zip(sim_engine.motes[:-1], sim_engine.motes[1:]):
             for channel in range(sim_engine.settings.phy_numChans):
                 pdr  = []
@@ -156,5 +188,7 @@ class TestRandom(object):
                         )
                     )
 
-                assert sum([(i != j) for i, j in zip(pdr[:-1], pdr[1:])]) > 0
-                assert sum([(i != j) for i, j in zip(rssi[:-1], rssi[1:])]) > 0
+                # compare two consecutive PDRs and RSSIs; all the pairs should
+                # be same (all comparison, i != j, should be False).
+                assert sum([(i != j) for i, j in zip(pdr[:-1], pdr[1:])])   == 0
+                assert sum([(i != j) for i, j in zip(rssi[:-1], rssi[1:])]) == 0
