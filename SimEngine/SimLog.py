@@ -24,6 +24,7 @@ import SimEngine
 
 # === simulator
 LOG_SIMULATOR_STATE               = {'type': 'simulator.state',           'keys': ['state', 'name']}
+LOG_SIMULATOR_RANDOM_SEED         = {'type': 'simulator.random_seed',     'keys': ['value']}
 
 # === packet drops
 LOG_PACKET_DROPPED                = {'type': 'packet_dropped',            'keys': ['_mote_id','packet','reason']}
