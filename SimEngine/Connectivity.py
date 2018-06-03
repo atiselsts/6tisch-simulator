@@ -765,6 +765,9 @@ class PisterHackModel(object):
     def compute_rssi(self, src, dst):
         """Compute RSSI between the points of a and b using Pister Hack"""
 
+        assert sorted(src.keys()) == sorted(['mote', 'coordinate'])
+        assert sorted(dst.keys()) == sorted(['mote', 'coordinate'])
+
         # we cache computed RSSI values so that we can return the same RSSI
         # value for the same combination of src, dst, and ASN. The caching is
         # disabled on ASN 0. Otherwise,
@@ -826,7 +829,10 @@ class PisterHackModel(object):
         return rssi
 
     def compute_pdr(self, src, dst):
-        """Compute PDR between the points of a and b"""
+        """Compute PDR between the points of src and dst"""
+
+        assert sorted(src.keys()) == sorted(['mote', 'coordinate'])
+        assert sorted(dst.keys()) == sorted(['mote', 'coordinate'])
 
         rssi    = self.compute_rssi(src, dst)
 
