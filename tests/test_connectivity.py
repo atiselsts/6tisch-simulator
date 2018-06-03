@@ -3,6 +3,8 @@ Tests for SimEngine.Connectivity
 """
 import os
 
+import test_utils as u
+
 #============================ helpers =========================================
 
 def print_connectivity_matrix(matrix):
@@ -101,3 +103,58 @@ def test_k7_matrix(sim_engine):
 def test_propagate(sim_engine):
     engine = sim_engine()
     engine.connectivity.propagate()
+
+
+#=== test for ConnectivityRandom
+class TestRandom(object):
+
+    def test_free_run(self, sim_engine):
+        # all the motes should be able to join the network
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numSlotframesPerRun'      : 10000,
+                'conn_class'                    : 'Random',
+                'secjoin_enabled'               : False,
+                "phy_numChans"                  : 1,
+            }
+        )
+        asn_at_end_of_simulation = (
+            sim_engine.settings.tsch_slotframeLength *
+            sim_engine.settings.exec_numSlotframesPerRun
+        )
+
+        u.run_until_everyone_joined(sim_engine)
+        assert sim_engine.getAsn() < asn_at_end_of_simulation
+
+    def test_getter(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'conn_class'                    : 'Random',
+                'phy_numChans'                  : 2,
+            }
+        )
+
+        # PDR and RSSI are not always the same
+        for src, dst in zip(sim_engine.motes[:-1], sim_engine.motes[1:]):
+            for channel in range(sim_engine.settings.phy_numChans):
+                pdr  = []
+                rssi = []
+
+                for _ in range(100):
+                    pdr.append(
+                        sim_engine.connectivity.get_pdr(
+                            source      = src.id,
+                            destination = dst.id,
+                            channel     = channel
+                        )
+                    )
+                    rssi.append(
+                        sim_engine.connectivity.get_rssi(
+                            source      = src.id,
+                            destination = dst.id,
+                            channel     = channel
+                        )
+                    )
+
+                assert sum([(i != j) for i, j in zip(pdr[:-1], pdr[1:])]) > 0
+                assert sum([(i != j) for i, j in zip(rssi[:-1], rssi[1:])]) > 0
