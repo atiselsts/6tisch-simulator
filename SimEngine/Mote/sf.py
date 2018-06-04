@@ -192,7 +192,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_tx_cells = 0
             num_rx_cells = 0
         else:
-            num_tx_cells = len(self.mote.tsch.getTxCells(old_parent)),
+            num_tx_cells = len(self.mote.tsch.getTxCells(old_parent))
             num_rx_cells = len(self.mote.tsch.getRxCells(old_parent))
         self._request_adding_cells(
             neighbor_id    = new_parent,
