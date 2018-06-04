@@ -152,7 +152,10 @@ class DiscreteEventEngine(threading.Thread):
             output += ['']
             output  = '\n'.join(output)
             sys.stderr.write(output)
-            
+
+            # flush all the buffered log data
+            SimLog.SimLog().flush()
+
         else:
             # thread ended (gracefully)
             
