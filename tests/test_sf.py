@@ -40,6 +40,8 @@ def run_until_cell_allocation(sim_engine, mote, _cell_options):
         )
 
         if (
+                (self.mote.id == mote.id)
+                and
                 (neighbor is not None)
                 and
                 (neighbor == mote.rpl.getPreferredParent())
