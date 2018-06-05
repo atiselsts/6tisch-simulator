@@ -637,8 +637,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     pass
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
                 # If this transaction is for the very first cell allocation to
-                # the preferred parent, let's retry it. Otherwise, adaptation
-                # to traffic would trigger another transaction if necessary.
+                # the preferred parent, let's retry it. Otherwise, let
+                # adaptation to traffic trigger another transaction if
+                # necessary.
                 if cell_options == self.TXRX_CELL_OPT:
                     self._request_adding_cells(
                         neighbor_id    = neighbor_id,
