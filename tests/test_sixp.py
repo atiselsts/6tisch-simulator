@@ -6,6 +6,7 @@ import pytest
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine.Mote.sf import SchedulingFunctionBase
+from SimEngine         import SimLog
 
 # =========================== helpers =========================================
 
@@ -428,6 +429,24 @@ class TestTransaction:
 
         assert result['root_received_add_request'] == True
         assert result['hop_1_received_clear_request'] == True
+
+        # There should be one RC_ERR_BUSY from root
+        logs     = u.read_log_file([SimLog.LOG_SIXP_TX['type']])
+        rc_err_busy_logs = [
+            l for l in logs if (
+                (l['packet']['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
+                and
+                (l['packet']['app']['code']    == d.SIXP_RC_ERR_BUSY)
+                and
+                (l['packet']['mac']['srcMac']  == root.id)
+                and
+                (l['packet']['mac']['dstMac']  == hop_1.id)
+            )
+        ]
+        assert len(rc_err_busy_logs) == 1
+
+        # RC_ERR_BUSY should be sent to the ADD request with SeqNum of 0
+        assert rc_err_busy_logs[0]['packet']['app']['seqNum'] == 0
 
 
 class TestSeqNum:
