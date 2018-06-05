@@ -6,6 +6,7 @@ import pytest
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine.Mote.sf import SchedulingFunctionBase
+from SimEngine         import SimLog
 
 # =========================== helpers =========================================
 
@@ -339,6 +340,113 @@ class TestTransaction:
 
         assert result['is_request_callback_called']  is True
         assert result['is_response_callback_called'] is True
+
+    def test_issue_188(self, sim_engine):
+        """This test reproduces Issue #188
+
+        An exception was raised when a mote receives a request which has
+        a different SeqNum from one in a valid transaction it still
+        has.
+        """
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numSlotframesPerRun': 10,
+                'exec_numMotes'           : 2,
+                'sf_class'                : 'SFNone',
+                'conn_class'              : 'Linear',
+                'tsch_probBcast_ebDioProb': 0
+            },
+            force_initial_routing_and_scheduling_state = True
+        )
+
+        # for quick access
+        root  = sim_engine.motes[0]
+        hop_1 = sim_engine.motes[1]
+
+        # step-0: set 1 (a non-zero value) to local SeqNum both of root and
+        # hop_1
+        root.sixp._get_seqnum(hop_1.id)       # create a SeqNum entry
+        root.sixp.increment_seqnum(hop_1.id)  # increment the SeqNum
+        hop_1.sixp._get_seqnum(root.id)       # create a SeqNum entry
+        hop_1.sixp.increment_seqnum(root.id)  # increment the SeqNum
+
+        # step-1: let hop_1 issue an ADD request. In order to make the
+        # transaction expire on hop_1, set a shorter timeout value on hop_1's
+        # side
+        timeout_value = 1
+        hop_1.sixp.send_request(
+            dstMac        = root.id,
+            command       = d.SIXP_CMD_ADD,
+            cellList      = [],
+            timeout_value = timeout_value
+        )
+
+        # step-2: let root issue an CLEAR request when it receives an ADD
+        # request from hop_1. Then, the root will have two transactions to
+        # hop_1 with each direction.
+        result = {'root_received_add_request': False}
+        def recv_add_request(self, packet):
+            assert packet['type']                  == d.PKT_TYPE_SIXP
+            assert packet['app']['msgType']        == d.SIXP_MSG_TYPE_REQUEST
+            assert packet['app']['code']           == d.SIXP_CMD_ADD
+
+            if result['root_received_add_request'] is False:
+                result['root_received_add_request'] = True
+
+                # send a CLAER request to the responder
+                self.mote.sixp.send_request(
+                    dstMac   = hop_1.id,
+                    command  = d.SIXP_CMD_CLEAR
+                )
+            else:
+                # do nothing
+                pass
+        root.sf.recv_request = types.MethodType(recv_add_request, root.sf)
+
+        # step-3: let hop_1 issue another ADD request when it receives a CLAER
+        # request from the hop_1. Then, the root will have two transactions to
+        # the responder for each direction.
+        result['hop_1_received_clear_request'] = False
+        def recv_clear_request(self, packet):
+            assert packet['type']                  == d.PKT_TYPE_SIXP
+            assert packet['app']['msgType']        == d.SIXP_MSG_TYPE_REQUEST
+            assert packet['app']['code']           == d.SIXP_CMD_CLEAR
+
+            result['hop_1_received_clear_request'] = True
+
+            # send a new ADD request, which causes an exception unless the
+            # bugfix is in place.
+            self.mote.sixp.send_request(
+                dstMac   = root.id,
+                command  = d.SIXP_CMD_ADD,
+                cellList = []
+            )
+        hop_1.sf.recv_request = types.MethodType(recv_clear_request, hop_1.sf)
+
+        # run the simulator until the end; if there is no exception, it should
+        # run through.
+        u.run_until_end(sim_engine)
+
+        assert result['root_received_add_request'] == True
+        assert result['hop_1_received_clear_request'] == True
+
+        # There should be one RC_ERR_BUSY from root
+        logs     = u.read_log_file([SimLog.LOG_SIXP_TX['type']])
+        rc_err_busy_logs = [
+            l for l in logs if (
+                (l['packet']['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
+                and
+                (l['packet']['app']['code']    == d.SIXP_RC_ERR_BUSY)
+                and
+                (l['packet']['mac']['srcMac']  == root.id)
+                and
+                (l['packet']['mac']['dstMac']  == hop_1.id)
+            )
+        ]
+        assert len(rc_err_busy_logs) == 1
+
+        # RC_ERR_BUSY should be sent to the ADD request with SeqNum of 0
+        assert rc_err_busy_logs[0]['packet']['app']['seqNum'] == 0
 
 
 class TestSeqNum:

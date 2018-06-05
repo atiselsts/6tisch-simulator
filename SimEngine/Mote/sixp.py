@@ -146,6 +146,7 @@ class SixP(object):
             self,
             dstMac,
             return_code,
+            seqNum        = None,
             numCells      = None,
             cellList      = None,
             payload       = None,
@@ -157,18 +158,25 @@ class SixP(object):
             dstMac   = dstMac,
             msgType  = d.SIXP_MSG_TYPE_RESPONSE,
             code     = return_code,
+            seqNum   = seqNum,
             numCells = numCells,
             cellList = cellList,
-            payload  = payload
+            payload  = payload,
         )
 
-        # update the transaction
-        transaction = self._find_transaction(packet)
-        assert transaction is not None
+        # if seqNum is specified, we assume we don't have a valid transaction
+        # for the response.
+        if seqNum is not None:
+            # do nothing
+            pass
+        else:
+            # update the transaction
+            transaction = self._find_transaction(packet)
+            assert transaction is not None
 
-        # A corresponding transaction instance is supposed to be created when
-        # it receives the request.
-        transaction.start(callback, timeout_value)
+            # A corresponding transaction instance is supposed to be created
+            # when it receives the request.
+            transaction.start(callback, timeout_value)
 
         # enqueue
         self._tsch_enqueue(packet)
@@ -243,10 +251,18 @@ class SixP(object):
             try:
                 transaction = SixPTransaction(self.mote, request)
             except TransactionAdditionError:
-                # we cannot have more than one transaction for the same pair of
-                # initiator and responder. Raise an exception since this case
-                # shouldn't happen with the 6P implementation here.
-                raise Exception()
+                # We cannot have more than one transaction for the same pair of
+                # initiator and responder. This is the case when a CLAER
+                # transaction expires on the initiator and the transaction is
+                # alive on the responder. The initiator would issue another
+                # request which has SeqNum 1, but the responder still has the
+                # transaction of CLEAR with SeqNum 0. In such a case, respond
+                # with RC_ERR_BUSY using SeqNum of the incoming request.
+                self.send_response(
+                    dstMac      = request['mac']['srcMac'],
+                    return_code = d.SIXP_RC_ERR_BUSY,
+                    seqNum      = request['app']['seqNum']
+                )
             else:
                 peerMac = transaction.get_peerMac()
                 if self._is_schedule_inconsistency_detected(transaction):
@@ -333,6 +349,7 @@ class SixP(object):
             dstMac,
             msgType,
             code,
+            seqNum             = None,
             metadata           = None,
             cellOptions        = None,
             numCells           = None,
@@ -399,8 +416,15 @@ class SixP(object):
             transaction = self._find_transaction(packet)
             assert transaction is not None
 
-            # put SeqNum of request
-            packet['app']['seqNum'] = transaction.request['app']['seqNum']
+            # put SeqNum of request unless it's requested to use a specific
+            # value.
+            if seqNum is None:
+                packet['app']['seqNum'] = transaction.request['app']['seqNum']
+            else:
+                assert isinstance(seqNum, int)
+                assert seqNum >= 0
+                assert seqNum < 256
+                packet['app']['seqNum'] = seqNum
 
             command = transaction.request['app']['code']
             if (
