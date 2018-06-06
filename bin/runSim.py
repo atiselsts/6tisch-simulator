@@ -135,8 +135,7 @@ def runSimCombinations(params):
         printOrLog(cpuID, output, verbose)
 
 keep_printing_progress = True
-def printProgressPerCpu(cpuIDs, clear_console=True):
-    hostname = platform.uname()[1]
+def printProgressPerCpu(hostname, cpuIDs, clear_console=True):
     while keep_printing_progress:
         time.sleep(1)
         output     = []
@@ -275,7 +274,7 @@ def main():
             clear_console = True
         print_progress_thread = threading.Thread(
             target = printProgressPerCpu,
-            args   = (cpuIDs, clear_console)
+            args   = (platform.uname()[1], cpuIDs, clear_console)
         )
 
         print_progress_thread.start()
