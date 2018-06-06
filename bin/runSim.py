@@ -72,9 +72,9 @@ def runSimCombinations(params):
     configfile         = params['configfile']
     verbose            = params['verbose']
     log_directory_name = params['log_directory_name']
+    config_data        = params['config_data']
 
-    # sim config (need to re-load, as executing on different CPUs)
-    simconfig = SimConfig.SimConfig(configfile)
+    simconfig = SimConfig.SimConfig(configdata=config_data)
 
     # record simulation start time
     simStartTime        = time.time()
@@ -194,7 +194,7 @@ def main():
     cliparams = parseCliParams()
 
     # sim config
-    simconfig = SimConfig.SimConfig(cliparams['config'])
+    simconfig = SimConfig.SimConfig(configfile=cliparams['config'])
     assert simconfig.version == 0
 
     #=== run simulations
@@ -240,7 +240,8 @@ def main():
             'first_run':          0,
             'configfile':         cliparams['config'],
             'verbose':            True,
-            'log_directory_name': log_directory_name
+            'log_directory_name': log_directory_name,
+            'config_data':        simconfig.get_config_data()
         })
 
     else:
@@ -294,7 +295,8 @@ def main():
                     'first_run':          first_run,
                     'configfile':         cliparams['config'],
                     'verbose':            False,
-                    'log_directory_name': log_directory_name
+                    'log_directory_name': log_directory_name,
+                    'config_data':        simconfig.get_config_data()
                 } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
             ]
         )
@@ -321,7 +323,8 @@ def main():
     merge_output_files(folder_path)
 
     # copy config file into output directory
-    shutil.copy(cliparams['config'], folder_path)
+    with open(os.path.join(folder_path, 'config.json'), 'w') as f:
+        f.write(simconfig.get_config_data())
 
     #=== post-simulation actions
 

@@ -18,6 +18,7 @@ of settings.
 # =========================== imports =========================================
 
 import json
+import sys
 
 # =========================== defines =========================================
 
@@ -42,14 +43,29 @@ class DotableDict(dict):
 
 class SimConfig(dict):
 
-    def __init__(self, configfile=None):
+    def __init__(self, configfile=None, configdata=None):
 
-        # store params
-        self.configfile = configfile
+        if   configfile is not None:
+            # store params
+            self.configfile = configfile
 
-        # read config file
-        with open(self.configfile, 'r') as file:
-            self.config = DotableDict(json.loads(file.read()))
+            # read config file
+            if configfile == '-':
+                # read config.json from stdin
+                self._raw_data = sys.stdin.read()
+            else:
+                with open(self.configfile, 'r') as file:
+                    self._raw_data = file.read()
+        elif configdata is not None:
+            self._raw_data = configdata
+        else:
+            raise Exception()
+
+        # store config
+        self.config   = DotableDict(json.loads(self._raw_data))
 
     def __getattr__(self, name):
         return getattr(self.config, name)
+
+    def get_config_data(self):
+        return self._raw_data
