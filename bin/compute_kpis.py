@@ -186,13 +186,17 @@ def kpis_all(inputfile):
         for (srcIp, motestats) in per_mote_stats.items():
             if srcIp != 0:
 
-                if 'sync_asn' in motestats:
+                if   'sync_asn' not in motestats:
+                    motestats['WARNING'] = "mote didn't sync"
+                elif 'charge_asn' not in motestats:
+                    motestats['WARNING'] = "log doesn't have battery info"
+                else:
                     # ave_current, lifetime_AA
                     motestats['ave_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
-                    motestats['lifetime_AA_years'] = (2200*1000/float(motestats['ave_current_uA']))/(24.0*365)
-                else:
-                    motestats['WARNING'] = "mote didn't sync"
-
+                    if motestats['ave_current_uA'] > 0:
+                        motestats['lifetime_AA_years'] = (2200*1000/float(motestats['ave_current_uA']))/(24.0*365)
+                    else:
+                        motestats['lifetime_AA_years'] = 'N/A'
                 if 'join_asn' in motestats:
                     # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
                     motestats['latencies']         = []
@@ -226,6 +230,7 @@ def kpis_all(inputfile):
         for (srcIp, motestats) in per_mote_stats.items():
             if 'sync_asn' in motestats:
                 del motestats['sync_asn']
+            if 'charge_asn' in motestats:
                 del motestats['charge_asn']
                 del motestats['charge']
             if 'join_asn' in motestats:
