@@ -204,7 +204,7 @@ class ConnectivityBase(object):
                         self.log(
                             SimEngine.SimLog.LOG_PROP_INTERFERENCE,
                             {
-                                '_mote_id':                    lockon_transmission['packet']['mac']['srcMac'],
+                                '_mote_id':                    listener,
                                 'channel':                     lockon_transmission['channel'],
                                 'lockon_transmission':         lockon_transmission['packet'],
                                 'interfering_transmissions':   [t['packet'] for t in interfering_transmissions],
