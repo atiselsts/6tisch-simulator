@@ -85,6 +85,7 @@ LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys'
 # === propagation
 LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet']}
 LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['_mote_id','channel','lockon_transmission','interfering_transmissions']}
+LOG_PROP_DROP_LOCKON              = {'type': 'prop.drop_lockon' ,         'keys': ['_mote_id','channel','lockon_transmission']}
 
 # ============================ SimLog =========================================
 

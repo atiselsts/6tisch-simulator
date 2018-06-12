@@ -236,6 +236,14 @@ class ConnectivityBase(object):
                         sentAnAck = self.engine.motes[listener].radio.rxDone(
                             packet = None,
                         )
+                        self.log(
+                            SimEngine.SimLog.LOG_PROP_DROP_LOCKON,
+                            {
+                                '_mote_id':                    listener,
+                                'channel':                     lockon_transmission['channel'],
+                                'lockon_transmission':         lockon_transmission['packet']
+                            }
+                        )
                         assert sentAnAck==False
 
             # verify no more listener on this channel
