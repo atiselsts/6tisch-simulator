@@ -13,6 +13,7 @@ import json
 import glob
 
 from SimEngine import SimLog
+import SimEngine.Mote.MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -106,32 +107,13 @@ def kpis_all(inputfile):
 
             allstats[run_id][srcIp]['upstream_pkts'][appcounter]['tx_asn'] = tx_asn
 
-        elif logline['_type'] == SimLog.LOG_SIXLOWPAN_PKT_FWD['type']:
-            # packet transmission
-
-            # shorthands
-            pk_type    = logline['packet']['type']
-
-            # only consider DATA packets
-            if pk_type != 'DATA':
-                continue
-
-            srcIp      = logline['packet']['net']['srcIp']
-            dstIp      = logline['packet']['net']['dstIp']
-            appcounter = logline['packet']['app']['appcounter']
-
-            # only consider upstream packets
-            if dstIp != DAGROOT_IP:
-                continue
-
-            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops'] += 1
-
         elif logline['_type'] == SimLog.LOG_APP_RX['type']:
             # packet reception
 
             # shorthands
             srcIp      = logline['packet']['net']['srcIp']
             dstIp      = logline['packet']['net']['dstIp']
+            hop_limit  = logline['packet']['net']['hop_limit']
             appcounter = logline['packet']['app']['appcounter']
             rx_asn     = logline['_asn']
 
@@ -139,7 +121,9 @@ def kpis_all(inputfile):
             if dstIp != DAGROOT_IP:
                 continue
 
-            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops'] += 1
+            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops']   = (
+                d.IPV6_DEFAULT_HOP_LIMIT - hop_limit + 1
+            )
             allstats[run_id][srcIp]['upstream_pkts'][appcounter]['rx_asn'] = rx_asn
 
         elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
