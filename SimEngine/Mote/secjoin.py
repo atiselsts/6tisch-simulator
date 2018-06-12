@@ -190,7 +190,11 @@ class SecJoin(object):
     #======================== private ==========================================
 
     def _retransmit_join_request(self):
-        if  self._retransmission_count == self.MAX_RETRANSMIT:
+        if  self.getIsJoined() is True:
+            # do nothing; this could happen when it received a response at the
+            # same slot
+            pass
+        elif self._retransmission_count == self.MAX_RETRANSMIT:
 
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_FAILED,
