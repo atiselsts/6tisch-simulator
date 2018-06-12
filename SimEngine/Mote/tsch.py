@@ -489,8 +489,13 @@ class Tsch(object):
         parents              = []
         while True:
 
-            if parent.id in parents:
-                # loop is detected; return the current offset value
+            if (
+                    (parent.id in parents)
+                    or
+                    (child.tsch.asnLastSync is None)
+                ):
+                # loop is detected or 'child' is desync-ed; return the current
+                # offset value
                 return offset
             else:
                 # record the current parent for loop detection
