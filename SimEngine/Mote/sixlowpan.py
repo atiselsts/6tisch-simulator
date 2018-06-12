@@ -58,6 +58,9 @@ class Sixlowpan(object):
             }
         )
 
+        # put hop_limit field to the net header
+        packet['net']['hop_limit'] = d.IPV6_DEFAULT_HOP_LIMIT
+
         # add source route, if needed
         if goOn:
             if (self.mote.dagRoot) and (packet['net']['dstIp'] not in self.mote.neighbors):
@@ -171,6 +174,19 @@ class Sixlowpan(object):
 
         goOn = True
 
+        if (
+                ('hop_limit' in rxPacket['net'])
+                and
+                (rxPacket['net']['hop_limit'] < 2)
+            ):
+            # we shouldn't receive any frame having hop_limit of 0
+            assert rxPacket['net']['hop_limit'] == 1
+            self.mote.drop_packet(
+                packet = rxPacket,
+                reason = SimEngine.SimLog.DROPREASON_TIME_EXCEEDED
+            )
+            goOn = False
+
         # === create forwarded packet
         if goOn:
             fwdPacket             = {}
@@ -181,6 +197,10 @@ class Sixlowpan(object):
                 fwdPacket['app']  = copy.deepcopy(rxPacket['app'])
             # net
             fwdPacket['net']      = copy.deepcopy(rxPacket['net'])
+            if 'hop_limit' in fwdPacket['net']:
+                assert fwdPacket['net']['hop_limit'] > 1
+                fwdPacket['net']['hop_limit'] -= 1
+
             # mac
             if fwdPacket['type'] == d.PKT_TYPE_FRAG:
                 # fragment already has mac header (FIXME: why?)
@@ -268,6 +288,7 @@ class Fragmentation(object):
                 'net': {
                     'srcIp':                src_ip_address,
                     'dstIp':                dst_ip_address,
+                    'hop_limit':            hop_limit,
                     'packet_length':        packet_length,
                     'datagram_size':        original_packet_length,
                     'datagram_tag':         tag_for_the_packet,
@@ -336,6 +357,7 @@ class Fragmentation(object):
                     # add srcIp, dstIp, sourceRoute
                     fragment['net']['srcIp']                = packet['net']['srcIp']
                     fragment['net']['dstIp']                = packet['net']['dstIp']
+                    fragment['net']['hop_limit']            = packet['net']['hop_limit']
                     if 'sourceRoute' in packet['net']:
                         fragment['net']['sourceRoute']      = copy.deepcopy(packet['net']['sourceRoute'])
                 elif i == (number_of_fragments - 1):
@@ -425,8 +447,9 @@ class Fragmentation(object):
             if fragment['net']['datagram_offset'] == 0:
                 # store srcIp and dstIp which only the first fragment has
                 self.reassembly_buffers[srcMac][incoming_datagram_tag]['net'] = {
-                    'srcIp':  fragment['net']['srcIp'],
-                    'dstIp':  fragment['net']['dstIp']
+                    'srcIp'    : fragment['net']['srcIp'],
+                    'dstIp'    : fragment['net']['dstIp'],
+                    'hop_limit': fragment['net']['hop_limit']
                 }
 
             self.reassembly_buffers[srcMac][incoming_datagram_tag]['fragments'].append({
@@ -450,6 +473,7 @@ class Fragmentation(object):
         packet['net'] = copy.deepcopy(fragment['net'])
         packet['net']['srcIp'] = self.reassembly_buffers[srcMac][incoming_datagram_tag]['net']['srcIp']
         packet['net']['dstIp'] = self.reassembly_buffers[srcMac][incoming_datagram_tag]['net']['dstIp']
+        packet['net']['hop_limit'] = self.reassembly_buffers[srcMac][incoming_datagram_tag]['net']['hop_limit']
         packet['net']['packet_length'] = datagram_size
         del packet['net']['datagram_tag']
         del packet['net']['datagram_size']

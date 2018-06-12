@@ -452,6 +452,7 @@ class TestMemoryManagement:
                     'net': {
                         'srcIp'                : hop2.id,
                         'dstIp'                : root.id,
+                        'hop_limit'            : d.IPV6_DEFAULT_HOP_LIMIT,
                         'packet_length'        : 90,
                         'datagram_size'        : 180,
                         'datagram_tag'         : datagram_tag,
@@ -513,6 +514,7 @@ class TestMemoryManagement:
             'net': {
                 'srcIp':           hop2.id,
                 'dstIp':           root.id,
+                'hop_limit':       d.IPV6_DEFAULT_HOP_LIMIT,
                 'datagram_size'  : 270,
                 'datagram_tag'   : 1,
                 'datagram_offset': 0,
