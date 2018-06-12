@@ -170,12 +170,12 @@ class ConnectivityBase(object):
                 # list the transmissions that listener can hear
                 transmissions = []
                 for t in alltransmissions:
-                    rssi = self.get_rssi(
+                    pdr = self.get_pdr(
                         source      = t['packet']['mac']['srcMac'],
                         destination = listener,
                         channel     = channel,
                     )
-                    if self.settings.phy_minRssi < rssi:
+                    if pdr > 0:
                         transmissions += [t]
 
                 if transmissions == []:
