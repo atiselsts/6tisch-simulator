@@ -43,7 +43,8 @@ LOG_APP_RX                        = {'type': 'app.rx',                    'keys'
 # === secjoin
 LOG_SECJOIN_TX                    = {'type': 'secjoin.tx',                'keys': ['_mote_id']}
 LOG_SECJOIN_RX                    = {'type': 'secjoin.rx',                'keys': ['_mote_id']}
-LOG_JOINED                        = {'type': 'secjoin.joined',            'keys': ['_mote_id']}
+LOG_SECJOIN_JOINED                = {'type': 'secjoin.joined',            'keys': ['_mote_id']}
+LOG_SECJOIN_FAILED                = {'type': 'secjoin.failed',            'keys': ['_mote_id']}
 
 # === rpl
 LOG_RPL_DIO_TX                    = {'type': 'rpl.dio.tx',                'keys': ['_mote_id','packet']}
