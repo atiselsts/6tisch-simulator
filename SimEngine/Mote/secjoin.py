@@ -51,7 +51,7 @@ class SecJoin(object):
 
         # log
         self.log(
-            SimEngine.SimLog.LOG_JOINED,
+            SimEngine.SimLog.LOG_SECJOIN_JOINED,
             {
                 '_mote_id': self.mote.id,
             }

@@ -76,7 +76,7 @@ def check_neighbor_tables(motes):
 # === secjoin
 
 def secjoin_check_all_nodes_joined(motes):
-    check_all_nodes_x(motes, SimLog.LOG_JOINED['type'])
+    check_all_nodes_x(motes, SimLog.LOG_SECJOIN_JOINED['type'])
 
 # === app
 

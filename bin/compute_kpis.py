@@ -67,7 +67,7 @@ def kpis_all(inputfile):
             allstats[run_id][mote_id]['sync_asn']  = asn
             allstats[run_id][mote_id]['sync_time_s'] = asn*file_settings['tsch_slotDuration']
 
-        elif logline['_type'] == SimLog.LOG_JOINED['type']:
+        elif logline['_type'] == SimLog.LOG_SECJOIN_JOINED['type']:
             # joined
 
             # shorthands
