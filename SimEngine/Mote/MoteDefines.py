@@ -26,6 +26,9 @@ PKT_LEN_JOIN_RESPONSE                       = 20
 RPL_MINHOPRANKINCREASE                      = 256
 RPL_PARENT_SWITCH_THRESHOLD                 = 640
 
+# === ipv6
+IPV6_DEFAULT_HOP_LIMIT                      = 64
+
 # === sixlowpan
 SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
 SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds

@@ -230,7 +230,7 @@ class AppBurst(AppBase):
     #======================== public ==========================================
 
     def startSendingData(self):
-        # schedule app_burstNumPackets packets at pkScheduleAt
+        # schedule app_burstNumPackets packets in app_burstTimestamp
         self.engine.scheduleIn(
             delay           = self.settings.app_burstTimestamp,
             cb              = self._send_burst_packets,
