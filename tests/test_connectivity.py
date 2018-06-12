@@ -2,8 +2,15 @@
 Tests for SimEngine.Connectivity
 """
 import os
+import shutil
+
+from scipy.stats import t
+from numpy import average, std
+from math import sqrt
 
 import test_utils as u
+from SimEngine import SimLog
+
 
 #============================ helpers =========================================
 
@@ -192,3 +199,49 @@ class TestRandom(object):
                 # be same (all comparison, i != j, should be False).
                 assert sum([(i != j) for i, j in zip(pdr[:-1], pdr[1:])])   == 0
                 assert sum([(i != j) for i, j in zip(rssi[:-1], rssi[1:])]) == 0
+
+
+    def test_pdr(self, sim_engine):
+        # the lower bound of 95% confidence interval for PDR values should be
+        # above the minimum value set in config.json
+        diff_config = {
+            "exec_numSlotframesPerRun"      : 1,
+            'exec_numMotes'                 : 2,
+            'app_pkPeriod'                  : 0,
+            'rpl_daoPeriod'                 : 0,
+            'tsch_probBcast_ebDioProb'      : 0,
+            'conn_class'                    : 'Random',
+            'conn_random_init_min_neighbors': 2
+        }
+
+        pdr_list = []
+        for _ in range(100):
+            engine       = sim_engine(diff_config=diff_config)
+            connectivity = engine.connectivity
+            sim_settings = engine.settings
+            log_dir      = os.path.dirname(sim_settings.getOutputFile())
+            sim_log      = SimLog.SimLog()
+            root         = engine.motes[0]
+            leaf         = engine.motes[1]
+
+            def destroy_all(engine):
+                engine.destroy()
+                connectivity.destroy()
+                sim_settings.destroy()
+                sim_log.destroy()
+                # remove the log directory
+                shutil.rmtree(log_dir)
+
+            sim_log.set_log_filters([]) # nothing to log
+            for _ in range(100):
+                pdr_list.append(connectivity.get_pdr(root.id, leaf.id, 0))
+            destroy_all(engine)
+
+        n        = len(pdr_list)
+        mean     = average(pdr_list)
+        sd       = std(pdr_list)
+        t_left   = t.interval(0.95, n - 1)[0]
+        lower_ci = mean + t_left * sd / sqrt(n)
+
+        assert t_left < 0
+        assert sim_settings.conn_random_init_min_pdr < lower_ci
