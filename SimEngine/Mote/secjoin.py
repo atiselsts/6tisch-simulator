@@ -210,11 +210,12 @@ class SecJoin(object):
             self._request_timeout      = None
             self._retransmission_count = None
             self.mote.tsch.setIsSync(False)
-            self._send_join_request()
-            self._retransmission_count += 1
         elif self._retransmission_count < self.MAX_RETRANSMIT:
             # double the timeout value
             self._request_timeout *= 2
+            self._retransmission_count += 1
+            # retransmit the request
+            self._send_join_request()
         else:
             # shouldn't happen
             assert False
