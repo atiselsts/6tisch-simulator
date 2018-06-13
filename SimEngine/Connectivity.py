@@ -816,7 +816,7 @@ class PisterHackModel(object):
 
             # according to the receiver power (RSSI) we can apply the Pister hack
             # model.
-            mu = pr - self.PISTER_HACK_LOWER_SHIFT / 2    # chosing the "mean" value
+            mu = pr - self.PISTER_HACK_LOWER_SHIFT / 2    # choosing the "mean" value
 
             # the receiver will receive the packet with an rssi uniformly
             # distributed between friis and friis -40
