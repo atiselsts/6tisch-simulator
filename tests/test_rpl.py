@@ -4,6 +4,7 @@ Tests for SimEngine.Mote.rpl
 
 import pytest
 
+import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.rpl as rpl
 
@@ -83,3 +84,48 @@ def test_source_route_calculation(sim_engine):
     assert mote.rpl.computeSourceRoute(5) == [1,4,5]
     assert mote.rpl.computeSourceRoute(6) == None
     assert mote.rpl.computeSourceRoute(7) == None
+
+
+def test_upstream_routing(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 3,
+            'conn_class'   : 'FullyMeshed',
+        }
+    )
+
+    root  = sim_engine.motes[0]
+    mote_1 = sim_engine.motes[1]
+    mote_2 = sim_engine.motes[2]
+
+    u.run_until_everyone_joined(sim_engine)
+
+    # We're making the RPL topology of "root -- mote_1 (-- mote_2)"
+    dio_from_root = root.rpl._create_DIO()
+    dio_from_root['app']['rank'] = 256
+    mote_1.rpl.action_receiveDIO(dio_from_root)
+    assert mote_1.rpl.getPreferredParent() == root.id
+
+    # Then, put mote_1 behind mote_2:    "root -- mote_2 -- mote_1"
+    mote_2.rpl.action_receiveDIO(dio_from_root)
+    dio_from_mote_2 = mote_2.rpl._create_DIO()
+
+    dio_from_root['app']['rank'] = 65535
+    mote_1.rpl.action_receiveDIO(dio_from_root)
+
+    dio_from_mote_2['app']['rank'] = 256
+    mote_1.rpl.action_receiveDIO(dio_from_mote_2)
+
+    assert mote_1.rpl.getPreferredParent() == mote_2.id
+    assert mote_2.rpl.getPreferredParent() == root.id
+
+    # create a dummy packet, which is used to get the next hop
+    dummy_packet = {
+        'net': {
+            'srcIp': mote_1.id,
+            'dstIp': root.id
+        }
+    }
+
+    # the next hop should be parent
+    assert mote_1.rpl.findNextHopId(dummy_packet) == mote_1.rpl.getPreferredParent()
