@@ -24,10 +24,6 @@ import gzip
 from datetime import datetime
 import json
 
-from scipy.stats import t
-from numpy import average, std
-from math import sqrt
-
 import SimSettings
 import SimEngine
 from Mote.Mote import Mote
