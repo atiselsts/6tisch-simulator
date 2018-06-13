@@ -303,23 +303,29 @@ class Rpl(object):
             # next hop is the first item in the source route
             nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
 
+        elif self.mote.dagRoot:
+            # downstream packet to neighbors of the root
+            # FIXME: this is a hack. We should maintain the IPv6 neighbor
+            # cache table for on-link determination not only by the root but
+            # also by other motes
+            nextHopId = packet['net']['dstIp']
+
         else:
-            # unicast upstream packet
-
-            if   self.mote.isNeighbor(packet['net']['dstIp']):
-                # packet to a neighbor
-
-                # next hop is that neighbor
-                nextHopId = packet['net']['dstIp']
-            elif packet['net']['dstIp'] == self.mote.dodagId:
-                # common upstream packet
-
-                # next hop is preferred parent (returns None if no preferred parent)
-                nextHopId = self.preferredParent
+            if packet['net']['dstIp'] == self.mote.dodagId:
+                # unicast upstream packet; send it to its preferred parent (default
+                # route)
+                if self.mote.dodagId is None:
+                    # this mote has not been part of RPL network yet; use
+                    # self.mote.tsch.join_proxy as its default route
+                    # FIXME: in such a situation, the mote should send only
+                    # link-local packets.
+                    nextHopId = self.mote.tsch.join_proxy
+                else:
+                    nextHopId = self.preferredParent
             else:
-                print self.mote.id
-                print packet
-                raise SystemError()
+                # unicast downstream packet; assume destination is on-link
+                # FIXME: need IPv6 neighbor cache table
+                nextHopId = packet['net']['dstIp']
 
         return nextHopId
 
