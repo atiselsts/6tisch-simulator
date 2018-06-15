@@ -512,10 +512,12 @@ class SixPTransaction(object):
         self.settings         = SimEngine.SimSettings.SimSettings()
         self.log              = SimEngine.SimLog.SimLog().log
 
+        # local variables
         self.request          = copy.deepcopy(request)
         self.callbakc         = None
         self.type             = self._determine_transaction_type()
         self.key              = self.get_transaction_key(request)
+        self.is_valid         = False
 
         # for quick access
         self.seqNum           = request['app']['seqNum']
@@ -535,6 +537,7 @@ class SixPTransaction(object):
 
         # register itself to sixp
         self.mote.sixp.add_transaction(self)
+        self.is_valid = True
 
     # ======================= public ==========================================
 
@@ -613,6 +616,8 @@ class SixPTransaction(object):
 
         # delete the transaction from the 6P transaction table
         self.mote.sixp.delete_transaction(self)
+
+        self.is_valid = False
 
     def _determine_transaction_type(self):
         if (
@@ -699,22 +704,28 @@ class SixPTransaction(object):
         return one_way_delay * num_round_trips
 
     def _timeout_handler(self):
-        self.log(
-            SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
-            {
-                '_mote_id': self.mote.id,
-                'peerMac' : self.peerMac,
-                'seqNum'  : self.seqNum,
-                'cmd'     : self.request['app']['code']
-            }
-        )
+        # check whether the transaction has completed at the same ASN as this
+        # timeout. if this is the case, we do nothing.
+        if self.is_valid is True:
+            self.log(
+                SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
+                {
+                    '_mote_id': self.mote.id,
+                    'peerMac' : self.peerMac,
+                    'seqNum'  : self.seqNum,
+                    'cmd'     : self.request['app']['code']
+                }
+            )
 
-        self._invalidate()
+            self._invalidate()
 
-        # need to invoke the callback after the invalidation; otherwise, a new
-        # transaction to the same peer would fail due to duplicate (concurrent)
-        # transaction.
-        self.invoke_callback(
-            event       = d.SIXP_CALLBACK_EVENT_TIMEOUT,
-            packet      = None
-        )
+            # need to invoke the callback after the invalidation; otherwise, a new
+            # transaction to the same peer would fail due to duplicate (concurrent)
+            # transaction.
+            self.invoke_callback(
+                event       = d.SIXP_CALLBACK_EVENT_TIMEOUT,
+                packet      = None
+            )
+        else:
+            # the transaction has already been invalidated; do nothing here.
+            pass
