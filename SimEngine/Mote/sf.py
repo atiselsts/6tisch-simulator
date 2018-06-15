@@ -133,9 +133,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         super(SchedulingFunctionMSF, self).__init__(mote)
 
         # (additional) local variables
-        self.num_cells_passed = 0      # number of dedicated cells passed
-        self.num_cells_used   = 0      # number of dedicated cells used
+        self.num_cells_passed = 0       # number of dedicated cells passed
+        self.num_cells_used   = 0       # number of dedicated cells used
         self.cell_utilization = 0
+        self.locked_slots     = set([]) # slots in on-going ADD transactions
 
     # ======================= public ==========================================
 
@@ -337,6 +338,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
     # cell manipulation helpers
+    def _lock_cells(self, cell_list):
+        for cell in cell_list:
+            self.locked_slots.add(cell['slotOffset'])
+
+    def _unlock_cells(self, cell_list):
+        for cell in cell_list:
+            self.locked_slots.remove(cell['slotOffset'])
+
     def _add_cells(self, neighbor_id, cell_list, cell_options):
         try:
             for cell in cell_list:
@@ -386,9 +395,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self._delete_cells(neighbor_id, src_cell_list, cell_options)
 
     def _create_available_cell_list(self, cell_list_len):
-        slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use       = set(self.mote.tsch.getSchedule().keys())
-        available_slots    = list(slots_in_slotframe - slots_in_use)
+        slots_in_slotframe    = set(range(0, self.settings.tsch_slotframeLength))
+        slots_in_use          = set(self.mote.tsch.getSchedule().keys())
+        available_slots       = list(
+            slots_in_slotframe - slots_in_use - self.locked_slots
+        )
 
         if len(available_slots) <= cell_list_len:
             raise ScheduleFullError()
@@ -404,6 +415,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     'channelOffset': channel_offset
                 }
             )
+        self._lock_cells(cell_list)
         return cell_list
 
     def _create_occupied_cell_list(
@@ -505,6 +517,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             neighbor_id,
             num_cells,
             cell_options,
+            cell_list,
             num_txrx_cells,
             num_tx_cells,
             num_rx_cells
@@ -533,7 +546,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             map(lambda c: c['slotOffset'], proposed_cells)
         )
         available_slots    = list(
-            slots_in_cell_list.intersection(slots_in_slotframe - slots_in_use)
+            slots_in_cell_list.intersection(
+                slots_in_slotframe - slots_in_use - self.locked_slots)
         )
 
         # prepare cell_list
@@ -552,6 +566,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         if len(available_slots) > 0:
             code = d.SIXP_RC_SUCCESS
 
+            self._lock_cells(candidate_cells)
             def callback(event, packet):
                 if event == d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION:
                     # prepare cell options for this responder
@@ -572,6 +587,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         cell_list    = cell_list,
                         cell_options = cell_options
                 )
+                self._unlock_cells(candidate_cells)
         else:
             code      = d.SIXP_RC_ERR
             cell_list = None
@@ -590,6 +606,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             neighbor_id,
             num_cells,
             cell_options,
+            cell_list,
             num_txrx_cells,
             num_tx_cells,
             num_rx_cells
@@ -651,6 +668,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             else:
                 # ignore other events
                 pass
+
+            # unlock the slots used in this transaction
+            self._unlock_cells(cell_list)
 
         return callback
 
