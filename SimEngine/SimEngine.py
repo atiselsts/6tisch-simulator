@@ -53,6 +53,7 @@ class DiscreteEventEngine(threading.Thread):
             self.asn                            = 0
             self.exc                            = None
             self.events                         = []
+            self.random_seed                    = None
             self._init_additional_local_variables()
 
             # initialize parent class
@@ -146,6 +147,14 @@ class DiscreteEventEngine(threading.Thread):
             output += ['The following settings are used:']
             output += ['']
             for k, v in SimSettings.SimSettings().__dict__.iteritems():
+                if (
+                        (k == 'exec_randomSeed')
+                        and
+                        (v == 'random')
+                    ):
+                    # put the random seed value in output
+                    # exec_randomSeed: random
+                    v = 'random ({0})'.format(self.random_seed)
                 output += ['{0}: {1}'.format(str(k), str(v))]
             output += ['']
             output += ['==============================']
@@ -310,12 +319,12 @@ class SimEngine(DiscreteEventEngine):
 
         # set random seed
         if self.settings.exec_randomSeed == 'random':
-            random_seed = random.randint(0, sys.maxint)
+            self.random_seed = random.randint(0, sys.maxint)
         else:
             assert isinstance(self.settings.exec_randomSeed, int)
-            random_seed = self.settings.exec_randomSeed
+            self.random_seed = self.settings.exec_randomSeed
         # apply the random seed; log the seed after self.log is initialized
-        random.seed(a=random_seed)
+        random.seed(a=self.random_seed)
 
         self.motes                      = [Mote.Mote.Mote(m) for m in range(self.settings.exec_numMotes)]
         self.connectivity               = Connectivity.Connectivity()
@@ -326,7 +335,7 @@ class SimEngine(DiscreteEventEngine):
         self.log(
             SimLog.LOG_SIMULATOR_RANDOM_SEED,
             {
-                'value': random_seed
+                'value': self.random_seed
             }
         )
         
