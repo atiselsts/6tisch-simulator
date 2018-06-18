@@ -513,10 +513,18 @@ class Tsch(object):
 
         return offset
 
-    def removeTypeFromQueue(self,type):
+    def remove_frame_from_tx_queue(self, type, dstMac=None):
         i = 0
         while i<len(self.txQueue):
-            if self.txQueue[i]['type'] == type:
+            if (
+                    (self.txQueue[i]['type'] == type)
+                    and
+                    (
+                        (dstMac is None)
+                        or
+                        (self.txQueue[i]['mac']['dstMac'] == dstMac)
+                    )
+                ):
                 del self.txQueue[i]
             else:
                 i += 1
