@@ -719,6 +719,12 @@ class SixPTransaction(object):
 
             self._invalidate()
 
+            # remove a pending frame in TX queue if necessary
+            self.mote.tsch.remove_frame_from_tx_queue(
+                type   = d.PKT_TYPE_SIXP,
+                dstMac = self.peerMac
+            )
+
             # need to invoke the callback after the invalidation; otherwise, a new
             # transaction to the same peer would fail due to duplicate (concurrent)
             # transaction.
