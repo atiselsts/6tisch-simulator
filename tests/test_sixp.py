@@ -264,7 +264,7 @@ class TestTransaction:
             dstMac        = responder.id,
             command       = d.SIXP_CMD_ADD,
             cellList      = [],
-            timeout_value = 1
+            timeout_value = 200
         )
 
         # wait a little bit
