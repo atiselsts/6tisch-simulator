@@ -23,7 +23,11 @@ def repeat4times(request):
 @pytest.fixture(scope="function")
 def sim_engine(request):
 
-    def create_sim_engine(diff_config={}, force_initial_routing_and_scheduling_state=False):
+    def create_sim_engine(
+            diff_config                                = {},
+            force_initial_routing_and_scheduling_state = False,
+            run_id                                     = None
+        ):
         
         engine = None
         
@@ -62,7 +66,7 @@ def sim_engine(request):
         sim_log.set_log_filters('all') # do not log
 
         # create sim engine
-        engine = SimEngine.SimEngine()
+        engine = SimEngine.SimEngine(run_id=run_id)
         
         # force initial routing and schedule, if appropriate
         if force_initial_routing_and_scheduling_state:

@@ -9,12 +9,13 @@ import pytest
 import test_utils as u
 from SimEngine import SimLog
 from SimEngine import SimSettings
+from SimEngine import SimConfig
 
 #============================ helpers ==========================================
 
 #============================ fixtures =========================================
 
-@pytest.fixture(params=['random', 1, 10, 100, 'range'])
+@pytest.fixture(params=['random', 1, 10, 100, 'range', 'context'])
 def fixture_random_seed(request):
     return request.param
 
@@ -58,6 +59,8 @@ def test_random_seed(sim_engine, fixture_random_seed):
         engine.destroy()
         log.destroy()
         settings.destroy()
+        # this is for test purpose only; reset SimConfig._startTime
+        SimConfig.SimConfig._startTime = None
 
         # compute the file hash
         with open(log_file_name, 'r') as f:
@@ -86,7 +89,7 @@ def test_random_seed(sim_engine, fixture_random_seed):
         print '{0} {1}'.format(entry['sha256'], entry['log_file_name'])
 
     # compare hash values and random seeds
-    if fixture_random_seed in ['random', 'range']:
+    if fixture_random_seed in ['random', 'range', 'context']:
         # different seed values should have been used
         assert (
             sum([i == j for i, j in zip(seed_list[:-1], seed_list[1:])]) == 0

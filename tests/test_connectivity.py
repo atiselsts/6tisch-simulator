@@ -1,6 +1,7 @@
 """
 Tests for SimEngine.Connectivity
 """
+import itertools
 import os
 import shutil
 
@@ -13,6 +14,12 @@ from SimEngine import SimLog
 
 
 #============================ helpers =========================================
+
+def destroy_all_singletons(engine):
+    engine.destroy()
+    engine.connectivity.destroy()
+    engine.settings.destroy()
+    SimLog.SimLog().destroy()
 
 def print_connectivity_matrix(matrix):
     output         = []
@@ -225,10 +232,7 @@ class TestRandom(object):
             leaf         = engine.motes[1]
 
             def destroy_all(engine):
-                engine.destroy()
-                connectivity.destroy()
-                sim_settings.destroy()
-                sim_log.destroy()
+                destroy_all_singletons(engine)
                 # remove the log directory
                 shutil.rmtree(log_dir)
 
@@ -245,3 +249,38 @@ class TestRandom(object):
 
         assert t_left < 0
         assert sim_settings.conn_random_init_min_pdr < lower_ci
+
+    def test_context_random_seed(self, sim_engine):
+        diff_config = {
+            'exec_numMotes'  : 10,
+            'exec_randomSeed': 'context',
+            'conn_class'     : 'Random'
+        }
+
+        # ConnectivityRandom should create an identical topology for two
+        # simulations having the same run_id
+        sf_class_list = ['SFNone', 'MSF']
+        coordinates = {}
+        for sf_class, run_id in itertools.product(sf_class_list, [1, 2]):
+            diff_config['sf_class'] = sf_class
+            engine = sim_engine(
+                diff_config                                = diff_config,
+                force_initial_routing_and_scheduling_state = False,
+                run_id                                     = run_id
+            )
+            coordinates[(sf_class, run_id)] = engine.connectivity.coordinates
+            destroy_all_singletons(engine)
+
+        # We have four sets of coordinates:
+        # - coordinates of ('SFNone', run_id=1) and ('MSF',    1) should be
+        #   identical
+        # - coordinates of ('SFNone', run_id=2) and ('MSF',    2) should be
+        #   identical
+        # - coordinates of ('SFNone,  run_id=1) and ('SFNone', 2) should be
+        #   different
+        # - coordinates of ('MSF',    run_id=1) and ('MSF',    2) should be
+        #   different
+        assert coordinates[('SFNone', 1)] == coordinates[('MSF', 1)]
+        assert coordinates[('SFNone', 2)] == coordinates[('MSF', 2)]
+        assert coordinates[('SFNone', 1)] != coordinates[('SFNone', 2)]
+        assert coordinates[('MSF', 1)]    != coordinates[('MSF', 2)]
