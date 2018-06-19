@@ -69,7 +69,6 @@ def runSimCombinations(params):
     cpuID              = params['cpuID']
     numRuns            = params['numRuns']
     first_run          = params['first_run']
-    configfile         = params['configfile']
     verbose            = params['verbose']
     config_data        = params['config_data']
 
@@ -214,7 +213,6 @@ def main():
             'cpuID':              0,
             'numRuns':            simconfig.execution.numRuns,
             'first_run':          0,
-            'configfile':         cliparams['config'],
             'verbose':            True,
             'config_data':        simconfig.get_config_data()
         })
@@ -268,7 +266,6 @@ def main():
                     'cpuID':              cpuID,
                     'numRuns':            runs,
                     'first_run':          first_run,
-                    'configfile':         cliparams['config'],
                     'verbose':            False,
                     'config_data':        simconfig.get_config_data()
                 } for [cpuID, (runs, first_run)] in enumerate(runsPerCPU)
