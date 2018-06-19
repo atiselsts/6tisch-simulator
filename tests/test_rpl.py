@@ -114,6 +114,9 @@ def test_upstream_routing(sim_engine):
     mote_1.rpl.action_receiveDIO(dio_from_root)
 
     dio_from_mote_2['app']['rank'] = 256
+    # make sure mote_1 has mote_2 in its 'Mote.neighbors'
+    mote_1.neighbors_indicate_rx(dio_from_mote_2)
+    # inject DIO from mote_2 to mote_1
     mote_1.rpl.action_receiveDIO(dio_from_mote_2)
 
     assert mote_1.rpl.getPreferredParent() == mote_2.id
