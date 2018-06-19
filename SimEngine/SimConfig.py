@@ -101,9 +101,12 @@ class SimConfig(dict):
 
         # determine log_directory_name
         if   self.log_directory_name == 'startTime':
-            log_directory_name = time.strftime(
-                "%Y%m%d-%H%M%S",
-                SimConfig._startTime
+            log_directory_name = '{0}-{1:03d}'.format(
+                time.strftime(
+                    "%Y%m%d-%H%M%S",
+                    time.localtime(int(SimConfig._startTime))
+                ),
+                int(round(SimConfig._startTime * 1000)) % 1000
             )
         elif self.log_directory_name == 'hostname':
             # hostname is stored in platform.uname()[1]
