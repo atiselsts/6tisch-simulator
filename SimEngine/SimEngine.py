@@ -226,7 +226,7 @@ class DiscreteEventEngine(threading.Thread):
     
     def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder):
         """
-        Schedule an event 'delay' ASNs into the future.
+        Schedule an event 'delay' seconds into the future.
         Also removed all future events with the same uniqueTag.
         """
 
