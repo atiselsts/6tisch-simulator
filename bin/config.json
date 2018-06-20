@@ -36,6 +36,7 @@
             "tsch_probBcast_ebDioProb":                    0.33,
             "tsch_clock_max_drift_ppm":                    30,
             "tsch_clock_frequency":                        32768,
+            "tsch_keep_alive_interval":                    10,
 
             "charge_log_period_s":                         10,
 

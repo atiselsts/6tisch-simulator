@@ -80,6 +80,7 @@ class Tsch(object):
             )
 
             self.asnLastSync = self.engine.getAsn()
+            self._start_keep_alive_timer()
 
             # transition: listeningForEB->active
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
@@ -100,6 +101,7 @@ class Tsch(object):
             self.join_proxy  = None
             self.asnLastSync = None
             self.clock.desync()
+            self._stop_keep_alive_timer()
 
             # transition: active->listeningForEB
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
@@ -357,6 +359,7 @@ class Tsch(object):
                 if self.clock.source == self.pktToSend['mac']['dstMac']:
                     self.asnLastSync = asn # ACK-based sync
                     self.clock.sync()
+                    self._reset_keep_alive_timer()
 
                 # remove packet from queue
                 self.getTxQueue().remove(self.pktToSend)
@@ -431,6 +434,7 @@ class Tsch(object):
         if self.clock.source == packet['mac']['srcMac']:
             self.asnLastSync = asn # packet-based sync
             self.clock.sync()
+            self._reset_keep_alive_timer()
 
         # update schedule stats
         if self.getIsSync():
@@ -445,6 +449,9 @@ class Tsch(object):
             # dispatch to the right upper layer
             if   packet['type'] == d.PKT_TYPE_SIXP:
                 self.mote.sixp.recv_packet(packet)
+            elif packet['type'] == d.PKT_TYPE_KEEP_ALIVE:
+                # do nothing but send back an ACK
+                pass
             elif 'net' in packet:
                 self.mote.sixlowpan.recvPacket(packet)
             else:
@@ -888,6 +895,61 @@ class Tsch(object):
                 # does not change when a transmission is a failure in a
                 # dedicated link."
                 pass
+
+    # Synchronization / Keep-Alive
+    def _send_keep_alive_message(self):
+        assert self.clock.source is not None
+        packet = {
+            'type': d.PKT_TYPE_KEEP_ALIVE,
+            'mac': {
+                'srcMac': self.mote.id,
+                'dstMac': self.clock.source
+            }
+        }
+        self.enqueue(packet)
+        # the next keep-alive event will be scheduled on receiving an ACK
+
+    def _start_keep_alive_timer(self):
+        assert self.settings.tsch_keep_alive_interval >= 0
+        if (
+                (self.settings.tsch_keep_alive_interval == 0)
+                or
+                (self.mote.dagRoot is True)
+            ):
+            # do nothing
+            pass
+        else:
+            # the clock drift of the child against the parent should be less than
+            # macTsRxWait/2 so that they can communicate with each other. Their
+            # clocks can be off by one clock interval at the most. This means, the
+            # clock difference between the child and the parent could be 2 *
+            # clock_interval just after synchronization. then, the possible minimum
+            # guard time is ((macTsRxWait / 2) - (2 * clock_interval)). When
+            # macTsRxWait is 2,200 usec and clock_interval is 30 usec, the
+            # minimum guard time is 1,040 usec. they will be desynchronized
+            # without keep-alive in 16 seconds as the paper titled "Adaptive
+            # Synchronization in IEEE802.15.4e Networks" describes.
+            #
+            # the keep-alive interval should be configured in config.json with
+            # "tsch_keep_alive_interval".
+            self.engine.scheduleIn(
+                delay          = self.settings.tsch_keep_alive_interval,
+                cb             = self._send_keep_alive_message,
+                uniqueTag      = self._get_keep_alive_event_tag(),
+                intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
+            )
+
+    def _stop_keep_alive_timer(self):
+        self.engine.removeFutureEvent(
+            uniqueTag = self._get_keep_alive_event_tag()
+        )
+
+    def _reset_keep_alive_timer(self):
+        self._stop_keep_alive_timer()
+        self._start_keep_alive_timer()
+
+    def _get_keep_alive_event_tag(self):
+        return '{0}-{1}'.format(self.mote.id, 'tsch.keep_alive_event')
 
 
 class Clock(object):

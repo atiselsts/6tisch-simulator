@@ -16,6 +16,7 @@ PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
 PKT_TYPE_SIXP                               = '6P'
+PKT_TYPE_KEEP_ALIVE                         = 'KEEP_ALIVE'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
