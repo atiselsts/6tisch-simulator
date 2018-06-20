@@ -196,6 +196,9 @@ class DiscreteEventEngine(threading.Thread):
 
     def getAsn(self):
         return self.asn
+
+    def get_mote_by_id(self, mote_id):
+        return self.motes[mote_id]
     
     #=== scheduling
     
@@ -223,7 +226,7 @@ class DiscreteEventEngine(threading.Thread):
     
     def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder):
         """
-        Schedule an event 'delay' ASNs into the future.
+        Schedule an event 'delay' seconds into the future.
         Also removed all future events with the same uniqueTag.
         """
 

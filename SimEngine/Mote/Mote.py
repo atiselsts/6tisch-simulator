@@ -156,6 +156,7 @@ class Mote(object):
             self.rpl.setRank(256)
             # tsch
             self.tsch.add_minimal_cell()    # dagRpot
+            self.tsch.clock.sync()
             self.tsch.setIsSync(True)       # dagRoot
             self.tsch.startSendingEBs()     # dagRoot
             self.tsch.startSendingDIOs()    # dagRoot

@@ -16,6 +16,7 @@ PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
 PKT_TYPE_SIXP                               = '6P'
+PKT_TYPE_KEEP_ALIVE                         = 'KEEP_ALIVE'
 
 # === packet lengths
 PKT_LEN_DAO                                 = 20
@@ -90,7 +91,6 @@ INTRASLOTORDER_STACKTASKS                   = 2
 INTRASLOTORDER_ADMINTASKS                   = 3
 
 # === radio
-RADIO_MAXDRIFT                              = 30 # in ppm
 RADIO_STATE_TX                              = 'tx'
 RADIO_STATE_RX                              = 'rx'
 RADIO_STATE_OFF                             = 'off'

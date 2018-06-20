@@ -380,6 +380,9 @@ class Rpl(object):
                     }
                 )
 
+                # use the new parent as our clock source
+                self.mote.tsch.clock.sync(self.preferredParent)
+
                 # trigger 6P ADD if parent changed # FIXME: layer violation
                 self.mote.sf.indication_parent_change(old_parent, self.preferredParent)
             else:
