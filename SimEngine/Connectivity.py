@@ -156,7 +156,7 @@ class ConnectivityBase(object):
                         srcMote             = self.engine.motes[srcMac]
 
                         # time at which the packet starts transmitting
-                        thisTran['txTime']  = srcMote.tsch.computeTimeOffsetToDagRoot()
+                        thisTran['txTime']  = srcMote.tsch.clock.get_drift()
 
                         # number of ACKs received by this packet
                         thisTran['numACKs'] = 0

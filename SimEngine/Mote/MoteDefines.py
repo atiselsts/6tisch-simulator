@@ -90,7 +90,6 @@ INTRASLOTORDER_STACKTASKS                   = 2
 INTRASLOTORDER_ADMINTASKS                   = 3
 
 # === radio
-RADIO_MAXDRIFT                              = 30 # in ppm
 RADIO_STATE_TX                              = 'tx'
 RADIO_STATE_RX                              = 'rx'
 RADIO_STATE_OFF                             = 'off'
