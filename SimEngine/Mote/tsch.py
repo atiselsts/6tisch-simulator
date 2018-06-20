@@ -919,16 +919,17 @@ class Tsch(object):
             # do nothing
             pass
         else:
-            # the clock drift of the child against the parent should be less than
-            # macTsRxWait/2 so that they can communicate with each other. Their
-            # clocks can be off by one clock interval at the most. This means, the
-            # clock difference between the child and the parent could be 2 *
-            # clock_interval just after synchronization. then, the possible minimum
-            # guard time is ((macTsRxWait / 2) - (2 * clock_interval)). When
-            # macTsRxWait is 2,200 usec and clock_interval is 30 usec, the
-            # minimum guard time is 1,040 usec. they will be desynchronized
-            # without keep-alive in 16 seconds as the paper titled "Adaptive
-            # Synchronization in IEEE802.15.4e Networks" describes.
+            # the clock drift of the child against the parent should be less
+            # than macTsRxWait/2 so that they can communicate with each
+            # other. Their clocks can be off by one clock interval at the
+            # most. This means, the clock difference between the child and the
+            # parent could be clock_interval just after synchronization. then,
+            # the possible minimum guard time is ((macTsRxWait / 2) -
+            # clock_interval). When macTsRxWait is 2,200 usec and
+            # clock_interval is 30 usec, the minimum guard time is 1,070
+            # usec. they will be desynchronized without keep-alive in 16
+            # seconds as the paper titled "Adaptive Synchronization in
+            # IEEE802.15.4e Networks" describes.
             #
             # the keep-alive interval should be configured in config.json with
             # "tsch_keep_alive_interval".

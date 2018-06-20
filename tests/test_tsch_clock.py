@@ -50,16 +50,16 @@ def test_tsch_clock(sim_engine, with_keep_alive):
         # without keep-alive, difference between the two clocks is
         # getting bigger and bigger. but, it should be within
         # -max_drift*2 and +max_drift*2 with offset in the range
-        # between 0 and clock_interval*2
+        # between 0 and clock_interval
 
         diff_1 = hop_1.tsch.clock.get_drift() - root.tsch.clock.get_drift()
         diff_2 = hop_2.tsch.clock.get_drift() - hop_1.tsch.clock.get_drift()
         elapsed_time = sim_engine.getAsn() * slot_duration
         lower_bound_drift = (
-            elapsed_time * (-1 * max_drift * 2) - clock_interval * 2
+            elapsed_time * (-1 * max_drift * 2) + 0
         )
         upper_bound_drift = (
-            elapsed_time * (+1 * max_drift * 2) + clock_interval * 2
+            elapsed_time * (+1 * max_drift * 2) + clock_interval
         )
         assert lower_bound_drift < diff_1
         assert diff_1 < upper_bound_drift
