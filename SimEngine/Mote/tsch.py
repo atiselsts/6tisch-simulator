@@ -965,11 +965,9 @@ class Clock(object):
         # instance variables which can be accessed directly from outside
         self.source = None
 
-        # short-hands
-        self._max_drift = (
-            float(self.settings.tsch_clock_max_drift_ppm) / pow(10, 6)
-        )
+        # private variables
         self._clock_interval = 1.0 / self.settings.tsch_clock_frequency
+        self._error_rate     = self._initialize_error_rate()
 
         self.desync()
 
@@ -1015,20 +1013,11 @@ class Clock(object):
             # clock.
             error = 0
         else:
-            # the clock drifts by its error rate. for simplicity, we double the
-            # error rate to express clock drift from the time source. That is,
-            # our clock could drift by 30 ppm at the most and the clock of time
-            # source also could drift as well ppm. Then, our clock could drift
-            # by 60 ppm from the clock of the time source.
             assert self._last_clock_access <= self.engine.getAsn()
             slot_duration = self.engine.settings.tsch_slotDuration
             elapsed_slots = self.engine.getAsn() - self._last_clock_access
             elapsed_time  = elapsed_slots * slot_duration
-            error_rate    = random.uniform(
-                (-1 * self._max_drift * 2),
-                (+1 * self._max_drift * 2)
-            )
-            error = elapsed_time * error_rate
+            error = elapsed_time * self._error_rate
 
         # update the variables
         self._accumulated_error += error
@@ -1036,3 +1025,17 @@ class Clock(object):
 
         # return the result
         return self._clock_off_on_sync + self._accumulated_error
+
+    def _initialize_error_rate(self):
+        # private variables:
+        # the clock drifts by its error rate. for simplicity, we double the
+        # error rate to express clock drift from the time source. That is,
+        # our clock could drift by 30 ppm at the most and the clock of time
+        # source also could drift as well ppm. Then, our clock could drift
+        # by 60 ppm from the clock of the time source.
+        #
+        # we assume the error rate is constant over the simulation time.
+        max_drift = (
+            float(self.settings.tsch_clock_max_drift_ppm) / pow(10, 6)
+        )
+        return random.uniform(-1 * max_drift * 2, max_drift * 2)

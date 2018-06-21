@@ -17,7 +17,7 @@ def test_tsch_clock(sim_engine, with_keep_alive):
         'app_pkPeriodVar'         : 0,
         'tsch_probBcast_ebDioProb': 0,
         'rpl_daoPeriod'           : 0,
-        'exec_numSlotframesPerRun': 5000,
+        'exec_numSlotframesPerRun': 100,
         'conn_class'              : 'Linear'
     }
     if with_keep_alive is True:
@@ -81,7 +81,7 @@ def test_tsch_clock(sim_engine, with_keep_alive):
 
     def _schedule_clock_drift_checking_and_logging():
         sim_engine.scheduleAtAsn(
-            asn            = slotframe_length + sim_engine.getAsn(),
+            asn            = sim_engine.getAsn() + (1.0 / slot_duration),
             cb             = _check_and_log_clock_drift,
             uniqueTag      = 'check_and_log_clock_drift',
             intraSlotOrder = d.INTRASLOTORDER_ADMINTASKS
