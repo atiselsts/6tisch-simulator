@@ -167,6 +167,9 @@ class ConnectivityBase(object):
 
             for listener in self._get_listeners(channel):
 
+                # random_value will be used for comparison against PDR
+                random_value = random.random()
+
                 # list the transmissions that listener can hear
                 transmissions = []
                 for t in alltransmissions:
@@ -175,7 +178,10 @@ class ConnectivityBase(object):
                         destination = listener,
                         channel     = channel,
                     )
-                    if pdr > 0:
+
+                    # you can interpret the following line as decision for
+                    # reception of the preamble of 't'
+                    if random_value < pdr:
                         transmissions += [t]
 
                 if transmissions == []:
@@ -219,7 +225,7 @@ class ConnectivityBase(object):
                     )
 
                     # decide whether listener receives lockon_transmission or not
-                    if random.random() < pdr:
+                    if random_value < pdr:
                         # listener receives!
 
                         # lockon_transmission received correctly

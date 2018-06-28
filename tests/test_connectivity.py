@@ -3,7 +3,9 @@ Tests for SimEngine.Connectivity
 """
 import itertools
 import os
+import random
 import shutil
+import types
 
 from scipy.stats import t
 from numpy import average, std
@@ -284,3 +286,50 @@ class TestRandom(object):
         assert coordinates[('SFNone', 2)] == coordinates[('MSF', 2)]
         assert coordinates[('SFNone', 1)] != coordinates[('SFNone', 2)]
         assert coordinates[('MSF', 1)]    != coordinates[('MSF', 2)]
+
+#=== test for LockOn mechanism that is implemented in propagate()
+def test_lockon(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'           : 2,
+            'exec_numSlotframesPerRun': 1,
+            'conn_class'              : 'Linear',
+            'app_pkPeriod'            : 0,
+            'secjoin_enabled'         : False,
+            'sf_class'                : 'SFNone',
+            'tsch_probBcast_ebDioProb': 0,
+            'rpl_daoPeriod'           : 0
+        }
+    )
+
+    # short-hands
+    root  = sim_engine.motes[0]
+    hop_1 = sim_engine.motes[1]
+
+    # force hop_1 to join the network
+    eb = root.tsch._create_EB()
+    hop_1.tsch._tsch_action_receiveEB(eb)
+    hop_1.neighbors_indicate_rx(eb)
+    dio = root.rpl._create_DIO()
+    hop_1.rpl.action_receiveDIO(dio)
+
+    # let hop_1 send an application packet
+    hop_1.app._send_a_single_packet()
+
+    # force random.random() to return 1, which will cause any frame not to be
+    # received by anyone
+    _random = random.random
+    def return_one(self):
+        return float(1)
+    random.random = types.MethodType(return_one, random)
+
+    # run the simulation
+    u.run_until_end(sim_engine)
+
+    # put the original random() back to random
+    random.random = _random
+
+    # root shouldn't lock on the frame hop_1 sent since root is not expected to
+    # receive even the preamble of the packet.
+    logs = u.read_log_file([SimLog.LOG_PROP_DROP_LOCKON['type']])
+    assert len(logs) == 0
