@@ -73,7 +73,7 @@ Simulated protocol stack
 
 The simulator can be run on a cluster system. Here is an example for a cluster built with OAR and Conda:
 
-1. Edit `config.py`
+1. Edit `config.json`
     * Set `numCPUs` with `-1` (use all the available CPUs/cores) or a specific number of CPUs to be used
     * Set `log_directory_name` with `"hostname"`
 1. Create a shell script, `runSim.sh`, having the following lines:
