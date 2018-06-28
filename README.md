@@ -73,7 +73,7 @@ Simulated protocol stack
 
 The simulator can be run on a cluster system. Here is an example for a cluster built with OAR and Conda:
 
-1. Edit `config.py
+1. Edit `config.py`
     * Set `numCPUs` with `-1` (use all the available CPUs/cores) or a specific number of CPUs to be used
     * Set `log_directory_name` with `"hostname"`
 1. Create a shell script, `runSim.sh`, having the following lines:
@@ -194,7 +194,7 @@ See `bin/config.json` to find  what parameters should be set and how they are co
 
 ### more on connectivity models
 
-#### using a `k7` connectivity model
+#### using a *k7* connectivity model
 
 `k7` is a popular format for connectivity traces. 
 You can run the simulator using connectivity traces in your K7 file instead of using the propagation model.
