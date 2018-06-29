@@ -490,9 +490,9 @@ class TestSeqNum:
         mote_0 = sim_engine.motes[0]
         mote_1 = sim_engine.motes[1]
 
-        # set initial SeqNum; the motes have different initial SeqNum
-        mote_0.sixp.seqnum_table[mote_1.id] = initial_seqnum
-        mote_1.sixp.seqnum_table[mote_0.id] = initial_seqnum + 1
+        # set initial SeqNum; mote_0 has zero, mote_1 has non-zero (1)
+        mote_0.sixp.seqnum_table[mote_1.id] = 0
+        mote_1.sixp.seqnum_table[mote_0.id] = 1
 
         # prepare assertion
         result = {'is_schedule_inconsistency_detected': False}
