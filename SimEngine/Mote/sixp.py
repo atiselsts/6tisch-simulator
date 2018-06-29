@@ -70,8 +70,22 @@ class SixP(object):
 
         if transaction is None:
             # ignore this ACK
-            pass
-        elif (
+            return
+
+        if (
+                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
+                or
+                (
+                    (packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
+                    and
+                    (transaction.type == d.SIXP_TRANSACTION_TYPE_2_STEP)
+                )
+            ):
+            # update seqnum as per the forth paragraph of section 3.4.6. of
+            # draft-ietf-6tisch-6top-protocol-12
+            self.mote.sixp.increment_seqnum(packet['mac']['dstMac'])
+
+        if (
                 (
                     (packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
                     and
@@ -266,7 +280,8 @@ class SixP(object):
             else:
                 peerMac = transaction.get_peerMac()
                 if self._is_schedule_inconsistency_detected(transaction):
-                    # schedule inconsistency is detected; respond with RC_ERR_SEQNUM
+                    # schedule inconsistency is detected; respond with
+                    # RC_ERR_SEQNUM
                     self.send_response(
                         dstMac      = peerMac,
                         return_code = d.SIXP_RC_ERR_SEQNUM
@@ -338,6 +353,13 @@ class SixP(object):
                 # This shouldn't happen; ignore this packet
                 pass
             elif transaction.type == d.SIXP_TRANSACTION_TYPE_3_STEP:
+                # update seqnum as per the forth paragraph of section 3.4.6. of
+                # draft-ietf-6tisch-6top-protocol-12; the following increment
+                # corresponds to the text in the draft, "or after having sent
+                # the link-layer acknowledgment for the 6P Confirmation (3-step
+                # 6P Transaction)"
+                self.mote.sixp.increment_seqnum(confirmation['mac']['srcMac'])
+
                 # complete the transaction
                 transaction.complete()
             else:
@@ -485,15 +507,38 @@ class SixP(object):
         return transaction
 
     def _is_schedule_inconsistency_detected(self, transaction):
+        # draft-ietf-6tisch-6top-protocol-12 says:
+        #   A node computes the expected SeqNum field for the next 6P
+        #   Transaction. If a node receives a 6P Request with a SeqNum value
+        #   that is not the expected one, it has detected an inconsistency.
+        #
+        # although the expression of "expected" seems ambiguous, this shouldn't
+        # mean the received SeqNum value and the SeqNum maintained by the
+        # receiving mote are supposed to be identical.
+
         request = transaction.request
         peerMac = request['mac']['srcMac']
 
-        if   request['app']['code'] == d.SIXP_CMD_CLEAR:
-            returnVal = False
-        elif request['app']['seqNum'] == self._get_seqnum(peerMac):
-            returnVal = False
-        else:
+        if (
+                (request['app']['code'] != d.SIXP_CMD_CLEAR)
+                and
+                (
+                    (
+                        (request['app']['seqNum'] == 0)
+                        and
+                        (self._get_seqnum(peerMac) != 0)
+                    )
+                    or
+                    (
+                        (request['app']['seqNum'] != 0)
+                        and
+                        (self._get_seqnum(peerMac) == 0)
+                    )
+                )
+            ):
             returnVal = True
+        else:
+            returnVal = False
 
         return returnVal
 
@@ -589,9 +634,6 @@ class SixPTransaction(object):
                 'cmd'     : self.request['app']['code']
             }
         )
-
-        # update SeqNum managed by SixP
-        self.mote.sixp.increment_seqnum(self.peerMac)
 
         # invalidate itself
         self._invalidate()
