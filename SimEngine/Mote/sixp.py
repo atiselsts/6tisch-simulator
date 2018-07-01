@@ -72,17 +72,7 @@ class SixP(object):
             # ignore this ACK
             return
 
-        if (
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
-                or
-                (
-                    (packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
-                    and
-                    (transaction.type == d.SIXP_TRANSACTION_TYPE_2_STEP)
-                )
-            ):
-            # update seqnum as per the forth paragraph of section 3.4.6. of
-            # draft-ietf-6tisch-6top-protocol-12
+        if packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST:
             self.mote.sixp.increment_seqnum(packet['mac']['dstMac'])
 
         if (
@@ -288,9 +278,24 @@ class SixP(object):
                     )
                     self.mote.sf.detect_schedule_inconsistency(peerMac)
                 else:
-                    # reset SeqNum when it's a CLEAR request
                     if request['app']['code'] == d.SIXP_CMD_CLEAR:
+                        # reset SeqNum when it's a CLEAR request
                         self._reset_seqnum(request['mac']['srcMac'])
+                    else:
+                        # increment SeqNum managed internally; this could be
+                        # seen not aligned with the text of Section 3.4.6,
+                        # shown below:
+                        #
+                        #    Similarly, a node B increments the SeqNum by
+                        #    exactly 1 after having received the link-layer
+                        #    acknowledgment for the 6P Response (2-step 6P
+                        #    Transaction), or after having sent the link-layer
+                        #    acknowledgment for the 6P Confirmation (3-step 6P
+                        #    Transaction) .
+                        #
+                        # However, this is necessary to avoid ERR_SEQNUM on the
+                        # next request when this transaction ends with timeout.
+                        self.mote.sixp.increment_seqnum(peerMac)
                     # pass the incoming packet to the scheduling function
                     self.mote.sf.recv_request(request)
         else:
@@ -353,13 +358,6 @@ class SixP(object):
                 # This shouldn't happen; ignore this packet
                 pass
             elif transaction.type == d.SIXP_TRANSACTION_TYPE_3_STEP:
-                # update seqnum as per the forth paragraph of section 3.4.6. of
-                # draft-ietf-6tisch-6top-protocol-12; the following increment
-                # corresponds to the text in the draft, "or after having sent
-                # the link-layer acknowledgment for the 6P Confirmation (3-step
-                # 6P Transaction)"
-                self.mote.sixp.increment_seqnum(confirmation['mac']['srcMac'])
-
                 # complete the transaction
                 transaction.complete()
             else:
