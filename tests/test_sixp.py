@@ -317,19 +317,14 @@ class TestTransaction:
             assert packet is None
             result['is_response_callback_called'] = True
         def recv_request(self, packet):
-            # fill up the TX queue so that the response will not be sent.
-            for _ in range(0, d.TSCH_QUEUE_SIZE):
-                # enqueue dummy packets, which are generated from the incoming
-                # packet
-                dummy_packet = copy.deepcopy(packet)
-                dummy_packet['mac']['dstMac'] = dummy_packet['mac']['srcMac']
-                dummy_packet['mac']['srcMac'] = self.mote.id
-                mote_1.tsch.enqueue(dummy_packet)
             self.mote.sixp.send_response(
                 dstMac      = packet['mac']['srcMac'],
                 return_code = d.SIXP_RC_SUCCESS,
                 callback    = response_callback
             )
+            # remove the response
+            self.mote.tsch.getTxQueue().pop(0)
+
         mote_1.sf.recv_request = types.MethodType(
             recv_request,
             mote_1.sf
