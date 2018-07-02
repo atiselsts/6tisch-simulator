@@ -171,12 +171,28 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         preferred_parent = self.mote.rpl.getPreferredParent()
         if cell['neighbor'] == preferred_parent:
-            # increment cell passed counter
-            self.num_cells_passed += 1
 
-            # increment cell used counter
-            if used:
-                self.num_cells_used += 1
+            # HACK: we don't transmit a frame on a shared link if it
+            # has a dedicated TX link to the destination and doesn't
+            # have a dedicated RX link from the destination (see
+            # tsch.py). Because of that, we exclude the shared link
+            # (the very first dedicated cell to the perferred parent)
+            # from TX cells for this housekeeping when it has at least
+            # one TX dedicate link.
+            if (
+                    (len(self.mote.tsch.getTxCells(cell['neighbor'])) > 0)
+                    and
+                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                ):
+                # ignore this TX/(RX)/SHARED cell for this housekeeping round
+                pass
+            else:
+                # increment cell passed counter
+                self.num_cells_passed += 1
+
+                # increment cell used counter
+                if used:
+                    self.num_cells_used += 1
 
             # adapt number of cells if necessary
             if d.MSF_MAX_NUMCELLS <= self.num_cells_passed:

@@ -660,6 +660,18 @@ class Tsch(object):
                 if pkt['mac']['dstMac'] == cell['neighbor']:
                     _pktToSend = pkt
                     break
+            # HACK: don't transmit a frame on a shared link if it has a
+            # dedicated TX link to the destination and doesn't have a
+            # dedicated RX link from the destination. In such a case, the
+            # shared link is used as if it's a dedicated RX.
+            if (
+                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                    and
+                    (len(self.getTxCells(cell['neighbor'])) > 0)
+                    and
+                    (len(self.getRxCells(cell['neighbor'])) == 0)
+                ):
+                _pktToSend = None
 
             # retransmission backoff algorithm
             if (
