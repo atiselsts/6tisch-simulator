@@ -94,7 +94,6 @@ def test_case(request):
 # =========================== tests ===========================================
 
 class TestMSF(object):
-    @pytest.mark.skip(reason='need TSCH fix')
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
