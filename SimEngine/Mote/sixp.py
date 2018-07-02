@@ -244,7 +244,7 @@ class SixP(object):
                 'packet':   packet
             }
         )
-        self.mote.tsch.enqueue(packet)
+        self.mote.tsch.enqueue(packet, priority=True)
 
     def _recv_request(self, request):
         # identify a transaction instance to proceed
