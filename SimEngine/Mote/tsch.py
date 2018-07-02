@@ -250,7 +250,7 @@ class Tsch(object):
 
     # data interface with upper layers
 
-    def enqueue(self, packet):
+    def enqueue(self, packet, priority=False):
 
         assert packet['type'] != d.PKT_TYPE_DIO
         assert packet['type'] != d.PKT_TYPE_EB
@@ -261,7 +261,11 @@ class Tsch(object):
 
         # check there is space in txQueue
         if goOn:
-            if len(self.txQueue) >= d.TSCH_QUEUE_SIZE:
+            if (
+                    (priority is False)
+                    and
+                    (len(self.txQueue) >= d.TSCH_QUEUE_SIZE)
+                ):
                 # my TX queue is full
 
                 # drop
@@ -291,8 +295,11 @@ class Tsch(object):
         if goOn:
             # set retriesLeft which should be renewed at every hop
             packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
-            # add to txQueue
-            self.txQueue    += [packet]
+            if priority:
+                self.txQueue.insert(0, packet)
+            else:
+                # add to txQueue
+                self.txQueue    += [packet]
 
         return goOn
 
