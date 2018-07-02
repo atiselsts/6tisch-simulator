@@ -171,12 +171,28 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         preferred_parent = self.mote.rpl.getPreferredParent()
         if cell['neighbor'] == preferred_parent:
-            # increment cell passed counter
-            self.num_cells_passed += 1
 
-            # increment cell used counter
-            if used:
-                self.num_cells_used += 1
+            # HACK: we don't transmit a frame on a shared link if it
+            # has a dedicated TX link to the destination and doesn't
+            # have a dedicated RX link from the destination (see
+            # tsch.py). Because of that, we exclude the shared link
+            # (the very first dedicated cell to the perferred parent)
+            # from TX cells for this housekeeping when it has at least
+            # one TX dedicate link.
+            if (
+                    (len(self.mote.tsch.getTxCells(cell['neighbor'])) > 0)
+                    and
+                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                ):
+                # ignore this TX/(RX)/SHARED cell for this housekeeping round
+                pass
+            else:
+                # increment cell passed counter
+                self.num_cells_passed += 1
+
+                # increment cell used counter
+                if used:
+                    self.num_cells_used += 1
 
             # adapt number of cells if necessary
             if d.MSF_MAX_NUMCELLS <= self.num_cells_passed:
@@ -225,8 +241,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self._receive_delete_request(packet)
         elif packet['app']['code'] == d.SIXP_CMD_CLEAR:
             self._receive_clear_request(packet)
-        elif packet['type'] == d.SIXP_CMD_RELOCATE:
-            self._receive_RELOCATE_request(packet)
+        elif packet['app']['code'] == d.SIXP_CMD_RELOCATE:
+            self._receive_relocate_request(packet)
         else:
             # not implemented or not supported
             # ignore this request
@@ -391,7 +407,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert len(src_cell_list) == len(dst_cell_list)
 
         # relocation
-        self._add_cells(neighbor_id, src_cell_list, cell_options)
+        self._add_cells(neighbor_id, dst_cell_list, cell_options)
         self._delete_cells(neighbor_id, src_cell_list, cell_options)
 
     def _create_available_cell_list(self, cell_list_len):
@@ -402,6 +418,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         if len(available_slots) <= cell_list_len:
+            print slots_in_use, self.locked_slots, len(available_slots), cell_list_len
             raise ScheduleFullError()
         else:
             selected_slots = random.sample(available_slots, cell_list_len)
@@ -806,7 +823,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_cells             = num_relocating_cells
             relocation_cell_list  = cell_list
             num_relocating_cells  = 0
-            cell_list             = None
+            cell_list             = []
 
         # prepare candidate_cell_list
         candidate_cell_list = self._create_available_cell_list(
@@ -822,7 +839,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     num_relocations = len(packet['app']['cellList'])
                     self._relocate_cells(
                         neighbor_id   = neighbor_id,
-                        src_cell_list = relocation_cell_list[:num_relocations],
+                        src_cell_list = relocation_cell_list[:num_cells],
                         dst_cell_list = packet['app']['cellList'],
                         cell_options  = cell_options
                     )
@@ -842,6 +859,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         num_relocating_cells = _num_relocating_cells,
                         cell_list            = _cell_list
                     )
+            # unlock the slots used in this transaction
+            self._unlock_cells(candidate_cell_list)
 
         # send a request
         self.mote.sixp.send_request(
@@ -893,11 +912,17 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 candidate_slots.intersection(slots_in_slotframe - slots_in_use)
             )
 
-            # prepare cell_list
-            cell_list = [
-                c for c in candidate_cells if c['slotOffset'] in available_slots
-            ]
+            # FIXME: handle the case when available_slots is empty
 
+            # prepare response
+            code           = d.SIXP_RC_SUCCESS
+            cell_list      = []
+            selected_slots = random.sample(available_slots, num_cells)
+            for cell in candidate_cells:
+                if cell['slotOffset'] in selected_slots:
+                    cell_list.append(cell)
+
+            self._lock_cells(cell_list)
             # prepare callback
             def callback(event, packet):
                 if event == d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION:
@@ -908,6 +933,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         dst_cell_list = cell_list,
                         cell_options  = our_cell_options
                     )
+                self._unlock_cells(cell_list)
 
         else:
             code      = d.SIXP_RC_ERR
