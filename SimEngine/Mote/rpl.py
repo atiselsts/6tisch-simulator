@@ -350,7 +350,10 @@ class Rpl(object):
                 # I haven't received a DIO from that neighbor yet, so I don't know its rank (normal)
                 continue
             etx                        = self._estimateETX(nid)
-            rank_increment             = (1*((3*etx)-2) + 0) * d.RPL_MINHOPRANKINCREASE # https://tools.ietf.org/html/rfc8180#section-5.1.1
+            # FIXME: use the formula in
+            # https://tools.ietf.org/html/rfc8180#section-5.1.1 with simply
+            # squaring ETX as https://arxiv.org/pdf/1710.02324.pdf suggested.
+            rank_increment             = (1*((3*(etx**2))-2) + 0) * d.RPL_MINHOPRANKINCREASE
             allPotentialRanks[nid]     = n['rank']+rank_increment
 
         # pick lowest potential rank
