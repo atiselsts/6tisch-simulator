@@ -35,6 +35,7 @@ class Rpl(object):
         self.preferredParent           = None
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self.iAmSendingDAOs            = False
+        self._tx_stat                  = {}      # indexed by mote_id
 
     #======================== public ==========================================
 
@@ -349,8 +350,6 @@ class Rpl(object):
                 # I haven't received a DIO from that neighbor yet, so I don't know its rank (normal)
                 continue
             etx                        = self._estimateETX(nid)
-            if etx is None: # FIXME
-                etx = 16
             rank_increment             = (1*((3*etx)-2) + 0) * d.RPL_MINHOPRANKINCREASE # https://tools.ietf.org/html/rfc8180#section-5.1.1
             allPotentialRanks[nid]     = n['rank']+rank_increment
 
@@ -390,29 +389,33 @@ class Rpl(object):
                 pass
 
     def _estimateETX(self, neighbor_id):
-
+        DEFAULT_ETX = 2
         assert type(neighbor_id)==int
 
-        # set initial values for numTx and numTxAck assuming PDR is exactly estimated
-        # FIXME
-        pdr                   = self.mote.getPDR(neighbor_id)
-        numTx                 = d.NUM_SUFFICIENT_TX
-        numTxAck              = math.floor(pdr*numTx)
+        if neighbor_id is not self._tx_stat:
+            self._tx_stat[neighbor_id] = {'numTx': 0, 'numTxAck': 0}
 
         for (_, cell) in self.mote.tsch.getSchedule().items():
             if  (
                     (cell['neighbor'] == neighbor_id)
                     and
                     (d.CELLOPTION_TX in cell['cellOptions'])
+                    and
+                    (d.CELLOPTION_SHARED not in cell['cellOptions'])
                 ):
-                numTx        += cell['numTx']
-                numTxAck     += cell['numTxAck']
+                self._tx_stat[neighbor_id]['numTx']    += cell['numTx']
+                self._tx_stat[neighbor_id]['numTxAck'] += cell['numTxAck']
+                cell['numTx']    = 0
+                cell['numTxAck'] = 0
 
         # abort if about to divide by 0
-        if not numTxAck:
-            return
-
-        # calculate ETX
-        etx = float(numTx)/float(numTxAck)
+        if self._tx_stat[neighbor_id]['numTxAck'] == 0:
+            etx = DEFAULT_ETX
+        else:
+            # calculate ETX
+            etx = float(
+                float(self._tx_stat[neighbor_id]['numTx']) /
+                float(self._tx_stat[neighbor_id]['numTxAck'])
+            )
 
         return etx
