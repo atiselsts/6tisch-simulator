@@ -7,9 +7,9 @@ Branch    | Build Status
 
 Core Developers:
 
-* Mališa Vučinić (malisa.vucinic@inria.fr)
 * Yasuyuki Tanaka (yasuyuki.tanaka@inria.fr)
 * Keoma Brun-Laguna (keoma.brun@inria.fr)
+* Mališa Vučinić (malisa.vucinic@inria.fr)
 * Thomas Watteyne (thomas.watteyne@inria.fr)
 
 Contributers:
@@ -19,6 +19,12 @@ Contributers:
 * Xavier Vilajosana (xvilajosana@eecs.berkeley.edu)
 * Esteban Municio (esteban.municio@uantwerpen.be)
 * Glenn Daneels (glenn.daneels@uantwerpen.be)
+
+## Publishing
+
+If you publish an academic paper using the results of the 6TiSCH Simulator, please cite:
+
+E. Municio, G. Daneels, M. Vucinic, S. Latre, J. Famaey, Y. Tanaka, K. Brun, K. Muraoka, X. Vilajosana, and T. Watteyne, "Simulating 6TiSCH Networks", Wiley Transactions on Emerging Telecommunications (ETT), 2018.
 
 ## Scope
 
