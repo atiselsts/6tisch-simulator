@@ -46,7 +46,7 @@ def print_connectivity_matrix(matrix):
         output    += [line]
 
     output         = '\n'.join(output)
-    #print output
+    print output
 
 #============================ tests ===========================================
 
