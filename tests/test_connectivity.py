@@ -40,13 +40,14 @@ def print_connectivity_matrix(matrix):
         line      += [str(source)]
         for dest in matrix:
             if source == dest:
-                continue
-            line  += [str(matrix[source][dest][0]['pdr'])]
+                line += ['N/A']
+            else:
+                line  += [str(matrix[source][dest][0]['pdr'])]
         line       = '\t|'.join(line)
         output    += [line]
 
     output         = '\n'.join(output)
-    #print output
+    print output
 
 #============================ tests ===========================================
 
