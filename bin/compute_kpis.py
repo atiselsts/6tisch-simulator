@@ -176,11 +176,16 @@ def kpis_all(inputfile):
                     motestats['WARNING'] = "log doesn't have battery info"
                 else:
                     # avg_current, lifetime_AA
-                    motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
-                    if motestats['avg_current_uA'] > 0:
-                        motestats['lifetime_AA_years'] = (2200*1000/float(motestats['avg_current_uA']))/(24.0*365)
-                    else:
+                    if (
+                            (motestats['charge'] <= 0)
+                            or
+                            (motestats['charge_asn'] == motestats['sync_asn'])
+                        ):
                         motestats['lifetime_AA_years'] = 'N/A'
+                    else:
+                        motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
+                        assert motestats['avg_current_uA'] > 0
+                        motestats['lifetime_AA_years'] = (2200*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if 'join_asn' in motestats:
                     # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
                     motestats['latencies']         = []
