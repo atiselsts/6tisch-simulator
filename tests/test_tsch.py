@@ -322,9 +322,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
             ):
             app_data_tx_logs.append(log)
 
-    # in this implementation, TSCH_MAXTXRETRIES includes the very first
-    # transmission
-    assert len(app_data_tx_logs) == d.TSCH_MAXTXRETRIES
+    assert len(app_data_tx_logs) == 1 + d.TSCH_MAXTXRETRIES
 
     # all transmission should have happened only on the dedicated cell if it's
     # available (it shouldn't transmit a unicast frame to the root on the
