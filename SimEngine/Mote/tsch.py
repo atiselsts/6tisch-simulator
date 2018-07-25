@@ -375,11 +375,11 @@ class Tsch(object):
                 # ... which was NOT ACKed
 
                 # decrement 'retriesLeft' counter associated with that packet
-                assert self.pktToSend['mac']['retriesLeft'] > 0
+                assert self.pktToSend['mac']['retriesLeft'] >= 0
                 self.pktToSend['mac']['retriesLeft'] -= 1
 
                 # drop packet if retried too many time
-                if self.pktToSend['mac']['retriesLeft'] == 0:
+                if self.pktToSend['mac']['retriesLeft'] < 0:
 
                     # remove packet from queue
                     self.getTxQueue().remove(self.pktToSend)
