@@ -195,6 +195,48 @@ def test_network_advertisement(sim_engine, fixture_adv_frame):
 def cell_type(request):
     return request.param
 
+def test_retransmission_count(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numSlotframesPerRun': 10,
+            'exec_numMotes'           : 2,
+            'app_pkPeriod'            : 0,
+            'rpl_daoPeriod'           : 0,
+            'tsch_probBcast_ebDioProb': 0,
+            'secjoin_enabled'         : False,
+            'tsch_keep_alive_interval': 0,
+            'conn_class'              : 'Linear'
+        },
+        force_initial_routing_and_scheduling_state = True
+    )
+
+    # short-hands
+    root = sim_engine.motes[0]
+    hop1 = sim_engine.motes[1]
+    connectivity_matrix = sim_engine.connectivity.connectivity_matrix
+
+    # set 0% of PDR to the link between the two motes
+    for channel in range(sim_engine.settings.phy_numChans):
+        connectivity_matrix[root.id][hop1.id][channel]['pdr'] = 0
+        connectivity_matrix[hop1.id][root.id][channel]['pdr'] = 0
+
+    # make hop1 send an application packet
+    hop1.app._send_a_single_packet()
+
+    # run the simulation
+    u.run_until_end(sim_engine)
+
+    # check the log
+    tx_logs = u.read_log_file([SimLog.LOG_TSCH_TXDONE['type']])
+
+    # hop1 should send out the frame six times: 1 for the initial transmission
+    # and 5 for retransmissions
+    assert len(tx_logs) == 1 + d.TSCH_MAXTXRETRIES
+    for tx_log in tx_logs:
+        assert tx_log['packet']['type'] == d.PKT_TYPE_DATA
+        assert tx_log['packet']['net']['srcIp'] == hop1.id
+        assert tx_log['packet']['app']['appcounter'] == 0
+
 def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     sim_engine = sim_engine(
         diff_config = {
