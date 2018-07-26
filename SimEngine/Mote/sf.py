@@ -415,7 +415,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         if len(available_slots) <= cell_list_len:
-            pass
+            # we don't have enough available cells; no cell is selected
+            selected_slots = []
         else:
             selected_slots = random.sample(available_slots, cell_list_len)
 
@@ -524,6 +525,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # prepare cell_list
         cell_list = self._create_available_cell_list(self.DEFAULT_CELL_LIST_LEN)
+
+        if len(cell_list) == 0:
+            # we don't have available cells right now
+            self.log(
+                SimEngine.SimLog.LOG_MSF_ERROR_SCHEDULE_FULL,
+                {
+                    '_mote_id'    : self.mote.id
+                }
+            )
+            return
 
         # prepare _callback which is passed to SixP.send_request()
         callback = self._create_add_request_callback(
@@ -825,6 +836,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         candidate_cell_list = self._create_available_cell_list(
             self.DEFAULT_CELL_LIST_LEN
         )
+
+        if len(candidate_cell_list) == 0:
+            # no available cell to move the cells to
+            self.log(
+                SimEngine.SimLog.LOG_MSF_ERROR_SCHEDULE_FULL,
+                {
+                    '_mote_id'    : self.mote.id
+                }
+            )
+            return
 
         # prepare callback
         def callback(event, packet):
