@@ -9,9 +9,6 @@ import MoteDefines as d
 
 # =========================== defines =========================================
 
-class ScheduleFullError(Exception):
-    pass
-
 # =========================== helpers =========================================
 
 # =========================== body ============================================
@@ -418,7 +415,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         if len(available_slots) <= cell_list_len:
-            raise ScheduleFullError()
+            pass
         else:
             selected_slots = random.sample(available_slots, cell_list_len)
 
