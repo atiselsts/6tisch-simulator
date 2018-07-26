@@ -281,3 +281,73 @@ class TestMSF(object):
 
         assert len([l for l in logs if it_is_add_request(l['packet'])]) > 0
         assert len([l for l in logs if it_is_clear_request(l['packet'])]) > 0
+
+    @pytest.fixture(params=['adapt_to_traffic', 'relocate'])
+    def function_under_test(self, request):
+        return request.param
+    def test_no_available_cell(self, sim_engine, function_under_test):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numSlotframesPerRun': 1000,
+                'exec_numMotes'           : 2,
+                'app_pkPeriod'            : 0,
+                'sf_class'                : 'MSF',
+                'conn_class'              : 'Linear'
+            }
+        )
+
+        # for quick access
+        root   = sim_engine.motes[0]
+        hop_1 = sim_engine.motes[1]
+        asn_at_end_of_simulation = (
+            sim_engine.settings.tsch_slotframeLength *
+            sim_engine.settings.exec_numSlotframesPerRun
+        )
+
+        # wait for hop_1 to get ready.
+        run_until_mote_is_ready_for_app(sim_engine, hop_1)
+        assert sim_engine.getAsn() < asn_at_end_of_simulation
+
+        # fill up the hop_1's schedule
+        channel_offset = 0
+        cell_options = [d.CELLOPTION_TX]
+        used_slots = hop_1.tsch.getSchedule().keys()
+        for _slot in range(sim_engine.settings.tsch_slotframeLength):
+            if _slot in used_slots:
+                continue
+            else:
+                hop_1.tsch.addCell(_slot, channel_offset, root.id, cell_options)
+        assert len(hop_1.tsch.getSchedule()) == sim_engine.settings.tsch_slotframeLength
+
+        # put dummy stats so that scheduling adaptation can be triggered
+        hop_1.sf.num_cells_passed = 100
+        hop_1.sf.num_cells_used   = hop_1.sf.num_cells_passed
+
+        # trigger scheduling adaptation
+        if   function_under_test == 'adapt_to_traffic':
+            hop_1.sf._adapt_to_traffic(root.id)
+        elif function_under_test == 'relocate':
+            _slot = hop_1.tsch.getTxRxSharedCells(root.id).keys()[0]
+            relocating_cell = hop_1.tsch.getTxRxSharedCells(root.id)[_slot]
+            hop_1.sf._request_relocating_cells(
+                neighbor_id          = root.id,
+                cell_options         = [
+                    d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED
+                ],
+                num_relocating_cells = 1,
+                cell_list            = [relocating_cell]
+            )
+        else:
+            # not implemented
+            assert False
+
+        # make sure the log is written into the file
+        SimEngine.SimLog.SimLog().flush()
+
+        # MSF should output a "schedule-full" error in the log file
+        logs = u.read_log_file(
+            filter    = [SimLog.LOG_MSF_ERROR_SCHEDULE_FULL['type']],
+            after_asn = sim_engine.getAsn() - 1
+        )
+        assert len(logs) == 1
+        assert logs[0]['_mote_id'] == hop_1.id
