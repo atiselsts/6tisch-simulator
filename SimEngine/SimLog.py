@@ -61,6 +61,7 @@ LOG_SIXLOWPAN_FRAG_GEN            = {'type': 'sixlowpan.frag.gen',        'keys'
 
 # === MSF
 LOG_MSF_CELL_UTILIZATION          = {'type': 'msf.cell_utilization',      'keys': ['_mote_id','neighbor_id','value']}
+LOG_MSF_ERROR_SCHEDULE_FULL       = {'type': 'msf.error.schedule_full',   'keys': ['_mote_id']}
 
 # === sixp
 LOG_SIXP_TX                       = {'type': 'sixp.tx',                   'keys': ['_mote_id','packet']}
