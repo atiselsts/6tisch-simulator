@@ -768,7 +768,7 @@ class Tsch(object):
         newEB = {
             'type':               d.PKT_TYPE_EB,
             'app': {
-                'join_priority':  self.mote.rpl.getDagRank(),
+                'join_metric':    self.mote.rpl.getDagRank(),
             },
             'mac': {
                 'srcMac':         self.mote.id,            # from mote
