@@ -345,3 +345,19 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     timestamps = [log['_asn'] for log in app_data_tx_logs]
     diffs = map(lambda x: x[1] - x[0], zip(timestamps[:-1], timestamps[1:]))
     assert len([diff for diff in diffs if diff != slotframe_length]) > 0
+
+def test_eb_by_root(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1
+        }
+    )
+
+    root = sim_engine.motes[0]
+    eb = root.tsch._create_EB()
+
+    # From Section 6.1 of RFC 8180:
+    #   ...
+    #   DAGRank(rank(0))-1 = 0 is compliant with 802.15.4's requirement of
+    #   having the root use Join Metric = 0.
+    assert eb['app']['join_metric'] == 0
