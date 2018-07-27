@@ -2,6 +2,8 @@
 Tests for SimEngine.Mote.rpl
 """
 
+import types
+
 import pytest
 
 import test_utils as u
@@ -132,3 +134,61 @@ def test_upstream_routing(sim_engine):
 
     # the next hop should be parent
     assert mote_1.rpl.findNextHopId(dummy_packet) == mote_1.rpl.getPreferredParent()
+
+
+class TestOF0(object):
+    def test_rank_computation(self, sim_engine):
+        # https://tools.ietf.org/html/rfc8180#section-5.1.2
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'           : 6,
+                'exec_numSlotframesPerRun': 10000,
+                'app_pkPeriod'            : 0,
+                'secjoin_enabled'         : False,
+                'tsch_keep_alive_interval': 0,
+                'conn_class'              : 'Linear',
+            }
+        )
+
+        # shorthand
+        motes = sim_engine.motes
+        asn_at_end_of_simulation = (
+            sim_engine.settings.tsch_slotframeLength *
+            sim_engine.settings.exec_numSlotframesPerRun
+        )
+
+        # get the network ready to be test
+        u.run_until_everyone_joined(sim_engine)
+        assert sim_engine.getAsn() < asn_at_end_of_simulation
+
+        def _returnStaticETX(self, neighbor_id):
+            return 100.0 / 75
+        for mote_id in range(1, len(motes)):
+            mote = motes[mote_id]
+            parent_id = mote_id - 1
+            # override _estimateETX method so that it always returns
+            # (numTx=100/numTxAck=75).
+            mote.rpl._estimateETX = types.MethodType(_returnStaticETX, mote.rpl)
+            assert mote.rpl._estimateETX(parent_id) == (100.0 / 75)
+            # inject DIO to the mote
+            dio = motes[parent_id].rpl._create_DIO()
+            mote.rpl.action_receiveDIO(dio)
+
+        # test using rank values in Figure 4 of RFC 8180
+        assert motes[0].rpl.getRank() == 256
+        assert motes[0].rpl.getDagRank() == 1
+
+        assert motes[1].rpl.getRank() == 768
+        assert motes[1].rpl.getDagRank() == 3
+
+        assert motes[2].rpl.getRank() == 1280
+        assert motes[2].rpl.getDagRank() == 5
+
+        assert motes[3].rpl.getRank() == 1792
+        assert motes[3].rpl.getDagRank() == 7
+
+        assert motes[4].rpl.getRank() == 2304
+        assert motes[4].rpl.getDagRank() == 9
+
+        assert motes[5].rpl.getRank() == 2816
+        assert motes[5].rpl.getDagRank() == 11
