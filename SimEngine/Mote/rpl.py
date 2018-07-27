@@ -59,6 +59,9 @@ class Rpl(object):
 
     # admin
 
+    def start_as_root(self):
+        self._set_rank(d.RPL_MINHOPRANKINCREASE)
+
     def startSendingDAOs(self):
 
         # abort if I'm already sending DAOs
