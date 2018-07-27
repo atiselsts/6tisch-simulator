@@ -153,7 +153,7 @@ class Mote(object):
             # secjoin
             self.secjoin.setIsJoined(True)  # dagRoot
             # rpl
-            self.rpl.setRank(256)
+            sel.rpl._set_rank(256)
             # tsch
             self.tsch.add_minimal_cell()    # dagRpot
             self.tsch.clock.sync()
