@@ -41,8 +41,6 @@ class Rpl(object):
 
     # getters/setters
 
-    def getRank(self):
-        return self.rank
     def getDagRank(self):
         return int(self.rank/d.RPL_MINHOPRANKINCREASE)
 
@@ -332,6 +330,9 @@ class Rpl(object):
         return nextHopId
 
     #======================== private ==========================================
+
+    def _get_rank(self):
+        return self.rank
 
     def _set_rank(self, new_rank):
         self.rank = new_rank

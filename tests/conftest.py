@@ -133,7 +133,7 @@ def set_initial_routing_and_scheduling_state(engine):
                 # set child's preferredparent to parent
                 child.rpl.setPreferredParent(parent.id)
                 # set child's rank
-                child.rpl._set_rank(parent.rpl.getRank()+512)
+                child.rpl._set_rank(parent.rpl._get_rank()+512)
                 # record the child->parent relationship at the root (for source routing)
                 root.rpl.addParentChildfromDAOs(
                     child_id  = child.id,

@@ -34,23 +34,23 @@ def test_ranks_forced_state(sim_engine,fixture_conn_class):
 
     assert root.dagRoot is True
     assert root.rpl.getPreferredParent()      ==    None
-    assert root.rpl.getRank()                 ==     256
+    assert root.rpl._get_rank()               ==     256
     assert root.rpl.getDagRank()              ==       1
 
     assert hop1.dagRoot is False
     assert hop1.rpl.getPreferredParent()      == root.id
-    assert hop1.rpl.getRank()                 ==     768
+    assert hop1.rpl._get_rank()               ==     768
     assert hop1.rpl.getDagRank()              ==       3
 
     if   fixture_conn_class=='FullyMeshed':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == root.id
-        assert hop2.rpl.getRank()             ==     768
+        assert hop2.rpl._get_rank()           ==     768
         assert hop2.rpl.getDagRank()          ==       3
     elif fixture_conn_class=='Linear':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == hop1.id
-        assert hop2.rpl.getRank()             ==    1280
+        assert hop2.rpl._get_rank()           ==    1280
         assert hop2.rpl.getDagRank()          ==       5
     else:
         raise SystemError()
@@ -175,20 +175,20 @@ class TestOF0(object):
             mote.rpl.action_receiveDIO(dio)
 
         # test using rank values in Figure 4 of RFC 8180
-        assert motes[0].rpl.getRank() == 256
+        assert motes[0].rpl._get_rank() == 256
         assert motes[0].rpl.getDagRank() == 1
 
-        assert motes[1].rpl.getRank() == 768
+        assert motes[1].rpl._get_rank() == 768
         assert motes[1].rpl.getDagRank() == 3
 
-        assert motes[2].rpl.getRank() == 1280
+        assert motes[2].rpl._get_rank() == 1280
         assert motes[2].rpl.getDagRank() == 5
 
-        assert motes[3].rpl.getRank() == 1792
+        assert motes[3].rpl._get_rank() == 1792
         assert motes[3].rpl.getDagRank() == 7
 
-        assert motes[4].rpl.getRank() == 2304
+        assert motes[4].rpl._get_rank() == 2304
         assert motes[4].rpl.getDagRank() == 9
 
-        assert motes[5].rpl.getRank() == 2816
+        assert motes[5].rpl._get_rank() == 2816
         assert motes[5].rpl.getDagRank() == 11
