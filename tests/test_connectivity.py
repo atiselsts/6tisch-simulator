@@ -256,7 +256,7 @@ def test_lockon(sim_engine):
             'app_pkPeriod'            : 0,
             'secjoin_enabled'         : False,
             'sf_class'                : 'SFNone',
-            'tsch_probBcast_ebDioProb': 0,
+            'tsch_probBcast_ebProb'   : 0,
             'rpl_daoPeriod'           : 0
         }
     )

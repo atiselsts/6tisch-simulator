@@ -28,7 +28,7 @@ def test_app_upstream(
             'exec_numSlotframesPerRun'                 : 11,
             'sf_class'                                  : 'SFNone',
             'conn_class'                               : 'Linear',
-            'tsch_probBcast_ebDioProb'                 : 0,
+            'tsch_probBcast_ebProb'                    : 0,
             'app'                                      : app,
             'app_pkPeriod'                             : 2,
             'app_pkPeriodVar'                          : 0,

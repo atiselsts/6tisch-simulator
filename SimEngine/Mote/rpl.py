@@ -11,6 +11,7 @@ import math
 # Simulator-wide modules
 import SimEngine
 import MoteDefines as d
+from trickle_timer import TrickleTimer
 
 # =========================== defines =========================================
 
@@ -19,6 +20,10 @@ import MoteDefines as d
 # =========================== body ============================================
 
 class Rpl(object):
+
+    DEFAULT_DIO_INTERVAL_MIN = 3
+    DEFAULT_DIO_INTERVAL_DOUBLINGS = 20
+    DEFAULT_DIO_REDUNDANCY_CONSTANT = 10
 
     def __init__(self, mote):
 
@@ -32,6 +37,12 @@ class Rpl(object):
 
         # local variables
         self.of                        = RplOF0(self)
+        self.trickle_timer             = TrickleTimer(
+            i_min    = pow(2, self.DEFAULT_DIO_INTERVAL_MIN),
+            i_max    = self.DEFAULT_DIO_INTERVAL_DOUBLINGS,
+            k        = self.DEFAULT_DIO_REDUNDANCY_CONSTANT,
+            callback = self._send_DIO
+        )
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self.iAmSendingDAOs            = False
         self._tx_stat                  = {}      # indexed by mote_id
@@ -63,6 +74,10 @@ class Rpl(object):
     def start_as_root(self):
         self.of = RplOFNone(self)
         self.of.set_rank(d.RPL_MINHOPRANKINCREASE)
+        self.trickle_timer.start()
+        # now start a new RPL instance; reset the timer as per Section 8.3 of
+        # RFC 6550
+        self.trickle_timer.reset()
 
     def startSendingDAOs(self):
 
@@ -99,8 +114,24 @@ class Rpl(object):
         # trigger 6P ADD if parent changed
         self.mote.sf.indication_parent_change(old_preferred, new_preferred)
 
+        # reset trickle timer to inform new rank quickly
+        self.trickle_timer.reset()
 
     # === DIO
+
+    def _send_DIO(self):
+        dio = self._create_DIO()
+
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DIO_TX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    dio,
+            }
+        )
+
+        self.mote.tsch.enqueue(dio)
 
     def _create_DIO(self):
 
@@ -122,15 +153,6 @@ class Rpl(object):
                 'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
             }
         }
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_RPL_DIO_TX,
-            {
-                "_mote_id":  self.mote.id,
-                "packet":    newDIO,
-            }
-        )
 
         return newDIO
 
@@ -160,7 +182,11 @@ class Rpl(object):
         )
 
         # record dodagId
-        self.mote.dodagId = packet['app']['dodagId']
+        if self.mote.dodagId is None:
+            # join the RPL network
+            self.mote.dodagId = packet['app']['dodagId']
+            self.trickle_timer.start()
+            self.trickle_timer.reset()
 
         # feed our OF with the received DIO
         self.of.update(packet)

@@ -253,7 +253,6 @@ class Tsch(object):
 
     def enqueue(self, packet, priority=False):
 
-        assert packet['type'] != d.PKT_TYPE_DIO
         assert packet['type'] != d.PKT_TYPE_EB
         assert 'srcMac' in packet['mac']
         assert 'dstMac' in packet['mac']
@@ -334,7 +333,9 @@ class Tsch(object):
             assert self.pktToSend['type'] in [d.PKT_TYPE_EB,d.PKT_TYPE_DIO]
             assert isACKed==False
 
-            # DIOs and EBs were never in txQueue, no need to remove
+            # EBs are never in txQueue, no need to remove.
+            if self.pktToSend['type'] == d.PKT_TYPE_DIO:
+                self.getTxQueue().remove(self.pktToSend)
 
         else:
             # I just sent a unicast packet...
@@ -630,17 +631,14 @@ class Tsch(object):
                             # ready for retransmission
                             pass
 
-                # ... if no such packet, probabilistically generate an EB or a DIO
+                # ... if no such packet, probabilistically generate an EB
                 if not self.pktToSend:
                     if self.mote.clear_to_send_EBs_DATA():
-                        prob = self.settings.tsch_probBcast_ebDioProb/(1+len(self.neighbor_table))
+                        prob = self.settings.tsch_probBcast_ebProb/(1+len(self.neighbor_table))
                         if random.random()<prob:
                             if random.random()<0.50:
                                 if self.iAmSendingEBs:
                                     self.pktToSend = self._create_EB()
-                            else:
-                                if self.iAmSendingDIOs:
-                                    self.pktToSend = self.mote.rpl._create_DIO()
 
                 # send packet, or receive
                 if self.pktToSend:

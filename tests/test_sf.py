@@ -226,7 +226,7 @@ class TestMSF(object):
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # stop DIO (and EB) transmission
-        sim_engine.settings.tsch_probBcast_ebDioProb = 0
+        sim_engine.settings.tsch_probBcast_ebProb = 0
 
         # force mote_1 to switch its preferred parent
         old_parent = root

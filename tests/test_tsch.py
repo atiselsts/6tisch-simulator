@@ -108,7 +108,7 @@ def test_tx_cell_selection(
             'conn_class'               : 'Linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,
-            'tsch_probBcast_ebDioProb' : 0,
+            'tsch_probBcast_ebProb'    : 0,
         },
         force_initial_routing_and_scheduling_state = True
     )
@@ -202,7 +202,7 @@ def test_retransmission_count(sim_engine):
             'exec_numMotes'           : 2,
             'app_pkPeriod'            : 0,
             'rpl_daoPeriod'           : 0,
-            'tsch_probBcast_ebDioProb': 0,
+            'tsch_probBcast_ebProb'   : 0,
             'secjoin_enabled'         : False,
             'tsch_keep_alive_interval': 0,
             'conn_class'              : 'Linear'
@@ -214,6 +214,10 @@ def test_retransmission_count(sim_engine):
     root = sim_engine.motes[0]
     hop1 = sim_engine.motes[1]
     connectivity_matrix = sim_engine.connectivity.connectivity_matrix
+
+    # stop DIO timer
+    root.rpl.trickle_timer.stop()
+    hop1.rpl.trickle_timer.stop()
 
     # set 0% of PDR to the link between the two motes
     for channel in range(sim_engine.settings.phy_numChans):
