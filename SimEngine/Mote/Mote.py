@@ -106,7 +106,7 @@ class Mote(object):
 
     # ==== EBs and DIOs
 
-    def clear_to_send_EBs_DIOs_DATA(self):
+    def clear_to_send_EBs_DATA(self):
         returnVal = True
 
         # I need to be synchronized

@@ -103,7 +103,7 @@ class AppBase(object):
     def _send_packet(self, dstIp, packet_length):
         
         # abort if I'm not ready to send DATA yet
-        if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
+        if self.mote.clear_to_send_EBs_DATA()==False:
             return
         
         # create

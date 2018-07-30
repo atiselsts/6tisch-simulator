@@ -225,7 +225,7 @@ class Rpl(object):
         assert self.mote.dodagId!=None
 
         # abort if not ready yet
-        if self.mote.clear_to_send_EBs_DIOs_DATA()==False:
+        if self.mote.clear_to_send_EBs_DATA()==False:
             return
 
         # create

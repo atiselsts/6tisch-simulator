@@ -632,7 +632,7 @@ class Tsch(object):
 
                 # ... if no such packet, probabilistically generate an EB or a DIO
                 if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_DIOs_DATA():
+                    if self.mote.clear_to_send_EBs_DATA():
                         prob = self.settings.tsch_probBcast_ebDioProb/(1+len(self.neighbor_table))
                         if random.random()<prob:
                             if random.random()<0.50:
