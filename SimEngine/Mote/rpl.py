@@ -346,6 +346,7 @@ class RplOF0(object):
     DEFAULT_STEP_OF_RANK = 3
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
+    PARENT_SWITCH_THRESHOLD = 640
 
     def __init__(self, rpl):
         self.rpl = rpl
@@ -454,6 +455,8 @@ class RplOF0(object):
 
     def _calculate_rank(self, neighbor):
         if (
+                (neighbor is None)
+                or
                 (neighbor['advertised_rank'] is None)
                 or
                 (neighbor['rank_increase'] is None)
@@ -463,19 +466,27 @@ class RplOF0(object):
             return neighbor['advertised_rank'] + neighbor['rank_increase']
 
     def _update_preferred_parent(self):
-        new_parent = min(self.neighbors, key=self._calculate_rank)
+        candidate = min(self.neighbors, key=self._calculate_rank)
+        rank_difference = self.get_rank() - self._calculate_rank(candidate)
+        assert rank_difference >= 0
 
-        if new_parent == self.preferred_parent:
-            # no change on preferred parent
-            pass
-        else:
+        # Section 6.4, RFC 8180
+        #
+        #   Per [RFC6552] and [RFC6719], the specification RECOMMENDS the use
+        #   of a boundary value (PARENT_SWITCH_THRESHOLD) to avoid constant
+        #   changes of the parent when ranks are compared.  When evaluating a
+        #   parent that belongs to a smaller path cost than the current minimum
+        #   path, the candidate node is selected as the new parent only if the
+        #   difference between the new path and the current path is greater
+        #   than the defined PARENT_SWITCH_THRESHOLD.
+        if self.PARENT_SWITCH_THRESHOLD < rank_difference:
             # change to the new preferred parent
             if self.preferred_parent is None:
                 old_parent_mac_addr = None
             else:
                 old_parent_mac_addr = self.preferred_parent['mac_addr']
-            self.preferred_parent = new_parent
+            self.preferred_parent = candidate
             self.rpl.indicate_preferred_parent_change(
                 old_preferred = old_parent_mac_addr,
-                new_preferred = new_parent['mac_addr']
+                new_preferred = self.preferred_parent['mac_addr']
             )

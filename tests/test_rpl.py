@@ -193,3 +193,51 @@ class TestOF0(object):
 
         assert motes[5].rpl.get_rank()   == 2816
         assert motes[5].rpl.getDagRank() == 11
+
+    def test_parent_switch(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'  : 4,
+                'secjoin_enabled': False
+            }
+        )
+
+        # short-hand
+        root = sim_engine.motes[0]
+        mote_1 = sim_engine.motes[1]
+        mote_2 = sim_engine.motes[2]
+        mote_3 = sim_engine.motes[3]
+
+        # let all the motes get synchronized
+        eb = root.tsch._create_EB()
+        mote_1.tsch._tsch_action_receiveEB(eb)
+        mote_2.tsch._tsch_action_receiveEB(eb)
+        mote_3.tsch._tsch_action_receiveEB(eb)
+
+        # let mote_1 and mote_2 join the RPL network
+        dio_from_root = root.rpl._create_DIO()
+        mote_1.rpl.action_receiveDIO(dio_from_root)
+        mote_2.rpl.action_receiveDIO(dio_from_root)
+
+        dio_from_mote_1 = mote_1.rpl._create_DIO()
+        dio_from_mote_2 = mote_2.rpl._create_DIO()
+
+        # manipulate ranks in DIOs
+        assert dio_from_root['app']['rank'] == 256
+        dio_from_mote_1['app']['rank'] = 256 + 1
+        dio_from_mote_2['app']['rank'] = (
+            dio_from_mote_1['app']['rank'] +
+            mote_3.rpl.of.PARENT_SWITCH_THRESHOLD
+        )
+
+        # inject DIO from mote_2 to mote_3
+        mote_3.rpl.action_receiveDIO(dio_from_mote_2)
+        assert mote_3.rpl.getPreferredParent() == mote_2.id
+
+        # inject DIO from mote_1 to mote_3; no parent switch
+        mote_3.rpl.action_receiveDIO(dio_from_mote_1)
+        assert mote_3.rpl.getPreferredParent() == mote_2.id
+
+        # inject DIO from root to mote_3; root becomes the new parent
+        mote_3.rpl.action_receiveDIO(dio_from_root)
+        assert mote_3.rpl.getPreferredParent() == root.id
