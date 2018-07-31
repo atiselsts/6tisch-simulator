@@ -290,7 +290,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
         assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 1
 
     # make sure hop_1 send a application packet when the simulator starts
-    hop_1.txQueue = []
+    hop_1.tsch.txQueue = []
     hop_1.app._send_a_single_packet()
     assert len(hop_1.tsch.txQueue) == 1
 
