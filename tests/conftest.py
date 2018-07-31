@@ -6,6 +6,7 @@ from SimEngine import SimConfig,   \
                       SimLog,      \
                       SimEngine,   \
                       Connectivity
+from SimEngine.Mote.rpl import RplOFNone
 import SimEngine.Mote.MoteDefines as d
 import test_utils                 as u
 
@@ -82,7 +83,8 @@ def set_initial_routing_and_scheduling_state(engine):
     # root is mote 0
     root = engine.motes[0]
     root.setDagRoot()
-    root.rpl._set_rank(256)
+    root.rpl.of = RplOFNone(root.rpl)
+    root.rpl.of.set_rank(256)
     
     # all nodes are sync'ed and joined, all services activated
     for m in engine.motes:
@@ -131,9 +133,10 @@ def set_initial_routing_and_scheduling_state(engine):
                 child._add_neighbor(parent.id)
                 parent._add_neighbor(child.id)
                 # set child's preferredparent to parent
-                child.rpl.setPreferredParent(parent.id)
+                child.rpl.of = RplOFNone(child.rpl)
+                child.rpl.of.set_preferred_parent(parent.id)
                 # set child's rank
-                child.rpl._set_rank(parent.rpl._get_rank()+512)
+                child.rpl.of.set_rank(parent.rpl.get_rank()+512)
                 # record the child->parent relationship at the root (for source routing)
                 root.rpl.addParentChildfromDAOs(
                     child_id  = child.id,

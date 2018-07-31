@@ -345,6 +345,7 @@ class Tsch(object):
                     (self.pktToSend['type'] == d.PKT_TYPE_SIXP)
                 ):
                 self.mote.sixp.recv_mac_ack(self.pktToSend)
+            self.mote.rpl.indicate_tx(cell, self.pktToSend['mac']['dstMac'], isACKed)
 
             # update the backoff exponent
             self._update_backoff_state(

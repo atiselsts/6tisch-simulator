@@ -34,23 +34,23 @@ def test_ranks_forced_state(sim_engine,fixture_conn_class):
 
     assert root.dagRoot is True
     assert root.rpl.getPreferredParent()      ==    None
-    assert root.rpl._get_rank()               ==     256
+    assert root.rpl.get_rank()                ==     256
     assert root.rpl.getDagRank()              ==       1
 
     assert hop1.dagRoot is False
     assert hop1.rpl.getPreferredParent()      == root.id
-    assert hop1.rpl._get_rank()               ==     768
+    assert hop1.rpl.get_rank()                ==     768
     assert hop1.rpl.getDagRank()              ==       3
 
     if   fixture_conn_class=='FullyMeshed':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == root.id
-        assert hop2.rpl._get_rank()           ==     768
+        assert hop2.rpl.get_rank()            ==     768
         assert hop2.rpl.getDagRank()          ==       3
     elif fixture_conn_class=='Linear':
         assert hop2.dagRoot is False
         assert hop2.rpl.getPreferredParent()  == hop1.id
-        assert hop2.rpl._get_rank()           ==    1280
+        assert hop2.rpl.get_rank()            ==    1280
         assert hop2.rpl.getDagRank()          ==       5
     else:
         raise SystemError()
@@ -161,34 +161,37 @@ class TestOF0(object):
         u.run_until_everyone_joined(sim_engine)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
-        def _returnStaticETX(self, neighbor_id):
-            return 100.0 / 75
+        # set ETX=100/75 (numTx=100, numTxAck=75)
         for mote_id in range(1, len(motes)):
             mote = motes[mote_id]
             parent_id = mote_id - 1
-            # override _estimateETX method so that it always returns
-            # (numTx=100/numTxAck=75).
-            mote.rpl._estimateETX = types.MethodType(_returnStaticETX, mote.rpl)
-            assert mote.rpl._estimateETX(parent_id) == (100.0 / 75)
+
             # inject DIO to the mote
             dio = motes[parent_id].rpl._create_DIO()
             mote.rpl.action_receiveDIO(dio)
 
+            # set numTx and numTxAck
+            preferred_parent = mote.rpl.of.preferred_parent
+            preferred_parent['numTx'] = 100
+            preferred_parent['numTxAck'] = 75
+            mote.rpl.of._update_neighbor_rank_increase(preferred_parent)
+
         # test using rank values in Figure 4 of RFC 8180
-        assert motes[0].rpl._get_rank() == 256
+        assert motes[0].rpl.get_rank()   == 256
         assert motes[0].rpl.getDagRank() == 1
 
-        assert motes[1].rpl._get_rank() == 768
+        print motes[1].rpl.of.preferred_parent
+        assert motes[1].rpl.get_rank()   == 768
         assert motes[1].rpl.getDagRank() == 3
 
-        assert motes[2].rpl._get_rank() == 1280
+        assert motes[2].rpl.get_rank()   == 1280
         assert motes[2].rpl.getDagRank() == 5
 
-        assert motes[3].rpl._get_rank() == 1792
+        assert motes[3].rpl.get_rank()   == 1792
         assert motes[3].rpl.getDagRank() == 7
 
-        assert motes[4].rpl._get_rank() == 2304
+        assert motes[4].rpl.get_rank()   == 2304
         assert motes[4].rpl.getDagRank() == 9
 
-        assert motes[5].rpl._get_rank() == 2816
+        assert motes[5].rpl.get_rank()   == 2816
         assert motes[5].rpl.getDagRank() == 11

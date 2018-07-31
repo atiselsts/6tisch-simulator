@@ -100,7 +100,7 @@ def rpl_check_all_node_prefered_parent(motes):
 def rpl_check_all_node_rank(motes):
     """ Verify that each mote has a rank """
     for mote in motes:
-        assert mote.rpl._get_rank() is not None
+        assert mote.rpl.get_rank() is not None
 
 def rpl_check_all_nodes_send_DIOs(motes):
     check_all_nodes_send_x(motes,'DIO')

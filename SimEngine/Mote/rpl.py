@@ -31,8 +31,7 @@ class Rpl(object):
         self.log                       = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.rank                      = None
-        self.preferredParent           = None
+        self.of                        = RplOF0(self)
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self.iAmSendingDAOs            = False
         self._tx_stat                  = {}      # indexed by mote_id
@@ -41,8 +40,11 @@ class Rpl(object):
 
     # getters/setters
 
+    def get_rank(self):
+        return self.of.get_rank()
+
     def getDagRank(self):
-        return int(self.rank/d.RPL_MINHOPRANKINCREASE)
+        return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_id, child_id):
         assert type(parent_id)==int
@@ -50,15 +52,17 @@ class Rpl(object):
         self.parentChildfromDAOs[child_id] = parent_id
 
     def getPreferredParent(self):
-        return self.preferredParent
-    def setPreferredParent(self, newVal):
-        assert type(newVal)==int
-        self.preferredParent = newVal
+        # FIXME: when we implement IPv6 address or MAC address, we should
+        # define the return type of this method. Currently, this method can
+        # return a node ID, a MAC address, or an IPv6 address since they are
+        # all the same value for a certain mote.
+        return self.of.get_preferred_parent()
 
     # admin
 
     def start_as_root(self):
-        self._set_rank(d.RPL_MINHOPRANKINCREASE)
+        self.of = RplOFNone(self)
+        self.of.set_rank(d.RPL_MINHOPRANKINCREASE)
 
     def startSendingDAOs(self):
 
@@ -72,6 +76,30 @@ class Rpl(object):
         # I am now sending DAOS
         self.iAmSendingDAOs = True
 
+    def indicate_tx(self, cell, dstMac, isACKed):
+        self.of.update_etx(cell, dstMac, isACKed)
+
+    def indicate_preferred_parent_change(self, old_preferred, new_preferred):
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_RPL_CHURN,
+            {
+                "_mote_id":        self.mote.id,
+                "rank":            self.of.get_rank(),
+                "preferredParent": new_preferred
+            }
+        )
+
+        # trigger DAO
+        self.startSendingDAOs()
+
+        # use the new parent as our clock source
+        self.mote.tsch.clock.sync(new_preferred)
+
+        # trigger 6P ADD if parent changed
+        self.mote.sf.indication_parent_change(old_preferred, new_preferred)
+
+
     # === DIO
 
     def _create_DIO(self):
@@ -82,7 +110,7 @@ class Rpl(object):
         newDIO = {
             'type':          d.PKT_TYPE_DIO,
             'app': {
-                'rank':      self.rank,
+                'rank':      self.of.get_rank(),
                 'dodagId':   self.mote.dodagId,
             },
             'net': {
@@ -134,14 +162,8 @@ class Rpl(object):
         # record dodagId
         self.mote.dodagId = packet['app']['dodagId']
 
-        # update rank with sender's information
-        self.mote.neighbors[packet['mac']['srcMac']]['rank']  = packet['app']['rank']
-
-        # trigger RPL housekeeping
-        self._updateMyRankAndPreferredParent()
-
-        # start sending DAOs (do after my rank is acquired/updated)
-        self.startSendingDAOs() # mote
+        # feed our OF with the received DIO
+        self.of.update(packet)
 
     # === DAO
 
@@ -211,7 +233,7 @@ class Rpl(object):
             'type':                d.PKT_TYPE_DAO,
             'app': {
                 'child_id':        self.mote.id,
-                'parent_id':       self.preferredParent,
+                'parent_id':       self.of.get_preferred_parent()
             },
             'net': {
                 'srcIp':           self.mote.id,            # from mote
@@ -321,7 +343,7 @@ class Rpl(object):
                     # link-local packets.
                     nextHopId = self.mote.tsch.join_proxy
                 else:
-                    nextHopId = self.preferredParent
+                    nextHopId = self.of.get_preferred_parent()
             else:
                 # unicast downstream packet; assume destination is on-link
                 # FIXME: need IPv6 neighbor cache table
@@ -329,98 +351,174 @@ class Rpl(object):
 
         return nextHopId
 
-    #======================== private ==========================================
 
-    def _get_rank(self):
-        return self.rank
+class RplOFNone(object):
+    def __init__(self, rpl):
+        self.rpl = rpl
+        self.rank = None
+        self.preferred_parent = None
 
-    def _set_rank(self, new_rank):
+    def update(self, dio):
+        # do nothing on the root
+        pass
+
+    def set_rank(self, new_rank):
         self.rank = new_rank
 
-    # misc
+    def get_rank(self):
+        return self.rank
 
-    def _updateMyRankAndPreferredParent(self):
-        """
-        RPL housekeeping tasks.
+    def set_preferred_parent(self, new_preferred_parent):
+        self.preferred_parent = new_preferred_parent
 
-        This routine refreshes
-        - self.rank
-        - self.preferredParent
-        """
+    def get_preferred_parent(self):
+        return self.preferred_parent
 
-        # calculate the rank I would have if choosing each of my neighbor as my preferred parent
-        allPotentialRanks = {}
-        for (nid, n) in self.mote.neighbors.items():
-            if n['rank'] is None:
-                # I haven't received a DIO from that neighbor yet, so I don't know its rank (normal)
-                continue
-            etx                        = self._estimateETX(nid)
-            rank_increment             = (1*((3*(etx))-2) + 0) * d.RPL_MINHOPRANKINCREASE
-            allPotentialRanks[nid]     = n['rank']+rank_increment
+    def update_etx(self, cell, mac_addr, isACKed):
+        # do nothing
+        pass
 
-        # pick lowest potential rank
-        (myPotentialParent, myPotentialRank) = sorted(allPotentialRanks.iteritems(), key=lambda x: x[1])[0]
 
-        if (
-                (myPotentialRank is not None)
-                and
-                (myPotentialParent is not None)
-                and
-                (self.rank != myPotentialRank)
-            ):
-            # my rank changes; update states
-            old_parent           = self.preferredParent
-            self.rank            = myPotentialRank
-            self.preferredParent = myPotentialParent
+class RplOF0(object):
 
-            if self.preferredParent != old_parent:
-                # log
-                self.log(
-                    SimEngine.SimLog.LOG_RPL_CHURN,
-                    {
-                        "_mote_id":        self.mote.id,
-                        "rank":            self.rank,
-                        "preferredParent": self.preferredParent,
-                    }
-                )
+    # Constants defined in RFC 6550
+    INFINITE_RANK = 65535
 
-                # use the new parent as our clock source
-                self.mote.tsch.clock.sync(self.preferredParent)
+    # Constants defined in RFC 8180
+    UPPER_LIMIT_OF_ACCEPTABLE_ETX = 3
+    DEFAULT_STEP_OF_RANK = 3
+    MINIMUM_STEP_OF_RANK = 1
+    MAXIMUM_STEP_OF_RANK = 9
 
-                # trigger 6P ADD if parent changed # FIXME: layer violation
-                self.mote.sf.indication_parent_change(old_parent, self.preferredParent)
-            else:
-                # my rank changes without parent switch
-                pass
+    def __init__(self, rpl):
+        self.rpl = rpl
+        self.neighbors = []
+        self.rank = None
+        self.preferred_parent = None
 
-    def _estimateETX(self, neighbor_id):
-        DEFAULT_ETX = 2
-        assert type(neighbor_id)==int
+    def update(self, dio):
+        mac_addr = dio['mac']['srcMac']
+        ip_addr = dio['net']['srcIp']
+        rank = dio['app']['rank']
 
-        if neighbor_id is not self._tx_stat:
-            self._tx_stat[neighbor_id] = {'numTx': 0, 'numTxAck': 0}
+        # update neighbor's rank
+        neighbor = self._find_neighbor_by_ip_addr(ip_addr)
+        if neighbor is None:
+            neighbor = self._add_neighbor(ip_addr, mac_addr)
+        self._update_neighbor_rank(neighbor, rank)
 
-        for (_, cell) in self.mote.tsch.getSchedule().items():
-            if  (
-                    (cell['neighbor'] == neighbor_id)
-                    and
-                    (d.CELLOPTION_TX in cell['cellOptions'])
-                    and
-                    (d.CELLOPTION_SHARED not in cell['cellOptions'])
-                ):
-                self._tx_stat[neighbor_id]['numTx']    += cell['numTx']
-                self._tx_stat[neighbor_id]['numTxAck'] += cell['numTxAck']
-                cell['numTx']    = 0
-                cell['numTxAck'] = 0
+        # change preferred parent if necessary
+        self._update_preferred_parent()
 
-        # abort if about to divide by 0
-        if self._tx_stat[neighbor_id]['numTxAck'] == 0:
-            etx = DEFAULT_ETX
+    def get_rank(self):
+        return self._calculate_rank(self.preferred_parent)
+
+    def get_preferred_parent(self):
+        if self.preferred_parent is None:
+            return None
         else:
-            # calculate ETX
-            etx = float(
-                float(self._tx_stat[neighbor_id]['numTx']) /
-                float(self._tx_stat[neighbor_id]['numTxAck'])
-            )
+            # XXX: returning the IPv6 address of the preferred parent here is no
+            # problem now since the value of an IPv6 address is the same as its
+            # node ID.
+            return self.preferred_parent['ip_addr']
 
-        return etx
+    def update_etx(self, cell, mac_addr, isACKed):
+        neighbor = self._find_neighbor_by_mac_addr(mac_addr)
+        if neighbor is None:
+            # we've not received DIOs from this neighbor; ignore the neighbor
+            return
+        elif (
+                (cell['neighbor'] == mac_addr)
+                and
+                (d.CELLOPTION_TX in cell['cellOptions'])
+                and
+                (d.CELLOPTION_SHARED not in cell['cellOptions'])
+            ):
+            neighbor['numTx'] += 1
+            if isACKed is True:
+                neighbor['numTxAck'] += 1
+            self._update_neighbor_rank_increase(neighbor)
+            self._update_preferred_parent()
+
+    def _add_neighbor(self, ip_addr, mac_addr):
+        assert self._find_neighbor_by_ip_addr(ip_addr) is None
+        assert self._find_neighbor_by_mac_addr(mac_addr) is None
+
+        neighbor = {
+            'ip_addr': ip_addr,
+            'mac_addr': mac_addr,
+            'advertised_rank': None,
+            'rank_increase': None,
+            'numTx': 0,
+            'numTxAck': 0
+        }
+        self.neighbors.append(neighbor)
+        self._update_neighbor_rank_increase(neighbor)
+        return neighbor
+
+    def _find_neighbor_by_ip_addr(self, ip_addr):
+        for neighbor in self.neighbors:
+            if neighbor['ip_addr'] == ip_addr:
+                return neighbor
+        return None
+
+    def _find_neighbor_by_mac_addr(self, mac_addr):
+        for neighbor in self.neighbors:
+            if neighbor['mac_addr'] == mac_addr:
+                return neighbor
+        return None
+
+    def _update_neighbor_rank(self, neighbor, new_advertised_rank):
+        neighbor['advertised_rank'] = new_advertised_rank
+
+    def _update_neighbor_rank_increase(self, neighbor):
+        if neighbor['numTxAck'] == 0:
+            # ETX is not available
+            etx = None
+        else:
+            etx = float(neighbor['numTx']) / neighbor['numTxAck']
+
+        if etx is None:
+            step_of_rank = self.DEFAULT_STEP_OF_RANK
+        elif etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
+            step_of_rank = None
+        else:
+            step_of_rank = (3 * etx) - 2
+
+        if step_of_rank is None:
+            # this neighbor will not be considered as a parent
+            neighbor['rank_increase'] = None
+        else:
+            assert self.MINIMUM_STEP_OF_RANK <= step_of_rank
+            # step_of_rank never exceeds 7 because the upper limit of acceptable
+            # ETX is 3, which is defined in Section 5.1.1 of RFC 8180
+            assert step_of_rank <= self.MAXIMUM_STEP_OF_RANK
+            neighbor['rank_increase'] = step_of_rank * d.RPL_MINHOPRANKINCREASE
+
+    def _calculate_rank(self, neighbor):
+        if (
+                (neighbor['advertised_rank'] is None)
+                or
+                (neighbor['rank_increase'] is None)
+            ):
+            return self.INFINITE_RANK
+        else:
+            return neighbor['advertised_rank'] + neighbor['rank_increase']
+
+    def _update_preferred_parent(self):
+        new_parent = min(self.neighbors, key=self._calculate_rank)
+
+        if new_parent == self.preferred_parent:
+            # no change on preferred parent
+            pass
+        else:
+            # change to the new preferred parent
+            if self.preferred_parent is None:
+                old_parent_mac_addr = None
+            else:
+                old_parent_mac_addr = self.preferred_parent['mac_addr']
+            self.preferred_parent = new_parent
+            self.rpl.indicate_preferred_parent_change(
+                old_preferred = old_parent_mac_addr,
+                new_preferred = new_parent['mac_addr']
+            )

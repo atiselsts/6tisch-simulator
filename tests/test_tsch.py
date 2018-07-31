@@ -120,7 +120,7 @@ def test_tx_cell_selection(
     packet = {
         'type':         packet_type,
         'app': {
-            'rank':     mote.rpl.rank,
+            'rank':     mote.rpl.get_rank(),
         },
         'net': {
             'srcIp':    mote.id

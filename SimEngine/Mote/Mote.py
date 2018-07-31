@@ -83,7 +83,6 @@ class Mote(object):
 
         # create an empty entry
         self.neighbors[neighbor_id] = {
-            'rank':           None,
             # freshness
             'lastHeardAsn':   None,
             # usage statistics
