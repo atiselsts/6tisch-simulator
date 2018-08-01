@@ -71,7 +71,7 @@ def check_neighbor_tables(motes):
             expectedNeighbors = [len(motes)-2]
         else:
             expectedNeighbors = [mote.id-1, mote.id+1]
-        assert sorted(mote.neighbors.keys()) == sorted(expectedNeighbors)
+        assert sorted(mote.tsch.neighbor_table) == sorted(expectedNeighbors)
 
 # === secjoin
 

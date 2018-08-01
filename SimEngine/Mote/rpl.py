@@ -308,49 +308,6 @@ class Rpl(object):
 
         return returnVal
 
-    # forwarding
-
-    def findNextHopId(self, packet):
-        assert packet['net']['dstIp'] != self.mote.id
-
-        if    packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
-            # broadcast packet
-
-            # next hop is broadcast address
-            nextHopId = d.BROADCAST_ADDRESS
-
-        elif 'sourceRoute' in packet['net']:
-            # unicast source routed downstream packet
-
-            # next hop is the first item in the source route
-            nextHopId = self.engine.motes[packet['net']['sourceRoute'].pop(0)].id
-
-        elif self.mote.dagRoot:
-            # downstream packet to neighbors of the root
-            # FIXME: this is a hack. We should maintain the IPv6 neighbor
-            # cache table for on-link determination not only by the root but
-            # also by other motes
-            nextHopId = packet['net']['dstIp']
-
-        else:
-            if packet['net']['dstIp'] == self.mote.dodagId:
-                # unicast upstream packet; send it to its preferred parent (default
-                # route)
-                if self.mote.dodagId is None:
-                    # this mote has not been part of RPL network yet; use
-                    # self.mote.tsch.join_proxy as its default route
-                    # FIXME: in such a situation, the mote should send only
-                    # link-local packets.
-                    nextHopId = self.mote.tsch.join_proxy
-                else:
-                    nextHopId = self.of.get_preferred_parent()
-            else:
-                # unicast downstream packet; assume destination is on-link
-                # FIXME: need IPv6 neighbor cache table
-                nextHopId = packet['net']['dstIp']
-
-        return nextHopId
-
 
 class RplOFNone(object):
     def __init__(self, rpl):

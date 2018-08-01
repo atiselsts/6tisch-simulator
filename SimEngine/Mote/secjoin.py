@@ -168,7 +168,7 @@ class SecJoin(object):
                     }
 
                     # send proxied join response
-                    self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
+                    self.mote.sixlowpan.sendPacket(proxiedJoinResponse, link_local=True)
 
             else:
                 # I'm the pledge
@@ -242,7 +242,7 @@ class SecJoin(object):
         }
 
         # send join request
-        self.mote.sixlowpan.sendPacket(joinRequest)
+        self.mote.sixlowpan.sendPacket(joinRequest, link_local=True)
 
         # convert seconds to slots
         target_asn = (

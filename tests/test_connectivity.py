@@ -268,7 +268,6 @@ def test_lockon(sim_engine):
     # force hop_1 to join the network
     eb = root.tsch._create_EB()
     hop_1.tsch._tsch_action_receiveEB(eb)
-    hop_1.neighbors_indicate_rx(eb)
     dio = root.rpl._create_DIO()
     hop_1.rpl.action_receiveDIO(dio)
 

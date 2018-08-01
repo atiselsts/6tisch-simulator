@@ -44,7 +44,6 @@ class Mote(object):
         # stack state
         self.dagRoot                   = False
         self.dodagId                   = None
-        self.neighbors                 = {}
 
         # stack
         self.app                       = app.App(self)
@@ -64,70 +63,6 @@ class Mote(object):
     def setDagRoot(self):
         self.dagRoot         = True
         self.dodagId         = self.id
-
-    # ==== wireless
-
-    def getPDR(self, neighbor_id):
-        """ returns the pdr to that neighbor """
-        neighbor = self.neighbors[neighbor_id]
-        if neighbor['numTx'] != 0:
-            return neighbor['numTxAck'] / float(neighbor['numTx'])
-        else:
-            return 0
-
-    # ==== neighbors
-
-    def _add_neighbor(self,neighbor_id):
-
-        assert neighbor_id not in self.neighbors
-
-        # create an empty entry
-        self.neighbors[neighbor_id] = {
-            # freshness
-            'lastHeardAsn':   None,
-            # usage statistics
-            'numTx':          0,
-            'numTxAck':       0,
-            'numRx':          0,
-        }
-
-        # send indication to SF
-        self.sf.indication_neighbor_added(neighbor_id)
-
-    def neighbors_indicate_rx(self,packet):
-        '''
-        From tsch, used to maintain neighbor table
-        '''
-        neighbor_id = packet['mac']['srcMac'] # alias
-
-        # add neighbor, if needed
-        if neighbor_id not in self.neighbors:
-            self._add_neighbor(neighbor_id)
-
-        # update neighbor table
-        self.neighbors[neighbor_id]['numRx']         += 1
-        self.neighbors[neighbor_id]['lastHeardAsn']   = self.engine.getAsn()
-
-    def neighbors_indicate_tx(self,packet,isACKed):
-        '''
-        From tsch, used to maintain neighbor table
-        '''
-        neighbor_id = packet['mac']['dstMac'] # alias
-
-        # make sure I have that neighbor in my neighbor table
-        assert neighbor_id in self.neighbors
-
-        # update neighbor table
-        self.neighbors[neighbor_id]['numTx']         += 1
-        if isACKed:
-            self.neighbors[neighbor_id]['numTxAck']  += 1
-        self.neighbors[neighbor_id]['lastHeardAsn']   = self.engine.getAsn()
-
-    def isNeighbor(self,neighbor_id):
-        return (neighbor_id in self.neighbors)
-
-    def numNeighbors(self):
-        return len(self.neighbors)
 
     # ==== location
 

@@ -116,8 +116,6 @@ def test_upstream_routing(sim_engine):
     mote_1.rpl.action_receiveDIO(dio_from_root)
 
     dio_from_mote_2['app']['rank'] = 256
-    # make sure mote_1 has mote_2 in its 'Mote.neighbors'
-    mote_1.neighbors_indicate_rx(dio_from_mote_2)
     # inject DIO from mote_2 to mote_1
     mote_1.rpl.action_receiveDIO(dio_from_mote_2)
 
@@ -133,7 +131,7 @@ def test_upstream_routing(sim_engine):
     }
 
     # the next hop should be parent
-    assert mote_1.rpl.findNextHopId(dummy_packet) == mote_1.rpl.getPreferredParent()
+    assert mote_1.sixlowpan.find_nexthop_mac_addr(dummy_packet) == mote_1.rpl.getPreferredParent()
 
 
 class TestOF0(object):

@@ -40,6 +40,7 @@ class Tsch(object):
         # local variables
         self.schedule                       = {}      # indexed by slotOffset, contains cell
         self.txQueue                        = []
+        self.neighbor_table                  = []
         self.pktToSend                      = None
         self.waitingFor                     = None
         self.channel                        = None
@@ -354,9 +355,6 @@ class Tsch(object):
                 isTXSuccess      = isACKed
             )
 
-            # indicate unicast transmission to the neighbor table
-            self.mote.neighbors_indicate_tx(self.pktToSend,isACKed)
-
             if isACKed:
                 # ... which was ACKed
 
@@ -420,8 +418,9 @@ class Tsch(object):
         if packet==None:
             return False # isACKed
 
-        # indicate reception to the neighbor table
-        self.mote.neighbors_indicate_rx(packet)
+        # add the source mote to the neighbor list if it's not listed yet
+        if packet['mac']['srcMac'] not in self.neighbor_table:
+            self.neighbor_table.append(packet['mac']['srcMac'])
 
         # abort if I received a frame for someone else
         if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS, self.mote.id]:
@@ -634,7 +633,7 @@ class Tsch(object):
                 # ... if no such packet, probabilistically generate an EB or a DIO
                 if not self.pktToSend:
                     if self.mote.clear_to_send_EBs_DIOs_DATA():
-                        prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
+                        prob = self.settings.tsch_probBcast_ebDioProb/(1+len(self.neighbor_table))
                         if random.random()<prob:
                             if random.random()<0.50:
                                 if self.iAmSendingEBs:

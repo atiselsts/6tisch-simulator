@@ -129,9 +129,6 @@ def set_initial_routing_and_scheduling_state(engine):
 
                 # sync child's clock with parent's clock
                 child.tsch.clock.sync(parent.id)
-                # update both child's and parent's neighbor table
-                child._add_neighbor(parent.id)
-                parent._add_neighbor(child.id)
                 # set child's preferredparent to parent
                 child.rpl.of = RplOFNone(child.rpl)
                 child.rpl.of.set_preferred_parent(parent.id)
