@@ -44,6 +44,7 @@ class Sixlowpan(object):
         assert packet['type'] in [
             d.PKT_TYPE_JOIN_REQUEST,
             d.PKT_TYPE_JOIN_RESPONSE,
+            d.PKT_TYPE_DIO,
             d.PKT_TYPE_DAO,
             d.PKT_TYPE_DATA,
         ]
@@ -82,6 +83,12 @@ class Sixlowpan(object):
         if goOn:
             if (
                     (self.mote.dagRoot)
+                    and
+                    (
+                        ('link_local' not in packet['net'])
+                        or
+                        (packet['net']['link_local'] is False)
+                    )
                     and
                     (packet['net']['dstIp'] not in self.neighbor_cache)
                 ):
@@ -403,6 +410,7 @@ class Fragmentation(object):
         """
         assert packet['type'] in [
             d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DIO,
             d.PKT_TYPE_DAO,
             d.PKT_TYPE_JOIN_REQUEST,
             d.PKT_TYPE_JOIN_RESPONSE,

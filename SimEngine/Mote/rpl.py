@@ -126,7 +126,7 @@ class Rpl(object):
             }
         )
 
-        self.mote.tsch.enqueue(dio)
+        self.mote.sixlowpan.sendPacket(dio, link_local=True)
 
     def _create_DIO(self):
 
@@ -134,18 +134,15 @@ class Rpl(object):
 
         # create
         newDIO = {
-            'type':          d.PKT_TYPE_DIO,
+            'type':              d.PKT_TYPE_DIO,
             'app': {
-                'rank':      self.of.get_rank(),
-                'dodagId':   self.mote.dodagId,
+                'rank':          self.of.get_rank(),
+                'dodagId':       self.mote.dodagId,
             },
             'net': {
-                'srcIp':     self.mote.id,            # from mote
-                'dstIp':     d.BROADCAST_ADDRESS,     # broadcast (in reality "all RPL routers")
-            },
-            'mac': {
-                'srcMac':    self.mote.id,            # from mote
-                'dstMac':    d.BROADCAST_ADDRESS,     # broadcast
+                'srcIp':         self.mote.id,            # from mote
+                'dstIp':         d.BROADCAST_ADDRESS,     # broadcast (in reality "all RPL routers")
+                'packet_length': d.PKT_LEN_DIO
             }
         }
 

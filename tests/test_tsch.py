@@ -271,6 +271,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     # make hop_1 ready to send an application packet
     assert hop_1.dodagId is None
     dio = root.rpl._create_DIO()
+    dio['mac'] = {'srcMac': root.id}
     hop_1.rpl.action_receiveDIO(dio)
     assert hop_1.dodagId is not None
 

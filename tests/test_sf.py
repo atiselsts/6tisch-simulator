@@ -234,10 +234,12 @@ class TestMSF(object):
 
         # invalidate old_parent
         dio = old_parent.rpl._create_DIO()
+        dio['mac'] = {'srcMac': old_parent.id}
         dio['app']['rank'] = 65535
         mote_1.rpl.action_receiveDIO(dio)
         # give a DIO from new_parent with a good rank
         dio = new_parent.rpl._create_DIO()
+        dio['mac'] = {'srcMac': new_parent.id}
         dio['app']['rank'] = 255
         mote_1.rpl.action_receiveDIO(dio)
 

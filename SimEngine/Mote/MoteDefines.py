@@ -19,6 +19,7 @@ PKT_TYPE_SIXP                               = '6P'
 PKT_TYPE_KEEP_ALIVE                         = 'KEEP_ALIVE'
 
 # === packet lengths
+PKT_LEN_DIO                                 = 76
 PKT_LEN_DAO                                 = 20
 PKT_LEN_JOIN_REQUEST                        = 20
 PKT_LEN_JOIN_RESPONSE                       = 20

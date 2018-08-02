@@ -104,6 +104,7 @@ def test_upstream_routing(sim_engine):
 
     # We're making the RPL topology of "root -- mote_1 (-- mote_2)"
     dio_from_root = root.rpl._create_DIO()
+    dio_from_root['mac'] = {'srcMac': root.id}
     dio_from_root['app']['rank'] = 256
     mote_1.rpl.action_receiveDIO(dio_from_root)
     assert mote_1.rpl.getPreferredParent() == root.id
@@ -111,6 +112,7 @@ def test_upstream_routing(sim_engine):
     # Then, put mote_1 behind mote_2:    "root -- mote_2 -- mote_1"
     mote_2.rpl.action_receiveDIO(dio_from_root)
     dio_from_mote_2 = mote_2.rpl._create_DIO()
+    dio_from_mote_2['mac'] = {'srcMac': mote_2.id}
 
     dio_from_root['app']['rank'] = 65535
     mote_1.rpl.action_receiveDIO(dio_from_root)
@@ -166,6 +168,7 @@ class TestOF0(object):
 
             # inject DIO to the mote
             dio = motes[parent_id].rpl._create_DIO()
+            dio['mac'] = {'srcMac': parent_id}
             mote.rpl.action_receiveDIO(dio)
 
             # set numTx and numTxAck
@@ -216,11 +219,14 @@ class TestOF0(object):
 
         # let mote_1 and mote_2 join the RPL network
         dio_from_root = root.rpl._create_DIO()
+        dio_from_root['mac'] = {'srcMac': root.id}
         mote_1.rpl.action_receiveDIO(dio_from_root)
         mote_2.rpl.action_receiveDIO(dio_from_root)
 
         dio_from_mote_1 = mote_1.rpl._create_DIO()
+        dio_from_mote_1['mac'] = {'srcMac': mote_1.id}
         dio_from_mote_2 = mote_2.rpl._create_DIO()
+        dio_from_mote_2['mac'] = {'srcMac': mote_2.id}
 
         # manipulate ranks in DIOs
         assert dio_from_root['app']['rank'] == 256
