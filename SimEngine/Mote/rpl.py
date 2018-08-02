@@ -29,10 +29,9 @@ from trickle_timer import TrickleTimer
 
 class Rpl(object):
 
-    # they are defined in Section 17, RFC 6550
-    DEFAULT_DIO_INTERVAL_MIN = 3
-    DEFAULT_DIO_INTERVAL_DOUBLINGS = 20
-    DEFAULT_DIO_REDUNDANCY_CONSTANT = 10
+    DEFAULT_DIO_INTERVAL_MIN = 14
+    DEFAULT_DIO_INTERVAL_DOUBLINGS = 9
+    DEFAULT_DIO_REDUNDANCY_CONSTANT = 3
 
     # locally-defined constants
     DEFAULT_DIS_INTERVAL_SECONDS = 60
