@@ -33,7 +33,7 @@
 
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
-            "tsch_probBcast_ebProb":                       0.33,
+            "tsch_probBcast_ebProb":                       0.16,
             "tsch_clock_max_drift_ppm":                    30,
             "tsch_clock_frequency":                        32768,
             "tsch_keep_alive_interval":                    10,

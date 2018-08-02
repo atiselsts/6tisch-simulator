@@ -635,10 +635,12 @@ class Tsch(object):
                 if not self.pktToSend:
                     if self.mote.clear_to_send_EBs_DATA():
                         prob = self.settings.tsch_probBcast_ebProb/(1+len(self.neighbor_table))
-                        if random.random()<prob:
-                            if random.random()<0.50:
-                                if self.iAmSendingEBs:
-                                    self.pktToSend = self._create_EB()
+                        if (
+                                (random.random() < prob)
+                                and
+                                (self.iAmSendingEBs)
+                            ):
+                            self.pktToSend = self._create_EB()
 
                 # send packet, or receive
                 if self.pktToSend:
