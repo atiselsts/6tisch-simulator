@@ -236,7 +236,6 @@ class Rpl(object):
         # I can serve as join proxy: start sending DIOs and EBs
         # I can send data back-and-forth with an app
         self.mote.tsch.startSendingEBs()    # mote
-        self.mote.tsch.startSendingDIOs()   # mote
         self.mote.app.startSendingData()    # mote
 
         # schedule next DAO

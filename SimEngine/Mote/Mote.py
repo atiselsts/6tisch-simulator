@@ -93,7 +93,6 @@ class Mote(object):
             self.tsch.clock.sync()
             self.tsch.setIsSync(True)       # dagRoot
             self.tsch.startSendingEBs()     # dagRoot
-            self.tsch.startSendingDIOs()    # dagRoot
 
             # schedule the first active cell
             self.tsch.tsch_schedule_next_active_cell()

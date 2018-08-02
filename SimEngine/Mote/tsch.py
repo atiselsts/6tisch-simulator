@@ -48,7 +48,6 @@ class Tsch(object):
         self.isSync                         = False
         self.join_proxy                     = None
         self.iAmSendingEBs                  = False
-        self.iAmSendingDIOs                 = False
         self.clock                          = Clock(self.mote)
         # backoff state
         self.backoff_exponent               = d.TSCH_MIN_BACKOFF_EXPONENT
@@ -164,9 +163,6 @@ class Tsch(object):
 
     def startSendingEBs(self):
         self.iAmSendingEBs  = True
-
-    def startSendingDIOs(self):
-        self.iAmSendingDIOs = True
 
     # minimal
 
