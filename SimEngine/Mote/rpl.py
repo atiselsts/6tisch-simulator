@@ -44,7 +44,6 @@ class Rpl(object):
             callback = self._send_DIO
         )
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
-        self.iAmSendingDAOs            = False
         self._tx_stat                  = {}      # indexed by mote_id
 
     #======================== public ==========================================
@@ -79,18 +78,6 @@ class Rpl(object):
         # RFC 6550
         self.trickle_timer.reset()
 
-    def startSendingDAOs(self):
-
-        # abort if I'm already sending DAOs
-        if self.iAmSendingDAOs:
-            return
-
-        # start sending DAOs
-        self._schedule_sendDAO(firstDAO=True)
-
-        # I am now sending DAOS
-        self.iAmSendingDAOs = True
-
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
 
@@ -106,7 +93,7 @@ class Rpl(object):
         )
 
         # trigger DAO
-        self.startSendingDAOs()
+        self._schedule_sendDAO(firstDAO=True)
 
         # use the new parent as our clock source
         self.mote.tsch.clock.sync(new_preferred)
