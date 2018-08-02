@@ -70,8 +70,8 @@ class Rpl(object):
         return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_id, child_id):
-        assert type(parent_id)==int
-        assert type(child_id) ==int
+        assert type(parent_id) is int
+        assert type(child_id)  is int
         self.parentChildfromDAOs[child_id] = parent_id
 
     def getPreferredParent(self):
@@ -195,7 +195,7 @@ class Rpl(object):
 
     def _create_DIO(self, dstIp=None):
 
-        assert self.mote.dodagId!=None
+        assert self.mote.dodagId is not None
 
         if dstIp is None:
             dstIp = d.BROADCAST_ADDRESS
@@ -259,7 +259,7 @@ class Rpl(object):
         Schedule to send a DAO sometimes in the future.
         """
 
-        assert self.mote.dagRoot==False
+        assert self.mote.dagRoot is False
 
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
@@ -376,7 +376,7 @@ class Rpl(object):
         :returns: The source route, a list of EUI64 address, ordered from
             destination to source, or None
         """
-        assert type(dest_id)==int
+        assert type(dest_id) is int
 
         try:
             sourceRoute = []
@@ -396,6 +396,7 @@ class Rpl(object):
 
 
 class RplOFNone(object):
+
     def __init__(self, rpl):
         self.rpl = rpl
         self.rank = None
