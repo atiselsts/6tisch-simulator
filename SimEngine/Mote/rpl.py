@@ -29,9 +29,13 @@ from trickle_timer import TrickleTimer
 
 class Rpl(object):
 
+    # they are defined in Section 17, RFC 6550
     DEFAULT_DIO_INTERVAL_MIN = 3
     DEFAULT_DIO_INTERVAL_DOUBLINGS = 20
     DEFAULT_DIO_REDUNDANCY_CONSTANT = 10
+
+    # locally-defined constants
+    DEFAULT_DIS_INTERVAL_SECONDS = 60
 
     def __init__(self, mote):
 
@@ -53,6 +57,7 @@ class Rpl(object):
         )
         self.parentChildfromDAOs       = {}      # dictionary containing parents of each node
         self._tx_stat                  = {}      # indexed by mote_id
+        self.dis_mode = self._get_dis_mode()
 
     #======================== public ==========================================
 
@@ -78,13 +83,17 @@ class Rpl(object):
 
     # admin
 
-    def start_as_root(self):
-        self.of = RplOFNone(self)
-        self.of.set_rank(d.RPL_MINHOPRANKINCREASE)
-        self.trickle_timer.start()
-        # now start a new RPL instance; reset the timer as per Section 8.3 of
-        # RFC 6550
-        self.trickle_timer.reset()
+    def start(self):
+        if self.mote.dagRoot:
+            self.of = RplOFNone(self)
+            self.of.set_rank(d.RPL_MINHOPRANKINCREASE)
+            self.trickle_timer.start()
+            # now start a new RPL instance; reset the timer as per Section 8.3 of
+            # RFC 6550
+            self.trickle_timer.reset()
+        else:
+            # start sending DIS
+            self._send_DIS()
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -112,10 +121,66 @@ class Rpl(object):
         # reset trickle timer to inform new rank quickly
         self.trickle_timer.reset()
 
+    # === DIS
+
+    def action_receiveDIS(self, packet):
+        if   packet['net']['dstIp'] == self.mote.id:
+            # unicast DIS; send unicast DIO back to the source
+            self._send_DIO(packet['net']['srcIp'])
+        elif packet['net']['dstIp'] == d.BROADCAST_ADDRESS:
+            # broadcast DIS
+            self.trickle_timer.reset()
+        else:
+            # shouldn't happen
+            assert False
+
+    def _get_dis_mode(self):
+        if   'dis_unicast' in self.settings.rpl_extensions:
+            assert 'dis_broadcast' not in self.settings.rpl_extensions
+            return 'dis_unicast'
+        elif 'dis_broadcast' in self.settings.rpl_extensions:
+            assert 'dis_unicast' not in self.settings.rpl_extensions
+            return 'dis_broadcast'
+        else:
+            return 'disabled'
+
+    def _start_dis_timer(self):
+        self.engine.scheduleIn(
+            delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
+            cb             = self._send_DIS,
+            uniqueTag      = str(self.mote.id) + 'dis',
+            intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
+        )
+
+    def _stop_dis_timer(self):
+        self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
+
+    def _send_DIS(self):
+
+        if   self.dis_mode == 'dis_unicast':
+            dstIp = self.mote.tsch.join_proxy # possible parent
+        elif self.dis_mode == 'dis_broadcast':
+            dstIp = d.BROADCAST_ADDRESS
+        elif self.dis_mode == 'disabled':
+            return
+
+        dis = {
+            'type': d.PKT_TYPE_DIS,
+            'net' : {
+                'srcIp':         self.mote.id,
+                'dstIp':         dstIp,
+                'packet_length': d.PKT_LEN_DIS
+            },
+            'app' : {}
+        }
+
+        self.mote.sixlowpan.sendPacket(dis, link_local=True)
+        self._start_dis_timer()
+
     # === DIO
 
-    def _send_DIO(self):
-        dio = self._create_DIO()
+    def _send_DIO(self, dstIp=None):
+        dio = self._create_DIO(dstIp)
 
         # log
         self.log(
@@ -128,9 +193,12 @@ class Rpl(object):
 
         self.mote.sixlowpan.sendPacket(dio, link_local=True)
 
-    def _create_DIO(self):
+    def _create_DIO(self, dstIp=None):
 
         assert self.mote.dodagId!=None
+
+        if dstIp is None:
+            dstIp = d.BROADCAST_ADDRESS
 
         # create
         newDIO = {
@@ -140,8 +208,8 @@ class Rpl(object):
                 'dodagId':       self.mote.dodagId,
             },
             'net': {
-                'srcIp':         self.mote.id,            # from mote
-                'dstIp':         d.BROADCAST_ADDRESS,     # broadcast (in reality "all RPL routers")
+                'srcIp':         self.mote.id,  # from mote
+                'dstIp':         dstIp,         # broadcast (in reality "all RPL routers")
                 'packet_length': d.PKT_LEN_DIO
             }
         }
@@ -179,6 +247,7 @@ class Rpl(object):
             self.mote.dodagId = packet['app']['dodagId']
             self.trickle_timer.start()
             self.trickle_timer.reset()
+            self._stop_dis_timer()
 
         # feed our OF with the received DIO
         self.of.update(packet)

@@ -66,6 +66,9 @@ class SecJoin(object):
         else:
             self.mote.sf.stop()
 
+        # start RPL
+        self.mote.rpl.start()
+
     def getIsJoined(self):
         return self._isJoined
 

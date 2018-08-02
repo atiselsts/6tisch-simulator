@@ -44,6 +44,7 @@ class Sixlowpan(object):
         assert packet['type'] in [
             d.PKT_TYPE_JOIN_REQUEST,
             d.PKT_TYPE_JOIN_RESPONSE,
+            d.PKT_TYPE_DIS,
             d.PKT_TYPE_DIO,
             d.PKT_TYPE_DAO,
             d.PKT_TYPE_DATA,
@@ -140,8 +141,9 @@ class Sixlowpan(object):
 
         assert packet['type'] in [
             d.PKT_TYPE_DATA,
-            d.PKT_TYPE_DAO,
+            d.PKT_TYPE_DIS,
             d.PKT_TYPE_DIO,
+            d.PKT_TYPE_DAO,
             d.PKT_TYPE_FRAG,
             d.PKT_TYPE_JOIN_REQUEST,
             d.PKT_TYPE_JOIN_RESPONSE,
@@ -202,6 +204,8 @@ class Sixlowpan(object):
                     self.mote.rpl.action_receiveDAO(packet)
                 elif packet['type'] == d.PKT_TYPE_DIO:
                     self.mote.rpl.action_receiveDIO(packet)
+                elif packet['type'] == d.PKT_TYPE_DIS:
+                    self.mote.rpl.action_receiveDIS(packet)
                 elif packet['type'] == d.PKT_TYPE_DATA:
                     self.mote.app.recvPacket(packet)
 
@@ -410,6 +414,7 @@ class Fragmentation(object):
         """
         assert packet['type'] in [
             d.PKT_TYPE_DATA,
+            d.PKT_TYPE_DIS,
             d.PKT_TYPE_DIO,
             d.PKT_TYPE_DAO,
             d.PKT_TYPE_JOIN_REQUEST,

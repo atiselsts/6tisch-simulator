@@ -247,3 +247,59 @@ class TestOF0(object):
         # inject DIO from root to mote_3; root becomes the new parent
         mote_3.rpl.action_receiveDIO(dio_from_root)
         assert mote_3.rpl.getPreferredParent() == root.id
+
+
+@pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
+def fixture_dis_mode(request):
+    return request.param
+
+
+def test_dis(sim_engine, fixture_dis_mode):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes' : 2,
+            'rpl_extensions': [fixture_dis_mode]
+        }
+    )
+
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+
+    # give EB to mote
+    eb = root.tsch._create_EB()
+    mote.tsch._tsch_action_receiveEB(eb)
+
+    # prepare sendPacket() for this test
+    sednPacket_is_called = False
+    result = {'dis': None, 'dio': None}
+    def sendPacket(self, packet, link_local):
+        if packet['type'] == d.PKT_TYPE_DIS:
+            dstIp = packet['net']['dstIp']
+            if fixture_dis_mode == 'dis_unicast':
+                assert dstIp == root.id
+            else:
+                assert dstIp == d.BROADCAST_ADDRESS
+            result['dis'] = packet
+        elif packet['type'] == d.PKT_TYPE_DIO:
+            dstIp = packet['net']['dstIp']
+            if fixture_dis_mode == 'dis_unicast':
+                assert dstIp == mote.id
+            else:
+                assert dstIp == d.BROADCAST_ADDRESS
+            result['dio'] = packet
+
+    mote.sixlowpan.sendPacket = types.MethodType(sendPacket, mote.sixlowpan)
+    root.sixlowpan.sendPacket = types.MethodType(sendPacket, root.sixlowpan)
+    mote.rpl._send_DIS()
+
+    if fixture_dis_mode is None:
+        assert result['dis'] is None
+        assert result['dio'] is None
+    else:
+        assert result['dis'] is not None
+        root.rpl.action_receiveDIS(result['dis'])
+    if fixture_dis_mode == 'dis_unicast':
+        assert result['dio'] is not None
+    else:
+        # DIS is not sent immediately
+        assert result['dio'] is None

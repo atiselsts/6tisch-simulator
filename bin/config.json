@@ -22,6 +22,7 @@
             "app_burstNumPackets":                         0,
 
             "rpl_daoPeriod":                               60,
+            "rpl_extensions":                              ["dis_unicast"],
 
             "fragmentation":                               "FragmentForwarding",
             "sixlowpan_reassembly_buffers_num":            1,
