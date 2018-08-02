@@ -1,4 +1,12 @@
-"""
+""" RPL Implementation
+references:
+- IETF RFC 6550
+- IETF RFC 6552
+- IETF RFC 6553
+- IETF RFC 8180
+
+note:
+- global/local repair is not supported
 """
 
 # =========================== imports =========================================
