@@ -52,20 +52,6 @@ class SchedulingFunctionBase(object):
     # === indications from other layers
 
     @abstractmethod
-    def indication_neighbor_added(self,neighbor_id):
-        """
-        [from TSCH] just added a neighbor.
-        """
-        raise NotImplementedError() # abstractmethod
-
-    @abstractmethod
-    def indication_neighbor_deleted(self,neighbor_id):
-        """
-        [from TSCH] just deleted a neighbor.
-        """
-        raise NotImplementedError() # abstractmethod
-
-    @abstractmethod
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
         """[from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
 
@@ -97,12 +83,6 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
         pass # do nothing
 
     def stop(self):
-        pass # do nothing
-
-    def indication_neighbor_added(self,neighbor_id):
-        pass # do nothing
-
-    def indication_neighbor_deleted(self,neighbor_id):
         pass # do nothing
 
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
@@ -156,12 +136,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self.engine.removeFutureEvent('_housekeeping_collision')
 
     # === indications from other layers
-
-    def indication_neighbor_added(self, neighbor_id):
-        pass
-
-    def indication_neighbor_deleted(self, neighbor_id):
-        pass
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
         assert cell['neighbor'] is not None

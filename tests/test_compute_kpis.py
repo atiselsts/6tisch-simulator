@@ -36,7 +36,7 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
             'app'                     : 'AppPeriodic',
             'app_pkPeriod'            : 0,
             'app_pkLength'            : app_pkLength,
-            'tsch_probBcast_ebDioProb': 0,
+            'tsch_probBcast_ebProb'   : 0,
             'rpl_daoPeriod'           : 0,
             'conn_class'              : 'Linear'
         },

@@ -71,7 +71,7 @@ def check_neighbor_tables(motes):
             expectedNeighbors = [len(motes)-2]
         else:
             expectedNeighbors = [mote.id-1, mote.id+1]
-        assert sorted(mote.neighbors.keys()) == sorted(expectedNeighbors)
+        assert sorted(mote.tsch.neighbor_table) == sorted(expectedNeighbors)
 
 # === secjoin
 
@@ -100,7 +100,7 @@ def rpl_check_all_node_prefered_parent(motes):
 def rpl_check_all_node_rank(motes):
     """ Verify that each mote has a rank """
     for mote in motes:
-        assert mote.rpl.getRank() is not None
+        assert mote.rpl.get_rank() is not None
 
 def rpl_check_all_nodes_send_DIOs(motes):
     check_all_nodes_send_x(motes,'DIO')
@@ -177,7 +177,7 @@ def test_vanilla_scenario(
             'app_pkLength' :                               fixture_app_pkLength,
             'app_pkPeriod':                                0, # disable, will be send by test
             'rpl_daoPeriod':                               60,
-            'tsch_probBcast_ebDioProb':                    0.33,
+            'tsch_probBcast_ebProb'   :                    0.33,
             'fragmentation':                               fixture_fragmentation,
             'fragmentation_ff_discard_vrb_entry_policy':   fragmentation_ff_discard_vrb_entry_policy,
             'sf_class':                                    fixture_sf_class,

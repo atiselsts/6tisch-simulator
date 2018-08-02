@@ -16,7 +16,7 @@ COMMON_SIM_ENGINE_ARGS = {
         'sf_class'                : 'SFNone',
         'conn_class'              : 'Linear',
         'app_pkPeriod'            : 0,
-        'tsch_probBcast_ebDioProb': 0
+        'tsch_probBcast_ebProb'   : 0
     },
     'force_initial_routing_and_scheduling_state': True
 }
@@ -349,7 +349,7 @@ class TestTransaction:
                 'exec_numMotes'           : 2,
                 'sf_class'                : 'SFNone',
                 'conn_class'              : 'Linear',
-                'tsch_probBcast_ebDioProb': 0
+                'tsch_probBcast_ebProb'   : 0
             },
             force_initial_routing_and_scheduling_state = True
         )

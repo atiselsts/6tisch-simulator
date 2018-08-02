@@ -12,6 +12,7 @@ PKT_TYPE_DATA                               = 'DATA'
 PKT_TYPE_FRAG                               = 'FRAG'
 PKT_TYPE_JOIN_REQUEST                       = 'JOIN_REQUEST'
 PKT_TYPE_JOIN_RESPONSE                      = 'JOIN_RESPONSE'
+PKT_TYPE_DIS                                = 'DIS'
 PKT_TYPE_DIO                                = 'DIO'
 PKT_TYPE_DAO                                = 'DAO'
 PKT_TYPE_EB                                 = 'EB'
@@ -19,6 +20,8 @@ PKT_TYPE_SIXP                               = '6P'
 PKT_TYPE_KEEP_ALIVE                         = 'KEEP_ALIVE'
 
 # === packet lengths
+PKT_LEN_DIS                                 = 8
+PKT_LEN_DIO                                 = 76
 PKT_LEN_DAO                                 = 20
 PKT_LEN_JOIN_REQUEST                        = 20
 PKT_LEN_JOIN_RESPONSE                       = 20

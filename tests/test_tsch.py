@@ -108,7 +108,7 @@ def test_tx_cell_selection(
             'conn_class'               : 'Linear',
             'app_pkPeriod'             : 0,
             'app_pkPeriodVar'          : 0,
-            'tsch_probBcast_ebDioProb' : 0,
+            'tsch_probBcast_ebProb'    : 0,
         },
         force_initial_routing_and_scheduling_state = True
     )
@@ -120,7 +120,7 @@ def test_tx_cell_selection(
     packet = {
         'type':         packet_type,
         'app': {
-            'rank':     mote.rpl.rank,
+            'rank':     mote.rpl.get_rank(),
         },
         'net': {
             'srcIp':    mote.id
@@ -202,7 +202,7 @@ def test_retransmission_count(sim_engine):
             'exec_numMotes'           : 2,
             'app_pkPeriod'            : 0,
             'rpl_daoPeriod'           : 0,
-            'tsch_probBcast_ebDioProb': 0,
+            'tsch_probBcast_ebProb'   : 0,
             'secjoin_enabled'         : False,
             'tsch_keep_alive_interval': 0,
             'conn_class'              : 'Linear'
@@ -214,6 +214,10 @@ def test_retransmission_count(sim_engine):
     root = sim_engine.motes[0]
     hop1 = sim_engine.motes[1]
     connectivity_matrix = sim_engine.connectivity.connectivity_matrix
+
+    # stop DIO timer
+    root.rpl.trickle_timer.stop()
+    hop1.rpl.trickle_timer.stop()
 
     # set 0% of PDR to the link between the two motes
     for channel in range(sim_engine.settings.phy_numChans):
@@ -267,6 +271,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     # make hop_1 ready to send an application packet
     assert hop_1.dodagId is None
     dio = root.rpl._create_DIO()
+    dio['mac'] = {'srcMac': root.id}
     hop_1.rpl.action_receiveDIO(dio)
     assert hop_1.dodagId is not None
 
@@ -290,7 +295,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
         assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 1
 
     # make sure hop_1 send a application packet when the simulator starts
-    hop_1.txQueue = []
+    hop_1.tsch.txQueue = []
     hop_1.app._send_a_single_packet()
     assert len(hop_1.tsch.txQueue) == 1
 

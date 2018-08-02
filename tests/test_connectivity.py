@@ -256,7 +256,7 @@ def test_lockon(sim_engine):
             'app_pkPeriod'            : 0,
             'secjoin_enabled'         : False,
             'sf_class'                : 'SFNone',
-            'tsch_probBcast_ebDioProb': 0,
+            'tsch_probBcast_ebProb'   : 0,
             'rpl_daoPeriod'           : 0
         }
     )
@@ -268,8 +268,8 @@ def test_lockon(sim_engine):
     # force hop_1 to join the network
     eb = root.tsch._create_EB()
     hop_1.tsch._tsch_action_receiveEB(eb)
-    hop_1.neighbors_indicate_rx(eb)
     dio = root.rpl._create_DIO()
+    dio['mac'] = {'srcMac': root.id}
     hop_1.rpl.action_receiveDIO(dio)
 
     # let hop_1 send an application packet

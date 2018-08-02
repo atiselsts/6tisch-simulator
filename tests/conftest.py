@@ -6,6 +6,7 @@ from SimEngine import SimConfig,   \
                       SimLog,      \
                       SimEngine,   \
                       Connectivity
+from SimEngine.Mote.rpl import RplOFNone
 import SimEngine.Mote.MoteDefines as d
 import test_utils                 as u
 
@@ -82,18 +83,18 @@ def set_initial_routing_and_scheduling_state(engine):
     # root is mote 0
     root = engine.motes[0]
     root.setDagRoot()
-    root.rpl.setRank(256)
+    root.rpl.of = RplOFNone(root.rpl)
+    root.rpl.of.set_rank(256)
     
     # all nodes are sync'ed and joined, all services activated
     for m in engine.motes:
         m.tsch.setIsSync(True)        # forced
         m.secjoin.setIsJoined(True)   # forced (fixture)
         m.tsch.startSendingEBs()      # forced
-        m.tsch.startSendingDIOs()     # forced
         m.sf.start()        # forced
         m.dodagId = root.id           # forced
         if m.dagRoot==False:
-            m.rpl.startSendingDAOs()  # forced
+            m.rpl.trickle_timer.start()
             m.app.startSendingData()  # forced
     
     # start scheduling from slot offset 1 upwards
@@ -127,13 +128,11 @@ def set_initial_routing_and_scheduling_state(engine):
 
                 # sync child's clock with parent's clock
                 child.tsch.clock.sync(parent.id)
-                # update both child's and parent's neighbor table
-                child._add_neighbor(parent.id)
-                parent._add_neighbor(child.id)
                 # set child's preferredparent to parent
-                child.rpl.setPreferredParent(parent.id)
+                child.rpl.of = RplOFNone(child.rpl)
+                child.rpl.of.set_preferred_parent(parent.id)
                 # set child's rank
-                child.rpl.setRank(parent.rpl.getRank()+512)
+                child.rpl.of.set_rank(parent.rpl.get_rank()+512)
                 # record the child->parent relationship at the root (for source routing)
                 root.rpl.addParentChildfromDAOs(
                     child_id  = child.id,

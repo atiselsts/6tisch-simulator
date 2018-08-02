@@ -15,7 +15,7 @@ def test_tsch_clock(sim_engine, with_keep_alive):
         'exec_numMotes'           : 3,
         'app_pkPeriod'            : 0,
         'app_pkPeriodVar'         : 0,
-        'tsch_probBcast_ebDioProb': 0,
+        'tsch_probBcast_ebProb'   : 0,
         'rpl_daoPeriod'           : 0,
         'exec_numSlotframesPerRun': 100,
         'conn_class'              : 'Linear'

@@ -40,6 +40,7 @@ class Tsch(object):
         # local variables
         self.schedule                       = {}      # indexed by slotOffset, contains cell
         self.txQueue                        = []
+        self.neighbor_table                  = []
         self.pktToSend                      = None
         self.waitingFor                     = None
         self.channel                        = None
@@ -47,7 +48,6 @@ class Tsch(object):
         self.isSync                         = False
         self.join_proxy                     = None
         self.iAmSendingEBs                  = False
-        self.iAmSendingDIOs                 = False
         self.clock                          = Clock(self.mote)
         # backoff state
         self.backoff_exponent               = d.TSCH_MIN_BACKOFF_EXPONENT
@@ -164,9 +164,6 @@ class Tsch(object):
     def startSendingEBs(self):
         self.iAmSendingEBs  = True
 
-    def startSendingDIOs(self):
-        self.iAmSendingDIOs = True
-
     # minimal
 
     def add_minimal_cell(self):
@@ -252,7 +249,6 @@ class Tsch(object):
 
     def enqueue(self, packet, priority=False):
 
-        assert packet['type'] != d.PKT_TYPE_DIO
         assert packet['type'] != d.PKT_TYPE_EB
         assert 'srcMac' in packet['mac']
         assert 'dstMac' in packet['mac']
@@ -333,7 +329,9 @@ class Tsch(object):
             assert self.pktToSend['type'] in [d.PKT_TYPE_EB,d.PKT_TYPE_DIO]
             assert isACKed==False
 
-            # DIOs and EBs were never in txQueue, no need to remove
+            # EBs are never in txQueue, no need to remove.
+            if self.pktToSend['type'] == d.PKT_TYPE_DIO:
+                self.getTxQueue().remove(self.pktToSend)
 
         else:
             # I just sent a unicast packet...
@@ -345,6 +343,7 @@ class Tsch(object):
                     (self.pktToSend['type'] == d.PKT_TYPE_SIXP)
                 ):
                 self.mote.sixp.recv_mac_ack(self.pktToSend)
+            self.mote.rpl.indicate_tx(cell, self.pktToSend['mac']['dstMac'], isACKed)
 
             # update the backoff exponent
             self._update_backoff_state(
@@ -352,9 +351,6 @@ class Tsch(object):
                 isSharedLink     = d.CELLOPTION_SHARED in cell['cellOptions'],
                 isTXSuccess      = isACKed
             )
-
-            # indicate unicast transmission to the neighbor table
-            self.mote.neighbors_indicate_tx(self.pktToSend,isACKed)
 
             if isACKed:
                 # ... which was ACKed
@@ -419,8 +415,9 @@ class Tsch(object):
         if packet==None:
             return False # isACKed
 
-        # indicate reception to the neighbor table
-        self.mote.neighbors_indicate_rx(packet)
+        # add the source mote to the neighbor list if it's not listed yet
+        if packet['mac']['srcMac'] not in self.neighbor_table:
+            self.neighbor_table.append(packet['mac']['srcMac'])
 
         # abort if I received a frame for someone else
         if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS, self.mote.id]:
@@ -630,17 +627,16 @@ class Tsch(object):
                             # ready for retransmission
                             pass
 
-                # ... if no such packet, probabilistically generate an EB or a DIO
+                # ... if no such packet, probabilistically generate an EB
                 if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_DIOs_DATA():
-                        prob = self.settings.tsch_probBcast_ebDioProb/(1+self.mote.numNeighbors())
-                        if random.random()<prob:
-                            if random.random()<0.50:
-                                if self.iAmSendingEBs:
-                                    self.pktToSend = self._create_EB()
-                            else:
-                                if self.iAmSendingDIOs:
-                                    self.pktToSend = self.mote.rpl._create_DIO()
+                    if self.mote.clear_to_send_EBs_DATA():
+                        prob = self.settings.tsch_probBcast_ebProb/(1+len(self.neighbor_table))
+                        if (
+                                (random.random() < prob)
+                                and
+                                (self.iAmSendingEBs)
+                            ):
+                            self.pktToSend = self._create_EB()
 
                 # send packet, or receive
                 if self.pktToSend:

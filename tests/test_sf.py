@@ -226,7 +226,7 @@ class TestMSF(object):
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # stop DIO (and EB) transmission
-        sim_engine.settings.tsch_probBcast_ebDioProb = 0
+        sim_engine.settings.tsch_probBcast_ebProb = 0
 
         # force mote_1 to switch its preferred parent
         old_parent = root
@@ -234,10 +234,12 @@ class TestMSF(object):
 
         # invalidate old_parent
         dio = old_parent.rpl._create_DIO()
+        dio['mac'] = {'srcMac': old_parent.id}
         dio['app']['rank'] = 65535
         mote_1.rpl.action_receiveDIO(dio)
         # give a DIO from new_parent with a good rank
         dio = new_parent.rpl._create_DIO()
+        dio['mac'] = {'srcMac': new_parent.id}
         dio['app']['rank'] = 255
         mote_1.rpl.action_receiveDIO(dio)
 
