@@ -291,6 +291,64 @@ class Tsch(object):
 
         return goOn
 
+    def dequeue(self, packet):
+        if packet in self.txQueue:
+            self.txQueue.remove(packet)
+        else:
+            # do nothing
+            pass
+
+    def get_first_packet_to_send(self, dst_mac_addr=None):
+        if dst_mac_addr is None:
+            if len(self.txQueue) == 0:
+                # txQueue is empty; we may return an EB
+                if (
+                        self.mote.clear_to_send_EBs_DATA()
+                        and
+                        self._decided_to_send_eb()
+                    ):
+                    return self._create_EB()
+                else:
+                    return None
+            else:
+                # return the first one in the TX queue
+                return self.txQueue[0]
+        else:
+            for packet in self.txQueue:
+                if packet['mac']['dstMac'] == dst_mac_addr:
+                    # return the first one having the dstMac
+                    return packet
+            # no packet is found
+            return None
+
+    def get_num_packet_in_tx_queue(self, dst_mac_addr=None):
+        if dst_mac_addr is None:
+            return len(self.txQueue)
+        else:
+            return len(
+                [
+                    pkt for pkt in self.txQueue if (
+                        pkt['mac']['dstMac'] == dst_mac_addr
+                    )
+                ]
+            )
+
+    def remove_frames_in_tx_queue(self, type, dstMac=None):
+        i = 0
+        while i<len(self.txQueue):
+            if (
+                    (self.txQueue[i]['type'] == type)
+                    and
+                    (
+                        (dstMac is None)
+                        or
+                        (self.txQueue[i]['mac']['dstMac'] == dstMac)
+                    )
+                ):
+                del self.txQueue[i]
+            else:
+                i += 1
+
     # interface with radio
 
     def txDone(self, isACKed):
@@ -324,7 +382,7 @@ class Tsch(object):
 
             # EBs are never in txQueue, no need to remove.
             if self.pktToSend['type'] == d.PKT_TYPE_DIO:
-                self.getTxQueue().remove(self.pktToSend)
+                self.dequeue(self.pktToSend)
 
         else:
             # I just sent a unicast packet...
@@ -358,7 +416,7 @@ class Tsch(object):
                     self._reset_keep_alive_timer()
 
                 # remove packet from queue
-                self.getTxQueue().remove(self.pktToSend)
+                self.dequeue(self.pktToSend)
 
             else:
                 # ... which was NOT ACKed
@@ -371,7 +429,7 @@ class Tsch(object):
                 if self.pktToSend['mac']['retriesLeft'] < 0:
 
                     # remove packet from queue
-                    self.getTxQueue().remove(self.pktToSend)
+                    self.dequeue(self.pktToSend)
 
                     # drop
                     self.mote.drop_packet(
@@ -475,22 +533,6 @@ class Tsch(object):
             raise SystemError()
 
         return isACKed
-
-    def remove_frame_from_tx_queue(self, type, dstMac=None):
-        i = 0
-        while i<len(self.txQueue):
-            if (
-                    (self.txQueue[i]['type'] == type)
-                    and
-                    (
-                        (dstMac is None)
-                        or
-                        (self.txQueue[i]['mac']['dstMac'] == dstMac)
-                    )
-                ):
-                del self.txQueue[i]
-            else:
-                i += 1
 
     #======================== private ==========================================
 
@@ -744,6 +786,18 @@ class Tsch(object):
         self.active_cell = cell
 
     # EBs
+
+    def _decided_to_send_eb(self):
+        # short-hand
+        prob = self.settings.tsch_probBcast_ebProb
+        n    = 1 + len(self.neighbor_table)
+
+        # following the Bayesian broadcasting algorithm
+        return (
+            (random.random() < (prob / n))
+            and
+            self.iAmSendingEBs
+        )
 
     def _create_EB(self):
 

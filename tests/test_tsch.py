@@ -72,7 +72,7 @@ def test_removeTypeFromQueue(sim_engine):
         {'type': 3},
         {'type': 5},
     ]
-    mote.tsch.remove_frame_from_tx_queue(type=3)
+    mote.tsch.remove_frames_in_tx_queue(type=3)
     assert mote.tsch.txQueue == [
         {'type': 1},
         {'type': 2},

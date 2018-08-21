@@ -760,7 +760,7 @@ class SixPTransaction(object):
             self._invalidate()
 
             # remove a pending frame in TX queue if necessary
-            self.mote.tsch.remove_frame_from_tx_queue(
+            self.mote.tsch.remove_frames_in_tx_queue(
                 type   = d.PKT_TYPE_SIXP,
                 dstMac = self.peerMac
             )
