@@ -1054,3 +1054,95 @@ class Clock(object):
             float(self.settings.tsch_clock_max_drift_ppm) / pow(10, 6)
         )
         return random.uniform(-1 * max_drift * 2, max_drift * 2)
+
+
+class SlotFrame(object):
+    def __init__(self, num_slots):
+        self.length = num_slots
+        self.slots  = [[] for _ in range(self.length)]
+        # index by neighbor_mac_addr for quick access
+        self.cells  = {}
+
+    def add(self, cell):
+        assert cell.slot_offset < self.length
+        self.slots[cell.slot_offset].append(cell)
+        if cell.neighbor_mac_addr not in self.cells.keys():
+            self.cells[cell.neighbor_mac_addr] = [cell]
+        else:
+            self.cells[cell.neighbor_mac_addr].append(cell)
+
+    def delete(self, cell):
+        assert cell.slot_offset < self.length
+        assert cell in self.slots[cell.slot_offset]
+        assert cell in self.cells[cell.neighbor_mac_addr]
+        self.slots[cell.slot_offset].remove(cell)
+        self.cells[cell.neighbor_mac_addr].remove(cell)
+        if len(self.cells[cell.neighbor_mac_addr]) == 0:
+            del self.cells[cell.neighbor_mac_addr]
+
+    def get_cells_by_slot_offset(self, slot_offset):
+        assert slot_offset < self.length
+        return self.slots[slot_offset]
+
+    def get_cells_at_asn(self, asn):
+        slot_offset = asn % self.length
+        return self.get_cells_by_slot_offset(slot_offset)
+
+    def get_cells_by_mac_addr(self, mac_addr, options=None):
+        if mac_addr in self.cells.keys():
+            cells = self.cells[mac_addr]
+        else:
+            cells = []
+
+        if options is not None:
+            return [cell for cell in cells if cell.options == options]
+        else:
+            return cells
+
+
+class Cell(object):
+    def __init__(
+            self,
+            slot_offset,
+            channel_offset,
+            options,
+            neighbor_mac_addr=None,
+            is_advertising=False
+        ):
+
+        # slot_offset and channel_offset are 16-bit values
+        assert slot_offset    < 0x100
+        assert channel_offset < 0x100
+
+        self.slot_offset       = slot_offset
+        self.channel_offset    = channel_offset
+        self.options           = options
+        self.neighbor_mac_addr = neighbor_mac_addr
+
+        if is_advertising:
+            self.link_type     = d.LINKTYPE_ADVERTISING
+        else:
+            self.link_type     = d.LINKTYPE_NORMAL
+
+        # stats
+        self.num_tx     = 0
+        self.num_tx_ack = 0
+        self.num_rx     = 0
+
+    def increment_num_tx(self):
+        self.num_tx += 1
+
+        # Seciton 5.3 of draft-ietf-6tisch-msf-00: "When NumTx reaches 256,
+        # both NumTx and NumTxAck MUST be divided by 2.  That is, for example,
+        # from NumTx=256 and NumTxAck=128, they become NumTx=128 and
+        # NumTxAck=64. This operation does not change the value of the PDR, but
+        # allows the counters to keep incrementing.
+        if self.num_tx == 256:
+            self.num_tx /= 2
+            self.num_tx_ack /= 2
+
+    def increment_num_tx_ack(self):
+        self.num_tx_ack += 1
+
+    def increment_num_rx(self):
+        self.num_rx += 1
