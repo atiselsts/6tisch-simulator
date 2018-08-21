@@ -103,6 +103,14 @@ class Tsch(object):
     def get_busy_slots(self, slotframe_handle=0):
         return self.slotframes[slotframe_handle].get_busy_slots()
 
+    def get_cell(self, slot_offset, channel_offset, slotframe_handle=0):
+        slotframe = self.slotframes[slotframe_handle]
+        cells = slotframe.get_cells_by_slot_offset(slot_offset)
+        for cell in cells:
+            if cell.channel_offset == channel_offset:
+                return cell
+        return None
+
     def getTxCells(self, neighbor=None, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
         return slotframe.get_cells_by_mac_addr(neighbor, [d.CELLOPTION_TX])

@@ -447,18 +447,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             allocated_cells = self.mote.tsch.getRxCells(peerMac)
 
         # test all the cells in the cell list against the allocated cells
-        slotframe = self.mote.tsch.slotframes[0]
         ret_val = True
         for cell in cell_list:
             slotOffset    = cell['slotOffset']
             channelOffset = cell['channelOffset']
 
-            # FIXME: we need an API to test if a specified cell is allocated
-            if (
-                    (len(slotframe.get_cells_by_slot_offset(slotOffset)) == 0)
-                    or
-                    (slotframe.get_cells_by_slot_offset(slotOffset)[0].channel_offset != channelOffset)
-                ):
+            if self.mote.tsch.get_cell(slotOffset, channelOffset) is None:
                 ret_val = False
                 break
 
