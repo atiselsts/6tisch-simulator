@@ -213,16 +213,9 @@ class Tsch(object):
 
         # find a target cell. if the cell is not scheduled, the following
         # raises an exception
-        cell = filter(
-            lambda c: (
-                (c.channel_offset == channelOffset)
-                and
-                (c.neighbor_mac_addr == neighbor)
-                and
-                (c.options == cellOptions)
-            ),
-            slotframe.get_cells_by_slot_offset(slotOffset)
-        )[0]
+        cell = self.get_cell(slotOffset, channelOffset, slotframe_handle)
+        assert cell.neighbor_mac_addr == neighbor
+        assert cell.options == cellOptions
 
         # log
         self.log(
@@ -303,12 +296,13 @@ class Tsch(object):
     def txDone(self, isACKed):
         assert isACKed in [True,False]
 
-        asn        = self.engine.getAsn()
-        slotOffset = asn % self.settings.tsch_slotframeLength
+        asn         = self.engine.getAsn()
+        active_cell = self.active_cell
 
-        assert self.active_cell is not None
-        assert self.active_cell.slot_offset == slotOffset
-        assert d.CELLOPTION_TX in self.active_cell.options
+        self.active_cell = None
+
+        assert active_cell is not None
+        assert d.CELLOPTION_TX in active_cell.options
         assert self.waitingFor == d.WAITING_FOR_TX
 
         # log
@@ -342,12 +336,12 @@ class Tsch(object):
                     (self.pktToSend['type'] == d.PKT_TYPE_SIXP)
                 ):
                 self.mote.sixp.recv_mac_ack(self.pktToSend)
-            self.mote.rpl.indicate_tx(self.active_cell, self.pktToSend['mac']['dstMac'], isACKed)
+            self.mote.rpl.indicate_tx(active_cell, self.pktToSend['mac']['dstMac'], isACKed)
 
             # update the backoff exponent
             self._update_backoff_state(
                 isRetransmission = self._is_retransmission(self.pktToSend),
-                isSharedLink     = d.CELLOPTION_SHARED in self.active_cell.options,
+                isSharedLink     = d.CELLOPTION_SHARED in active_cell.options,
                 isTXSuccess      = isACKed
             )
 
@@ -355,7 +349,7 @@ class Tsch(object):
                 # ... which was ACKed
 
                 # update schedule stats
-                self.active_cell.increment_num_tx_ack()
+                active_cell.increment_num_tx_ack()
 
                 # time correction
                 if self.clock.source == self.pktToSend['mac']['dstMac']:
@@ -388,13 +382,14 @@ class Tsch(object):
         # end of radio activity, not waiting for anything
         self.waitingFor  = None
         self.pktToSend   = None
-        self.active_cell = None
 
     def rxDone(self, packet):
 
         # local variables
-        asn        = self.engine.getAsn()
-        slotOffset = asn % self.settings.tsch_slotframeLength
+        asn         = self.engine.getAsn()
+        active_cell = self.active_cell
+
+        self.active_cell = None
 
         # copy the received packet to a new packet instance since the passed
         # "packet" should be kept as it is so that Connectivity can use it
@@ -404,12 +399,9 @@ class Tsch(object):
 
         # make sure I'm in the right state
         if self.getIsSync():
-            assert self.active_cell is not None
-            assert self.active_cell.slot_offset == slotOffset
-            assert d.CELLOPTION_RX in self.active_cell.options
+            assert active_cell is not None
+            assert d.CELLOPTION_RX in active_cell.options
             assert self.waitingFor == d.WAITING_FOR_RX
-            cell = self.active_cell
-            self.active_cell = None
 
         # not waiting for anything anymore
         self.waitingFor = None
@@ -445,7 +437,7 @@ class Tsch(object):
 
         # update schedule stats
         if self.getIsSync():
-            cell.increment_num_rx()
+            active_cell.increment_num_rx()
 
         if   packet['mac']['dstMac'] == self.mote.id:
             # link-layer unicast to me
