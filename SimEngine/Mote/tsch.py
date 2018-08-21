@@ -30,28 +30,28 @@ class Tsch(object):
     def __init__(self, mote):
 
         # store params
-        self.mote                           = mote
+        self.mote = mote
 
         # singletons (quicker access, instead of recreating every time)
-        self.engine                         = SimEngine.SimEngine.SimEngine()
-        self.settings                       = SimEngine.SimSettings.SimSettings()
-        self.log                            = SimEngine.SimLog.SimLog().log
+        self.engine   = SimEngine.SimEngine.SimEngine()
+        self.settings = SimEngine.SimSettings.SimSettings()
+        self.log      = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.schedule                       = {}      # indexed by slotOffset, contains cell
-        self.txQueue                        = []
-        self.neighbor_table                  = []
-        self.pktToSend                      = None
-        self.waitingFor                     = None
-        self.channel                        = None
-        self.asnLastSync                    = None
-        self.isSync                         = False
-        self.join_proxy                     = None
-        self.iAmSendingEBs                  = False
-        self.clock                          = Clock(self.mote)
+        self.schedule       = {} # indexed by slotOffset, contains cell
+        self.txQueue        = []
+        self.neighbor_table = []
+        self.pktToSend      = None
+        self.waitingFor     = None
+        self.channel        = None
+        self.asnLastSync    = None
+        self.isSync         = False
+        self.join_proxy     = None
+        self.iAmSendingEBs  = False
+        self.clock          = Clock(self.mote)
         # backoff state
-        self.backoff_exponent               = d.TSCH_MIN_BACKOFF_EXPONENT
-        self.backoff_remaining_delay        = 0
+        self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
+        self.backoff_remaining_delay = 0
 
     #======================== public ==========================================
 
