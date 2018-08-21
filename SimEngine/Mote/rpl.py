@@ -472,11 +472,11 @@ class RplOF0(object):
             # we've not received DIOs from this neighbor; ignore the neighbor
             return
         elif (
-                (cell['neighbor'] == mac_addr)
+                (cell.neighbor_mac_addr == mac_addr)
                 and
-                (d.CELLOPTION_TX in cell['cellOptions'])
+                (d.CELLOPTION_TX in cell.options)
                 and
-                (d.CELLOPTION_SHARED not in cell['cellOptions'])
+                (d.CELLOPTION_SHARED not in cell.options)
             ):
             neighbor['numTx'] += 1
             if isACKed is True:

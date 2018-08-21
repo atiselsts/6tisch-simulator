@@ -169,8 +169,9 @@ def test_tx_cell_selection(
     assert(len(logs) > 0)
 
     for log in logs:
-        timeslot_offset = log['_asn'] % sim_engine.settings.tsch_slotframeLength
-        assert mote.tsch.schedule[timeslot_offset]['cellOptions'] == expected_cellOptions
+        slotframe = mote.tsch.slotframes[0]
+        cell = slotframe.get_cells_at_asn(log['_asn'])[0]
+        assert cell.options == expected_cellOptions
 
 @pytest.fixture(params=[d.PKT_TYPE_EB, d.PKT_TYPE_DIO])
 def fixture_adv_frame(request):
@@ -333,7 +334,8 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     # available (it shouldn't transmit a unicast frame to the root on the
     # minimal (shared) cell.
     if   cell_type == 'dedicated-cell':
-        expected_cell_offset, _ = hop_1.tsch.getTxRxSharedCells(root.id).items()[0]
+        _cell = hop_1.tsch.getTxRxSharedCells(root.id)[0]
+        expected_cell_offset = _cell.slot_offset
     elif cell_type == 'shared-cell':
         expected_cell_offset = 0   # the minimal (shared) cell
     else:

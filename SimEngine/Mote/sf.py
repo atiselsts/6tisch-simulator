@@ -138,10 +138,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === indications from other layers
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
-        assert cell['neighbor'] is not None
+        assert cell.neighbor_mac_addr is not None
 
         preferred_parent = self.mote.rpl.getPreferredParent()
-        if cell['neighbor'] == preferred_parent:
+        if cell.neighbor_mac_addr == preferred_parent:
 
             # HACK: we don't transmit a frame on a shared link if it
             # has a dedicated TX link to the destination and doesn't
@@ -151,9 +151,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # from TX cells for this housekeeping when it has at least
             # one TX dedicate link.
             if (
-                    (len(self.mote.tsch.getTxCells(cell['neighbor'])) > 0)
+                    (len(self.mote.tsch.getTxCells(cell.neighbor_mac_addr)) > 0)
                     and
-                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                    (d.CELLOPTION_SHARED in cell.options)
                 ):
                 # ignore this TX/(RX)/SHARED cell for this housekeeping round
                 pass
@@ -280,15 +280,15 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # collect TX cells which has enough numTX
         tx_cell_list = self.mote.tsch.getTxCells(preferred_parent)
         tx_cell_list = {
-            slotOffset: cell for slotOffset, cell in tx_cell_list.items() if (
-                d.MSF_MIN_NUM_TX < cell['numTx']
+            cell.slot_offset: cell for cell in tx_cell_list if (
+                d.MSF_MIN_NUM_TX < cell.num_tx
             )
         }
 
         # collect PDRs of the TX cells
         def pdr(cell):
-            assert cell['numTx'] > 0
-            return cell['numTxAck'] / float(cell['numTx'])
+            assert cell.num_tx > 0
+            return cell.num_tx_ack / float(cell.num_tx)
         pdr_list = {
             slotOffset: pdr(cell) for slotOffset, cell in tx_cell_list.items()
         }
@@ -300,7 +300,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             relocation_cell_list = [
                 {
                     'slotOffset'   : slotOffset,
-                    'channelOffset': tx_cell_list[slotOffset]['channelOffset']
+                    'channelOffset': tx_cell_list[slotOffset].channel_offset
                 } for slotOffset, pdr in pdr_list.items() if (
                     d.MSF_RELOCATE_PDRTHRES < (highest_pdr - pdr)
                 )
@@ -359,13 +359,13 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _clear_cells(self, neighbor_id):
         cells = self.mote.tsch.getDedicatedCells(neighbor_id)
-        for slotOffset, cell in cells.items():
-            assert neighbor_id == cell['neighbor']
+        for cell in cells:
+            assert neighbor_id == cell.neighbor_mac_addr
             self.mote.tsch.deleteCell(
-                slotOffset    = slotOffset,
-                channelOffset = cell['channelOffset'],
-                neighbor      = cell['neighbor'],
-                cellOptions   = cell['cellOptions']
+                slotOffset    = cell.slot_offset,
+                channelOffset = cell.channel_offset,
+                neighbor      = cell.neighbor_mac_addr,
+                cellOptions   = cell.options
             )
 
     def _relocate_cells(
@@ -422,9 +422,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         cell_list = [
             {
-                'slotOffset'   : slotOffset,
-                'channelOffset': cell['channelOffset']
-            } for slotOffset, cell in occupied_cells.items()
+                'slotOffset'   : cell.slot_offset,
+                'channelOffset': cell.channel_offset
+            } for cell in occupied_cells
         ]
 
         if cell_list_len <= len(occupied_cells):
@@ -447,14 +447,17 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             allocated_cells = self.mote.tsch.getRxCells(peerMac)
 
         # test all the cells in the cell list against the allocated cells
+        slotframe = self.mote.tsch.slotframes[0]
         ret_val = True
         for cell in cell_list:
             slotOffset    = cell['slotOffset']
             channelOffset = cell['channelOffset']
+
+            # FIXME: we need an API to test if a specified cell is allocated
             if (
-                    (slotOffset not in allocated_cells.keys())
+                    (len(slotframe.get_cells_by_slot_offset(slotOffset)) == 0)
                     or
-                    (channelOffset != allocated_cells[slotOffset]['channelOffset'])
+                    (slotframe.get_cells_by_slot_offset(slotOffset)[0].channel_offset != channelOffset)
                 ):
                 ret_val = False
                 break
