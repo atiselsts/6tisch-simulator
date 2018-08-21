@@ -57,8 +57,8 @@ class Tsch(object):
 
     # getters/setters
 
-    def getSchedule(self):
-        return self.schedule
+    def get_busy_slots(self):
+        return self.schedule.keys()
 
     def getTxQueue(self):
         return self.txQueue
@@ -308,7 +308,7 @@ class Tsch(object):
         slotOffset = asn % self.settings.tsch_slotframeLength
         cell       = self.schedule[slotOffset]
 
-        assert slotOffset in self.getSchedule()
+        assert cell is not None
         assert d.CELLOPTION_TX in cell['cellOptions']
         assert self.waitingFor == d.WAITING_FOR_TX
 
@@ -404,8 +404,8 @@ class Tsch(object):
 
         # make sure I'm in the right state
         if self.getIsSync():
-            assert slotOffset in self.getSchedule()
-            assert d.CELLOPTION_RX in self.getSchedule()[slotOffset]['cellOptions']
+            assert slotOffset in self.schedule
+            assert d.CELLOPTION_RX in self.schedule[slotOffset]['cellOptions']
             assert self.waitingFor == d.WAITING_FOR_RX
 
         # not waiting for anything anymore
@@ -442,7 +442,7 @@ class Tsch(object):
 
         # update schedule stats
         if self.getIsSync():
-            self.getSchedule()[slotOffset]['numRx'] += 1
+            self.schedule[slotOffset]['numRx'] += 1
 
         if   packet['mac']['dstMac'] == self.mote.id:
             # link-layer unicast to me

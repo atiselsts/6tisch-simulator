@@ -383,7 +383,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _create_available_cell_list(self, cell_list_len):
         slots_in_slotframe    = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use          = set(self.mote.tsch.getSchedule().keys())
+        slots_in_use          = set(self.mote.tsch.get_busy_slots())
         available_slots       = list(
             slots_in_slotframe - slots_in_use - self.locked_slots
         )
@@ -539,7 +539,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # find available cells in the received CellList
         slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use       = set(self.mote.tsch.getSchedule().keys())
+        slots_in_use       = set(self.mote.tsch.get_busy_slots())
         slots_in_cell_list = set(
             map(lambda c: c['slotOffset'], proposed_cells)
         )
@@ -895,7 +895,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ):
             # find available cells in the received candidate cell list
             slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-            slots_in_use       = set(self.mote.tsch.getSchedule().keys())
+            slots_in_use       = set(self.mote.tsch.get_busy_slots())
             candidate_slots    = set(
                 map(lambda c: c['slotOffset'], candidate_cells)
             )

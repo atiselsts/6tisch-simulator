@@ -313,13 +313,13 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.getSchedule().keys()
+        used_slots = hop_1.tsch.get_busy_slots()
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
             else:
                 hop_1.tsch.addCell(_slot, channel_offset, root.id, cell_options)
-        assert len(hop_1.tsch.getSchedule()) == sim_engine.settings.tsch_slotframeLength
+        assert len(hop_1.tsch.get_busy_slots()) == sim_engine.settings.tsch_slotframeLength
 
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.num_cells_passed = 100
