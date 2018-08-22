@@ -1,6 +1,7 @@
 import pytest
 
 import test_utils as u
+import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimConfig
 
 #============================ helpers =========================================
@@ -87,8 +88,16 @@ def test_initial_scheduling_state(sim_engine):
     # root and the leaf has one TX cell and one RX cell. The root has one RX
     # cell. The leaf has one TX cell.
     for mote in reversed(sim_engine.motes):
+
         # check shared cell
-        assert len(mote.tsch.getTxRxSharedCells()) == 1
+        assert (
+            len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+                    mote.tsch.get_cells(None)
+                )
+            ) == 1
+        )
 
         # check dedicated cell
         # FIXME: what is the best way to get mote instance by mote_id?
@@ -97,9 +106,23 @@ def test_initial_scheduling_state(sim_engine):
 
         parent = sim_engine.motes[mote.rpl.getPreferredParent()]
         # "mote" has one TX to its parent
-        assert len(mote.tsch.getTxCells(parent.id)) == 1
+        assert (
+            len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_TX],
+                    mote.tsch.get_cells(parent.id)
+                )
+            ) == 1
+        )
         # parent of "mote" one RX to "mote"
-        assert len(parent.tsch.getRxCells(mote.id)) == 1
+        assert (
+            len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_RX],
+                    parent.tsch.get_cells(mote.id)
+                )
+            ) == 1
+        )
 
 #=== verify default configs from bin/config.json are loaded correctly
 

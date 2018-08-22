@@ -89,19 +89,16 @@ class Mote(object):
             # rpl
             self.rpl.start()
             # tsch
-            self.tsch.add_minimal_cell()    # dagRpot
             self.tsch.clock.sync()
             self.tsch.setIsSync(True)       # dagRoot
+            self.tsch.add_minimal_cell()    # dagRpot
             self.tsch.startSendingEBs()     # dagRoot
-
-            # schedule the first active cell
-            self.tsch.tsch_schedule_next_active_cell()
 
         else:
             # I'm NOT the DAG root
 
             # schedule the first listeningForE cell
-            self.tsch.tsch_schedule_next_listeningForEB_cell()
+            self.tsch.schedule_next_listeningForEB_cell()
 
     # ==== EBs and DIOs
 
@@ -124,7 +121,7 @@ class Mote(object):
                 returnVal = False
 
 
-        # I must have at least one TX/RX/SHARED cell to my preferred parent (if
+        # I must have at least one dedicated cell to my preferred parent (if
         # running MSF)
         if returnVal==True:
             if  (
@@ -132,7 +129,14 @@ class Mote(object):
                     and
                     (type(self.sf) == sf.SchedulingFunctionMSF)
                     and
-                    len(self.tsch.getTxRxSharedCells(self.rpl.getPreferredParent())) == 0
+                    (
+                        len(
+                            filter(
+                                lambda cell: d.CELLOPTION_TX in cell.options,
+                                self.tsch.get_cells(self.rpl.getPreferredParent())
+                            )
+                        ) == 0
+                    )
                 ):
                     returnVal = False
 

@@ -2,6 +2,7 @@ import pytest
 
 from SimEngine import SimLog
 import test_utils as u
+import SimEngine.Mote.MoteDefines as d
 
 # =========================== fixtures ========================================
 
@@ -141,10 +142,14 @@ def tsch_all_nodes_check_dedicated_cell(motes):
 
         parent = mote.rpl.getPreferredParent()
 
-        # at least one TX cell to its preferred parent
-        tx_cell_exists = mote.tsch.getDedicatedCells(parent)
+        # at least one dedicated cell to its preferred parent, which has the TX
+        # bit on
+        tx_cells = filter(
+            lambda cell: d.CELLOPTION_TX in cell.options,
+            mote.tsch.get_cells(parent)
+        )
 
-        assert tx_cell_exists
+        assert len(tx_cells) > 0
 
 # =========================== tests ===========================================
 

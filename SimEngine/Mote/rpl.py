@@ -337,7 +337,7 @@ class Rpl(object):
         )
 
         # remove other possible DAOs from the queue
-        self.mote.tsch.remove_frame_from_tx_queue(type=d.PKT_TYPE_DAO)
+        self.mote.tsch.remove_frames_in_tx_queue(type=d.PKT_TYPE_DAO)
 
         # send
         self.mote.sixlowpan.sendPacket(newDAO)
@@ -472,11 +472,11 @@ class RplOF0(object):
             # we've not received DIOs from this neighbor; ignore the neighbor
             return
         elif (
-                (cell['neighbor'] == mac_addr)
+                (cell.mac_addr == mac_addr)
                 and
-                (d.CELLOPTION_TX in cell['cellOptions'])
+                (d.CELLOPTION_TX in cell.options)
                 and
-                (d.CELLOPTION_SHARED not in cell['cellOptions'])
+                (d.CELLOPTION_SHARED not in cell.options)
             ):
             neighbor['numTx'] += 1
             if isACKed is True:

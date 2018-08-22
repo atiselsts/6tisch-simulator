@@ -138,10 +138,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === indications from other layers
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
-        assert cell['neighbor'] is not None
+        assert cell.mac_addr is not None
 
         preferred_parent = self.mote.rpl.getPreferredParent()
-        if cell['neighbor'] == preferred_parent:
+        tx_cells = filter(
+            lambda cell: cell.options == [d.CELLOPTION_TX],
+            self.mote.tsch.get_cells(cell.mac_addr)
+        )
+        if cell.mac_addr == preferred_parent:
 
             # HACK: we don't transmit a frame on a shared link if it
             # has a dedicated TX link to the destination and doesn't
@@ -151,9 +155,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # from TX cells for this housekeeping when it has at least
             # one TX dedicate link.
             if (
-                    (len(self.mote.tsch.getTxCells(cell['neighbor'])) > 0)
+                    (len(tx_cells) > 0)
                     and
-                    (d.CELLOPTION_SHARED in cell['cellOptions'])
+                    (d.CELLOPTION_SHARED in cell.options)
                 ):
                 # ignore this TX/(RX)/SHARED cell for this housekeeping round
                 pass
@@ -180,8 +184,19 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_tx_cells = 0
             num_rx_cells = 0
         else:
-            num_tx_cells = len(self.mote.tsch.getTxCells(old_parent))
-            num_rx_cells = len(self.mote.tsch.getRxCells(old_parent))
+            dedicated_cells = self.mote.tsch.get_cells(old_parent)
+            num_tx_cells = len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_TX],
+                    dedicated_cells
+                )
+            )
+            num_rx_cells = len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_RX],
+                    dedicated_cells
+                )
+            )
         self._request_adding_cells(
             neighbor_id    = new_parent,
             num_txrx_cells = 1,
@@ -255,8 +270,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
 
         elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
+            tx_cells = filter(
+                lambda cell: cell.options == [d.CELLOPTION_TX],
+                self.mote.tsch.get_cells(neighbor_id)
+            )
             # delete one *TX* cell
-            if len(self.mote.tsch.getTxCells(neighbor_id)) > 0:
+            if len(tx_cells) > 0:
                 self._request_deleting_cells(
                     neighbor_id  = neighbor_id,
                     num_cells    = 1,
@@ -278,17 +297,20 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
 
         # collect TX cells which has enough numTX
-        tx_cell_list = self.mote.tsch.getTxCells(preferred_parent)
+        tx_cell_list = filter(
+            lambda cell: cell.options == [d.CELLOPTION_TX],
+            self.mote.tsch.get_cells(preferred_parent)
+        )
         tx_cell_list = {
-            slotOffset: cell for slotOffset, cell in tx_cell_list.items() if (
-                d.MSF_MIN_NUM_TX < cell['numTx']
+            cell.slot_offset: cell for cell in tx_cell_list if (
+                d.MSF_MIN_NUM_TX < cell.num_tx
             )
         }
 
         # collect PDRs of the TX cells
         def pdr(cell):
-            assert cell['numTx'] > 0
-            return cell['numTxAck'] / float(cell['numTx'])
+            assert cell.num_tx > 0
+            return cell.num_tx_ack / float(cell.num_tx)
         pdr_list = {
             slotOffset: pdr(cell) for slotOffset, cell in tx_cell_list.items()
         }
@@ -300,7 +322,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             relocation_cell_list = [
                 {
                     'slotOffset'   : slotOffset,
-                    'channelOffset': tx_cell_list[slotOffset]['channelOffset']
+                    'channelOffset': tx_cell_list[slotOffset].channel_offset
                 } for slotOffset, pdr in pdr_list.items() if (
                     d.MSF_RELOCATE_PDRTHRES < (highest_pdr - pdr)
                 )
@@ -358,14 +380,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
 
     def _clear_cells(self, neighbor_id):
-        cells = self.mote.tsch.getDedicatedCells(neighbor_id)
-        for slotOffset, cell in cells.items():
-            assert neighbor_id == cell['neighbor']
+        cells = self.mote.tsch.get_cells(neighbor_id)
+        for cell in cells:
+            assert neighbor_id == cell.mac_addr
             self.mote.tsch.deleteCell(
-                slotOffset    = slotOffset,
-                channelOffset = cell['channelOffset'],
-                neighbor      = cell['neighbor'],
-                cellOptions   = cell['cellOptions']
+                slotOffset    = cell.slot_offset,
+                channelOffset = cell.channel_offset,
+                neighbor      = cell.mac_addr,
+                cellOptions   = cell.options
             )
 
     def _relocate_cells(
@@ -383,7 +405,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _create_available_cell_list(self, cell_list_len):
         slots_in_slotframe    = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use          = set(self.mote.tsch.getSchedule().keys())
+        slots_in_use          = set(self.mote.tsch.get_busy_slots())
         available_slots       = list(
             slots_in_slotframe - slots_in_use - self.locked_slots
         )
@@ -413,18 +435,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             cell_list_len
         ):
 
-        if   cell_options == self.TX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getTxCells(neighbor_id)
-        elif cell_options == self.RX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getRxCells(neighbor_id)
-        elif cell_options == self.TXRX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getTxRxSharedCells(neighbor_id)
+        occupied_cells = filter(
+            lambda cell: cell.options == cell_options,
+            self.mote.tsch.get_cells(neighbor_id)
+        )
 
         cell_list = [
             {
-                'slotOffset'   : slotOffset,
-                'channelOffset': cell['channelOffset']
-            } for slotOffset, cell in occupied_cells.items()
+                'slotOffset'   : cell.slot_offset,
+                'channelOffset': cell.channel_offset
+            } for cell in occupied_cells
         ]
 
         if cell_list_len <= len(occupied_cells):
@@ -441,21 +461,18 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # collect allocated cells
         assert cell_options in [self.TX_CELL_OPT, self.RX_CELL_OPT]
-        if   cell_options == self.TX_CELL_OPT:
-            allocated_cells = self.mote.tsch.getTxCells(peerMac)
-        elif cell_options == self.RX_CELL_OPT:
-            allocated_cells = self.mote.tsch.getRxCells(peerMac)
+        allocated_cells = filter(
+            lambda cell: cell.options == cell_options,
+            self.mote.tsch.get_cells(peerMac)
+        )
 
         # test all the cells in the cell list against the allocated cells
         ret_val = True
         for cell in cell_list:
             slotOffset    = cell['slotOffset']
             channelOffset = cell['channelOffset']
-            if (
-                    (slotOffset not in allocated_cells.keys())
-                    or
-                    (channelOffset != allocated_cells[slotOffset]['channelOffset'])
-                ):
+
+            if self.mote.tsch.get_cell(slotOffset, channelOffset) is None:
                 ret_val = False
                 break
 
@@ -539,7 +556,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # find available cells in the received CellList
         slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use       = set(self.mote.tsch.getSchedule().keys())
+        slots_in_use       = set(self.mote.tsch.get_busy_slots())
         slots_in_cell_list = set(
             map(lambda c: c['slotOffset'], proposed_cells)
         )
@@ -895,7 +912,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ):
             # find available cells in the received candidate cell list
             slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-            slots_in_use       = set(self.mote.tsch.getSchedule().keys())
+            slots_in_use       = set(self.mote.tsch.get_busy_slots())
             candidate_slots    = set(
                 map(lambda c: c['slotOffset'], candidate_cells)
             )

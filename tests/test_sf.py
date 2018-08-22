@@ -30,7 +30,8 @@ def run_until_cell_allocation(sim_engine, mote, _cell_options):
             slotOffset,
             channelOffset,
             neighbor,
-            cellOptions
+            cellOptions,
+            slotframe_handle=0
         ):
         mote.tsch.original_addCell(
             slotOffset,
@@ -132,12 +133,26 @@ class TestMSF(object):
         # first allocated one than one dedicated RX cell so that MSF would
         # perform cell relocation
         hop_1.tsch.original_addCell        = hop_1.tsch.addCell
-        hop_1.tsch.original_tsch_action_RX = hop_1.tsch._tsch_action_RX
-        def new_addCell(self, slotOffset, channelOffset, neighbor, cellOptions):
+        hop_1.tsch.original_tsch_action_RX = hop_1.tsch._action_RX
+        def new_addCell(
+                self,
+                slotOffset,
+                channelOffset,
+                neighbor,
+                cellOptions,
+                slotframe_handle=0
+            ):
             if (
                     (cellOptions == [d.CELLOPTION_RX])
                     and
-                    (len(self.getRxCells(neighbor)) == 0)
+                    (
+                        len(
+                            filter(
+                                lambda cell: cell.options == [d.CELLOPTION_RX],
+                                self.mote.tsch.get_cells(neighbor)
+                            )
+                        ) == 0
+                    )
                 ):
 
                 # remember the slotoffset of first allocated dedicated cell. While
@@ -152,14 +167,14 @@ class TestMSF(object):
                 cellOptions
             )
         def new_action_RX(self):
-            slot_offset = self.engine.getAsn() % self.settings.tsch_slotframeLength
-            cell        = self.schedule[slot_offset]
+            slotframe   = self.slotframes[0]
+            cell        = slotframe.get_cells_at_asn(self.engine.getAsn())[0]
             if (
-                    (cell['neighbor'] is not None)
+                    (cell.mac_addr is not None)
                     and
                     hasattr(self, 'first_dedicated_slot_offset')
                     and
-                    ((self.first_dedicated_slot_offset) != slot_offset)
+                    ((self.first_dedicated_slot_offset) != cell.slot_offset)
                 ):
                 # do nothing on this dedicated cell
                 pass
@@ -167,7 +182,7 @@ class TestMSF(object):
                 self.original_tsch_action_RX()
 
         hop_1.tsch.addCell         = types.MethodType(new_addCell, hop_1.tsch)
-        hop_1.tsch._tsch_action_RX = types.MethodType(new_action_RX, hop_1.tsch)
+        hop_1.tsch._action_RX = types.MethodType(new_action_RX, hop_1.tsch)
 
         # wait for the network formed
         u.run_until_everyone_joined(sim_engine)
@@ -313,13 +328,13 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.getSchedule().keys()
+        used_slots = hop_1.tsch.get_busy_slots()
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
             else:
                 hop_1.tsch.addCell(_slot, channel_offset, root.id, cell_options)
-        assert len(hop_1.tsch.getSchedule()) == sim_engine.settings.tsch_slotframeLength
+        assert len(hop_1.tsch.get_busy_slots()) == sim_engine.settings.tsch_slotframeLength
 
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.num_cells_passed = 100
@@ -329,8 +344,10 @@ class TestMSF(object):
         if   function_under_test == 'adapt_to_traffic':
             hop_1.sf._adapt_to_traffic(root.id)
         elif function_under_test == 'relocate':
-            _slot = hop_1.tsch.getTxRxSharedCells(root.id).keys()[0]
-            relocating_cell = hop_1.tsch.getTxRxSharedCells(root.id)[_slot]
+            relocating_cell = filter(
+                lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+                hop_1.tsch.get_cells(root.id)
+            )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor_id          = root.id,
                 cell_options         = [

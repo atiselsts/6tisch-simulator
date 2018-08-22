@@ -138,7 +138,10 @@ class SixP(object):
             transaction = SixPTransaction(self.mote, packet)
         except TransactionAdditionError:
             # there are another transaction in process; cannot send this request
-            callback(packet, d.SIXP_CALLBACK_EVENT_FAILURE)
+            callback(
+                event  = d.SIXP_CALLBACK_EVENT_FAILURE,
+                packet = packet
+            )
         else:
             # ready to send the packet
             transaction.start(callback, timeout_value)
@@ -760,7 +763,7 @@ class SixPTransaction(object):
             self._invalidate()
 
             # remove a pending frame in TX queue if necessary
-            self.mote.tsch.remove_frame_from_tx_queue(
+            self.mote.tsch.remove_frames_in_tx_queue(
                 type   = d.PKT_TYPE_SIXP,
                 dstMac = self.peerMac
             )

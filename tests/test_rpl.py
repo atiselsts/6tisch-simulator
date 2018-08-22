@@ -213,9 +213,9 @@ class TestOF0(object):
 
         # let all the motes get synchronized
         eb = root.tsch._create_EB()
-        mote_1.tsch._tsch_action_receiveEB(eb)
-        mote_2.tsch._tsch_action_receiveEB(eb)
-        mote_3.tsch._tsch_action_receiveEB(eb)
+        mote_1.tsch._action_receiveEB(eb)
+        mote_2.tsch._action_receiveEB(eb)
+        mote_3.tsch._action_receiveEB(eb)
 
         # let mote_1 and mote_2 join the RPL network
         dio_from_root = root.rpl._create_DIO()
@@ -267,7 +267,7 @@ def test_dis(sim_engine, fixture_dis_mode):
 
     # give EB to mote
     eb = root.tsch._create_EB()
-    mote.tsch._tsch_action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb)
 
     # prepare sendPacket() for this test
     sednPacket_is_called = False

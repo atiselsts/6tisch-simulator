@@ -323,7 +323,7 @@ class TestTransaction:
                 callback    = response_callback
             )
             # remove the response
-            self.mote.tsch.getTxQueue().pop(0)
+            self.mote.tsch.txQueue.pop(0)
 
         mote_1.sf.recv_request = types.MethodType(
             recv_request,
