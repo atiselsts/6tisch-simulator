@@ -5,6 +5,7 @@
 # =========================== imports =========================================
 
 import copy
+from itertools import chain
 import random
 
 # Mote sub-modules
@@ -1115,6 +1116,12 @@ class SlotFrame(object):
         # index by neighbor_mac_addr for quick access
         self.cells  = {}
 
+    def __repr__(self):
+        return 'slotframe(length: {0}, num_cells: {1})'.format(
+            self.length,
+            len(list(chain.from_iterable(self.slots)))
+        )
+
     def add(self, cell):
         assert cell.slot_offset < self.length
         self.slots[cell.slot_offset].append(cell)
@@ -1171,9 +1178,11 @@ class Cell(object):
             is_advertising=False
         ):
 
+        # FIXME: is_advertising is not used effectively now
+
         # slot_offset and channel_offset are 16-bit values
-        assert slot_offset    < 0x100
-        assert channel_offset < 0x100
+        assert slot_offset    < 0x10000
+        assert channel_offset < 0x10000
 
         self.slot_offset    = slot_offset
         self.channel_offset = channel_offset
@@ -1189,6 +1198,19 @@ class Cell(object):
         self.num_tx     = 0
         self.num_tx_ack = 0
         self.num_rx     = 0
+
+    def __repr__(self):
+
+        return 'cell({0})'.format(
+            ', '.join(
+                [
+                    'slot_offset: {0}'.format(self.slot_offset),
+                    'channel_offset: {0}'.format(self.channel_offset),
+                    'mac_addr: {0}'.format(self.mac_addr),
+                    'options: [{0}]'.format(', '.join(self.options))
+                ]
+            )
+        )
 
     def increment_num_tx(self):
         self.num_tx += 1
