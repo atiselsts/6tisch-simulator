@@ -141,6 +141,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.neighbor_mac_addr is not None
 
         preferred_parent = self.mote.rpl.getPreferredParent()
+        tx_cells = filter(
+            lambda cell: cell.options == [d.CELLOPTION_TX],
+            self.mote.tsch.get_cells(cell.neighbor_mac_addr)
+        )
         if cell.neighbor_mac_addr == preferred_parent:
 
             # HACK: we don't transmit a frame on a shared link if it
@@ -151,7 +155,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # from TX cells for this housekeeping when it has at least
             # one TX dedicate link.
             if (
-                    (len(self.mote.tsch.getTxCells(cell.neighbor_mac_addr)) > 0)
+                    (len(tx_cells) > 0)
                     and
                     (d.CELLOPTION_SHARED in cell.options)
                 ):
@@ -180,8 +184,19 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_tx_cells = 0
             num_rx_cells = 0
         else:
-            num_tx_cells = len(self.mote.tsch.getTxCells(old_parent))
-            num_rx_cells = len(self.mote.tsch.getRxCells(old_parent))
+            dedicated_cells = self.mote.tsch.get_cells(old_parent)
+            num_tx_cells = len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_TX],
+                    dedicated_cells
+                )
+            )
+            num_rx_cells = len(
+                filter(
+                    lambda cell: cell.options == [d.CELLOPTION_RX],
+                    dedicated_cells
+                )
+            )
         self._request_adding_cells(
             neighbor_id    = new_parent,
             num_txrx_cells = 1,
@@ -255,8 +270,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
 
         elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
+            tx_cells = filter(
+                lambda cell: cell.options == [d.CELLOPTION_TX],
+                self.mote.tsch.get_cells(neighbor_id)
+            )
             # delete one *TX* cell
-            if len(self.mote.tsch.getTxCells(neighbor_id)) > 0:
+            if len(tx_cells) > 0:
                 self._request_deleting_cells(
                     neighbor_id  = neighbor_id,
                     num_cells    = 1,
@@ -278,7 +297,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
 
         # collect TX cells which has enough numTX
-        tx_cell_list = self.mote.tsch.getTxCells(preferred_parent)
+        tx_cell_list = filter(
+            lambda cell: cell.options == [d.CELLOPTION_TX],
+            self.mote.tsch.get_cells(preferred_parent)
+        )
         tx_cell_list = {
             cell.slot_offset: cell for cell in tx_cell_list if (
                 d.MSF_MIN_NUM_TX < cell.num_tx
@@ -358,7 +380,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
 
     def _clear_cells(self, neighbor_id):
-        cells = self.mote.tsch.getDedicatedCells(neighbor_id)
+        cells = self.mote.tsch.get_cells(neighbor_id)
         for cell in cells:
             assert neighbor_id == cell.neighbor_mac_addr
             self.mote.tsch.deleteCell(
@@ -413,12 +435,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             cell_list_len
         ):
 
-        if   cell_options == self.TX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getTxCells(neighbor_id)
-        elif cell_options == self.RX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getRxCells(neighbor_id)
-        elif cell_options == self.TXRX_CELL_OPT:
-            occupied_cells = self.mote.tsch.getTxRxSharedCells(neighbor_id)
+        occupied_cells = filter(
+            lambda cell: cell.options == cell_options,
+            self.mote.tsch.get_cells(neighbor_id)
+        )
 
         cell_list = [
             {
@@ -441,10 +461,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # collect allocated cells
         assert cell_options in [self.TX_CELL_OPT, self.RX_CELL_OPT]
-        if   cell_options == self.TX_CELL_OPT:
-            allocated_cells = self.mote.tsch.getTxCells(peerMac)
-        elif cell_options == self.RX_CELL_OPT:
-            allocated_cells = self.mote.tsch.getRxCells(peerMac)
+        allocated_cells = filter(
+            lambda cell: cell.options == cell_options,
+            self.mote.tsch.get_cells(peerMac)
+        )
 
         # test all the cells in the cell list against the allocated cells
         ret_val = True

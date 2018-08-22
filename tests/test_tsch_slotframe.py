@@ -30,34 +30,11 @@ def test_add(fixture_neighbor_mac_addr):
 
     assert slotframe.get_cells_by_mac_addr(fixture_neighbor_mac_addr) == [cell]
     assert slotframe.get_cells_by_mac_addr('dummy_mac_addr') == []
+
     assert (
-        slotframe.get_cells_by_mac_addr(
-            fixture_neighbor_mac_addr,
-            [d.CELLOPTION_TX]
-        ) == []
-    )
-    assert (
-        slotframe.get_cells_by_mac_addr(
-            fixture_neighbor_mac_addr,
-            [d.CELLOPTION_RX]
-        ) == []
-    )
-    assert (
-        slotframe.get_cells_by_mac_addr(
-            fixture_neighbor_mac_addr,
-            [d.CELLOPTION_SHARED]
-        ) == []
-    )
-    assert (
-        slotframe.get_cells_by_mac_addr(
-            fixture_neighbor_mac_addr,
-            [d.CELLOPTION_TX, d.CELLOPTION_SHARED]
-        ) == []
-    )
-    assert (
-        slotframe.get_cells_by_mac_addr(
-            fixture_neighbor_mac_addr,
-            [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+        filter(
+            lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+            slotframe.get_cells_by_mac_addr(fixture_neighbor_mac_addr)
         ) == [cell]
     )
 

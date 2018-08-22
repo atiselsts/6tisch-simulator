@@ -145,7 +145,14 @@ class TestMSF(object):
             if (
                     (cellOptions == [d.CELLOPTION_RX])
                     and
-                    (len(self.getRxCells(neighbor)) == 0)
+                    (
+                        len(
+                            filter(
+                                lambda cell: cell.options == [d.CELLOPTION_RX],
+                                self.mote.tsch.get_cells(neighbor)
+                            )
+                        ) == 0
+                    )
                 ):
 
                 # remember the slotoffset of first allocated dedicated cell. While
@@ -337,7 +344,10 @@ class TestMSF(object):
         if   function_under_test == 'adapt_to_traffic':
             hop_1.sf._adapt_to_traffic(root.id)
         elif function_under_test == 'relocate':
-            relocating_cell = hop_1.tsch.getTxRxSharedCells(root.id)[0]
+            relocating_cell = filter(
+                lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+                hop_1.tsch.get_cells(root.id)
+            )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor_id          = root.id,
                 cell_options         = [

@@ -124,7 +124,7 @@ class Mote(object):
                 returnVal = False
 
 
-        # I must have at least one TX/RX/SHARED cell to my preferred parent (if
+        # I must have at least one dedicated cell to my preferred parent (if
         # running MSF)
         if returnVal==True:
             if  (
@@ -132,7 +132,14 @@ class Mote(object):
                     and
                     (type(self.sf) == sf.SchedulingFunctionMSF)
                     and
-                    len(self.tsch.getTxRxSharedCells(self.rpl.getPreferredParent())) == 0
+                    (
+                        len(
+                            filter(
+                                lambda cell: d.CELLOPTION_TX in cell.options,
+                                self.tsch.get_cells(self.rpl.getPreferredParent())
+                            )
+                        ) == 0
+                    )
                 ):
                     returnVal = False
 

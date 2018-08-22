@@ -111,24 +111,9 @@ class Tsch(object):
                 return cell
         return None
 
-    def getTxCells(self, neighbor=None, slotframe_handle=0):
+    def get_cells(self, mac_addr=None, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
-        return slotframe.get_cells_by_mac_addr(neighbor, [d.CELLOPTION_TX])
-
-    def getRxCells(self, neighbor=None, slotframe_handle=0):
-        slotframe = self.slotframes[slotframe_handle]
-        return slotframe.get_cells_by_mac_addr(neighbor, [d.CELLOPTION_RX])
-
-    def getTxRxSharedCells(self, neighbor=None, slotframe_handle=0):
-        slotframe = self.slotframes[slotframe_handle]
-        return slotframe.get_cells_by_mac_addr(
-            neighbor,
-            [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
-        )
-
-    def getDedicatedCells(self, neighbor, slotframe_handle=0):
-        slotframe = self.slotframes[slotframe_handle]
-        return slotframe.get_cells_by_mac_addr(neighbor)
+        return slotframe.get_cells_by_mac_addr(mac_addr)
 
     # activate
 
@@ -267,7 +252,19 @@ class Tsch(object):
 
         # check that I have cell to transmit on
         if goOn:
-            if (not self.getTxCells()) and (not self.getTxRxSharedCells()):
+            shared_tx_cells = filter(
+                lambda cell: d.CELLOPTION_TX in cell.options,
+                self.mote.tsch.get_cells(None)
+            )
+            dedicated_tx_cells = filter(
+                lambda cell: d.CELLOPTION_TX in cell.options,
+                self.mote.tsch.get_cells(packet['mac']['dstMac'])
+            )
+            if (
+                    (len(shared_tx_cells) == 0)
+                    and
+                    (len(dedicated_tx_cells) == 0)
+                ):
                 # I don't have any cell to transmit on
 
                 # drop
@@ -315,10 +312,20 @@ class Tsch(object):
                 # return the first one in the TX queue, whose destination MAC
                 # is not associated with any of allocated (dedicated) TX cells
                 for packet in self.txQueue:
-                    # FIXME: lack of consideration of multi-slotframes
-                    if len(self.getTxCells(packet['mac']['dstMac'])) == 0:
-                        packet_to_send = packet
+                    packet_to_send = packet # tentatively
+                    for slotframe in self.slotframes:
+                        dedicated_tx_cells = filter(
+                            lambda cell: d.CELLOPTION_TX in cell.options,
+                            slotframe.get_cells_by_mac_addr(packet['mac']['dstMac'])
+                        )
+                        if len(dedicated_tx_cells) > 0:
+                            packet_to_send = None
+                            break # try the next packet in TX queue
+
+                    if packet_to_send is not None:
+                        # found a good packet to send
                         break
+
                 # if no suitable packet is found, packet_to_send remains None
         else:
             for packet in self.txQueue:
@@ -605,16 +612,25 @@ class Tsch(object):
                     # doesn't have a dedicated RX link from the destination. In
                     # such a case, the shared link is used as if it's a
                     # dedicated RX.
-                    if (
-                            (packet_to_send is not None)
-                            and
-                            cell.is_shared_on()
-                            and
-                            (len(self.getTxCells(packet_to_send['mac']['dstMac'])) > 0)
-                            and
-                            (len(self.getRxCells(packet_to_send['mac']['dstMac'])) == 0)
-                        ):
-                        packet_to_send = None
+                    if packet_to_send is not None:
+                        dedicated_tx_links = filter(
+                            lambda cell: cell.options == [d.CELLOPTION_TX],
+                            self.get_cells(packet_to_send['mac']['dstMac'])
+                        )
+                        dedicated_rx_links = filter(
+                            lambda cell: cell.options == [d.CELLOPTION_RX],
+                            self.get_cells(packet_to_send['mac']['dstMac'])
+                        )
+                        if (
+                                (packet_to_send is not None)
+                                and
+                                cell.is_shared_on()
+                                and
+                                (len(dedicated_tx_links) > 0)
+                                and
+                                (len(dedicated_rx_links) == 0)
+                            ):
+                            packet_to_send = None
 
                     # take care of the retransmission backoff algorithm
                     if (
@@ -1121,16 +1137,11 @@ class SlotFrame(object):
         slot_offset = asn % self.length
         return self.get_cells_by_slot_offset(slot_offset)
 
-    def get_cells_by_mac_addr(self, mac_addr, options=None):
+    def get_cells_by_mac_addr(self, mac_addr):
         if mac_addr in self.cells.keys():
-            cells = self.cells[mac_addr]
+            return self.cells[mac_addr]
         else:
-            cells = []
-
-        if options is not None:
-            return [cell for cell in cells if cell.options == options]
-        else:
-            return cells
+            return []
 
     def get_busy_slots(self):
         ret_val = []

@@ -287,13 +287,13 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
         # allocate one TX=1/RX=1/SHARED=1 cell to the motes as their dedicate cell.
         cellOptions   = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
 
-        assert len(root.tsch.getTxRxSharedCells(hop_1.id)) == 0
+        assert len(root.tsch.get_cells(hop_1.id)) == 0
         root.tsch.addCell(1, 1, hop_1.id, cellOptions)
-        assert len(root.tsch.getTxRxSharedCells(hop_1.id)) == 1
+        assert len(root.tsch.get_cells(hop_1.id)) == 1
 
-        assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 0
+        assert len(hop_1.tsch.get_cells(root.id)) == 0
         hop_1.tsch.addCell(1, 1, root.id, cellOptions)
-        assert len(hop_1.tsch.getTxRxSharedCells(root.id)) == 1
+        assert len(hop_1.tsch.get_cells(root.id)) == 1
 
     # make sure hop_1 send a application packet when the simulator starts
     hop_1.tsch.txQueue = []
@@ -334,7 +334,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     # available (it shouldn't transmit a unicast frame to the root on the
     # minimal (shared) cell.
     if   cell_type == 'dedicated-cell':
-        _cell = hop_1.tsch.getTxRxSharedCells(root.id)[0]
+        _cell = hop_1.tsch.get_cells(root.id)[0]
         expected_cell_offset = _cell.slot_offset
     elif cell_type == 'shared-cell':
         expected_cell_offset = 0   # the minimal (shared) cell
