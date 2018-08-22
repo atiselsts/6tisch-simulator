@@ -138,7 +138,10 @@ class SixP(object):
             transaction = SixPTransaction(self.mote, packet)
         except TransactionAdditionError:
             # there are another transaction in process; cannot send this request
-            callback(packet, d.SIXP_CALLBACK_EVENT_FAILURE)
+            callback(
+                event  = d.SIXP_CALLBACK_EVENT_FAILURE,
+                packet = packet
+            )
         else:
             # ready to send the packet
             transaction.start(callback, timeout_value)
