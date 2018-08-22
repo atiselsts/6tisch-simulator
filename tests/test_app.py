@@ -10,40 +10,40 @@ APP = ['AppPeriodic', 'AppBurst']
 def app(request):
     return request.param
 
+@pytest.fixture(params=[0, 60])
+def fixture_dao_period(request):
+    return request.param
+
 def test_app_upstream(
         sim_engine,
-        app
+        app,
+        fixture_dao_period
     ):
-    """Test Application Upstream Traffic
-    - objective   : test if app generates and sends packets as expected
-    - precondition: form a 2-mote linear network
-    - precondition: app sends 5 packets during the simulation time
-    - action      : run the simulation for 10 seconds
-    - expectation : each application sends five packets
-    """
+
+    # at least one app packet should be observed during the simulation
 
     sim_engine = sim_engine(
         {
             'exec_numMotes'                            : 2,
-            'exec_numSlotframesPerRun'                 : 11,
-            'sf_class'                                  : 'SFNone',
+            'exec_numSlotframesPerRun'                 : 1000,
+            'sf_class'                                 : 'SFNone',
             'conn_class'                               : 'Linear',
-            'tsch_probBcast_ebProb'                    : 0,
+            'secjoin_enabled'                          : False,
             'app'                                      : app,
             'app_pkPeriod'                             : 2,
             'app_pkPeriodVar'                          : 0,
             'app_pkLength'                             : 90,
             'app_burstTimestamp'                       : 1,
             'app_burstNumPackets'                      : 5,
-        },
-        force_initial_routing_and_scheduling_state = True,
+            'rpl_daoPeriod'                            : fixture_dao_period
+        }
     )
 
     # give the network time to form
-    u.run_until_asn(sim_engine, 1010)
+    u.run_until_end(sim_engine)
 
     # the number of 'app.tx' is the same as the number of generated packets.
     logs = u.read_log_file(filter=['app.tx'])
 
     # five packets should be generated per application
-    assert 5 <= len(logs)
+    assert len(logs) > 0
