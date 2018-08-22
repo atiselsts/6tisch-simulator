@@ -472,7 +472,7 @@ class RplOF0(object):
             # we've not received DIOs from this neighbor; ignore the neighbor
             return
         elif (
-                (cell.neighbor_mac_addr == mac_addr)
+                (cell.mac_addr == mac_addr)
                 and
                 (d.CELLOPTION_TX in cell.options)
                 and

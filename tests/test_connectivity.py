@@ -267,7 +267,7 @@ def test_lockon(sim_engine):
 
     # force hop_1 to join the network
     eb = root.tsch._create_EB()
-    hop_1.tsch._tsch_action_receiveEB(eb)
+    hop_1.tsch._action_receiveEB(eb)
     dio = root.rpl._create_DIO()
     dio['mac'] = {'srcMac': root.id}
     hop_1.rpl.action_receiveDIO(dio)

@@ -133,7 +133,7 @@ class TestMSF(object):
         # first allocated one than one dedicated RX cell so that MSF would
         # perform cell relocation
         hop_1.tsch.original_addCell        = hop_1.tsch.addCell
-        hop_1.tsch.original_tsch_action_RX = hop_1.tsch._tsch_action_RX
+        hop_1.tsch.original_tsch_action_RX = hop_1.tsch._action_RX
         def new_addCell(
                 self,
                 slotOffset,
@@ -170,7 +170,7 @@ class TestMSF(object):
             slotframe   = self.slotframes[0]
             cell        = slotframe.get_cells_at_asn(self.engine.getAsn())[0]
             if (
-                    (cell.neighbor_mac_addr is not None)
+                    (cell.mac_addr is not None)
                     and
                     hasattr(self, 'first_dedicated_slot_offset')
                     and
@@ -182,7 +182,7 @@ class TestMSF(object):
                 self.original_tsch_action_RX()
 
         hop_1.tsch.addCell         = types.MethodType(new_addCell, hop_1.tsch)
-        hop_1.tsch._tsch_action_RX = types.MethodType(new_action_RX, hop_1.tsch)
+        hop_1.tsch._action_RX = types.MethodType(new_action_RX, hop_1.tsch)
 
         # wait for the network formed
         u.run_until_everyone_joined(sim_engine)

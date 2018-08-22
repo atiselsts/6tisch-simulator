@@ -138,14 +138,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === indications from other layers
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
-        assert cell.neighbor_mac_addr is not None
+        assert cell.mac_addr is not None
 
         preferred_parent = self.mote.rpl.getPreferredParent()
         tx_cells = filter(
             lambda cell: cell.options == [d.CELLOPTION_TX],
-            self.mote.tsch.get_cells(cell.neighbor_mac_addr)
+            self.mote.tsch.get_cells(cell.mac_addr)
         )
-        if cell.neighbor_mac_addr == preferred_parent:
+        if cell.mac_addr == preferred_parent:
 
             # HACK: we don't transmit a frame on a shared link if it
             # has a dedicated TX link to the destination and doesn't
@@ -382,11 +382,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _clear_cells(self, neighbor_id):
         cells = self.mote.tsch.get_cells(neighbor_id)
         for cell in cells:
-            assert neighbor_id == cell.neighbor_mac_addr
+            assert neighbor_id == cell.mac_addr
             self.mote.tsch.deleteCell(
                 slotOffset    = cell.slot_offset,
                 channelOffset = cell.channel_offset,
-                neighbor      = cell.neighbor_mac_addr,
+                neighbor      = cell.mac_addr,
                 cellOptions   = cell.options
             )
 
