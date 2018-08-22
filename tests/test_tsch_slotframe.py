@@ -113,14 +113,9 @@ def test_tx_with_two_slotframes(sim_engine):
     root  = sim_engine.motes[0]
     hop_1 = sim_engine.motes[1]
 
-    # force motes to have two slotframes
+    # add one slotframe to the two motes
     for mote in sim_engine.motes:
-        mote.tsch.slotframes = []
-        for i in range(2):
-            mote.tsch.slotframes.append(SlotFrame(101))
-
-    # install the minimal cell to the root
-    root.tsch.add_minimal_cell()
+        mote.tsch.add_slotframe(1, 101)
 
     asn_at_end_of_simulation = (
         sim_engine.settings.tsch_slotframeLength *

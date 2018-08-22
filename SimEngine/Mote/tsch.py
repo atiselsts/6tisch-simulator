@@ -32,7 +32,7 @@ class Tsch(object):
         self.log      = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.slotframes     = [SlotFrame(self.settings.tsch_slotframeLength)]
+        self.slotframes     = {}
         self.txQueue        = []
         self.neighbor_table = []
         self.pktToSend      = None
@@ -47,6 +47,12 @@ class Tsch(object):
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
         self.backoff_remaining_delay = 0
+
+        # install the default slotframe
+        self.add_slotframe(
+            slotframe_handle = 0,
+            length           = self.settings.tsch_slotframeLength
+        )
 
     #======================== public ==========================================
 
@@ -112,6 +118,17 @@ class Tsch(object):
     def get_cells(self, mac_addr=None, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
         return slotframe.get_cells_by_mac_addr(mac_addr)
+
+    # slotframe
+    def get_slotframe(self, slotframe_handle):
+        if slotframe_handle in self.slotframes:
+            return self.slotframes[slotframe_handle]
+        else:
+            return None
+
+    def add_slotframe(self, slotframe_handle, length):
+        assert slotframe_handle not in self.slotframes
+        self.slotframes[slotframe_handle] = SlotFrame(length)
 
     # EB / Enhanced Beacon
 
@@ -328,7 +345,7 @@ class Tsch(object):
                 # is not associated with any of allocated (dedicated) TX cells
                 for packet in self.txQueue:
                     packet_to_send = packet # tentatively
-                    for slotframe in self.slotframes:
+                    for _, slotframe in self.slotframes.items():
                         dedicated_tx_cells = filter(
                             lambda cell: d.CELLOPTION_TX in cell.options,
                             slotframe.get_cells_by_mac_addr(packet['mac']['dstMac'])
@@ -678,7 +695,7 @@ class Tsch(object):
         tsDiffMin = min(
             [
                 slotframe.get_num_slots_to_next_active_cell(asn)
-                for slotframe in self.slotframes if (
+                for _, slotframe in self.slotframes.items() if (
                     len(slotframe.get_busy_slots()) > 0
                 )
             ]
@@ -709,7 +726,7 @@ class Tsch(object):
         # macSlotframeHandle slotframes."
 
         candidate_cells = []
-        for slotframe in self.slotframes:
+        for _, slotframe in self.slotframes.items():
             candidate_cells = slotframe.get_cells_at_asn(asn)
             if len(candidate_cells) > 0:
                 break
