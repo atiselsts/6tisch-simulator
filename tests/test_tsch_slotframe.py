@@ -2,11 +2,14 @@
 Test for TSCH Slotframe and Cell manipulation
 """
 
+import random
+
 import pytest
 
 import test_utils as u
 from SimEngine.Mote.tsch import SlotFrame, Cell
 from SimEngine import SimLog
+from SimEngine.Mote import Mote
 import SimEngine.Mote.MoteDefines as d
 
 all_options_on = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
@@ -197,3 +200,51 @@ def test_tx_with_two_slotframes(sim_engine):
             d.CELLOPTION_SHARED
         ]
     )
+
+@pytest.fixture(params=[0, 1, 10, 101])
+def fixture_num_cells(request):
+    return request.param
+def test_print_slotframe(fixture_num_cells):
+    slotframe = SlotFrame(101)
+    # install cells
+    for i in range(fixture_num_cells):
+        slot_offset = i
+        channel_offset = random.randint(0, 65535)
+        slotframe.add(Cell(slot_offset, channel_offset, []))
+
+    print slotframe
+    str_slotframe = str(slotframe)
+    assert 'length: 101' in str_slotframe
+    assert 'num_cells: {0}'.format(fixture_num_cells) in str_slotframe
+
+CELL_TX = [d.CELLOPTION_TX]
+CELL_RX = [d.CELLOPTION_RX]
+CELL_TX_SHARED = [d.CELLOPTION_TX, d.CELLOPTION_SHARED]
+CELL_TX_RX_SHARED = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+@pytest.fixture(params=[CELL_TX, CELL_RX, CELL_TX_SHARED, CELL_TX_RX_SHARED])
+def fixture_cell_options(request):
+    return request.param
+
+@pytest.fixture(params=[None, True])
+def fixture_mac_addr(request):
+    return request.param
+
+def test_print_cell(sim_engine, fixture_cell_options, fixture_mac_addr):
+
+    sim_engine = sim_engine()
+    if fixture_mac_addr is True:
+        mac_addr = sim_engine.motes[0].id
+    else:
+        mac_addr = fixture_mac_addr
+
+    slot_offset = random.randint(0, 65535)
+    channel_offset = random.randint(0, 65535)
+
+    cell = Cell(slot_offset, channel_offset, fixture_cell_options, mac_addr)
+
+    print cell
+    str_cell = str(cell)
+    assert 'slot_offset: {0}'.format(slot_offset) in str_cell
+    assert 'channel_offset: {0}'.format(channel_offset) in str_cell
+    assert 'mac_addr: {0}'.format(mac_addr) in str_cell
+    assert 'options: [{0}]'.format(', '.join(fixture_cell_options)) in str_cell
