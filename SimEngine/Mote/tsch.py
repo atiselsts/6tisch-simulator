@@ -1174,8 +1174,8 @@ class Cell(object):
         # FIXME: is_advertising is not used effectively now
 
         # slot_offset and channel_offset are 16-bit values
-        assert slot_offset    < 0x100
-        assert channel_offset < 0x100
+        assert slot_offset    < 0x10000
+        assert channel_offset < 0x10000
 
         self.slot_offset    = slot_offset
         self.channel_offset = channel_offset
