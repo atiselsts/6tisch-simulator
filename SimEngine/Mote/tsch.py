@@ -299,6 +299,7 @@ class Tsch(object):
             pass
 
     def get_first_packet_to_send(self, dst_mac_addr=None):
+        packet_to_send = None
         if dst_mac_addr is None:
             if len(self.txQueue) == 0:
                 # txQueue is empty; we may return an EB
@@ -307,19 +308,27 @@ class Tsch(object):
                         and
                         self._decided_to_send_eb()
                     ):
-                    return self._create_EB()
+                    packet_to_send = self._create_EB()
                 else:
-                    return None
+                    packet_to_send = None
             else:
-                # return the first one in the TX queue
-                return self.txQueue[0]
+                # return the first one in the TX queue, whose destination MAC
+                # is not associated with any of allocated (dedicated) TX cells
+                for packet in self.txQueue:
+                    # FIXME: lack of consideration of multi-slotframes
+                    if len(self.getTxCells(packet['mac']['dstMac'])) == 0:
+                        packet_to_send = packet
+                        break
+                # if no suitable packet is found, packet_to_send remains None
         else:
             for packet in self.txQueue:
                 if packet['mac']['dstMac'] == dst_mac_addr:
                     # return the first one having the dstMac
-                    return packet
-            # no packet is found
-            return None
+                    packet_to_send = packet
+                    break
+            # if no packet is found, packet_to_send remains None
+
+        return packet_to_send
 
     def get_num_packet_in_tx_queue(self, dst_mac_addr=None):
         if dst_mac_addr is None:
@@ -458,7 +467,7 @@ class Tsch(object):
         # make sure I'm in the right state
         if self.getIsSync():
             assert active_cell is not None
-            assert d.CELLOPTION_RX in active_cell.options
+            assert active_cell.is_rx_on
             assert self.waitingFor == d.WAITING_FOR_RX
 
         # not waiting for anything anymore
@@ -573,6 +582,67 @@ class Tsch(object):
 
     # active cell
 
+    def _select_active_cell(self, candidate_cells):
+        active_cell = None
+        packet_to_send = None
+
+        for cell in candidate_cells:
+            if cell.is_tx_on():
+                if (
+                        (packet_to_send is None)
+                        or
+                        (
+                            self.get_num_packet_in_tx_queue(packet_to_send['mac']['dstMac'])
+                            <
+                            self.get_num_packet_in_tx_queue(cell.neighbor_mac_addr)
+                        )
+                    ):
+                    # try to find a packet to send
+                    packet_to_send = self.get_first_packet_to_send(cell.neighbor_mac_addr)
+
+                    # HACK (to be removed): don't transmit a frame on a shared
+                    # link if it has a dedicated TX link to the destination and
+                    # doesn't have a dedicated RX link from the destination. In
+                    # such a case, the shared link is used as if it's a
+                    # dedicated RX.
+                    if (
+                            (packet_to_send is not None)
+                            and
+                            cell.is_shared_on()
+                            and
+                            (len(self.getTxCells(packet_to_send['mac']['dstMac'])) > 0)
+                            and
+                            (len(self.getRxCells(packet_to_send['mac']['dstMac'])) == 0)
+                        ):
+                        packet_to_send = None
+
+                    # take care of the retransmission backoff algorithm
+                    if (
+                            (packet_to_send is not None)
+                            and
+                            cell.is_shared_on()
+                            and
+                            self._is_retransmission(packet_to_send)
+                            and
+                            (self.backoff_remaining_delay > 0)
+                        ):
+                        self.backoff_remaining_delay -= 1
+                        # skip this cell for transmission
+                        packet_to_send = None
+
+                    if packet_to_send is not None:
+                        active_cell = cell
+
+            if (
+                    cell.is_rx_on()
+                    and
+                    (packet_to_send is None)
+                ):
+                active_cell = cell
+
+        return active_cell, packet_to_send
+
+
     def tsch_schedule_next_active_cell(self):
         # FIXME: should be renamed to tsch_schedule_next_active_slot()
 
@@ -605,140 +675,58 @@ class Tsch(object):
     def _tsch_action_active_cell(self):
 
         # local shorthands
-        asn        = self.engine.getAsn()
-        slotOffset = asn % self.settings.tsch_slotframeLength
-        # FIXME: multi slotframes
-        slotframe  = self.slotframes[0]
-        cell       = slotframe.get_cells_at_asn(asn)[0]
+        asn = self.engine.getAsn()
 
         # make sure we're not in the middle of a TX/RX operation
         assert self.waitingFor == None
-
         # make sure we are not busy sending a packet
         assert self.pktToSend == None
 
-        # execute cell
-        if cell.neighbor_mac_addr is None:
-            # on a shared cell
-            if sorted(cell.options) == sorted([d.CELLOPTION_TX,d.CELLOPTION_RX,d.CELLOPTION_SHARED]):
-                # on minimal cell
-                # try to find a packet to neighbor to which I don't have any dedicated cell(s)...
-                if not self.pktToSend:
-                    for pkt in self.txQueue:
-                        if  (
-                                # DIOs and EBs always on minimal cell
-                                (
-                                    pkt['type'] in [d.PKT_TYPE_DIO,d.PKT_TYPE_EB]
-                                )
-                                or
-                                # other frames on the minimal cell if no dedicated cells to the nextHop
-                                (
-                                    len(self.getTxCells(pkt['mac']['dstMac'])) == 0
-                                    and
-                                    len(self.getTxRxSharedCells(pkt['mac']['dstMac'])) == 0
-                                )
-                            ):
-                            self.pktToSend = pkt
-                            break
+        # section 6.2.6.4 of IEEE 802.15.4-2015:
+        # "When, for any given timeslot, a device has links in multiple
+        # slotframes, transmissions take precedence over receives, and lower
+        # macSlotframeHandle slotframes takes precedence over higher
+        # macSlotframeHandle slotframes."
 
-                # retransmission backoff algorithm
-                if (
-                        self.pktToSend
-                        and
-                        self._is_retransmission(self.pktToSend)
-                    ):
-                        if self.backoff_remaining_delay > 0:
-                            # need to wait for retransmission
-                            self.pktToSend = None
-                            # decrement the remaining delay
-                            self.backoff_remaining_delay -= 1
-                        else:
-                            # ready for retransmission
-                            pass
+        candidate_cells = []
+        for slotframe in self.slotframes:
+            candidate_cells = slotframe.get_cells_at_asn(asn)
+            if len(candidate_cells) > 0:
+                break
 
-                # ... if no such packet, probabilistically generate an EB
-                if not self.pktToSend:
-                    if self.mote.clear_to_send_EBs_DATA():
-                        prob = self.settings.tsch_probBcast_ebProb/(1+len(self.neighbor_table))
-                        if (
-                                (random.random() < prob)
-                                and
-                                (self.iAmSendingEBs)
-                            ):
-                            self.pktToSend = self._create_EB()
-
-                # send packet, or receive
-                if self.pktToSend:
-                    self._tsch_action_TX(self.pktToSend)
-                else:
-                    self._tsch_action_RX()
-            else:
-                # We don't support shared cells which are not [TX=1, RX=1,
-                # SHARED=1]
-                raise NotImplementedError()
+        if len(candidate_cells) == 0:
+            # we don't have any cell at this asn. we may have used to have
+            # some, which possibly were removed; do nothing
+            pass
         else:
-            # on a dedicated cell
+            # identify a cell to be activated
+            self.active_cell, self.pktToSend = self._select_active_cell(candidate_cells)
 
-            # find a possible pktToSend first
-            _pktToSend = None
-            for pkt in self.txQueue:
-                if pkt['mac']['dstMac'] == cell.neighbor_mac_addr:
-                    _pktToSend = pkt
-                    break
-            # HACK: don't transmit a frame on a shared link if it has a
-            # dedicated TX link to the destination and doesn't have a
-            # dedicated RX link from the destination. In such a case, the
-            # shared link is used as if it's a dedicated RX.
-            if (
-                    (d.CELLOPTION_SHARED in cell.options)
-                    and
-                    (len(self.getTxCells(cell.neighbor_mac_addr)) > 0)
-                    and
-                    (len(self.getRxCells(cell.neighbor_mac_addr)) == 0)
-                ):
-                _pktToSend = None
-
-            # retransmission backoff algorithm
-            if (
-                    (_pktToSend is not None)
-                    and
-                    (d.CELLOPTION_SHARED in cell.options)
-                    and
-                    self._is_retransmission(_pktToSend)
-                ):
-                    if self.backoff_remaining_delay > 0:
-                        # need to wait for retransmission
-                        _pktToSend = None
-                        # decrement the remaining delay
-                        self.backoff_remaining_delay -= 1
-                    else:
-                        # ready for retransmission
-                        pass
-
-            if (
-                    (_pktToSend is not None)
-                    and
-                    (d.CELLOPTION_TX in cell.options)
-                ):
-                # we're going to transmit the packet
-                self.pktToSend = _pktToSend
-                self._tsch_action_TX(self.pktToSend)
-
-            elif d.CELLOPTION_RX in cell.options:
-                # receive
+        if self.active_cell:
+            if self.pktToSend is None:
+                assert self.active_cell.is_rx_on()
                 self._tsch_action_RX()
             else:
-                # do nothing
-                pass
+                assert self.active_cell.is_tx_on()
+                self._tsch_action_TX(self.pktToSend)
+        else:
+            # do nothing
+            pass
 
-            # notify SF
-            if d.CELLOPTION_TX in cell.options:
-                self.mote.sf.indication_dedicated_tx_cell_elapsed(
-                    cell    = cell,
-                    used    = (self.pktToSend is not None),
-                )
+        # notify upper layers
+        for cell in candidate_cells:
+            if cell.is_tx_on():
+                if cell.neighbor_mac_addr is not None:
+                    self.mote.sf.indication_dedicated_tx_cell_elapsed(
+                        cell = cell,
+                        used = (
+                            (self.active_cell == cell)
+                            and
+                            (self.pktToSend is not None)
+                        )
+                    )
 
-        # schedule next active cell
+        # schedule the next active slot
         self.tsch_schedule_next_active_cell()
 
     def _tsch_action_TX(self,pktToSend):
@@ -789,7 +777,7 @@ class Tsch(object):
 
     def _decided_to_send_eb(self):
         # short-hand
-        prob = self.settings.tsch_probBcast_ebProb
+        prob = float(self.settings.tsch_probBcast_ebProb)
         n    = 1 + len(self.neighbor_table)
 
         # following the Bayesian broadcasting algorithm
@@ -860,7 +848,11 @@ class Tsch(object):
     # Retransmission backoff algorithm
     def _is_retransmission(self, packet):
         assert packet is not None
-        return packet['mac']['retriesLeft'] < d.TSCH_MAXTXRETRIES
+        if 'retriesLeft' not in packet['mac']:
+            assert packet['mac']['dstMac'] == d.BROADCAST_ADDRESS
+            return False
+        else:
+            return packet['mac']['retriesLeft'] < d.TSCH_MAXTXRETRIES
 
     def _decide_backoff_delay(self):
         # Section 6.2.5.3 of IEEE 802.15.4-2015: "The MAC sublayer shall delay
@@ -1201,3 +1193,12 @@ class Cell(object):
 
     def increment_num_rx(self):
         self.num_rx += 1
+
+    def is_tx_on(self):
+        return d.CELLOPTION_TX in self.options
+
+    def is_rx_on(self):
+        return d.CELLOPTION_RX in self.options
+
+    def is_shared_on(self):
+        return d.CELLOPTION_SHARED in self.options
