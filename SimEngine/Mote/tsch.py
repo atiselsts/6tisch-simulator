@@ -678,7 +678,9 @@ class Tsch(object):
         tsDiffMin = min(
             [
                 slotframe.get_num_slots_to_next_active_cell(asn)
-                for slotframe in self.slotframes
+                for slotframe in self.slotframes if (
+                    len(slotframe.get_busy_slots()) > 0
+                )
             ]
         )
 
@@ -749,47 +751,29 @@ class Tsch(object):
 
     def _action_TX(self,pktToSend):
 
-        # local shorthands
-        asn        = self.engine.getAsn()
-        slotOffset = asn % self.settings.tsch_slotframeLength
-        # FIXME: multi slotframes
-        slotframe  = self.slotframes[0]
-        cell       = slotframe.get_cells_at_asn(asn)[0]
-
         # update cell stats
-        cell.increment_num_tx()
+        self.active_cell.increment_num_tx()
 
         # send packet to the radio
         self.mote.radio.startTx(
-            channel = cell.channel_offset,
+            channel = self.active_cell.channel_offset,
             packet  = pktToSend,
         )
 
         # indicate that we're waiting for the TX operation to finish
         self.waitingFor = d.WAITING_FOR_TX
-        self.channel    = cell.channel_offset
-
-        self.active_cell = cell
+        self.channel    = self.active_cell.channel_offset
 
     def _action_RX(self):
 
-        # local shorthands
-        asn        = self.engine.getAsn()
-        slotOffset = asn % self.settings.tsch_slotframeLength
-        # FIXME: multi slotframes
-        slotframe  = self.slotframes[0]
-        cell       = slotframe.get_cells_at_asn(asn)[0]
-
         # start listening
         self.mote.radio.startRx(
-            channel = cell.channel_offset
+            channel = self.active_cell.channel_offset
         )
 
         # indicate that we're waiting for the RX operation to finish
         self.waitingFor = d.WAITING_FOR_RX
-        self.channel    = cell.channel_offset
-
-        self.active_cell = cell
+        self.channel    = self.active_cell.channel_offset
 
     # EBs
 
