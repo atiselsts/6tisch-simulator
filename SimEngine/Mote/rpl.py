@@ -262,6 +262,13 @@ class Rpl(object):
 
         # abort if DAO disabled
         if self.settings.rpl_daoPeriod == 0:
+            # secjoin never completes if downward traffic is not supported by
+            # DAO
+            assert self.settings.secjoin_enabled is False
+
+            # start sending EBs and application packets.
+            self.mote.tsch.startSendingEBs()
+            self.mote.app.startSendingData()
             return
 
         asnNow = self.engine.getAsn()
