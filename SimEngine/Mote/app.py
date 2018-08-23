@@ -85,7 +85,7 @@ class AppBase(object):
         dataPacket = {
             'type':              packet_type,
             'net': {
-                'srcIp':         self.mote.id,
+                'srcIp':         self.mote.get_ipv6_global_addr(),
                 'dstIp':         dstIp,
                 'packet_length': packet_length
             },
@@ -214,10 +214,10 @@ class AppPeriodic(AppBase):
         )
 
     def _send_a_single_packet(self):
-        assert self.mote.dodagId!=None
+        assert self.mote.rpl.dodagId!=None
         
         self._send_packet(
-            dstIp          = self.mote.dodagId,
+            dstIp          = self.mote.rpl.dodagId,
             packet_length  = self.settings.app_pkLength
         )
         # schedule the next transmission
@@ -244,10 +244,10 @@ class AppBurst(AppBase):
     #======================== private ==========================================
 
     def _send_burst_packets(self):
-        assert self.mote.dodagId!=None
+        assert self.mote.rpl.dodagId!=None
         
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
-                dstIp         = self.mote.dodagId,
+                dstIp         = self.mote.rpl.dodagId,
                 packet_length = self.settings.app_pkLength
             )

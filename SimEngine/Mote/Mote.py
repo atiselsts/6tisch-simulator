@@ -45,7 +45,6 @@ class Mote(object):
 
         # stack state
         self.dagRoot                   = False
-        self.dodagId                   = None
         self._init_eui64(eui64)
         self.ipv6_prefix               = None
 
@@ -66,7 +65,6 @@ class Mote(object):
 
     def setDagRoot(self):
         self.dagRoot         = True
-        self.dodagId         = self.id
         self.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
 
     # ==== address

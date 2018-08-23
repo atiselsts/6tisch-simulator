@@ -249,12 +249,12 @@ class TestMSF(object):
 
         # invalidate old_parent
         dio = old_parent.rpl._create_DIO()
-        dio['mac'] = {'srcMac': old_parent.id}
+        dio['mac'] = {'srcMac': old_parent.get_mac_addr()}
         dio['app']['rank'] = 65535
         mote_1.rpl.action_receiveDIO(dio)
         # give a DIO from new_parent with a good rank
         dio = new_parent.rpl._create_DIO()
-        dio['mac'] = {'srcMac': new_parent.id}
+        dio['mac'] = {'srcMac': new_parent.get_mac_addr()}
         dio['app']['rank'] = 255
         mote_1.rpl.action_receiveDIO(dio)
 
@@ -270,9 +270,9 @@ class TestMSF(object):
             # return if the packet is a ADD request sent from mote_1 to
             # new_parent
             return (
-                (packet['mac']['srcMac'] == mote_1.id)
+                (packet['mac']['srcMac'] == mote_1.get_mac_addr())
                 and
-                (packet['mac']['dstMac'] == new_parent.id)
+                (packet['mac']['dstMac'] == new_parent.get_mac_addr())
                 and
                 (packet['type'] == d.PKT_TYPE_SIXP)
                 and
@@ -285,9 +285,9 @@ class TestMSF(object):
             # return if the packet is a CLEAR request sent from mote_1 to
             # new_parent
             return (
-                (packet['mac']['srcMac'] == mote_1.id)
+                (packet['mac']['srcMac'] == mote_1.get_mac_addr())
                 and
-                (packet['mac']['dstMac'] == old_parent.id)
+                (packet['mac']['dstMac'] == old_parent.get_mac_addr())
                 and
                 (packet['type'] == d.PKT_TYPE_SIXP)
                 and
@@ -333,7 +333,7 @@ class TestMSF(object):
             if _slot in used_slots:
                 continue
             else:
-                hop_1.tsch.addCell(_slot, channel_offset, root.id, cell_options)
+                hop_1.tsch.addCell(_slot, channel_offset, root.get_mac_addr(), cell_options)
         assert len(hop_1.tsch.get_busy_slots()) == sim_engine.settings.tsch_slotframeLength
 
         # put dummy stats so that scheduling adaptation can be triggered
@@ -346,10 +346,10 @@ class TestMSF(object):
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
-                hop_1.tsch.get_cells(root.id)
+                hop_1.tsch.get_cells(root.get_mac_addr())
             )[0]
             hop_1.sf._request_relocating_cells(
-                neighbor_id          = root.id,
+                neighbor             = root.get_mac_addr(),
                 cell_options         = [
                     d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED
                 ],

@@ -269,7 +269,7 @@ def test_lockon(sim_engine):
     eb = root.tsch._create_EB()
     hop_1.tsch._action_receiveEB(eb)
     dio = root.rpl._create_DIO()
-    dio['mac'] = {'srcMac': root.id}
+    dio['mac'] = {'srcMac': root.get_mac_addr()}
     hop_1.rpl.action_receiveDIO(dio)
 
     # let hop_1 send an application packet

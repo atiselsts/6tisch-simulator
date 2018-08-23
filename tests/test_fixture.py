@@ -104,13 +104,13 @@ def test_initial_scheduling_state(sim_engine):
         if mote.rpl.getPreferredParent() == None:
             continue
 
-        parent = sim_engine.motes[mote.rpl.getPreferredParent()]
+        parent = sim_engine.get_mote_by_mac_addr(mote.rpl.getPreferredParent())
         # "mote" has one TX to its parent
         assert (
             len(
                 filter(
                     lambda cell: cell.options == [d.CELLOPTION_TX],
-                    mote.tsch.get_cells(parent.id)
+                    mote.tsch.get_cells(parent.get_mac_addr())
                 )
             ) == 1
         )
@@ -119,7 +119,7 @@ def test_initial_scheduling_state(sim_engine):
             len(
                 filter(
                     lambda cell: cell.options == [d.CELLOPTION_RX],
-                    parent.tsch.get_cells(mote.id)
+                    parent.tsch.get_cells(mote.get_mac_addr())
                 )
             ) == 1
         )

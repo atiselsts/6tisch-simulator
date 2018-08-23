@@ -197,8 +197,11 @@ class DiscreteEventEngine(threading.Thread):
     def getAsn(self):
         return self.asn
 
-    def get_mote_by_id(self, mote_id):
-        return self.motes[mote_id]
+    def get_mote_by_mac_addr(self, mac_addr):
+        for mote in self.motes:
+            if mote.is_my_mac_addr(mac_addr):
+                return mote
+        return None
     
     #=== scheduling
     

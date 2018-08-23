@@ -3,6 +3,8 @@
 import os
 import sys
 
+import netaddr
+
 if __name__ == '__main__':
     here = sys.path[0]
     sys.path.insert(0, os.path.join(here, '..'))
@@ -18,7 +20,7 @@ import SimEngine.Mote.MoteDefines as d
 # =========================== defines =========================================
 
 DAGROOT_ID = 0  # we assume first mote is DAGRoot
-DAGROOT_IP = 0  # we assume DAGRoot IP is 0
+DAGROOT_IP = 'fd00::1:0'
 
 # =========================== decorators ======================================
 
@@ -33,7 +35,7 @@ def openfile(func):
 @openfile
 def kpis_all(inputfile):
 
-    allstats = {} # indexed by run_id, srcIp
+    allstats = {} # indexed by run_id, mote_id
 
     file_settings = json.loads(inputfile.readline())  # first line contains settings
 
@@ -89,7 +91,7 @@ def kpis_all(inputfile):
             # packet transmission
 
             # shorthands
-            srcIp      = logline['packet']['net']['srcIp']
+            mote_id    = logline['_mote_id']
             dstIp      = logline['packet']['net']['dstIp']
             appcounter = logline['packet']['app']['appcounter']
             tx_asn     = logline['_asn']
@@ -99,19 +101,19 @@ def kpis_all(inputfile):
                 continue
 
             # populate
-            assert srcIp in allstats[run_id]
-            if appcounter not in allstats[run_id][srcIp]['upstream_pkts']:
-                allstats[run_id][srcIp]['upstream_pkts'][appcounter] = {
+            assert mote_id in allstats[run_id]
+            if appcounter not in allstats[run_id][mote_id]['upstream_pkts']:
+                allstats[run_id][mote_id]['upstream_pkts'][appcounter] = {
                     'hops': 0,
                 }
 
-            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['tx_asn'] = tx_asn
+            allstats[run_id][mote_id]['upstream_pkts'][appcounter]['tx_asn'] = tx_asn
 
         elif logline['_type'] == SimLog.LOG_APP_RX['type']:
             # packet reception
 
             # shorthands
-            srcIp      = logline['packet']['net']['srcIp']
+            mote_id    = netaddr.IPAddress(logline['packet']['net']['srcIp']).words[-1]
             dstIp      = logline['packet']['net']['dstIp']
             hop_limit  = logline['packet']['net']['hop_limit']
             appcounter = logline['packet']['app']['appcounter']
@@ -121,10 +123,10 @@ def kpis_all(inputfile):
             if dstIp != DAGROOT_IP:
                 continue
 
-            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['hops']   = (
+            allstats[run_id][mote_id]['upstream_pkts'][appcounter]['hops']   = (
                 d.IPV6_DEFAULT_HOP_LIMIT - hop_limit + 1
             )
-            allstats[run_id][srcIp]['upstream_pkts'][appcounter]['rx_asn'] = rx_asn
+            allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = rx_asn
 
         elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
             # packet dropped
@@ -167,8 +169,8 @@ def kpis_all(inputfile):
     # === compute advanced motestats
 
     for (run_id, per_mote_stats) in allstats.items():
-        for (srcIp, motestats) in per_mote_stats.items():
-            if srcIp != 0:
+        for (mote_id, motestats) in per_mote_stats.items():
+            if mote_id != 0:
 
                 if   'sync_asn' not in motestats:
                     motestats['WARNING'] = "mote didn't sync"
@@ -193,7 +195,7 @@ def kpis_all(inputfile):
                     motestats['upstream_num_tx']   = 0
                     motestats['upstream_num_rx']   = 0
                     motestats['upstream_num_lost'] = 0
-                    for (appcounter, pktstats) in allstats[run_id][srcIp]['upstream_pkts'].items():
+                    for (appcounter, pktstats) in allstats[run_id][mote_id]['upstream_pkts'].items():
                         motestats['upstream_num_tx']      += 1
                         if 'rx_asn' in pktstats:
                             motestats['upstream_num_rx']  += 1
@@ -216,7 +218,7 @@ def kpis_all(inputfile):
     # === remove unnecessary stats
 
     for (run_id, per_mote_stats) in allstats.items():
-        for (srcIp, motestats) in per_mote_stats.items():
+        for (mote_id, motestats) in per_mote_stats.items():
             if 'sync_asn' in motestats:
                 del motestats['sync_asn']
             if 'charge_asn' in motestats:

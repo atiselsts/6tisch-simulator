@@ -88,12 +88,13 @@ def set_initial_routing_and_scheduling_state(engine):
     
     # all nodes are sync'ed and joined, all services activated
     for m in engine.motes:
+        m.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
         m.rpl.dis_mode = 'disabled'   # forced
+        m.rpl.dodagId = root.get_ipv6_global_addr() # forced
         m.tsch.setIsSync(True)        # forced
         m.secjoin.setIsJoined(True)   # forced (fixture)
         m.tsch.startSendingEBs()      # forced
         m.sf.start()        # forced
-        m.dodagId = root.id           # forced
         if m.dagRoot==False:
             m.rpl.trickle_timer.start()
             m.app.startSendingData()  # forced
@@ -128,28 +129,28 @@ def set_initial_routing_and_scheduling_state(engine):
                 # there is a non-zero PDR on the child->parent link
 
                 # sync child's clock with parent's clock
-                child.tsch.clock.sync(parent.id)
+                child.tsch.clock.sync(parent.get_mac_addr())
                 # set child's preferredparent to parent
                 child.rpl.of = RplOFNone(child.rpl)
-                child.rpl.of.set_preferred_parent(parent.id)
+                child.rpl.of.set_preferred_parent(parent.get_mac_addr())
                 # set child's rank
                 child.rpl.of.set_rank(parent.rpl.get_rank()+512)
                 # record the child->parent relationship at the root (for source routing)
                 root.rpl.addParentChildfromDAOs(
-                    child_id  = child.id,
-                    parent_id = parent.id,
+                    child_addr  = child.get_ipv6_global_addr(),
+                    parent_addr = parent.get_ipv6_global_addr()
                 )
                 # add a cell from child to parent
                 child.tsch.addCell(
                     slotOffset      = cur_slot,
                     channelOffset   = 0,
-                    neighbor        = parent.id,
+                    neighbor        = parent.get_mac_addr(),
                     cellOptions     = [d.CELLOPTION_TX],
                 )
                 parent.tsch.addCell(
                     slotOffset      = cur_slot,
                     channelOffset   = 0,
-                    neighbor        = child.id,
+                    neighbor        = child.get_mac_addr(),
                     cellOptions     = [d.CELLOPTION_RX],
                 )
                 cur_slot += 1

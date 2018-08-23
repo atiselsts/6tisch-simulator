@@ -33,6 +33,7 @@ RPL_PARENT_SWITCH_THRESHOLD                 = 640
 # === ipv6
 IPV6_DEFAULT_HOP_LIMIT                      = 64
 IPV6_DEFAULT_PREFIX                         = 'fd00::'
+IPV6_ALL_RPL_NODES_ADDRESS                  = 'ff02::1a'
 
 # === sixlowpan
 SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds

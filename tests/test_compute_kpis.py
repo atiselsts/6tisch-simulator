@@ -62,8 +62,8 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     logs = u.read_log_file([SimLog.LOG_APP_RX['type']])
     assert len(logs) == 1
     assert logs[0]['_mote_id'] == root.id
-    assert logs[0]['packet']['net']['srcIp'] == leaf.id
-    assert logs[0]['packet']['net']['dstIp'] == root.id
+    assert logs[0]['packet']['net']['srcIp'] == leaf.get_ipv6_global_addr()
+    assert logs[0]['packet']['net']['dstIp'] == root.get_ipv6_global_addr()
     assert logs[0]['packet']['type'] == d.PKT_TYPE_DATA
 
     # make the root not receive at 6LoWPAN layer anything if pkt_loss_mode is
@@ -94,8 +94,8 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     assert len(logs) == 2
     for i in range(2):
         assert logs[i]['_mote_id'] == leaf.id
-        assert logs[i]['packet']['net']['srcIp'] == leaf.id
-        assert logs[i]['packet']['net']['dstIp'] == root.id
+        assert logs[i]['packet']['net']['srcIp'] == leaf.get_ipv6_global_addr()
+        assert logs[i]['packet']['net']['dstIp'] == root.get_ipv6_global_addr()
         assert logs[i]['packet']['type'] == d.PKT_TYPE_DATA
 
     # run compute_kpis.py against the log file

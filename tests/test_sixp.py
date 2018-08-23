@@ -41,10 +41,10 @@ class SchedulingFunctionTest(SchedulingFunctionBase):
     def stop(self):
         pass
 
-    def indication_neighbor_added(self,neighbor_id):
+    def indication_neighbor_added(self,neighbor):
         pass
 
-    def indication_neighbor_deleted(self,neighbor_id):
+    def indication_neighbor_deleted(self,neighbor):
         pass
 
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
@@ -233,15 +233,15 @@ class TestTransaction:
         install_sf(sim_engine.motes, scheduling_function)
 
         # trigger an ADD transaction
-        sim_engine.motes[0].sf.issue_add_request(sim_engine.motes[1].id)
+        sim_engine.motes[0].sf.issue_add_request(sim_engine.motes[1].get_mac_addr())
         u.run_until_asn(sim_engine, 1000)
 
         # trigger a DELETE transaction
-        sim_engine.motes[0].sf.issue_delete_request(sim_engine.motes[1].id)
+        sim_engine.motes[0].sf.issue_delete_request(sim_engine.motes[1].get_mac_addr())
         u.run_until_asn(sim_engine, sim_engine.getAsn() + 1000)
 
         # trigger a RELOCATE transaction
-        sim_engine.motes[0].sf.issue_relocate_request(sim_engine.motes[1].id)
+        sim_engine.motes[0].sf.issue_relocate_request(sim_engine.motes[1].get_mac_addr())
         u.run_until_asn(sim_engine, sim_engine.getAsn() + 1000)
 
         # done
@@ -261,7 +261,7 @@ class TestTransaction:
         # trigger an ADD transaction, which will terminate by timeout on the
         # initiator.sfinitiator's side
         initiator.sixp.send_request(
-            dstMac        = responder.id,
+            dstMac        = responder.get_mac_addr(),
             command       = d.SIXP_CMD_ADD,
             cellList      = [],
             timeout_value = 200
@@ -280,7 +280,7 @@ class TestTransaction:
             assert packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
             assert packet['app']['code']    == d.SIXP_RC_ERR_BUSY
         initiator.sixp.send_request(
-            dstMac   = responder.id,
+            dstMac   = responder.get_mac_addr(),
             command  = d.SIXP_CMD_DELETE,
             cellList = [],
             callback = request_callback
@@ -305,7 +305,7 @@ class TestTransaction:
             assert packet is None
             result['is_request_callback_called'] = True
         mote_0.sixp.send_request(
-            dstMac   = mote_1.id,
+            dstMac   = mote_1.get_mac_addr(),
             command  = d.SIXP_CMD_COUNT,
             callback = request_callback
         )
@@ -360,17 +360,17 @@ class TestTransaction:
 
         # step-0: set 1 (a non-zero value) to local SeqNum both of root and
         # hop_1
-        root.sixp._get_seqnum(hop_1.id)       # create a SeqNum entry
-        root.sixp.increment_seqnum(hop_1.id)  # increment the SeqNum
-        hop_1.sixp._get_seqnum(root.id)       # create a SeqNum entry
-        hop_1.sixp.increment_seqnum(root.id)  # increment the SeqNum
+        root.sixp._get_seqnum(hop_1.get_mac_addr())       # create a SeqNum entry
+        root.sixp.increment_seqnum(hop_1.get_mac_addr())  # increment the SeqNum
+        hop_1.sixp._get_seqnum(root.get_mac_addr())       # create a SeqNum entry
+        hop_1.sixp.increment_seqnum(root.get_mac_addr())  # increment the SeqNum
 
         # step-1: let hop_1 issue an ADD request. In order to make the
         # transaction expire on hop_1, set a shorter timeout value on hop_1's
         # side
         timeout_value = 1
         hop_1.sixp.send_request(
-            dstMac        = root.id,
+            dstMac        = root.get_mac_addr(),
             command       = d.SIXP_CMD_ADD,
             cellList      = [],
             timeout_value = timeout_value
@@ -390,7 +390,7 @@ class TestTransaction:
 
                 # send a CLAER request to the responder
                 self.mote.sixp.send_request(
-                    dstMac   = hop_1.id,
+                    dstMac   = hop_1.get_mac_addr(),
                     command  = d.SIXP_CMD_CLEAR
                 )
             else:
@@ -412,7 +412,7 @@ class TestTransaction:
             # send a new ADD request, which causes an exception unless the
             # bugfix is in place.
             self.mote.sixp.send_request(
-                dstMac   = root.id,
+                dstMac   = root.get_mac_addr(),
                 command  = d.SIXP_CMD_ADD,
                 cellList = []
             )
@@ -433,9 +433,9 @@ class TestTransaction:
                 and
                 (l['packet']['app']['code']    == d.SIXP_RC_ERR_BUSY)
                 and
-                (l['packet']['mac']['srcMac']  == root.id)
+                (root.is_my_mac_addr(l['packet']['mac']['srcMac']))
                 and
-                (l['packet']['mac']['dstMac']  == hop_1.id)
+                (hop_1.is_my_mac_addr(l['packet']['mac']['dstMac']))
             )
         ]
         assert len(rc_err_busy_logs) == 1
@@ -461,11 +461,11 @@ class TestSeqNum:
         mote_1 = sim_engine.motes[1]
 
         # set initial SeqNum
-        mote_0.sixp.seqnum_table[mote_1.id] = initial_seqnum
-        mote_1.sixp.seqnum_table[mote_0.id] = initial_seqnum
+        mote_0.sixp.seqnum_table[mote_1.get_mac_addr()] = initial_seqnum
+        mote_1.sixp.seqnum_table[mote_0.get_mac_addr()] = initial_seqnum
 
         # execute one transaction
-        mote_0.sf.issue_add_request(mote_1.id)
+        mote_0.sf.issue_add_request(mote_1.get_mac_addr())
 
         # wait a little bit
         u.run_until_asn(sim_engine, 500)
@@ -475,8 +475,8 @@ class TestSeqNum:
             expected_seqnum = 1
         else:
             expected_seqnum = initial_seqnum + 1
-        assert mote_0.sixp.seqnum_table[mote_1.id] == expected_seqnum
-        assert mote_1.sixp.seqnum_table[mote_0.id] == expected_seqnum
+        assert mote_0.sixp.seqnum_table[mote_1.get_mac_addr()] == expected_seqnum
+        assert mote_1.sixp.seqnum_table[mote_0.get_mac_addr()] == expected_seqnum
 
     def test_schedule_inconsistency(self, sim_engine, initial_seqnum):
         sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
@@ -486,13 +486,13 @@ class TestSeqNum:
         mote_1 = sim_engine.motes[1]
 
         # set initial SeqNum; mote_0 has zero, mote_1 has non-zero (1)
-        mote_0.sixp.seqnum_table[mote_1.id] = 0
-        mote_1.sixp.seqnum_table[mote_0.id] = 1
+        mote_0.sixp.seqnum_table[mote_1.get_mac_addr()] = 0
+        mote_1.sixp.seqnum_table[mote_0.get_mac_addr()] = 1
 
         # prepare assertion
         result = {'is_schedule_inconsistency_detected': False}
         def detect_schedule_inconsistency(self, peerMac):
-            assert peerMac == mote_0.id
+            assert mote_0.is_my_mac_addr(peerMac)
             result['is_schedule_inconsistency_detected'] = True
         mote_1.sf.detect_schedule_inconsistency = types.MethodType(
             detect_schedule_inconsistency,
@@ -508,7 +508,7 @@ class TestSeqNum:
             assert packet['app']['code']    == d.SIXP_RC_ERR_SEQNUM
             result['is_rc_err_seqnum_received'] = True
         mote_0.sixp.send_request(
-            dstMac   = mote_1.id,
+            dstMac   = mote_1.get_mac_addr(),
             command  = d.SIXP_CMD_COUNT,
             callback = request_callback
         )
