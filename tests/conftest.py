@@ -88,6 +88,7 @@ def set_initial_routing_and_scheduling_state(engine):
     
     # all nodes are sync'ed and joined, all services activated
     for m in engine.motes:
+        m.rpl.dis_mode = 'disabled'   # forced
         m.tsch.setIsSync(True)        # forced
         m.secjoin.setIsJoined(True)   # forced (fixture)
         m.tsch.startSendingEBs()      # forced
