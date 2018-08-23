@@ -162,16 +162,16 @@ class TestRandom(object):
                 for _ in range(100):
                     pdr.append(
                         sim_engine.connectivity.get_pdr(
-                            source      = src.id,
-                            destination = dst.id,
-                            channel     = channel
+                            src_id  = src.id,
+                            dst_id  = dst.id,
+                            channel = channel
                         )
                     )
                     rssi.append(
                         sim_engine.connectivity.get_rssi(
-                            source      = src.id,
-                            destination = dst.id,
-                            channel     = channel
+                            src_id  = src.id,
+                            dst_id  = dst.id,
+                            channel = channel
                         )
                     )
                     # proceed the simulator
@@ -192,16 +192,16 @@ class TestRandom(object):
                 for _ in range(100):
                     pdr.append(
                         sim_engine.connectivity.get_pdr(
-                            source      = src.id,
-                            destination = dst.id,
-                            channel     = channel
+                            src_id  = src.id,
+                            dst_id  = dst.id,
+                            channel = channel
                         )
                     )
                     rssi.append(
                         sim_engine.connectivity.get_rssi(
-                            source      = src.id,
-                            destination = dst.id,
-                            channel     = channel
+                            src_id  = src.id,
+                            dst_id  = dst.id,
+                            channel = channel
                         )
                     )
 

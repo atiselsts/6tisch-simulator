@@ -107,23 +107,23 @@ class ConnectivityBase(object):
 
     # === getters
 
-    def get_pdr(self, source, destination, channel):
+    def get_pdr(self, src_id, dst_id, channel):
 
-        assert type(source)==int
-        assert type(destination)==int
-        assert type(channel)==int
+        assert isinstance(src_id, int)
+        assert isinstance(dst_id, int)
+        assert isinstance(channel, int)
 
-        return self.connectivity_matrix[source][destination][channel]["pdr"]
+        return self.connectivity_matrix[src_id][dst_id][channel]["pdr"]
 
-    def get_rssi(self, source, destination, channel):
+    def get_rssi(self, src_id, dst_id, channel):
 
-        assert type(source) == int
-        assert type(destination) == int
-        assert type(channel) == int
+        assert isinstance(src_id, int)
+        assert isinstance(dst_id, int)
+        assert isinstance(channel, int)
 
-        if "rssi" not in self.connectivity_matrix[source][destination][channel]:
+        if "rssi" not in self.connectivity_matrix[src_id][dst_id][channel]:
             pass
-        return self.connectivity_matrix[source][destination][channel]["rssi"]
+        return self.connectivity_matrix[src_id][dst_id][channel]["rssi"]
 
     # === propagation
 
@@ -148,19 +148,19 @@ class ConnectivityBase(object):
                         thisTran = {}
 
                         # channel
-                        thisTran['channel'] = channel
+                        thisTran['channel']    = channel
 
                         # packet
                         thisTran['tx_mote_id'] = mote.id
-                        thisTran['packet']  = mote.radio.onGoingTransmission['packet']
+                        thisTran['packet']     = mote.radio.onGoingTransmission['packet']
 
                         # time at which the packet starts transmitting
-                        thisTran['txTime']  = mote.tsch.clock.get_drift()
+                        thisTran['txTime']     = mote.tsch.clock.get_drift()
 
                         # number of ACKs received by this packet
-                        thisTran['numACKs'] = 0
+                        thisTran['numACKs']    = 0
 
-                        alltransmissions   += [thisTran]
+                        alltransmissions      += [thisTran]
 
             # === decide which listener gets which packet (rxDone)
 
@@ -173,9 +173,9 @@ class ConnectivityBase(object):
                 transmissions = []
                 for t in alltransmissions:
                     pdr = self.get_pdr(
-                        source      = t['tx_mote_id'],
-                        destination = listener_id,
-                        channel     = channel,
+                        src_id  = t['tx_mote_id'],
+                        dst_id  = listener_id,
+                        channel = channel,
                     )
 
                     # you can interpret the following line as decision for
@@ -190,7 +190,7 @@ class ConnectivityBase(object):
                     sentAnAck = self.engine.motes[listener_id].radio.rxDone(
                         packet = None,
                     )
-                    assert sentAnAck==False
+                    assert sentAnAck == False
                 else:
                     # there are transmissions
 
@@ -218,9 +218,9 @@ class ConnectivityBase(object):
 
                     # calculate the resulting pdr when taking interferers into account
                     pdr = self._compute_pdr_with_interference(
-                        listener_id                  = listener_id,
-                        lockon_transmission          = lockon_transmission,
-                        interfering_transmissions    = interfering_transmissions,
+                        listener_id               = listener_id,
+                        lockon_transmission       = lockon_transmission,
+                        interfering_transmissions = interfering_transmissions,
                     )
 
                     # decide whether listener receives lockon_transmission or not
@@ -249,19 +249,19 @@ class ConnectivityBase(object):
                                 'lockon_transmission':         lockon_transmission['packet']
                             }
                         )
-                        assert sentAnAck==False
+                        assert sentAnAck == False
 
             # verify no more listener on this channel
-            assert self._get_listener_id_list(channel)==[]
+            assert self._get_listener_id_list(channel) == []
 
             # === decide whether transmitters get an ACK (txDone)
 
             for t in alltransmissions:
 
                 # decide whether transmitter received an ACK
-                if   t['numACKs']==0:
+                if   t['numACKs'] == 0:
                     isACKed = False
-                elif t['numACKs']==1:
+                elif t['numACKs'] == 1:
                     isACKed = True
                 else:
                     # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
@@ -360,10 +360,10 @@ class ConnectivityBase(object):
         # === compute the resulting PDR
 
         lockon_pdr = self.get_pdr(
-            source      = lockon_tx_mote_id,
-            destination = listener_id,
-            channel     = channel)
-        returnVal  = lockon_pdr * interference_pdr
+            src_id  = lockon_tx_mote_id,
+            dst_id  = listener_id,
+            channel = channel)
+        returnVal = lockon_pdr * interference_pdr
 
         return returnVal
 
@@ -413,10 +413,10 @@ class ConnectivityBase(object):
         elif floorRssi >= maxRssi:
             pdr = 1.0
         else:
-            pdrLow    = rssi_pdr_table[floorRssi]
-            pdrHigh   = rssi_pdr_table[floorRssi+1]
+            pdrLow  = rssi_pdr_table[floorRssi]
+            pdrHigh = rssi_pdr_table[floorRssi+1]
             # linear interpolation
-            pdr       = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
+            pdr = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
 
         assert 0 <= pdr <= 1.0
 
@@ -432,8 +432,8 @@ class ConnectivityFullyMeshed(ConnectivityBase):
             for destination in self.engine.motes:
                 for channel in range(self.settings.phy_numChans):
                     self.connectivity_matrix[source.id][destination.id][channel] = {
-                        "pdr":    1.00,
-                        "rssi":    -10,
+                        "pdr": 1.00,
+                        "rssi": -10,
                     }
 
 class ConnectivityLinear(ConnectivityBase):
