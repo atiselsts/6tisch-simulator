@@ -5,7 +5,7 @@ WAITING_FOR_TX                              = 'waiting_for_tx'
 WAITING_FOR_RX                              = 'waiting_for_rx'
 
 # === addressing
-BROADCAST_ADDRESS                           = 0xffff
+BROADCAST_ADDRESS                           = 'FF-FF'
 
 # === packet types
 PKT_TYPE_DATA                               = 'DATA'
