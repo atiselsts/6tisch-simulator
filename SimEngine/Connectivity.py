@@ -107,23 +107,23 @@ class ConnectivityBase(object):
 
     # === getters
 
-    def get_pdr(self, source, destination, channel):
+    def get_pdr(self, src_id, dst_id, channel):
 
-        assert type(source)==int
-        assert type(destination)==int
-        assert type(channel)==int
+        assert isinstance(src_id, int)
+        assert isinstance(dst_id, int)
+        assert isinstance(channel, int)
 
-        return self.connectivity_matrix[source][destination][channel]["pdr"]
+        return self.connectivity_matrix[src_id][dst_id][channel]["pdr"]
 
-    def get_rssi(self, source, destination, channel):
+    def get_rssi(self, src_id, dst_id, channel):
 
-        assert type(source) == int
-        assert type(destination) == int
-        assert type(channel) == int
+        assert isinstance(src_id, int)
+        assert isinstance(dst_id, int)
+        assert isinstance(channel, int)
 
-        if "rssi" not in self.connectivity_matrix[source][destination][channel]:
+        if "rssi" not in self.connectivity_matrix[src_id][dst_id][channel]:
             pass
-        return self.connectivity_matrix[source][destination][channel]["rssi"]
+        return self.connectivity_matrix[src_id][dst_id][channel]["rssi"]
 
     # === propagation
 
@@ -148,24 +148,23 @@ class ConnectivityBase(object):
                         thisTran = {}
 
                         # channel
-                        thisTran['channel'] = channel
+                        thisTran['channel']    = channel
 
                         # packet
-                        thisTran['packet']  = mote.radio.onGoingTransmission['packet']
-                        srcMac              = thisTran['packet']['mac']['srcMac']
-                        srcMote             = self.engine.motes[srcMac]
+                        thisTran['tx_mote_id'] = mote.id
+                        thisTran['packet']     = mote.radio.onGoingTransmission['packet']
 
                         # time at which the packet starts transmitting
-                        thisTran['txTime']  = srcMote.tsch.clock.get_drift()
+                        thisTran['txTime']     = mote.tsch.clock.get_drift()
 
                         # number of ACKs received by this packet
-                        thisTran['numACKs'] = 0
+                        thisTran['numACKs']    = 0
 
-                        alltransmissions   += [thisTran]
+                        alltransmissions      += [thisTran]
 
             # === decide which listener gets which packet (rxDone)
 
-            for listener in self._get_listeners(channel):
+            for listener_id in self._get_listener_id_list(channel):
 
                 # random_value will be used for comparison against PDR
                 random_value = random.random()
@@ -174,9 +173,9 @@ class ConnectivityBase(object):
                 transmissions = []
                 for t in alltransmissions:
                     pdr = self.get_pdr(
-                        source      = t['packet']['mac']['srcMac'],
-                        destination = listener,
-                        channel     = channel,
+                        src_id  = t['tx_mote_id'],
+                        dst_id  = listener_id,
+                        channel = channel,
                     )
 
                     # you can interpret the following line as decision for
@@ -188,10 +187,10 @@ class ConnectivityBase(object):
                     # no transmissions
 
                     # idle listen
-                    sentAnAck = self.engine.motes[listener].radio.rxDone(
+                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
                         packet = None,
                     )
-                    assert sentAnAck==False
+                    assert sentAnAck == False
                 else:
                     # there are transmissions
 
@@ -210,7 +209,7 @@ class ConnectivityBase(object):
                         self.log(
                             SimEngine.SimLog.LOG_PROP_INTERFERENCE,
                             {
-                                '_mote_id':                    listener,
+                                '_mote_id':                    listener_id,
                                 'channel':                     lockon_transmission['channel'],
                                 'lockon_transmission':         lockon_transmission['packet'],
                                 'interfering_transmissions':   [t['packet'] for t in interfering_transmissions],
@@ -219,9 +218,9 @@ class ConnectivityBase(object):
 
                     # calculate the resulting pdr when taking interferers into account
                     pdr = self._compute_pdr_with_interference(
-                        listener                     = listener,
-                        lockon_transmission          = lockon_transmission,
-                        interfering_transmissions    = interfering_transmissions,
+                        listener_id               = listener_id,
+                        lockon_transmission       = lockon_transmission,
+                        interfering_transmissions = interfering_transmissions,
                     )
 
                     # decide whether listener receives lockon_transmission or not
@@ -229,7 +228,7 @@ class ConnectivityBase(object):
                         # listener receives!
 
                         # lockon_transmission received correctly
-                        sentAnAck = self.engine.motes[listener].radio.rxDone(
+                        sentAnAck = self.engine.motes[listener_id].radio.rxDone(
                             packet = lockon_transmission['packet'],
                         )
 
@@ -239,37 +238,37 @@ class ConnectivityBase(object):
 
                     else:
                         # lockon_transmission NOT received correctly (interference)
-                        sentAnAck = self.engine.motes[listener].radio.rxDone(
+                        sentAnAck = self.engine.motes[listener_id].radio.rxDone(
                             packet = None,
                         )
                         self.log(
                             SimEngine.SimLog.LOG_PROP_DROP_LOCKON,
                             {
-                                '_mote_id':                    listener,
+                                '_mote_id':                    listener_id,
                                 'channel':                     lockon_transmission['channel'],
                                 'lockon_transmission':         lockon_transmission['packet']
                             }
                         )
-                        assert sentAnAck==False
+                        assert sentAnAck == False
 
             # verify no more listener on this channel
-            assert self._get_listeners(channel)==[]
+            assert self._get_listener_id_list(channel) == []
 
             # === decide whether transmitters get an ACK (txDone)
 
             for t in alltransmissions:
 
                 # decide whether transmitter received an ACK
-                if   t['numACKs']==0:
+                if   t['numACKs'] == 0:
                     isACKed = False
-                elif t['numACKs']==1:
+                elif t['numACKs'] == 1:
                     isACKed = True
                 else:
                     # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
                     raise SystemError()
 
                 # indicate to source packet was sent
-                self.engine.motes[t['packet']['mac']['srcMac']].radio.txDone(isACKed)
+                self.engine.motes[t['tx_mote_id']].radio.txDone(isACKed)
 
             # verify no more radios active on this channel
             for mote in self.engine.motes:
@@ -301,7 +300,7 @@ class ConnectivityBase(object):
 
     # === listeners
 
-    def _get_listeners(self, channel):
+    def _get_listener_id_list(self, channel):
         returnVal = []
         for mote in self.engine.motes:
             if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
@@ -310,21 +309,21 @@ class ConnectivityBase(object):
 
     # === wireless
 
-    def _compute_pdr_with_interference(self, listener, lockon_transmission, interfering_transmissions):
+    def _compute_pdr_with_interference(self, listener_id, lockon_transmission, interfering_transmissions):
 
         # shorthand
         channel = lockon_transmission['channel']
         for t in interfering_transmissions:
             assert t['channel'] == channel
-        lockon_srcMac  = lockon_transmission['packet']['mac']['srcMac']
+        lockon_tx_mote_id = lockon_transmission['tx_mote_id']
 
         # === compute the SINR
 
-        noise_mW   = self._dBm_to_mW(self.engine.motes[listener].radio.noisepower)
+        noise_mW   = self._dBm_to_mW(self.engine.motes[listener_id].radio.noisepower)
 
         # S = RSSI - N
 
-        signal_mW = self._dBm_to_mW(self.get_rssi(lockon_srcMac, listener, channel)) - noise_mW
+        signal_mW = self._dBm_to_mW(self.get_rssi(lockon_tx_mote_id, listener_id, channel)) - noise_mW
         if signal_mW < 0.0:
             # RSSI has not to be below the noise level.
             # If this happens, return very low SINR (-10.0dB)
@@ -334,8 +333,8 @@ class ConnectivityBase(object):
 
         totalInterference_mW = 0.0
         for interfering_tran in interfering_transmissions:
-            interfering_srcMac = interfering_tran['packet']['mac']['srcMac']
-            interference_mW = self._dBm_to_mW(self.get_rssi(interfering_srcMac, listener, channel)) - noise_mW
+            interfering_tx_mote_id = interfering_tran['tx_mote_id']
+            interference_mW = self._dBm_to_mW(self.get_rssi(interfering_tx_mote_id, listener_id, channel)) - noise_mW
             if interference_mW < 0.0:
                 # RSSI has not to be below noise level.
                 # If this happens, set interference to 0.0
@@ -347,7 +346,7 @@ class ConnectivityBase(object):
         # === compute the interference PDR
 
         # shorthand
-        noise_dBm = self.engine.motes[listener].radio.noisepower
+        noise_dBm = self.engine.motes[listener_id].radio.noisepower
 
         # RSSI of the interfering transmissions
         interference_rssi = self._mW_to_dBm(
@@ -361,10 +360,10 @@ class ConnectivityBase(object):
         # === compute the resulting PDR
 
         lockon_pdr = self.get_pdr(
-            source      = lockon_srcMac,
-            destination = listener,
-            channel     = channel)
-        returnVal  = lockon_pdr * interference_pdr
+            src_id  = lockon_tx_mote_id,
+            dst_id  = listener_id,
+            channel = channel)
+        returnVal = lockon_pdr * interference_pdr
 
         return returnVal
 
@@ -414,10 +413,10 @@ class ConnectivityBase(object):
         elif floorRssi >= maxRssi:
             pdr = 1.0
         else:
-            pdrLow    = rssi_pdr_table[floorRssi]
-            pdrHigh   = rssi_pdr_table[floorRssi+1]
+            pdrLow  = rssi_pdr_table[floorRssi]
+            pdrHigh = rssi_pdr_table[floorRssi+1]
             # linear interpolation
-            pdr       = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
+            pdr = (pdrHigh - pdrLow) * (rssi - float(floorRssi)) + pdrLow
 
         assert 0 <= pdr <= 1.0
 
@@ -433,8 +432,8 @@ class ConnectivityFullyMeshed(ConnectivityBase):
             for destination in self.engine.motes:
                 for channel in range(self.settings.phy_numChans):
                     self.connectivity_matrix[source.id][destination.id][channel] = {
-                        "pdr":    1.00,
-                        "rssi":    -10,
+                        "pdr": 1.00,
+                        "rssi": -10,
                     }
 
 class ConnectivityLinear(ConnectivityBase):

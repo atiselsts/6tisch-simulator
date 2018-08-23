@@ -33,7 +33,6 @@ class Radio(object):
         self.log                            = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.onGoingBroadcast               = None
         self.onGoingTransmission            = None    # ongoing transmission (used by propagate)
         self.txPower                        = 0       # dBm
         self.antennaGain                    = 0       # dBi
@@ -47,7 +46,6 @@ class Radio(object):
 
     def startTx(self, channel, packet):
 
-        assert self.onGoingBroadcast    is None
         assert self.onGoingTransmission is None
         assert 'type' in packet
         assert 'mac'  in packet
@@ -62,23 +60,21 @@ class Radio(object):
             'packet':  packet,
         }
 
-        # remember whether frame is broadcast
-        self.onGoingBroadcast = (packet['mac']['dstMac']==d.BROADCAST_ADDRESS)
-
     def txDone(self, isACKed):
         """end of tx slot"""
         self.state = d.RADIO_STATE_OFF
         self.channel = None
 
-        assert self.onGoingBroadcast in [True, False]
         assert self.onGoingTransmission
+
+        onGoingBroadcast = (self.onGoingTransmission['packet']['mac']['dstMac']==d.BROADCAST_ADDRESS)
 
         # log charge consumed
         if self.mote.tsch.getIsSync():
             if   isACKed:
                 # ACK received
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
-            elif self.onGoingBroadcast:
+            elif onGoingBroadcast:
                 # no ACK expected (link-layer bcast)
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
             else:
@@ -86,7 +82,6 @@ class Radio(object):
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAckNone_uC)
 
         # nothing ongoing anymore
-        self.onGoingBroadcast    = None
         self.onGoingTransmission = None
 
         # inform upper layer (TSCH)

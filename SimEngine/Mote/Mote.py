@@ -6,6 +6,8 @@ Model of a 6TiSCH mote.
 
 import threading
 
+import netaddr
+
 # Mote sub-modules
 import app
 import secjoin
@@ -28,7 +30,7 @@ import SimEngine
 
 class Mote(object):
 
-    def __init__(self, id):
+    def __init__(self, id, eui64=None):
 
         # store params
         self.id                        = id
@@ -43,7 +45,8 @@ class Mote(object):
 
         # stack state
         self.dagRoot                   = False
-        self.dodagId                   = None
+        self._init_eui64(eui64)
+        self.ipv6_prefix               = None
 
         # stack
         self.app                       = app.App(self)
@@ -62,7 +65,42 @@ class Mote(object):
 
     def setDagRoot(self):
         self.dagRoot         = True
-        self.dodagId         = self.id
+        self.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
+
+    # ==== address
+
+    def is_my_ipv6_addr(self, ipv6_addr):
+        # get a address string in the canonical format
+        target_ipv6_addr = str(netaddr.IPAddress(ipv6_addr))
+        return (
+            (self.get_ipv6_global_addr() == target_ipv6_addr)
+            or
+            (self.get_ipv6_link_local_addr() == target_ipv6_addr)
+        )
+
+    def is_my_mac_addr(self, mac_addr):
+        return self.eui64 == mac_addr
+
+    def add_ipv6_prefix(self, prefix):
+        # having more than one prefix is not supported
+        self.ipv6_prefix = netaddr.IPAddress(prefix)
+
+    def delete_ipv6_prefix(self):
+        # having more than one prefix is not supported
+        self.ipv6_prefix = None
+
+    def get_ipv6_global_addr(self, ref_addr=None):
+        if self.ipv6_prefix is None:
+            return None
+        else:
+            return str(self.eui64.ipv6(self.ipv6_prefix))
+
+    def get_ipv6_link_local_addr(self):
+        return str(self.eui64.ipv6_link_local())
+
+    def get_mac_addr(self):
+        return str(self.eui64)
+
 
     # ==== location
 
@@ -162,3 +200,17 @@ class Mote(object):
             del packet[k]
 
     #======================== private =========================================
+
+    def _init_eui64(self, eui64):
+        if eui64 is None:
+            # generate an EUI-64 based on mote id. The resulting EUI-64 should
+            # have U/L bit on
+            local_eui64 = netaddr.EUI('02-00-00-00-00-00-00-00')
+            if self.id == 0:
+                # we use a special 40-bit host (extension) value for mote id 0
+                # to avoid having all zeros in its IPv6 interface ID
+                self.eui64 = netaddr.EUI(local_eui64.value + 0x10000)
+            else:
+                self.eui64 = netaddr.EUI(local_eui64.value + self.id)
+        else:
+            self.eui64 = netaddr.EUI(eui64)

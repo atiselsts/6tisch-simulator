@@ -386,7 +386,7 @@ class SixP(object):
         packet = {
             'type'       : d.PKT_TYPE_SIXP,
             'mac': {
-                'srcMac' : self.mote.id,
+                'srcMac' : self.mote.get_mac_addr(),
                 'dstMac' : dstMac
             },
             'app': {
@@ -569,7 +569,7 @@ class SixPTransaction(object):
         self.seqNum           = request['app']['seqNum']
         self.initiator        = request['mac']['srcMac']
         self.responder        = request['mac']['dstMac']
-        self.isInitiator      = (request['mac']['srcMac'] == self.mote.id)
+        self.isInitiator      = self.mote.is_my_mac_addr(request['mac']['srcMac'])
         if self.isInitiator:
             self.peerMac      = self.responder
         else:

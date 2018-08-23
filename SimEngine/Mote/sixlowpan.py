@@ -9,6 +9,8 @@ import copy
 import math
 import random
 
+import netaddr
+
 # Simulator-wide modules
 import SimEngine
 import MoteDefines as d
@@ -34,12 +36,11 @@ class Sixlowpan(object):
         # local variables
         self.fragmentation        = globals()[self.settings.fragmentation](self)
 
-        # neighbor_cache: indexed by IPv6 address, maintain MAC addresses
-        self.neighbor_cache       = {}
+        self.on_link_neighbor_list = []
 
     #======================== public ==========================================
 
-    def sendPacket(self, packet, link_local=False):
+    def sendPacket(self, packet):
         assert sorted(packet.keys()) == sorted(['type','app','net'])
         assert packet['type'] in [
             d.PKT_TYPE_JOIN_REQUEST,
@@ -56,13 +57,6 @@ class Sixlowpan(object):
 
         # put hop_limit field to the net header
         packet['net']['hop_limit'] = d.IPV6_DEFAULT_HOP_LIMIT
-
-        # FIXME: this option will be removed when IPv6 address is properly
-        # expressed in this simulator.
-        if link_local is True:
-            packet['net']['link_local'] = True
-        else:
-            packet['net']['link_local'] = False
 
         # mark a downward packet like 'O' option in RPL Option defined by RFC
         # 6553
@@ -85,13 +79,7 @@ class Sixlowpan(object):
             if (
                     (self.mote.dagRoot)
                     and
-                    (
-                        ('link_local' not in packet['net'])
-                        or
-                        (packet['net']['link_local'] is False)
-                    )
-                    and
-                    (packet['net']['dstIp'] not in self.neighbor_cache)
+                    ((netaddr.IPAddress(packet['net']['srcIp']).words[0] & 0xFE80) != 0xFE80)
                 ):
                 sourceRoute = self.mote.rpl.computeSourceRoute(packet['net']['dstIp'])
                 if sourceRoute==None:
@@ -105,9 +93,10 @@ class Sixlowpan(object):
                     # stop handling this packet
                     goOn = False
                 else:
-                    assert 1 < len(sourceRoute)
+                    assert 1 <= len(sourceRoute)
                     packet['net']['dstIp'] = sourceRoute.pop(0)
-                    packet['net']['sourceRoute'] = sourceRoute
+                    if len(sourceRoute) > 0:
+                        packet['net']['sourceRoute'] = sourceRoute
 
         # find link-layer destination
         if goOn:
@@ -124,7 +113,7 @@ class Sixlowpan(object):
         # add MAC header
         if goOn:
             packet['mac'] = {
-                'srcMac': self.mote.id,
+                'srcMac': self.mote.get_mac_addr(),
                 'dstMac': dstMac
             }
 
@@ -162,14 +151,8 @@ class Sixlowpan(object):
 
         # add the source mode to the neighbor_cache if it's on-link
         # FIXME: IPv6 prefix should be examined
-        if (
-                ('srcIp' in packet['net'])
-                and
-                (packet['mac']['srcMac'] == packet['net']['srcIp'])
-                and
-                (packet['net']['srcIp'] not in self.neighbor_cache)
-            ):
-            self.neighbor_cache[packet['net']['srcIp']] = packet['mac']['srcMac']
+        if packet['mac']['srcMac'] not in self.on_link_neighbor_list:
+            self.on_link_neighbor_list.append(packet['mac']['srcMac'])
 
         # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
         if goOn:
@@ -190,9 +173,9 @@ class Sixlowpan(object):
                     packet['type']!=d.PKT_TYPE_FRAG # in case of fragment forwarding
                     and
                     (
-                        (packet['net']['dstIp'] == self.mote.id)
+                        (self.mote.is_my_ipv6_addr(packet['net']['dstIp']))
                         or
-                        (packet['net']['dstIp'] == d.BROADCAST_ADDRESS)
+                        (packet['mac']['dstMac'] == d.BROADCAST_ADDRESS)
                     )
                 ):
                 # packet for me
@@ -270,7 +253,7 @@ class Sixlowpan(object):
                 else:
                     # add MAC header
                     fwdPacket['mac'] = {
-                        'srcMac': self.mote.id,
+                        'srcMac': self.mote.get_mac_addr(),
                         'dstMac': dstMac
                     }
 
@@ -299,28 +282,34 @@ class Sixlowpan(object):
     #======================== private ==========================================
 
     def find_nexthop_mac_addr(self, packet):
-        dstIp = packet['net']['dstIp']
         mac_addr = None
+        src_ip_addr = netaddr.IPAddress(packet['net']['srcIp'])
+        dst_ip_addr = netaddr.IPAddress(packet['net']['dstIp'])
+        # use lower 64 bits and invert U/L bit
+        derived_dst_mac = str(
+            netaddr.EUI(
+                (int(dst_ip_addr) & 0xFFFFFFFFFFFFFFFF) ^ 0x0200000000000000
+            )
+        )
 
-        if   dstIp == d.BROADCAST_ADDRESS:
+        if (dst_ip_addr.words[0] & 0xFF00) == 0xFF00:
+            # this is an IPv6 multicast address
             mac_addr = d.BROADCAST_ADDRESS
 
         elif self.mote.dagRoot:
-            if   dstIp in self.neighbor_cache:
+            if derived_dst_mac in self.on_link_neighbor_list:
                 # on-link
-                mac_addr = self.neighbor_cache[dstIp]
+                mac_addr = derived_dst_mac
             else:
                 # off-link
                 mac_addr = None
         else:
-            if   self.mote.dodagId is None:
+            if self.mote.rpl.dodagId is None:
                 # upward during secure join process
-                mac_addr = self.mote.tsch.join_proxy
+                mac_addr = str(self.mote.tsch.join_proxy)
             elif (
                     (
-                        ('link_local' in packet['net'])
-                        and
-                        (packet['net']['link_local'] is True)
+                        ((src_ip_addr.words[0] & 0xFE80) == 0xFE80)
                     )
                     or
                     (
@@ -329,9 +318,9 @@ class Sixlowpan(object):
                         (packet['net']['downward'] is True)
                     )
                 ):
-                if dstIp in self.neighbor_cache:
+                if derived_dst_mac in self.on_link_neighbor_list:
                     # on-link
-                    mac_addr = self.neighbor_cache[dstIp]
+                    mac_addr = derived_dst_mac
                 else:
                     mac_addr = None
             else:
@@ -631,7 +620,7 @@ class FragmentForwarding(Fragmentation):
         # handle first fragments
         if datagram_offset == 0:
 
-            if fragment['net']['dstIp'] != self.mote.id:
+            if self.mote.is_my_ipv6_addr(fragment['net']['dstIp']) is False:
 
                 dstMac = self.sixlowpan.find_nexthop_mac_addr(fragment)
                 if dstMac == None:
@@ -669,7 +658,7 @@ class FragmentForwarding(Fragmentation):
             else:
                 self.vrb_table[srcMac][incoming_datagram_tag] = {}
 
-            if fragment['net']['dstIp']  == self.mote.id:
+            if self.mote.is_my_ipv6_addr(fragment['net']['dstIp']):
                 # this is a special entry for fragments destined to the mote
                 self.vrb_table[srcMac][incoming_datagram_tag]['outgoing_datagram_tag'] = None
             else:
@@ -712,7 +701,7 @@ class FragmentForwarding(Fragmentation):
                     'type':       copy.deepcopy(fragment['type']),
                     'net':        copy.deepcopy(fragment['net']),
                     'mac': {
-                        'srcMac': self.mote.id,
+                        'srcMac': self.mote.get_mac_addr(),
                         'dstMac': self.vrb_table[srcMac][incoming_datagram_tag]['dstMac']
                     }
                 }
@@ -734,9 +723,12 @@ class FragmentForwarding(Fragmentation):
         # - if the incoming fragment is the last fragment of a packet, delete the corresponding entry
         # - otherwise, do nothing
         if (
-                ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy) and
-                (srcMac in self.vrb_table) and
-                (incoming_datagram_tag in self.vrb_table[srcMac]) and
+                ('last_fragment' in self.settings.fragmentation_ff_discard_vrb_entry_policy)
+                and
+                (srcMac in self.vrb_table)
+                and
+                (incoming_datagram_tag in self.vrb_table[srcMac])
+                and
                 ((datagram_offset + packet_length) == datagram_size)
            ):
             del self.vrb_table[srcMac][incoming_datagram_tag]

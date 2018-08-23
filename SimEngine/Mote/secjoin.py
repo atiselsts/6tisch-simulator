@@ -102,19 +102,19 @@ class SecJoin(object):
             if self.mote.dagRoot is False:
                 # I'm the join proxy
 
-                assert self.mote.dodagId is not None
+                assert self.mote.rpl.dodagId is not None
 
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {
                     'type':                 d.PKT_TYPE_JOIN_REQUEST,
                     'app': {
                         'stateless_proxy': {
-                            'pledge_id':    packet['mac']['srcMac']
+                            'pledge_addr':  packet['net']['srcIp']
                         }
                     },
                     'net': {
-                        'srcIp':            self.mote.id,                      # join proxy (this mote)
-                        'dstIp':            self.mote.dodagId,                 # from dagRoot
+                        'srcIp':            self.mote.get_ipv6_global_addr(),
+                        'dstIp':            self.mote.rpl.dodagId,
                         'packet_length':    packet['net']['packet_length'],
                     },
                 }
@@ -129,13 +129,16 @@ class SecJoin(object):
                 app = {}
                 if 'stateless_proxy' in packet['app']:
                     app['stateless_proxy'] = copy.deepcopy(packet['app']['stateless_proxy'])
+                    src_ip = self.mote.get_ipv6_global_addr()
+                else:
+                    src_ip = self.mote.get_ipv6_link_local_addr()
 
                 # format join response
                 joinResponse = {
                     'type':                 d.PKT_TYPE_JOIN_RESPONSE,
                     'app':                  app,
                     'net': {
-                        'srcIp':            self.mote.id,                      # from dagRoot (this mote)
+                        'srcIp':            src_ip,
                         'dstIp':            packet['net']['srcIp'],            # to join proxy
                         'packet_length':    d.PKT_LEN_JOIN_RESPONSE,
                     },
@@ -155,8 +158,8 @@ class SecJoin(object):
                     pass
                 else:
                     # remove the 'stateless_proxy' element from the app payload
-                    app       = copy.deepcopy(packet['app'])
-                    pledge_id = app['stateless_proxy']['pledge_id']
+                    app         = copy.deepcopy(packet['app'])
+                    pledge_addr = app['stateless_proxy']['pledge_addr']
                     del app['stateless_proxy']
 
                     # proxy join response to pledge
@@ -164,14 +167,14 @@ class SecJoin(object):
                         'type':                 d.PKT_TYPE_JOIN_RESPONSE,
                         'app':                  app,
                         'net': {
-                            'srcIp':            self.mote.id,                      # join proxy (this mote)
-                            'dstIp':            pledge_id,                         # to pledge
+                            'srcIp':            self.mote.get_ipv6_link_local_addr(),
+                            'dstIp':            pledge_addr,
                             'packet_length':    packet['net']['packet_length'],
                         },
                     }
 
                     # send proxied join response
-                    self.mote.sixlowpan.sendPacket(proxiedJoinResponse, link_local=True)
+                    self.mote.sixlowpan.sendPacket(proxiedJoinResponse)
 
             else:
                 # I'm the pledge
@@ -238,14 +241,14 @@ class SecJoin(object):
             'app': {
             },
             'net': {
-                'srcIp':                self.mote.id,                      # from pledge (this mote)
-                'dstIp':                self.mote.tsch.join_proxy,         # to join proxy
+                'srcIp':                self.mote.get_ipv6_link_local_addr(),
+                'dstIp':                str(self.mote.tsch.join_proxy.ipv6_link_local()),
                 'packet_length':        d.PKT_LEN_JOIN_REQUEST,
             },
         }
 
         # send join request
-        self.mote.sixlowpan.sendPacket(joinRequest, link_local=True)
+        self.mote.sixlowpan.sendPacket(joinRequest)
 
         # convert seconds to slots
         target_asn = (

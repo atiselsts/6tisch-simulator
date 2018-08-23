@@ -8,6 +8,8 @@ import copy
 from itertools import chain
 import random
 
+import netaddr
+
 # Mote sub-modules
 import MoteDefines as d
 
@@ -33,18 +35,18 @@ class Tsch(object):
         self.log      = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.slotframes     = {}
-        self.txQueue        = []
-        self.neighbor_table = []
-        self.pktToSend      = None
-        self.waitingFor     = None
-        self.channel        = None
-        self.active_cell    = None
-        self.asnLastSync    = None
-        self.isSync         = False
-        self.join_proxy     = None
-        self.iAmSendingEBs  = False
-        self.clock          = Clock(self.mote)
+        self.slotframes      = {}
+        self.txQueue         = []
+        self.neighbor_table  = []
+        self.pktToSend       = None
+        self.waitingFor      = None
+        self.channel         = None
+        self.active_cell     = None
+        self.asnLastSync     = None
+        self.isSync          = False
+        self.join_proxy      = None
+        self.iAmSendingEBs   = False
+        self.clock           = Clock(self.mote)
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
         self.backoff_remaining_delay = 0
@@ -94,7 +96,7 @@ class Tsch(object):
             self.stopSendingEBs()
             self.delete_minimal_cell()
             self.mote.sf.stop()
-            self.join_proxy  = None
+            self.join_proxy = None
             self.asnLastSync = None
             self.clock.desync()
             self._stop_keep_alive_timer()
@@ -189,8 +191,6 @@ class Tsch(object):
 
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
-        if neighbor!=None:
-            assert isinstance(neighbor, int)
         assert isinstance(cellOptions, list)
 
         # FIXME: the following is not always the case; more than one cell can
@@ -224,7 +224,6 @@ class Tsch(object):
     def deleteCell(self, slotOffset, channelOffset, neighbor, cellOptions, slotframe_handle=0):
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
-        assert (neighbor is None) or (isinstance(neighbor, int))
         assert isinstance(cellOptions, list)
 
         slotframe = self.slotframes[slotframe_handle]
@@ -522,7 +521,11 @@ class Tsch(object):
             self.neighbor_table.append(packet['mac']['srcMac'])
 
         # abort if I received a frame for someone else
-        if packet['mac']['dstMac'] not in [d.BROADCAST_ADDRESS, self.mote.id]:
+        if (
+                (packet['mac']['dstMac'] != d.BROADCAST_ADDRESS)
+                and
+                (self.mote.is_my_mac_addr(packet['mac']['dstMac']) is False)
+            ):
             return False # isACKed
 
         # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
@@ -546,7 +549,7 @@ class Tsch(object):
         if self.getIsSync():
             active_cell.increment_num_rx()
 
-        if   packet['mac']['dstMac'] == self.mote.id:
+        if   self.mote.is_my_mac_addr(packet['mac']['dstMac']):
             # link-layer unicast to me
 
             # ACK frame
@@ -816,7 +819,7 @@ class Tsch(object):
                 'join_metric': self.mote.rpl.getDagRank() - 1,
             },
             'mac': {
-                'srcMac':      self.mote.id,            # from mote
+                'srcMac':      self.mote.get_mac_addr(),
                 'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
             },
         }
@@ -857,7 +860,7 @@ class Tsch(object):
             self.setIsSync(True) # mote
 
             # the mote that sent the EB is now by join proxy
-            self.join_proxy = packet['mac']['srcMac']
+            self.join_proxy = netaddr.EUI(packet['mac']['srcMac'])
 
             # add the minimal cell to the schedule (read from EB)
             self.add_minimal_cell() # mote
@@ -970,7 +973,7 @@ class Tsch(object):
         packet = {
             'type': d.PKT_TYPE_KEEP_ALIVE,
             'mac': {
-                'srcMac': self.mote.id,
+                'srcMac': self.mote.get_mac_addr(),
                 'dstMac': self.clock.source
             }
         }
@@ -1040,9 +1043,9 @@ class Clock(object):
         self.desync()
 
     @staticmethod
-    def get_clock_by_mote_id(mote_id):
+    def get_clock_by_mac_addr(mac_addr):
         engine = SimEngine.SimEngine.SimEngine()
-        mote = engine.get_mote_by_id(mote_id)
+        mote = engine.get_mote_by_mac_addr(mac_addr)
         return mote.tsch.clock
 
     def desync(self):
@@ -1067,7 +1070,7 @@ class Clock(object):
             # both sides. in addition, the clock source also off from a certain
             # amount of time from its source.
             off_from_source = random.random() * self._clock_interval
-            source_clock = self.get_clock_by_mote_id(self.source)
+            source_clock = self.get_clock_by_mac_addr(self.source)
             self._clock_off_on_sync = off_from_source + source_clock.get_drift()
 
         self._accumulated_error = 0

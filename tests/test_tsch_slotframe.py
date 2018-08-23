@@ -130,7 +130,7 @@ def test_tx_with_two_slotframes(sim_engine):
 
     # put DIO to hop1
     dio = root.rpl._create_DIO()
-    dio['mac'] = {'srcMac': root.id}
+    dio['mac'] = {'srcMac': root.get_mac_addr()}
     hop_1.rpl.action_receiveDIO(dio)
 
     # install one TX cells to each slotframe
@@ -138,22 +138,22 @@ def test_tx_with_two_slotframes(sim_engine):
         hop_1.tsch.addCell(
             slotOffset       = i + 1,
             channelOffset    = 0,
-            neighbor         = root.id,
+            neighbor         = root.get_mac_addr(),
             cellOptions      = [d.CELLOPTION_TX],
             slotframe_handle = i
         )
         root.tsch.addCell(
             slotOffset       = i + 1,
             channelOffset    = 0,
-            neighbor         = hop_1.id,
+            neighbor         = hop_1.get_mac_addr(),
             cellOptions      = [d.CELLOPTION_RX],
             slotframe_handle = i
         )
 
     # the first dedicated cell is scheduled at slot_offset 1, the other is at
     # slot_offset 2
-    cell_in_slotframe_0 = hop_1.tsch.get_cells(root.id, 0)[0]
-    cell_in_slotframe_1 = hop_1.tsch.get_cells(root.id, 1)[0]
+    cell_in_slotframe_0 = hop_1.tsch.get_cells(root.get_mac_addr(), 0)[0]
+    cell_in_slotframe_1 = hop_1.tsch.get_cells(root.get_mac_addr(), 1)[0]
 
     # run until the end of this slotframe
     slot_offset = sim_engine.getAsn() % 101
@@ -233,7 +233,7 @@ def test_print_cell(sim_engine, fixture_cell_options, fixture_mac_addr):
 
     sim_engine = sim_engine()
     if fixture_mac_addr is True:
-        mac_addr = sim_engine.motes[0].id
+        mac_addr = sim_engine.motes[0].get_mac_addr()
     else:
         mac_addr = fixture_mac_addr
 
