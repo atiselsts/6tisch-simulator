@@ -631,31 +631,6 @@ class Tsch(object):
                     # try to find a packet to send
                     packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
 
-                    # HACK (to be removed): don't transmit a frame on a shared
-                    # link if it has a dedicated TX link to the destination and
-                    # doesn't have a dedicated RX link from the destination. In
-                    # such a case, the shared link is used as if it's a
-                    # dedicated RX.
-                    if packet_to_send is not None:
-                        dedicated_tx_links = filter(
-                            lambda cell: cell.options == [d.CELLOPTION_TX],
-                            self.get_cells(packet_to_send['mac']['dstMac'])
-                        )
-                        dedicated_rx_links = filter(
-                            lambda cell: cell.options == [d.CELLOPTION_RX],
-                            self.get_cells(packet_to_send['mac']['dstMac'])
-                        )
-                        if (
-                                (packet_to_send is not None)
-                                and
-                                cell.is_shared_on()
-                                and
-                                (len(dedicated_tx_links) > 0)
-                                and
-                                (len(dedicated_rx_links) == 0)
-                            ):
-                            packet_to_send = None
-
                     # take care of the retransmission backoff algorithm
                     if (
                             (packet_to_send is not None)
