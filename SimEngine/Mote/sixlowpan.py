@@ -100,7 +100,7 @@ class Sixlowpan(object):
 
         # find link-layer destination
         if goOn:
-            dstMac = self.find_nexthop_mac_addr(packet)
+            dstMac = self._find_nexthop_mac_addr(packet)
             if dstMac == None:
                 # we cannot find a next-hop; drop this packet
                 self.mote.drop_packet(
@@ -241,7 +241,7 @@ class Sixlowpan(object):
                 fwdPacket['mac']  = copy.deepcopy(rxPacket['mac'])
             else:
                 # find next hop
-                dstMac = self.find_nexthop_mac_addr(fwdPacket)
+                dstMac = self._find_nexthop_mac_addr(fwdPacket)
                 if dstMac==None:
                     # we cannot find a next-hop; drop this packet
                     self.mote.drop_packet(
@@ -281,7 +281,7 @@ class Sixlowpan(object):
 
     #======================== private ==========================================
 
-    def find_nexthop_mac_addr(self, packet):
+    def _find_nexthop_mac_addr(self, packet):
         mac_addr = None
         src_ip_addr = netaddr.IPAddress(packet['net']['srcIp'])
         dst_ip_addr = netaddr.IPAddress(packet['net']['dstIp'])
@@ -622,7 +622,7 @@ class FragmentForwarding(Fragmentation):
 
             if self.mote.is_my_ipv6_addr(fragment['net']['dstIp']) is False:
 
-                dstMac = self.sixlowpan.find_nexthop_mac_addr(fragment)
+                dstMac = self.sixlowpan._find_nexthop_mac_addr(fragment)
                 if dstMac == None:
                     # no route to the destination
                     return

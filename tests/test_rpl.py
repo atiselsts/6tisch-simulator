@@ -144,7 +144,7 @@ def test_upstream_routing(sim_engine):
     }
 
     # the next hop should be parent
-    assert mote_1.sixlowpan.find_nexthop_mac_addr(dummy_packet) == mote_1.rpl.getPreferredParent()
+    assert mote_1.sixlowpan._find_nexthop_mac_addr(dummy_packet) == mote_1.rpl.getPreferredParent()
 
 
 class TestOF0(object):
