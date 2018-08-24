@@ -80,6 +80,9 @@ class Tsch(object):
             self.asnLastSync = self.engine.getAsn()
             self._start_keep_alive_timer()
 
+            # start SF
+            self.mote.sf.start()
+
             # transition: listeningForEB->active
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
                 uniqueTag=(self.mote.id, '_action_listeningForEB_cell')
