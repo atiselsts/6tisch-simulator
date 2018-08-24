@@ -4,6 +4,8 @@ import random
 import sys
 from abc import abstractmethod
 
+import netaddr
+
 import SimEngine
 import MoteDefines as d
 
@@ -958,3 +960,22 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             return_code = d.SIXP_RC_SUCCESS,
             callback    = callback
         )
+
+    # SAX
+    def _sax(self, mac_addr):
+        # XXX: a concrete definition of this hash function is needed to be
+        # provided by the draft
+
+        LEFT_SHIFT_NUM = 5
+        RIGHT_SHIFT_NUM = 2
+
+        # assuming v (seed) is 0
+        hash_value = 0
+        for word in netaddr.EUI(mac_addr).words:
+            for byte in divmod(word, 0x100):
+                left_shifted = (hash_value << LEFT_SHIFT_NUM)
+                right_shifted = (hash_value >> RIGHT_SHIFT_NUM)
+                hash_value ^= left_shifted + right_shifted + byte
+
+        # assuming T (table size) is 16-bit
+        return hash_value & 0xFFFF

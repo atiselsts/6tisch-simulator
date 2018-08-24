@@ -370,3 +370,18 @@ class TestMSF(object):
         )
         assert len(logs) == 1
         assert logs[0]['_mote_id'] == hop_1.id
+
+
+    def test_sax(self, sim_engine):
+        # FIXME: test should be done against computed hash values
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 10,
+                'sf_class'     : 'MSF'
+            }
+        )
+
+        sax = sim_engine.motes[0].sf._sax
+
+        for mote in sim_engine.motes:
+            print sax(mote.get_mac_addr())
