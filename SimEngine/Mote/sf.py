@@ -100,6 +100,7 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
+    INITIAL_NUM_TXRX_CELLS = 1
     DEFAULT_CELL_LIST_LEN = 5
     TXRX_CELL_OPT = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
     TX_CELL_OPT   = [d.CELLOPTION_TX]
@@ -199,7 +200,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
         self._request_adding_cells(
             neighbor       = new_parent,
-            num_txrx_cells = 1,
+            num_txrx_cells = self.INITIAL_NUM_TXRX_CELLS,
             num_tx_cells   = num_tx_cells,
             num_rx_cells   = num_rx_cells
         )
