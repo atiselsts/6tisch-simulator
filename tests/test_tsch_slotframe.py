@@ -98,6 +98,13 @@ def test_add_cells_at_same_slot_offset():
     assert slotframe.get_cells_by_mac_addr('test_mac_addr_1') == [cell_1]
     assert slotframe.get_cells_by_mac_addr('test_mac_addr_2') == [cell_2]
 
+def test_delete_slotframe(sim_engine):
+    sim_engine = sim_engine(diff_config={'exec_numMotes': 1})
+    mote = sim_engine.motes[0]
+    assert mote.tsch.get_slotframe(0) is not None
+    mote.tsch.delete_slotframe(0)
+    assert mote.tsch.get_slotframe(0) is None
+
 def test_tx_with_two_slotframes(sim_engine):
     sim_engine = sim_engine(
         diff_config = {

@@ -136,6 +136,10 @@ class Tsch(object):
         assert slotframe_handle not in self.slotframes
         self.slotframes[slotframe_handle] = SlotFrame(length)
 
+    def delete_slotframe(self, slotframe_handle):
+        assert slotframe_handle in self.slotframes
+        del self.slotframes[slotframe_handle]
+
     # EB / Enhanced Beacon
 
     def startSendingEBs(self):
