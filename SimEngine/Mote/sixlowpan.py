@@ -284,6 +284,7 @@ class Sixlowpan(object):
     def _add_on_link_neighbor(self, mac_addr):
         # FIXME: we may need _add_on_link_neighbor() as well
         self.on_link_neighbor_list.append(mac_addr)
+        self.mote.sf.indication_neighbor_added(mac_addr)
 
     def _is_on_link_neighbor(self, mac_addr):
         return mac_addr in self.on_link_neighbor_list
