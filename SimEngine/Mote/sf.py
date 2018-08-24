@@ -1000,6 +1000,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             callback    = callback
         )
 
+    # autonomous cell
+    def _get_autonomous_cell(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        hash_value = self._sax(mac_addr)
+
+        slot_offset = int(1 + (hash_value % (slotframe.length - 1)))
+        channel_offset = int(hash_value % 16)
+
+        return (slot_offset, channel_offset)
+
     # SAX
     def _sax(self, mac_addr):
         # XXX: a concrete definition of this hash function is needed to be

@@ -424,3 +424,19 @@ class TestMSF(object):
 
         for mote in sim_engine.motes:
             print sax(mote.get_mac_addr())
+
+    def test_get_autonomous_cell(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 10,
+                'sf_class'     : 'MSF'
+            }
+        )
+
+        mote = sim_engine.motes[0]
+        mac_addr = '00-00-00-00-00-00-00-00'
+
+        # hash_value should be zero
+        slot_offset, channel_offset = mote.sf._get_autonomous_cell(mac_addr)
+        assert slot_offset == 1
+        assert channel_offset == 0
