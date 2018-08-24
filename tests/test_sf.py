@@ -37,7 +37,8 @@ def run_until_cell_allocation(sim_engine, mote, _cell_options):
             slotOffset,
             channelOffset,
             neighbor,
-            cellOptions
+            cellOptions,
+            slotframe_handle
         )
 
         if (
@@ -164,24 +165,27 @@ class TestMSF(object):
                 slotOffset,
                 channelOffset,
                 neighbor,
-                cellOptions
+                cellOptions,
+                slotframe_handle
             )
         def new_action_RX(self):
-            slotframe   = self.slotframes[0]
-            cell        = slotframe.get_cells_at_asn(self.engine.getAsn())[0]
+            slotframe   = self.get_slotframe(self.mote.sf.SLOTFRAME_HANDLE)
+            cells        = slotframe.get_cells_at_asn(self.engine.getAsn())
             if (
-                    (cell.mac_addr is not None)
+                    (len(cells) > 0)
+                    and
+                    (cells[0].mac_addr is not None)
                     and
                     hasattr(self, 'first_dedicated_slot_offset')
                     and
-                    ((self.first_dedicated_slot_offset) != cell.slot_offset)
+                    ((self.first_dedicated_slot_offset) != cells[0].slot_offset)
                 ):
                 # do nothing on this dedicated cell
                 pass
             else:
                 self.original_tsch_action_RX()
 
-        hop_1.tsch.addCell         = types.MethodType(new_addCell, hop_1.tsch)
+        hop_1.tsch.addCell    = types.MethodType(new_addCell, hop_1.tsch)
         hop_1.tsch._action_RX = types.MethodType(new_action_RX, hop_1.tsch)
 
         # wait for the network formed
@@ -328,13 +332,22 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.get_busy_slots()
+        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
             else:
-                hop_1.tsch.addCell(_slot, channel_offset, root.get_mac_addr(), cell_options)
-        assert len(hop_1.tsch.get_busy_slots()) == sim_engine.settings.tsch_slotframeLength
+                hop_1.tsch.addCell(
+                    slotOffset       = _slot,
+                    channelOffset    = channel_offset,
+                    neighbor         = root.get_mac_addr(),
+                    cellOptions      = cell_options,
+                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE
+                )
+        assert (
+            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)) ==
+            sim_engine.settings.tsch_slotframeLength
+        )
 
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.num_cells_passed = 100
@@ -346,7 +359,7 @@ class TestMSF(object):
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
-                hop_1.tsch.get_cells(root.get_mac_addr())
+                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
             )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor             = root.get_mac_addr(),

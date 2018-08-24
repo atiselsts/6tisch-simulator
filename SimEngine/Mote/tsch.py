@@ -200,11 +200,6 @@ class Tsch(object):
         assert isinstance(channelOffset, int)
         assert isinstance(cellOptions, list)
 
-        # FIXME: the following is not always the case; more than one cell can
-        # be allocated at the same slot offset.
-        # make sure I have no activity at that slotOffset already
-        assert slotOffset not in self.get_busy_slots()
-
         slotframe = self.slotframes[slotframe_handle]
 
         # log

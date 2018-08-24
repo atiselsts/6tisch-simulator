@@ -152,7 +152,7 @@ def tsch_all_nodes_check_dedicated_cell(motes):
         # bit on
         tx_cells = filter(
             lambda cell: d.CELLOPTION_TX in cell.options,
-            mote.tsch.get_cells(parent)
+            mote.tsch.get_cells(parent, mote.sf.SLOTFRAME_HANDLE)
         )
 
         assert len(tx_cells) > 0

@@ -23,6 +23,8 @@ class SchedulingFunction(object):
 
 class SchedulingFunctionBase(object):
 
+    SLOTFRAME_HANDLE = 0
+
     def __init__(self, mote):
 
         # store params
@@ -109,6 +111,7 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
+    SLOTFRAME_HANDLE = 1
     INITIAL_NUM_TXRX_CELLS = 1
     DEFAULT_CELL_LIST_LEN = 5
     TXRX_CELL_OPT = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
@@ -130,6 +133,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === admin
 
     def start(self):
+        # install SlotFrame 1 which has the same length as SlotFrame 0
+        slotframe_0 = self.mote.tsch.get_slotframe(0)
+        self.mote.tsch.add_slotframe(
+            slotframe_handle = self.SLOTFRAME_HANDLE,
+            length           = slotframe_0.length
+        )
+
+        # install an autonomous RX cell
         if self.mote.dagRoot:
             # do nothing
             pass
@@ -137,8 +148,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self._housekeeping_collision()
 
     def stop(self):
-        # FIXME: need something before stopping the operation such as freeing
-        # all the allocated cells
+        # uninstall SlotFrame 1 instead of removing all the cells there
+        self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE)
+
         if self.mote.dagRoot:
             # do nothing
             pass
@@ -156,7 +168,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
         tx_cells = filter(
             lambda cell: cell.options == [d.CELLOPTION_TX],
-            self.mote.tsch.get_cells(cell.mac_addr)
+            self.mote.tsch.get_cells(cell.mac_addr, self.SLOTFRAME_HANDLE)
         )
         if cell.mac_addr == preferred_parent:
 
@@ -182,7 +194,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_tx_cells = 0
             num_rx_cells = 0
         else:
-            dedicated_cells = self.mote.tsch.get_cells(old_parent)
+            dedicated_cells = self.mote.tsch.get_cells(
+                mac_addr         = old_parent,
+                slotframe_handle = self.SLOTFRAME_HANDLE
+            )
             num_tx_cells = len(
                 filter(
                     lambda cell: cell.options == [d.CELLOPTION_TX],
@@ -270,7 +285,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
             tx_cells = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
-                self.mote.tsch.get_cells(neighbor)
+                self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
             )
             # delete one *TX* cell
             if len(tx_cells) > 0:
@@ -297,7 +312,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # collect TX cells which has enough numTX
         tx_cell_list = filter(
             lambda cell: cell.options == [d.CELLOPTION_TX],
-            self.mote.tsch.get_cells(preferred_parent)
+            self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE)
         )
         tx_cell_list = {
             cell.slot_offset: cell for cell in tx_cell_list if (
@@ -360,7 +375,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     slotOffset         = cell['slotOffset'],
                     channelOffset      = cell['channelOffset'],
                     neighbor           = neighbor,
-                    cellOptions        = cell_options
+                    cellOptions        = cell_options,
+                    slotframe_handle   = self.SLOTFRAME_HANDLE
                 )
         except Exception:
             # We may fail in adding cells since they could be allocated for
@@ -371,21 +387,23 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _delete_cells(self, neighbor, cell_list, cell_options):
         for cell in cell_list:
             self.mote.tsch.deleteCell(
-                slotOffset    = cell['slotOffset'],
-                channelOffset = cell['channelOffset'],
-                neighbor      = neighbor,
-                cellOptions   = cell_options
+                slotOffset       = cell['slotOffset'],
+                channelOffset    = cell['channelOffset'],
+                neighbor         = neighbor,
+                cellOptions      = cell_options,
+                slotframe_handle = self.SLOTFRAME_HANDLE
             )
 
     def _clear_cells(self, neighbor):
-        cells = self.mote.tsch.get_cells(neighbor)
+        cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
         for cell in cells:
             assert neighbor == cell.mac_addr
             self.mote.tsch.deleteCell(
-                slotOffset    = cell.slot_offset,
-                channelOffset = cell.channel_offset,
-                neighbor      = cell.mac_addr,
-                cellOptions   = cell.options
+                slotOffset       = cell.slot_offset,
+                channelOffset    = cell.channel_offset,
+                neighbor         = cell.mac_addr,
+                cellOptions      = cell.options,
+                slotframe_handle = self.SLOTFRAME_HANDLE
             )
 
     def _relocate_cells(
@@ -403,7 +421,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _create_available_cell_list(self, cell_list_len):
         slots_in_slotframe    = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use          = set(self.mote.tsch.get_busy_slots())
+        slots_in_use          = set(
+            self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
+        )
         available_slots       = list(
             slots_in_slotframe - slots_in_use - self.locked_slots
         )
@@ -435,7 +455,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         occupied_cells = filter(
             lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(neighbor)
+            self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
         )
 
         cell_list = [
@@ -461,7 +481,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell_options in [self.TX_CELL_OPT, self.RX_CELL_OPT]
         allocated_cells = filter(
             lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(peerMac)
+            self.mote.tsch.get_cells(peerMac, self.SLOTFRAME_HANDLE)
         )
 
         # test all the cells in the cell list against the allocated cells
@@ -469,8 +489,13 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         for cell in cell_list:
             slotOffset    = cell['slotOffset']
             channelOffset = cell['channelOffset']
+            cell = self.mote.tsch.get_cell(
+                slot_offset      = slotOffset,
+                channel_offset   = channelOffset,
+                slotframe_handle = self.SLOTFRAME_HANDLE
+            )
 
-            if self.mote.tsch.get_cell(slotOffset, channelOffset) is None:
+            if cell is None:
                 ret_val = False
                 break
 
@@ -554,7 +579,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # find available cells in the received CellList
         slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use       = set(self.mote.tsch.get_busy_slots())
+        slots_in_use       = set(
+            self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
+        )
         slots_in_cell_list = set(
             map(lambda c: c['slotOffset'], proposed_cells)
         )
@@ -910,7 +937,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ):
             # find available cells in the received candidate cell list
             slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-            slots_in_use       = set(self.mote.tsch.get_busy_slots())
+            slots_in_use       = set(
+                self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
+            )
             candidate_slots    = set(
                 map(lambda c: c['slotOffset'], candidate_cells)
             )

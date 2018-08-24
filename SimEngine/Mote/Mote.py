@@ -171,7 +171,10 @@ class Mote(object):
                         len(
                             filter(
                                 lambda cell: d.CELLOPTION_TX in cell.options,
-                                self.tsch.get_cells(self.rpl.getPreferredParent())
+                                self.tsch.get_cells(
+                                    mac_addr         = self.rpl.getPreferredParent(),
+                                    slotframe_handle = self.sf.SLOTFRAME_HANDLE
+                                )
                             )
                         ) == 0
                     )
