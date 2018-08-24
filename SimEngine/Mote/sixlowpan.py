@@ -151,8 +151,8 @@ class Sixlowpan(object):
 
         # add the source mode to the neighbor_cache if it's on-link
         # FIXME: IPv6 prefix should be examined
-        if packet['mac']['srcMac'] not in self.on_link_neighbor_list:
-            self.on_link_neighbor_list.append(packet['mac']['srcMac'])
+        if self._is_on_link_neighbor(packet['mac']['srcMac']) is False:
+            self._add_on_link_neighbor(packet['mac']['srcMac'])
 
         # hand fragment to fragmentation sublayer. Returns a packet to process further, or else stop.
         if goOn:
@@ -280,6 +280,13 @@ class Sixlowpan(object):
                 self.mote.tsch.enqueue(fwdFrag)
 
     #======================== private ==========================================
+
+    def _add_on_link_neighbor(self, mac_addr):
+        # FIXME: we may need _add_on_link_neighbor() as well
+        self.on_link_neighbor_list.append(mac_addr)
+
+    def _is_on_link_neighbor(self, mac_addr):
+        return mac_addr in self.on_link_neighbor_list
 
     def _find_nexthop_mac_addr(self, packet):
         mac_addr = None
