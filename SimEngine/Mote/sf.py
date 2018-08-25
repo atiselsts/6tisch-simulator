@@ -141,6 +141,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         # install an autonomous RX cell
+        slot_offset, channel_offset = self._get_autonomous_cell(self.mote.get_mac_addr())
+        self._allocate_autonomous_rx_cell()
+
         if self.mote.dagRoot:
             # do nothing
             pass
@@ -1009,6 +1012,17 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         channel_offset = int(hash_value % 16)
 
         return (slot_offset, channel_offset)
+
+    def _allocate_autonomous_rx_cell(self):
+        mac_addr = self.mote.get_mac_addr()
+        slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
+        self.mote.tsch.addCell(
+            slotOffset       = slot_offset,
+            channelOffset    = channel_offset,
+            neighbor         = None,
+            cellOptions      = [d.CELLOPTION_RX],
+            slotframe_handle = self.SLOTFRAME_HANDLE
+        )
 
     # SAX
     def _sax(self, mac_addr):

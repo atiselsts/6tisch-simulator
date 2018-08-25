@@ -122,6 +122,37 @@ class TestMSF(object):
         # (mote_0)
         assert len(logs) == 0
 
+    def test_autonomous_rx_cell_allocation(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class':     'MSF'
+            }
+        )
+
+        root = sim_engine.motes[0]
+        non_root = sim_engine.motes[1]
+
+        # root should have one autonomous RX cell just after its initialization
+        cells = [
+            cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+
+        # non_root should not have one autonomous RX cell until it gets
+        # synchronized (it should not have even SlotFrame 1)
+        assert non_root.tsch.get_slotframe(non_root.sf.SLOTFRAME_HANDLE) is None
+
+        # make non_root synchronized
+        eb = root.tsch._create_EB()
+        non_root.tsch._action_receiveEB(eb)
+        cells = [
+            cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
