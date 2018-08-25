@@ -112,7 +112,7 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     SLOTFRAME_HANDLE = 1
-    INITIAL_NUM_TXRX_CELLS = 1
+    INITIAL_NUM_TXRX_CELLS = 0
     DEFAULT_CELL_LIST_LEN = 5
     TXRX_CELL_OPT = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
     TX_CELL_OPT   = [d.CELLOPTION_TX]

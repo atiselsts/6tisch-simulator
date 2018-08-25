@@ -97,7 +97,7 @@ def test_case(request):
 
 class TestMSF(object):
 
-    def test_txrx_cell_allocation_to_parent(self, sim_engine):
+    def test_no_txrx_cell_allocation_to_parent(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
@@ -118,8 +118,9 @@ class TestMSF(object):
             )
         ]
 
-        # mote_1 should schedule one TX/RX/SHARED cell to its parent (mote_0)
-        assert len(logs) == 1
+        # mote_1 shouldn't schedule one TX/RX/SHARED cell to its parent
+        # (mote_0)
+        assert len(logs) == 0
 
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
