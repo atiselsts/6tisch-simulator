@@ -96,6 +96,31 @@ def test_case(request):
 # =========================== tests ===========================================
 
 class TestMSF(object):
+
+    def test_txrx_cell_allocation_to_parent(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class'     : 'MSF',
+                'conn_class'   : 'Linear',
+            }
+        )
+
+        u.run_until_end(sim_engine)
+        logs = [
+            log for log in u.read_log_file(filter=[SimLog.LOG_TSCH_ADD_CELL['type']])
+            if (
+                (log['_mote_id'] == sim_engine.motes[1].id)
+                and
+                (sorted(log['cellOptions']) == sorted([d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]))
+                and
+                (log['neighbor'] is not None)
+            )
+        ]
+
+        # mote_1 should schedule one TX/RX/SHARED cell to its parent (mote_0)
+        assert len(logs) == 1
+
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
