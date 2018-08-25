@@ -248,3 +248,54 @@ def test_print_cell(sim_engine, fixture_cell_options, fixture_mac_addr):
     assert 'channel_offset: {0}'.format(channel_offset) in str_cell
     assert 'mac_addr: {0}'.format(mac_addr) in str_cell
     assert 'options: [{0}]'.format(', '.join(fixture_cell_options)) in str_cell
+
+def test_slotframe_get_cells_filtered():
+    """
+    Unit test for Slotframe class method slotframe_get_cells_filtered
+    Test if we can get the cells filtered by options, MAC address or both
+    """
+    neighbor_mac_addr_1 = 'test_mac_addr_1'
+    neighbor_mac_addr_2 = 'test_mac_addr_2'
+    slotframe = SlotFrame(101)
+
+    # create cells
+    cell_tx_1 = Cell(0, 0, [d.CELLOPTION_TX], neighbor_mac_addr_1)
+    cell_rx_1 = Cell(1, 0, [d.CELLOPTION_RX], neighbor_mac_addr_2)
+    cells = [cell_tx_1, cell_rx_1]
+
+    # add cells to slotframe
+    for c in cells:
+        slotframe.add(c)
+
+    # check if all cells are returned ()
+    assert slotframe.get_cells_filtered() == [cell_tx_1, cell_rx_1]
+
+    # check if only tx cells are returned
+    assert slotframe.get_cells_filtered(options=[d.CELLOPTION_TX]) == [cell_tx_1]
+
+    # check if only tx cells are returned
+    assert slotframe.get_cells_filtered(options=[d.CELLOPTION_RX]) == [cell_rx_1]
+
+    assert slotframe.get_cells_filtered(mac_addr=neighbor_mac_addr_1) == \
+           [c for c in cells if c.mac_addr == neighbor_mac_addr_1]
+
+def test_slotframe_get_available_slot_offsets():
+    """
+    Unit test for Slotframe class method get_available_slot_offsets
+    Test if we can get the list of offsets for slots that are not in use
+    """
+    neighbor_mac_addr_1 = 'test_mac_addr_1'
+    neighbor_mac_addr_2 = 'test_mac_addr_2'
+    slotframe = SlotFrame(101)
+
+    # create cells
+    cell_tx_1 = Cell(0, 0, [d.CELLOPTION_TX], neighbor_mac_addr_1)
+    cell_rx_1 = Cell(1, 0, [d.CELLOPTION_RX], neighbor_mac_addr_2)
+    cells = [cell_tx_1, cell_rx_1]
+
+    # add cells to slotframe
+    for c in cells:
+        slotframe.add(c)
+
+    # check if all slot offsets are returned except the one reserved
+    assert slotframe.get_available_slot_offsets() == [i for i in range(2, 101)]

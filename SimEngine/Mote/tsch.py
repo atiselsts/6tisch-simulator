@@ -1170,6 +1170,42 @@ class SlotFrame(object):
                 return diff
         return None
 
+    def get_available_slot_offsets(self):
+        """
+        Get the list of slot offsets that are not being used (no cell attached)
+        :return: a list of slot offsets (int)
+        :rtype: list
+        """
+        return [i for i, slot in enumerate(self.slots) if len(slot) == 0]
+
+    def get_cells_filtered(self, mac_addr=None, options=None):
+        """
+        Returns a filtered list of cells
+        Filtering can be done by cell options, mac_addr or both
+        :param mac_addr: the neighbor mac_addr
+        :param options: a list of cell options
+        :rtype: list
+        """
+
+        # configure filtering condition
+        if (mac_addr is None) and (options is not None):  # filter by options
+            condition = lambda c: sorted(c.options) == sorted(options)
+        elif (mac_addr is not None) and (options is None):  # filter by mac_addr
+            condition = lambda c: c.mac_addr == mac_addr
+        elif (mac_addr is None) and (options is None):  # don't filter
+            condition = lambda c: True
+        else:  # filter by options and mac_addr
+            condition = lambda c: (
+                    sorted(c.options) == sorted(options) and
+                    c.mac_addr == mac_addr
+            )
+
+        # get cell list
+        cell_list = [cell for mac in self.cells.values() for cell in mac]
+
+        # apply filter
+        return filter(condition, cell_list)
+
 
 class Cell(object):
     def __init__(
