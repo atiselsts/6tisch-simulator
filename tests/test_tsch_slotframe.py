@@ -256,28 +256,35 @@ def test_slotframe_get_cells_filtered():
     """
     neighbor_mac_addr_1 = 'test_mac_addr_1'
     neighbor_mac_addr_2 = 'test_mac_addr_2'
+    neighbor_mac_addr_3 = None
     slotframe = SlotFrame(101)
 
     # create cells
     cell_tx_1 = Cell(0, 0, [d.CELLOPTION_TX], neighbor_mac_addr_1)
     cell_rx_1 = Cell(1, 0, [d.CELLOPTION_RX], neighbor_mac_addr_2)
-    cells = [cell_tx_1, cell_rx_1]
+    cell_rx_2 = Cell(1, 0, [d.CELLOPTION_RX], neighbor_mac_addr_3)
+    cells = [cell_tx_1, cell_rx_1, cell_rx_2]
 
     # add cells to slotframe
     for c in cells:
         slotframe.add(c)
 
     # check if all cells are returned ()
-    assert slotframe.get_cells_filtered() == [cell_tx_1, cell_rx_1]
+    assert slotframe.get_cells_filtered() == cells
 
     # check if only tx cells are returned
-    assert slotframe.get_cells_filtered(options=[d.CELLOPTION_TX]) == [cell_tx_1]
+    assert slotframe.get_cells_filtered(cell_options=[d.CELLOPTION_TX]) == [cell_tx_1]
 
-    # check if only tx cells are returned
-    assert slotframe.get_cells_filtered(options=[d.CELLOPTION_RX]) == [cell_rx_1]
+    # check if only rx cells are returned
+    assert slotframe.get_cells_filtered(cell_options=[d.CELLOPTION_RX]) == [cell_rx_1, cell_rx_2]
 
+    # check if only cells that match mac_address are returned
     assert slotframe.get_cells_filtered(mac_addr=neighbor_mac_addr_1) == \
            [c for c in cells if c.mac_addr == neighbor_mac_addr_1]
+
+    # check if only cells that match None mac_address are returned
+    assert slotframe.get_cells_filtered(mac_addr=None) == \
+           [c for c in cells if c.mac_addr is None]
 
 def test_slotframe_get_available_slot_offsets():
     """
