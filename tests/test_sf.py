@@ -2,6 +2,7 @@
 Tests for SimEngine.Mote.sf
 """
 
+from itertools import chain
 import types
 
 import pytest
@@ -152,6 +153,41 @@ class TestMSF(object):
             if cell.options == [d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
+
+    @pytest.fixture(params=['start-up', 'neighbor-add'])
+    def fixture_autonomous_tx_cell_mode(self, request):
+        return request.param
+
+    def test_autonomous_tx_cell_allocation(
+            self,
+            sim_engine,
+            fixture_autonomous_tx_cell_mode
+        ):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class':     'MSF'
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # add root to mote's neighbor table
+        root_mac_addr = root.get_mac_addr()
+
+        if fixture_autonomous_tx_cell_mode == 'start-up':
+            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
+            mote.sf.start()
+        elif fixture_autonomous_tx_cell_mode == 'neighbor-add':
+            mote.sf.start()
+            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
+
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        assert len(cells) == 1
+        assert cells[0].is_tx_on() is True
+        assert cells[0].is_rx_on() is False
+        assert cells[0].is_shared_on() is True
 
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
