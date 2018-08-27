@@ -67,11 +67,14 @@ def run_until_dedicated_tx_cell_is_allocated(sim_engine, mote):
     )
 
 def run_until_mote_is_ready_for_app(sim_engine, mote):
-    run_until_cell_allocation(
-        sim_engine,
-        mote,
-        [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
-    )
+    mote.rpl.original_action_receive_dio = mote.rpl.action_receiveDIO
+    def new_action_receive_dio(self, packet):
+        mote.rpl.original_action_receive_dio(packet)
+        sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
+        mote.rpl.action_receiveDIO = mote.rpl.original_action_receive_dio
+    mote.rpl.action_receiveDIO = types.MethodType(new_action_receive_dio, mote.rpl)
+
+    u.run_until_end(sim_engine)
 
 def run_until_sixp_cmd_is_seen(sim_engine, mote, cmd):
     mote.sixp.original_tsch_enqueue = mote.sixp._tsch_enqueue
@@ -205,6 +208,7 @@ class TestMSF(object):
                 'app_pkPeriodVar'         : 0.05,
                 'exec_numMotes'           : 3,
                 'exec_numSlotframesPerRun': 4000,
+                'rpl_daoPeriod'           : 0,
                 'secjoin_enabled'         : False,
                 'sf_class'                : 'MSF',
                 'conn_class'              : 'Linear',
@@ -291,19 +295,20 @@ class TestMSF(object):
         # generate application traffic which is supposed to trigger an ADD
         # transaction between hop_2 and hop_1
         asn_starting_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 1.4)
+        set_app_traffic_rate(sim_engine, 1.3)
         start_app_traffic(hop_2)
         run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # increase the traffic
         asn_increasing_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 1.1)
+        set_app_traffic_rate(sim_engine, 0.5)
         run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
-        # decrease the traffic; run until a RELOCATE command is issued
-        set_app_traffic_rate(sim_engine, 1.4)
+        # decrease the traffic; run until a RELOCATE command is issued to the
+        # dedicated cell scheduled first
+        set_app_traffic_rate(sim_engine, 1.3)
         run_until_sixp_cmd_is_seen(sim_engine, hop_2, d.SIXP_CMD_RELOCATE)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
@@ -363,20 +368,6 @@ class TestMSF(object):
             filter    = [SimLog.LOG_SIXP_TX['type']],
             after_asn = asn_start_testing
         )
-        def it_is_add_request(packet):
-            # return if the packet is a ADD request sent from mote_1 to
-            # new_parent
-            return (
-                (packet['mac']['srcMac'] == mote_1.get_mac_addr())
-                and
-                (packet['mac']['dstMac'] == new_parent.get_mac_addr())
-                and
-                (packet['type'] == d.PKT_TYPE_SIXP)
-                and
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
-                and
-                (packet['app']['code'] == d.SIXP_CMD_ADD)
-            )
 
         def it_is_clear_request(packet):
             # return if the packet is a CLEAR request sent from mote_1 to
@@ -393,7 +384,6 @@ class TestMSF(object):
                 (packet['app']['code'] == d.SIXP_CMD_CLEAR)
             )
 
-        assert len([l for l in logs if it_is_add_request(l['packet'])]) > 0
         assert len([l for l in logs if it_is_clear_request(l['packet'])]) > 0
 
     @pytest.fixture(params=['adapt_to_traffic', 'relocate'])
@@ -451,14 +441,12 @@ class TestMSF(object):
             hop_1.sf._adapt_to_traffic(root.id)
         elif function_under_test == 'relocate':
             relocating_cell = filter(
-                lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
+                lambda cell: cell.options == [d.CELLOPTION_TX],
                 hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
             )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor             = root.get_mac_addr(),
-                cell_options         = [
-                    d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED
-                ],
+                cell_options         = [d.CELLOPTION_TX],
                 num_relocating_cells = 1,
                 cell_list            = [relocating_cell]
             )
