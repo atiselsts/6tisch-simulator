@@ -8,6 +8,7 @@ import netaddr
 
 import SimEngine
 import MoteDefines as d
+import sixp
 
 # =========================== defines =========================================
 
@@ -225,11 +226,21 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         # clear all the cells allocated for the old parent
+        def _callback(event, packet):
+            if event == d.SIXP_CALLBACK_EVENT_FAILURE:
+                # optimization which is not mentioned in 6P/MSF spec:
+                # remove the outstanding transaction because we're deleting all
+                # the cells scheduled to the peer now
+                self.mote.sixp.abort_transaction(
+                    sixp.SixPTransaction.get_transaction_key(packet)
+                )
+            self._clear_cells(old_parent)
+
         if old_parent is not None:
             self.mote.sixp.send_request(
                 dstMac   = old_parent,
                 command  = d.SIXP_CMD_CLEAR,
-                callback = lambda event, packet: self._clear_cells(old_parent)
+                callback = _callback
             )
 
     def detect_schedule_inconsistency(self, peerMac):

@@ -237,6 +237,14 @@ class SixP(object):
             # do nothing if the transaction is not found in the table
             pass
 
+    def abort_transaction(self, transaction_key):
+        if transaction_key in self.transaction_table:
+            assert transaction_key in self.transaction_table
+            del self.transaction_table[transaction_key]
+        else:
+            # do nothing if the transaction is not found in the table
+            pass
+
     def increment_seqnum(self, peerMac):
         assert peerMac in self.seqnum_table.keys()
         self.seqnum_table[peerMac] += 1
