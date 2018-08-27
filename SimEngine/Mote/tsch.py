@@ -946,7 +946,9 @@ class Tsch(object):
 
     # Synchronization / Keep-Alive
     def _send_keep_alive_message(self):
-        assert self.clock.source is not None
+        if self.clock.source is None:
+            return
+
         packet = {
             'type': d.PKT_TYPE_KEEP_ALIVE,
             'mac': {
