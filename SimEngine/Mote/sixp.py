@@ -72,7 +72,11 @@ class SixP(object):
             # ignore this ACK
             return
 
-        if packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST:
+        if (
+                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
+                and
+                (packet['app']['code'] != d.SIXP_CMD_CLEAR)
+            ):
             self.mote.sixp.increment_seqnum(packet['mac']['dstMac'])
 
         if (
@@ -145,6 +149,11 @@ class SixP(object):
         else:
             # ready to send the packet
             transaction.start(callback, timeout_value)
+
+            # reset the next sequence number for the peer to 0 when the request
+            # is CLEAR
+            if command == d.SIXP_CMD_CLEAR:
+                self._reset_seqnum(dstMac)
 
             # enqueue
             self._tsch_enqueue(packet)
