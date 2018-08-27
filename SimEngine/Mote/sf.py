@@ -162,7 +162,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # do nothing
             pass
         else:
-            self.engine.removeFutureEvent('_housekeeping_collision')
+            self.engine.removeFutureEvent((self.mote.id, '_housekeeping_collision'))
 
     # === indications from other layers
 
@@ -313,6 +313,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         :return:
         """
 
+        if self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE) is None:
+            return
+
         # for quick access; get preferred parent
         preferred_parent = self.mote.rpl.getPreferredParent()
 
@@ -362,7 +365,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self.engine.scheduleAtAsn(
             asn=self.engine.asn + d.MSF_HOUSEKEEPINGCOLLISION_PERIOD,
             cb=self._housekeeping_collision,
-            uniqueTag=('SimEngine', '_housekeeping_collision'),
+            uniqueTag=(self.mote.id, '_housekeeping_collision'),
             intraSlotOrder=d.INTRASLOTORDER_STACKTASKS,
         )
 
