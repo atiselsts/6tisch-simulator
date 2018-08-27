@@ -158,29 +158,6 @@ class Mote(object):
             if self.dagRoot==False and self.rpl.getPreferredParent()==None:
                 returnVal = False
 
-
-        # I must have at least one dedicated cell to my preferred parent (if
-        # running MSF)
-        if returnVal==True:
-            if  (
-                    (self.dagRoot == False)
-                    and
-                    (type(self.sf) == sf.SchedulingFunctionMSF)
-                    and
-                    (
-                        len(
-                            filter(
-                                lambda cell: d.CELLOPTION_TX in cell.options,
-                                self.tsch.get_cells(
-                                    mac_addr         = self.rpl.getPreferredParent(),
-                                    slotframe_handle = self.sf.SLOTFRAME_HANDLE
-                                )
-                            )
-                        ) == 0
-                    )
-                ):
-                    returnVal = False
-
         return returnVal
 
     # ==== dropping
