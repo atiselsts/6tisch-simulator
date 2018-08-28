@@ -69,7 +69,10 @@ class Rpl(object):
         return self.of.get_rank()
 
     def getDagRank(self):
-        return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
+        if self.of.get_rank() is None:
+            return None
+        else:
+            return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
