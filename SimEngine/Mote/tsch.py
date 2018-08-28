@@ -113,11 +113,15 @@ class Tsch(object):
     def get_busy_slots(self, slotframe_handle=0):
         return self.slotframes[slotframe_handle].get_busy_slots()
 
-    def get_cell(self, slot_offset, channel_offset, slotframe_handle=0):
+    def get_cell(self, slot_offset, channel_offset, mac_addr, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
         cells = slotframe.get_cells_by_slot_offset(slot_offset)
         for cell in cells:
-            if cell.channel_offset == channel_offset:
+            if (
+                    (cell.channel_offset == channel_offset)
+                    and
+                    (cell.mac_addr == mac_addr)
+                ):
                 return cell
         return None
 
@@ -232,7 +236,7 @@ class Tsch(object):
 
         # find a target cell. if the cell is not scheduled, the following
         # raises an exception
-        cell = self.get_cell(slotOffset, channelOffset, slotframe_handle)
+        cell = self.get_cell(slotOffset, channelOffset, neighbor, slotframe_handle)
         assert cell.mac_addr == neighbor
         assert cell.options == cellOptions
 

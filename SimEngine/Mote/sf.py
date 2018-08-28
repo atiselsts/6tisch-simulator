@@ -513,6 +513,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             cell = self.mote.tsch.get_cell(
                 slot_offset      = slotOffset,
                 channel_offset   = channelOffset,
+                mac_addr         = peerMac,
                 slotframe_handle = self.SLOTFRAME_HANDLE
             )
 
