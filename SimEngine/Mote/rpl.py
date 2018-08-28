@@ -541,6 +541,9 @@ class RplOF0(object):
                 (neighbor['rank_increase'] is None)
             ):
             return None
+        elif neighbor['advertised_rank'] == self.INFINITE_RANK:
+            # this neighbor should be ignored
+            return None
         else:
             rank = neighbor['advertised_rank'] + neighbor['rank_increase']
 
