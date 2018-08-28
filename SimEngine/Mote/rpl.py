@@ -540,9 +540,14 @@ class RplOF0(object):
                 or
                 (neighbor['rank_increase'] is None)
             ):
-            return self.INFINITE_RANK
+            return None
         else:
-            return neighbor['advertised_rank'] + neighbor['rank_increase']
+            rank = neighbor['advertised_rank'] + neighbor['rank_increase']
+
+            if rank > self.INFINITE_RANK:
+                return self.INFINITE_RANK
+            else:
+                return rank
 
     def _update_preferred_parent(self):
         candidate = min(self.neighbors, key=self._calculate_rank)
