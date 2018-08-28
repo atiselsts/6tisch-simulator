@@ -445,6 +445,12 @@ class RplOF0(object):
         self.rank = None
         self.preferred_parent = None
 
+    @property
+    def parents(self):
+        return (
+            [n for n in self.neighbors if self._calculate_rank(n) is not None]
+        )
+
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
         rank = dio['app']['rank']
