@@ -259,6 +259,36 @@ class TestOF0(object):
         mote_3.rpl.action_receiveDIO(dio_from_root)
         assert mote_3.rpl.getPreferredParent() == root.get_mac_addr()
 
+    def test_infinite_rank_reception(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'  : 2,
+                'secjoin_enabled': False
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # get mote synched
+        eb = root.tsch._create_EB()
+        mote.tsch._action_receiveEB(eb)
+
+        # inject the DIO to mote, which shouldn't cause any exception
+        dio_with_infinite_rank = root.rpl._create_DIO()
+        dio_with_infinite_rank['mac'] = {
+            'srcMac': root.get_mac_addr(),
+            'dstMac': d.BROADCAST_ADDRESS
+        }
+        dio_with_infinite_rank['app']['rank'] = rpl.RplOF0.INFINITE_RANK
+        mote.rpl.action_receiveDIO(dio_with_infinite_rank)
+
+        # mote should not treat the root (the source of the DIO) as a parent
+        # since it advertises the infinite rank (see section 8.2.2.5, RFC
+        # 6550). In other words, mote shouldn't have any effective rank. It
+        # should have None for its rank.
+        assert mote.rpl.of.get_rank() is None
+
 
 @pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
 def fixture_dis_mode(request):

@@ -445,6 +445,12 @@ class RplOF0(object):
         self.rank = None
         self.preferred_parent = None
 
+    @property
+    def parents(self):
+        return (
+            [n for n in self.neighbors if self._calculate_rank(n) is not None]
+        )
+
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
         rank = dio['app']['rank']
@@ -540,14 +546,44 @@ class RplOF0(object):
                 or
                 (neighbor['rank_increase'] is None)
             ):
-            return self.INFINITE_RANK
+            return None
+        elif neighbor['advertised_rank'] == self.INFINITE_RANK:
+            # this neighbor should be ignored
+            return None
         else:
-            return neighbor['advertised_rank'] + neighbor['rank_increase']
+            rank = neighbor['advertised_rank'] + neighbor['rank_increase']
+
+            if rank > self.INFINITE_RANK:
+                return self.INFINITE_RANK
+            else:
+                return rank
 
     def _update_preferred_parent(self):
-        candidate = min(self.neighbors, key=self._calculate_rank)
-        rank_difference = self.get_rank() - self._calculate_rank(candidate)
-        assert rank_difference >= 0
+        try:
+            candidate = min(self.parents, key=self._calculate_rank)
+        except ValueError:
+            # self.parents is empty
+            candidate = None
+
+        current_rank = self.get_rank()
+        new_rank = self._calculate_rank(candidate)
+
+        if (
+                (current_rank is None)
+                and
+                (new_rank is None)
+            ):
+            # we don't have any available parent
+            rank_difference = None
+        elif (
+                (current_rank is None)
+                and
+                (new_rank is not None)
+            ):
+            rank_difference = new_rank
+        else:
+            rank_difference = current_rank - new_rank
+            assert rank_difference >= 0
 
         # Section 6.4, RFC 8180
         #
@@ -558,14 +594,33 @@ class RplOF0(object):
         #   path, the candidate node is selected as the new parent only if the
         #   difference between the new path and the current path is greater
         #   than the defined PARENT_SWITCH_THRESHOLD.
-        if self.PARENT_SWITCH_THRESHOLD < rank_difference:
+        if rank_difference is not None:
+            if self.PARENT_SWITCH_THRESHOLD < rank_difference:
+                new_parent = candidate
+            else:
+                new_parent = None
+        else:
+            new_parent = None
+
+        if (
+                (new_parent is not None)
+                and
+                (new_parent != self.preferred_parent)
+            ):
             # change to the new preferred parent
+
             if self.preferred_parent is None:
                 old_parent_mac_addr = None
             else:
                 old_parent_mac_addr = self.preferred_parent['mac_addr']
-            self.preferred_parent = candidate
+
+            self.preferred_parent = new_parent
+            if new_parent is None:
+                new_parent_mac_addr = None
+            else:
+                new_parent_mac_addr = self.preferred_parent['mac_addr']
+
             self.rpl.indicate_preferred_parent_change(
                 old_preferred = old_parent_mac_addr,
-                new_preferred = self.preferred_parent['mac_addr']
+                new_preferred = new_parent_mac_addr
             )
