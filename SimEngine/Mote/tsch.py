@@ -793,26 +793,30 @@ class Tsch(object):
 
     def _create_EB(self):
 
-        # create
-        newEB = {
-            'type':            d.PKT_TYPE_EB,
-            'app': {
-                'join_metric': self.mote.rpl.getDagRank() - 1,
-            },
-            'mac': {
-                'srcMac':      self.mote.get_mac_addr(),
-                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-            },
-        }
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_EB_TX,
-            {
-                "_mote_id": self.mote.id,
-                "packet":   newEB,
+        join_metric = self.mote.rpl.getDagRank()
+        if join_metric is None:
+            newEB = None
+        else:
+            # create
+            newEB = {
+                'type':            d.PKT_TYPE_EB,
+                'app': {
+                    'join_metric': self.mote.rpl.getDagRank() - 1,
+                },
+                'mac': {
+                    'srcMac':      self.mote.get_mac_addr(),
+                    'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                },
             }
-        )
+
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_EB_TX,
+                {
+                    "_mote_id": self.mote.id,
+                    "packet":   newEB,
+                }
+            )
 
         return newEB
 
