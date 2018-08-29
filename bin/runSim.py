@@ -50,12 +50,15 @@ def parseCliParams():
     cliparams      = parser.parse_args()
     return cliparams.__dict__
 
-def printOrLog(cpuID, output, verbose):
-    assert cpuID is not None
+def getTemplogFileName(cpuID, pid):
     hostname = platform.uname()[1]
+    return '{0}-pid{1}-cpu{2}.templog'.format(hostname, pid, cpuID)
+
+def printOrLog(cpuID, pid, output, verbose):
+    assert cpuID is not None
 
     if not verbose:
-        with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'w') as f:
+        with open(getTemplogFileName(cpuID, pid), 'w') as f:
             f.write(output)
     else:
         print output
@@ -67,6 +70,7 @@ def runSimCombinations(params):
     """
 
     cpuID              = params['cpuID']
+    pid                = params['pid']
     numRuns            = params['numRuns']
     first_run          = params['first_run']
     verbose            = params['verbose']
@@ -102,7 +106,7 @@ def runSimCombinations(params):
                run_id+1-first_run,
                numRuns
             )
-            printOrLog(cpuID, output, verbose)
+            printOrLog(cpuID, pid, output, verbose)
 
             # create singletons
             settings         = SimSettings.SimSettings(cpuID=cpuID, run_id=run_id, **simParam)
@@ -130,16 +134,16 @@ def runSimCombinations(params):
             time.time()-simStartTime,
             numRuns * len(simParams)
         )
-        printOrLog(cpuID, output, verbose)
+        printOrLog(cpuID, pid, output, verbose)
 
 keep_printing_progress = True
-def printProgressPerCpu(hostname, cpuIDs, clear_console=True):
+def printProgressPerCpu(cpuIDs, pid, clear_console=True):
     while keep_printing_progress:
         time.sleep(1)
         output     = []
         for cpuID in cpuIDs:
             try:
-                with open('{0}-cpu{1}.templog'.format(hostname, cpuID), 'r') as f:
+                with open(getTemplogFileName(cpuID, pid), 'r') as f:
                     output += ['[cpu {0}] {1}'.format(cpuID, f.read())]
             except IOError:
                 output += ['[cpu {0}] no info (yet?)'.format(cpuID)]
@@ -211,6 +215,7 @@ def main():
 
         runSimCombinations({
             'cpuID':              0,
+            'pid':                os.getpid(),
             'numRuns':            simconfig.execution.numRuns,
             'first_run':          0,
             'verbose':            True,
@@ -248,7 +253,7 @@ def main():
             clear_console = True
         print_progress_thread = threading.Thread(
             target = printProgressPerCpu,
-            args   = (platform.uname()[1], cpuIDs, clear_console)
+            args   = (cpuIDs, os.getpid(), clear_console)
         )
 
         print_progress_thread.start()
@@ -264,6 +269,7 @@ def main():
             [
                 {
                     'cpuID':              cpuID,
+                    'pid':                os.getpid(),
                     'numRuns':            runs,
                     'first_run':          first_run,
                     'verbose':            False,
@@ -287,7 +293,7 @@ def main():
         # cleanup
         hostname = platform.uname()[1]
         for i in range(numCPUs):
-            os.remove('{0}-cpu{1}.templog'.format(hostname, i))
+            os.remove(getTemplogFileName(i, os.getpid()))
 
     # merge output files
     folder_path = os.path.join('simData', simconfig.get_log_directory_name())
