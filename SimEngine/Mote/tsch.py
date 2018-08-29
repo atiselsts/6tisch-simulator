@@ -635,24 +635,22 @@ class Tsch(object):
                         )
                     ):
                     # try to find a packet to send
-                    packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
+                    _packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
 
                     # take care of the retransmission backoff algorithm
-                    if (
-                            (packet_to_send is not None)
-                            and
+                    if _packet_to_send is not None:
+                        if (
                             cell.is_shared_on()
                             and
-                            self._is_retransmission(packet_to_send)
+                            self._is_retransmission(_packet_to_send)
                             and
                             (self.backoff_remaining_delay > 0)
                         ):
-                        self.backoff_remaining_delay -= 1
-                        # skip this cell for transmission
-                        packet_to_send = None
-
-                    if packet_to_send is not None:
-                        active_cell = cell
+                            self.backoff_remaining_delay -= 1
+                            # skip this cell for transmission
+                        else:
+                            packet_to_send = _packet_to_send
+                            active_cell = cell
 
             if (
                     cell.is_rx_on()
