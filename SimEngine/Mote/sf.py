@@ -407,6 +407,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _delete_cells(self, neighbor, cell_list, cell_options):
         for cell in cell_list:
+            if self.mote.tsch.get_cell(
+                    slot_offset      = cell['slotOffset'],
+                    channel_offset   = cell['channelOffset'],
+                    mac_addr         = neighbor,
+                    slotframe_handle = self.SLOTFRAME_HANDLE
+               ) is None:
+                # the cell may have been deleted for some reason
+                continue
             self.mote.tsch.deleteCell(
                 slotOffset       = cell['slotOffset'],
                 channelOffset    = cell['channelOffset'],
