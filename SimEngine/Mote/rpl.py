@@ -391,6 +391,11 @@ class Rpl(object):
             while self.mote.is_my_ipv6_addr(cur_addr) is False:
                 sourceRoute += [cur_addr]
                 cur_addr     = self.parentChildfromDAOs[cur_addr]
+                if cur_addr in sourceRoute:
+                    # routing loop is detected; cannot return an effective
+                    # source-routing header
+                    returnVal = None
+                    break
         except KeyError:
             returnVal = None
         else:
