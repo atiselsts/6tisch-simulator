@@ -344,3 +344,21 @@ def test_dis(sim_engine, fixture_dis_mode):
     else:
         # DIS is not sent immediately
         assert result['dio'] is None
+
+
+def test_handle_routing_loop_at_root(sim_engine):
+    sim_engine = sim_engine(diff_config={'exec_numMotes': 1})
+    root = sim_engine.motes[0]
+
+    # set up a routing loop
+    addr_1 = 'fd00::1'
+    addr_2 = 'fd00::2'
+
+    root.rpl.addParentChildfromDAOs(parent_addr=addr_1, child_addr=addr_2)
+    root.rpl.addParentChildfromDAOs(parent_addr=addr_2, child_addr=addr_1)
+
+    # now root has a loop of addr_1 and addr_2; the following method call
+    # causes an infinite loop unless a bugfix is in place
+    root.rpl.computeSourceRoute(addr_1)
+
+    assert True
