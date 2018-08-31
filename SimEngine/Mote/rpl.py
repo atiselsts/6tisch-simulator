@@ -69,7 +69,10 @@ class Rpl(object):
         return self.of.get_rank()
 
     def getDagRank(self):
-        return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
+        if self.of.get_rank() is None:
+            return None
+        else:
+            return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
@@ -388,6 +391,11 @@ class Rpl(object):
             while self.mote.is_my_ipv6_addr(cur_addr) is False:
                 sourceRoute += [cur_addr]
                 cur_addr     = self.parentChildfromDAOs[cur_addr]
+                if cur_addr in sourceRoute:
+                    # routing loop is detected; cannot return an effective
+                    # source-routing header
+                    returnVal = None
+                    break
         except KeyError:
             returnVal = None
         else:

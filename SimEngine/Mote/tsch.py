@@ -80,6 +80,9 @@ class Tsch(object):
             self.asnLastSync = self.engine.getAsn()
             self._start_keep_alive_timer()
 
+            # start SF
+            self.mote.sf.start()
+
             # transition: listeningForEB->active
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
                 uniqueTag=(self.mote.id, '_action_listeningForEB_cell')
@@ -110,11 +113,15 @@ class Tsch(object):
     def get_busy_slots(self, slotframe_handle=0):
         return self.slotframes[slotframe_handle].get_busy_slots()
 
-    def get_cell(self, slot_offset, channel_offset, slotframe_handle=0):
+    def get_cell(self, slot_offset, channel_offset, mac_addr, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
         cells = slotframe.get_cells_by_slot_offset(slot_offset)
         for cell in cells:
-            if cell.channel_offset == channel_offset:
+            if (
+                    (cell.channel_offset == channel_offset)
+                    and
+                    (cell.mac_addr == mac_addr)
+                ):
                 return cell
         return None
 
@@ -132,6 +139,10 @@ class Tsch(object):
     def add_slotframe(self, slotframe_handle, length):
         assert slotframe_handle not in self.slotframes
         self.slotframes[slotframe_handle] = SlotFrame(length)
+
+    def delete_slotframe(self, slotframe_handle):
+        assert slotframe_handle in self.slotframes
+        del self.slotframes[slotframe_handle]
 
     # EB / Enhanced Beacon
 
@@ -193,11 +204,6 @@ class Tsch(object):
         assert isinstance(channelOffset, int)
         assert isinstance(cellOptions, list)
 
-        # FIXME: the following is not always the case; more than one cell can
-        # be allocated at the same slot offset.
-        # make sure I have no activity at that slotOffset already
-        assert slotOffset not in self.get_busy_slots()
-
         slotframe = self.slotframes[slotframe_handle]
 
         # log
@@ -230,7 +236,7 @@ class Tsch(object):
 
         # find a target cell. if the cell is not scheduled, the following
         # raises an exception
-        cell = self.get_cell(slotOffset, channelOffset, slotframe_handle)
+        cell = self.get_cell(slotOffset, channelOffset, neighbor, slotframe_handle)
         assert cell.mac_addr == neighbor
         assert cell.options == cellOptions
 
@@ -629,49 +635,22 @@ class Tsch(object):
                         )
                     ):
                     # try to find a packet to send
-                    packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
-
-                    # HACK (to be removed): don't transmit a frame on a shared
-                    # link if it has a dedicated TX link to the destination and
-                    # doesn't have a dedicated RX link from the destination. In
-                    # such a case, the shared link is used as if it's a
-                    # dedicated RX.
-                    if packet_to_send is not None:
-                        dedicated_tx_links = filter(
-                            lambda cell: cell.options == [d.CELLOPTION_TX],
-                            self.get_cells(packet_to_send['mac']['dstMac'])
-                        )
-                        dedicated_rx_links = filter(
-                            lambda cell: cell.options == [d.CELLOPTION_RX],
-                            self.get_cells(packet_to_send['mac']['dstMac'])
-                        )
-                        if (
-                                (packet_to_send is not None)
-                                and
-                                cell.is_shared_on()
-                                and
-                                (len(dedicated_tx_links) > 0)
-                                and
-                                (len(dedicated_rx_links) == 0)
-                            ):
-                            packet_to_send = None
+                    _packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
 
                     # take care of the retransmission backoff algorithm
-                    if (
-                            (packet_to_send is not None)
-                            and
+                    if _packet_to_send is not None:
+                        if (
                             cell.is_shared_on()
                             and
-                            self._is_retransmission(packet_to_send)
+                            self._is_retransmission(_packet_to_send)
                             and
                             (self.backoff_remaining_delay > 0)
                         ):
-                        self.backoff_remaining_delay -= 1
-                        # skip this cell for transmission
-                        packet_to_send = None
-
-                    if packet_to_send is not None:
-                        active_cell = cell
+                            self.backoff_remaining_delay -= 1
+                            # skip this cell for transmission
+                        else:
+                            packet_to_send = _packet_to_send
+                            active_cell = cell
 
             if (
                     cell.is_rx_on()
@@ -812,26 +791,30 @@ class Tsch(object):
 
     def _create_EB(self):
 
-        # create
-        newEB = {
-            'type':            d.PKT_TYPE_EB,
-            'app': {
-                'join_metric': self.mote.rpl.getDagRank() - 1,
-            },
-            'mac': {
-                'srcMac':      self.mote.get_mac_addr(),
-                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-            },
-        }
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_EB_TX,
-            {
-                "_mote_id": self.mote.id,
-                "packet":   newEB,
+        join_metric = self.mote.rpl.getDagRank()
+        if join_metric is None:
+            newEB = None
+        else:
+            # create
+            newEB = {
+                'type':            d.PKT_TYPE_EB,
+                'app': {
+                    'join_metric': self.mote.rpl.getDagRank() - 1,
+                },
+                'mac': {
+                    'srcMac':      self.mote.get_mac_addr(),
+                    'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                },
             }
-        )
+
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_EB_TX,
+                {
+                    "_mote_id": self.mote.id,
+                    "packet":   newEB,
+                }
+            )
 
         return newEB
 
@@ -969,7 +952,9 @@ class Tsch(object):
 
     # Synchronization / Keep-Alive
     def _send_keep_alive_message(self):
-        assert self.clock.source is not None
+        if self.clock.source is None:
+            return
+
         packet = {
             'type': d.PKT_TYPE_KEEP_ALIVE,
             'mac': {

@@ -2,6 +2,7 @@
 Tests for SimEngine.Mote.sf
 """
 
+from itertools import chain
 import types
 
 import pytest
@@ -37,7 +38,8 @@ def run_until_cell_allocation(sim_engine, mote, _cell_options):
             slotOffset,
             channelOffset,
             neighbor,
-            cellOptions
+            cellOptions,
+            slotframe_handle
         )
 
         if (
@@ -65,11 +67,14 @@ def run_until_dedicated_tx_cell_is_allocated(sim_engine, mote):
     )
 
 def run_until_mote_is_ready_for_app(sim_engine, mote):
-    run_until_cell_allocation(
-        sim_engine,
-        mote,
-        [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
-    )
+    mote.rpl.original_action_receive_dio = mote.rpl.action_receiveDIO
+    def new_action_receive_dio(self, packet):
+        mote.rpl.original_action_receive_dio(packet)
+        sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
+        mote.rpl.action_receiveDIO = mote.rpl.original_action_receive_dio
+    mote.rpl.action_receiveDIO = types.MethodType(new_action_receive_dio, mote.rpl)
+
+    u.run_until_end(sim_engine)
 
 def run_until_sixp_cmd_is_seen(sim_engine, mote, cmd):
     mote.sixp.original_tsch_enqueue = mote.sixp._tsch_enqueue
@@ -95,6 +100,98 @@ def test_case(request):
 # =========================== tests ===========================================
 
 class TestMSF(object):
+
+    def test_no_txrx_cell_allocation_to_parent(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class'     : 'MSF',
+                'conn_class'   : 'Linear',
+            }
+        )
+
+        u.run_until_end(sim_engine)
+        logs = [
+            log for log in u.read_log_file(filter=[SimLog.LOG_TSCH_ADD_CELL['type']])
+            if (
+                (log['_mote_id'] == sim_engine.motes[1].id)
+                and
+                (sorted(log['cellOptions']) == sorted([d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]))
+                and
+                (log['neighbor'] is not None)
+            )
+        ]
+
+        # mote_1 shouldn't schedule one TX/RX/SHARED cell to its parent
+        # (mote_0)
+        assert len(logs) == 0
+
+    def test_autonomous_rx_cell_allocation(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class':     'MSF'
+            }
+        )
+
+        root = sim_engine.motes[0]
+        non_root = sim_engine.motes[1]
+
+        # root should have one autonomous RX cell just after its initialization
+        cells = [
+            cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+
+        # non_root should not have one autonomous RX cell until it gets
+        # synchronized (it should not have even SlotFrame 1)
+        assert non_root.tsch.get_slotframe(non_root.sf.SLOTFRAME_HANDLE) is None
+
+        # make non_root synchronized
+        eb = root.tsch._create_EB()
+        non_root.tsch._action_receiveEB(eb)
+        cells = [
+            cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+
+    @pytest.fixture(params=['start-up', 'neighbor-add'])
+    def fixture_autonomous_tx_cell_mode(self, request):
+        return request.param
+
+    def test_autonomous_tx_cell_allocation(
+            self,
+            sim_engine,
+            fixture_autonomous_tx_cell_mode
+        ):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 2,
+                'sf_class':     'MSF'
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # add root to mote's neighbor table
+        root_mac_addr = root.get_mac_addr()
+
+        if fixture_autonomous_tx_cell_mode == 'start-up':
+            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
+            mote.sf.start()
+        elif fixture_autonomous_tx_cell_mode == 'neighbor-add':
+            mote.sf.start()
+            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
+
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        assert len(cells) == 1
+        assert cells[0].is_tx_on() is True
+        assert cells[0].is_rx_on() is False
+        assert cells[0].is_shared_on() is True
+
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
@@ -111,6 +208,7 @@ class TestMSF(object):
                 'app_pkPeriodVar'         : 0.05,
                 'exec_numMotes'           : 3,
                 'exec_numSlotframesPerRun': 4000,
+                'rpl_daoPeriod'           : 0,
                 'secjoin_enabled'         : False,
                 'sf_class'                : 'MSF',
                 'conn_class'              : 'Linear',
@@ -164,24 +262,27 @@ class TestMSF(object):
                 slotOffset,
                 channelOffset,
                 neighbor,
-                cellOptions
+                cellOptions,
+                slotframe_handle
             )
         def new_action_RX(self):
-            slotframe   = self.slotframes[0]
-            cell        = slotframe.get_cells_at_asn(self.engine.getAsn())[0]
+            slotframe   = self.get_slotframe(self.mote.sf.SLOTFRAME_HANDLE)
+            cells        = slotframe.get_cells_at_asn(self.engine.getAsn())
             if (
-                    (cell.mac_addr is not None)
+                    (len(cells) > 0)
+                    and
+                    (cells[0].mac_addr is not None)
                     and
                     hasattr(self, 'first_dedicated_slot_offset')
                     and
-                    ((self.first_dedicated_slot_offset) != cell.slot_offset)
+                    ((self.first_dedicated_slot_offset) != cells[0].slot_offset)
                 ):
                 # do nothing on this dedicated cell
                 pass
             else:
                 self.original_tsch_action_RX()
 
-        hop_1.tsch.addCell         = types.MethodType(new_addCell, hop_1.tsch)
+        hop_1.tsch.addCell    = types.MethodType(new_addCell, hop_1.tsch)
         hop_1.tsch._action_RX = types.MethodType(new_action_RX, hop_1.tsch)
 
         # wait for the network formed
@@ -194,19 +295,20 @@ class TestMSF(object):
         # generate application traffic which is supposed to trigger an ADD
         # transaction between hop_2 and hop_1
         asn_starting_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 1.4)
+        set_app_traffic_rate(sim_engine, 1.3)
         start_app_traffic(hop_2)
         run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # increase the traffic
         asn_increasing_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 1.1)
+        set_app_traffic_rate(sim_engine, 0.5)
         run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
-        # decrease the traffic; run until a RELOCATE command is issued
-        set_app_traffic_rate(sim_engine, 1.4)
+        # decrease the traffic; run until a RELOCATE command is issued to the
+        # dedicated cell scheduled first
+        set_app_traffic_rate(sim_engine, 1.3)
         run_until_sixp_cmd_is_seen(sim_engine, hop_2, d.SIXP_CMD_RELOCATE)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
@@ -266,20 +368,6 @@ class TestMSF(object):
             filter    = [SimLog.LOG_SIXP_TX['type']],
             after_asn = asn_start_testing
         )
-        def it_is_add_request(packet):
-            # return if the packet is a ADD request sent from mote_1 to
-            # new_parent
-            return (
-                (packet['mac']['srcMac'] == mote_1.get_mac_addr())
-                and
-                (packet['mac']['dstMac'] == new_parent.get_mac_addr())
-                and
-                (packet['type'] == d.PKT_TYPE_SIXP)
-                and
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
-                and
-                (packet['app']['code'] == d.SIXP_CMD_ADD)
-            )
 
         def it_is_clear_request(packet):
             # return if the packet is a CLEAR request sent from mote_1 to
@@ -296,7 +384,6 @@ class TestMSF(object):
                 (packet['app']['code'] == d.SIXP_CMD_CLEAR)
             )
 
-        assert len([l for l in logs if it_is_add_request(l['packet'])]) > 0
         assert len([l for l in logs if it_is_clear_request(l['packet'])]) > 0
 
     @pytest.fixture(params=['adapt_to_traffic', 'relocate'])
@@ -328,13 +415,22 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.get_busy_slots()
+        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
             else:
-                hop_1.tsch.addCell(_slot, channel_offset, root.get_mac_addr(), cell_options)
-        assert len(hop_1.tsch.get_busy_slots()) == sim_engine.settings.tsch_slotframeLength
+                hop_1.tsch.addCell(
+                    slotOffset       = _slot,
+                    channelOffset    = channel_offset,
+                    neighbor         = root.get_mac_addr(),
+                    cellOptions      = cell_options,
+                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE
+                )
+        assert (
+            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)) ==
+            sim_engine.settings.tsch_slotframeLength
+        )
 
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.num_cells_passed = 100
@@ -345,14 +441,12 @@ class TestMSF(object):
             hop_1.sf._adapt_to_traffic(root.id)
         elif function_under_test == 'relocate':
             relocating_cell = filter(
-                lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
-                hop_1.tsch.get_cells(root.get_mac_addr())
+                lambda cell: cell.options == [d.CELLOPTION_TX],
+                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
             )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor             = root.get_mac_addr(),
-                cell_options         = [
-                    d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED
-                ],
+                cell_options         = [d.CELLOPTION_TX],
                 num_relocating_cells = 1,
                 cell_list            = [relocating_cell]
             )
@@ -370,3 +464,34 @@ class TestMSF(object):
         )
         assert len(logs) == 1
         assert logs[0]['_mote_id'] == hop_1.id
+
+
+    def test_sax(self, sim_engine):
+        # FIXME: test should be done against computed hash values
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 10,
+                'sf_class'     : 'MSF'
+            }
+        )
+
+        sax = sim_engine.motes[0].sf._sax
+
+        for mote in sim_engine.motes:
+            print sax(mote.get_mac_addr())
+
+    def test_get_autonomous_cell(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': 10,
+                'sf_class'     : 'MSF'
+            }
+        )
+
+        mote = sim_engine.motes[0]
+        mac_addr = '00-00-00-00-00-00-00-00'
+
+        # hash_value should be zero
+        slot_offset, channel_offset = mote.sf._get_autonomous_cell(mac_addr)
+        assert slot_offset == 1
+        assert channel_offset == 0

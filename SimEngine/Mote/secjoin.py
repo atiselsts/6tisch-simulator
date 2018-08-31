@@ -60,12 +60,6 @@ class SecJoin(object):
         # record
         self._isJoined = newState
 
-        # start/stop SF
-        if newState is True:
-            self.mote.sf.start()
-        else:
-            self.mote.sf.stop()
-
         # start RPL
         self.mote.rpl.start()
 

@@ -370,3 +370,44 @@ def test_eb_by_root(sim_engine):
     #   DAGRank(rank(0))-1 = 0 is compliant with 802.15.4's requirement of
     #   having the root use Join Metric = 0.
     assert eb['app']['join_metric'] == 0
+
+def test_select_active_tx_cell(sim_engine):
+    # this test is for a particular case; it's not a general test for
+    # Tsch._select_active_cell()
+
+    sim_engine = sim_engine(diff_config={'exec_numMotes': 3})
+    mote = sim_engine.motes[0]
+    neighbor_mac_addr_1 = sim_engine.motes[1].get_mac_addr()
+    neighbor_mac_addr_2 = sim_engine.motes[2].get_mac_addr()
+    txshared_cell_options = [d.CELLOPTION_TX, d.CELLOPTION_SHARED]
+
+    # install one RX cell and one TX/SHARED cell. the TX/SHARED cell is
+    # dedicated for the neighbor same slot offset
+    mote.tsch.addCell(1, 1, neighbor_mac_addr_1, txshared_cell_options)
+    mote.tsch.addCell(1, 1, neighbor_mac_addr_2, txshared_cell_options)
+
+    # put one unicast frame for neighbor_1 to the TX queue first
+    frame_1 = {'mac': {'dstMac': neighbor_mac_addr_1, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    mote.tsch.txQueue.append(frame_1)
+
+    # put two unicast frames for neighbor_2 to the TX queue; the first of
+    # the two frames is under retransmission
+    frame_2 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_3 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_2['mac']['retriesLeft'] -= 1
+    mote.tsch.txQueue.append(frame_2)
+    mote.tsch.txQueue.append(frame_3)
+
+    # set 1 to backoff_remaining_delay so that the TSCH stack skips the cell
+    # for neighbor_mac_adddr_2
+    mote.tsch.backoff_remaining_delay = 1
+
+    # Tsch._select_active_cell() should select the cell for neighbor_mac_addr_1
+    # because the frame for neighbor_mac_addr_2 is under retransmission
+    candidate_cells = mote.tsch.slotframes[0].get_cells_at_asn(1)
+    cell, packet = mote.tsch._select_active_cell(candidate_cells)
+
+    assert mote.tsch.txQueue == [frame_1, frame_2, frame_3]
+    assert cell is not None
+    assert cell.mac_addr == neighbor_mac_addr_1
+    assert packet == frame_1
