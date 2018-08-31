@@ -36,12 +36,14 @@ Simulated protocol stack
 
 |                                                                                                              |                                          |
 |--------------------------------------------------------------------------------------------------------------|------------------------------------------|
-| [RFC6550](https://tools.ietf.org/html/rfc6550)                                                               | RPL, non-storing mode                    |
-| [draft-watteyne-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment-01) | 6LoWPAN Fragment Forwarding              |
-| [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN                                  |
-| [draft-chang-6tisch-msf-01](https://tools.ietf.org/html/draft-chang-6tisch-msf-01)                           | 6TiSCH Minimal Scheduling Function (MSF) |
-| [draft-ietf-6tisch-minimal-security-05](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-05)   | 6TiSCH Minimal Security (join process)   |
-| [draft-ietf-6tisch-6top-protocol-11](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-11)         | 6TiSCH 6top Protocol (6P)                |
+| [RFC6550](https://tools.ietf.org/html/rfc6550), [RFC6552](https://tools.ietf.org/html/rfc6552)               | RPL, non-storing mode, OF0               |
+| [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                        |
+| [draft-watteyne-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment-02) | 6LoWPAN Fragment Forwarding              |
+| [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                    |
+| [draft-ietf-6tisch-msf-00](https://tools.ietf.org/html/draft-ietf-6tisch-msf-00)                             | 6TiSCH Minimal Scheduling Function (MSF) |
+| [draft-ietf-6tisch-minimal-security-05](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-06)   | 6TiSCH Minimal Security (join process)   |
+| [draft-ietf-6tisch-6top-protocol-12](https://tools.ietf.org/html/draft-ietf-6tisch-6top-protocol-12)         | 6TiSCH 6top Protocol (6P)                |
+| [RFC8180](https://tools.ietf.org/html/rfc8180)                                                               | Minimal 6TiSCH Configuration             |
 | [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/)                                           | IEEE802.15.4 TSCH                        |
 
 * connectivity models
