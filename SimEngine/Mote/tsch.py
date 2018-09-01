@@ -1187,6 +1187,24 @@ class SlotFrame(object):
         # apply filter
         return filter(condition, target_cells)
 
+    def set_length(self, new_length):
+        # delete extra cells and slots if reducing slotframe length
+        if new_length < self.length:
+            # delete cells
+            cells = [c for cells in self.cells.itervalues() for c in cells]
+            for cell in cells:
+                if cell.slot_offset > (new_length + 1):
+                    self.delete(cell)
+            # delete slots
+            self.slots = self.slots[:new_length]
+        # add slots if increasing slotframe length
+        elif new_length > self.length:
+            # add slots
+            self.slots += [[] for _ in range(self.length, new_length)]
+
+        # apply the new length
+        self.length = new_length
+
 class Cell(object):
     def __init__(
             self,

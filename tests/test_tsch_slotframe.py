@@ -313,3 +313,57 @@ def test_slotframe_get_available_slot_offsets():
 
     # check if all slot offsets are returned except the one reserved
     assert slotframe.get_available_slot_offsets() == [i for i in range(2, 101)]
+
+def test_slotframe_set_length_without_cells():
+    """
+    Test if we can change the slotframe length when no cells are allocated
+    """
+    slotframe = SlotFrame(101)
+
+    # decrease the slotframe length
+    new_length = 50
+    slotframe.set_length(new_length)
+    assert slotframe.length == new_length
+    assert len(slotframe.slots) == new_length
+
+    # increase the slotframe length
+    new_length = 150
+    slotframe.set_length(new_length)
+    assert slotframe.length == new_length
+    assert len(slotframe.slots) == new_length
+
+def test_slotframe_set_length_with_cells():
+    """
+    Test if we can change the slotframe length when cells are allocated
+    """
+    neighbor_mac_addr_1 = 'test_mac_addr_1'
+    neighbor_mac_addr_2 = 'test_mac_addr_2'
+    slotframe = SlotFrame(101)
+
+    # create cells
+    cell_0  = Cell(0,  0, [d.CELLOPTION_TX], neighbor_mac_addr_1)
+    cell_70 = Cell(70, 0, [d.CELLOPTION_TX], neighbor_mac_addr_2)
+    cells = [cell_0, cell_70]
+
+    # add cells to slotframe
+    for c in cells:
+        slotframe.add(c)
+
+    # decrease the slotframe length
+    assert len(slotframe.get_busy_slots()) == len(cells)
+    new_length = 50
+    slotframe.set_length(new_length)
+    assert slotframe.length == new_length
+    assert len(slotframe.slots) == new_length
+    assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure cell is delete
+
+    # make sure we cannot add a cell after new length
+    with pytest.raises(Exception):
+        slotframe.add(cell_70)
+
+    # increase the slotframe length
+    new_length = 150
+    slotframe.set_length(new_length)
+    assert slotframe.length == new_length
+    assert len(slotframe.slots) == new_length
+    assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure we have the right amount of cells
