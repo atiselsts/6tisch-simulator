@@ -411,3 +411,22 @@ def test_select_active_tx_cell(sim_engine):
     assert cell is not None
     assert cell.mac_addr == neighbor_mac_addr_1
     assert packet == frame_1
+
+def test_get_available_slots(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'       : 1,
+            'tsch_slotframeLength': 101
+        }
+    )
+    mote = sim_engine.motes[0]
+
+    # by default, the mote has the minimal cell. So, its available cells are
+    # slot offset 1 to 100.
+    assert mote.tsch.get_available_slots() == list(range(1,101))
+
+    # add one cell at slot offset 1
+    mote.tsch.addCell(1, 1, None, [], 0)
+
+    # slot offset 1 should not be in the available cells, now
+    assert 1 not in mote.tsch.get_available_slots()
