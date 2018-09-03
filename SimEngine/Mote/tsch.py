@@ -114,7 +114,7 @@ class Tsch(object):
         return self.slotframes[slotframe_handle].get_busy_slots()
 
     def get_available_slots(self, slotframe_handle=0):
-        return self.slotframes[slotframe_handle].get_available_slot_offsets()
+        return self.slotframes[slotframe_handle].get_available_slots()
 
     def get_cell(self, slot_offset, channel_offset, mac_addr, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
@@ -1158,7 +1158,7 @@ class SlotFrame(object):
                 return diff
         return None
 
-    def get_available_slot_offsets(self):
+    def get_available_slots(self):
         """
         Get the list of slot offsets that are not being used (no cell attached)
         :return: a list of slot offsets (int)
