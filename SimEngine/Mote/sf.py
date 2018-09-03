@@ -449,12 +449,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self._delete_cells(neighbor, src_cell_list, cell_options)
 
     def _create_available_cell_list(self, cell_list_len):
-        slots_in_slotframe    = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use          = set(
-            self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
-        )
-        available_slots       = list(
-            slots_in_slotframe - slots_in_use - self.locked_slots
+        available_slots = list(
+            set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
+            self.locked_slots
         )
 
         if len(available_slots) <= cell_list_len:
@@ -608,16 +605,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         peerMac         = request['mac']['srcMac']
 
         # find available cells in the received CellList
-        slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
-        slots_in_use       = set(
-            self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
-        )
         slots_in_cell_list = set(
             map(lambda c: c['slotOffset'], proposed_cells)
         )
-        available_slots    = list(
+        available_slots  = list(
             slots_in_cell_list.intersection(
-                slots_in_slotframe - slots_in_use - self.locked_slots)
+                set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
+                self.locked_slots
+            )
         )
 
         # prepare cell_list
@@ -974,7 +969,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 map(lambda c: c['slotOffset'], candidate_cells)
             )
             available_slots    = list(
-                candidate_slots.intersection(slots_in_slotframe - slots_in_use)
+                candidate_slots.intersection(
+                    set(
+                        self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)
+                    )
+                )
             )
 
             # FIXME: handle the case when available_slots is empty

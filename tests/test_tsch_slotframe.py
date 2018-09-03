@@ -293,9 +293,9 @@ def test_slotframe_get_cells_filtered():
     assert slotframe.get_cells_filtered(mac_addr=None) == \
            [c for c in cells if c.mac_addr is None]
 
-def test_slotframe_get_available_slot_offsets():
+def test_slotframe_get_available_slots():
     """
-    Unit test for Slotframe class method get_available_slot_offsets
+    Unit test for Slotframe class method get_available_slots
     Test if we can get the list of offsets for slots that are not in use
     """
     neighbor_mac_addr_1 = 'test_mac_addr_1'
@@ -312,7 +312,7 @@ def test_slotframe_get_available_slot_offsets():
         slotframe.add(c)
 
     # check if all slot offsets are returned except the one reserved
-    assert slotframe.get_available_slot_offsets() == [i for i in range(2, 101)]
+    assert slotframe.get_available_slots() == [i for i in range(2, 101)]
 
 def test_slotframe_set_length_without_cells():
     """
