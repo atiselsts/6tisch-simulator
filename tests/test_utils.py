@@ -98,6 +98,10 @@ def read_log_file(filter=[], after_asn=0):
     You can get only logs which match types specified in "filter"
     argument
     """
+
+    # make sure the log file has all the logs in it
+    SimEngine.SimLog.SimLog().flush()
+
     sim_settings = SimEngine.SimSettings.SimSettings()
     logs = []
     with open(sim_settings.getOutputFile(), 'r') as f:
