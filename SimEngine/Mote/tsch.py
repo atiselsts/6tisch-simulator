@@ -141,7 +141,11 @@ class Tsch(object):
 
     def add_slotframe(self, slotframe_handle, length):
         assert slotframe_handle not in self.slotframes
-        self.slotframes[slotframe_handle] = SlotFrame(length)
+        self.slotframes[slotframe_handle] = SlotFrame(
+            mote_id          = self.mote.id,
+            slotframe_handle = slotframe_handle,
+            num_slots        = length
+        )
 
     def delete_slotframe(self, slotframe_handle):
         assert slotframe_handle in self.slotframes
@@ -209,19 +213,6 @@ class Tsch(object):
 
         slotframe = self.slotframes[slotframe_handle]
 
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_ADD_CELL,
-            {
-                '_mote_id':        self.mote.id,
-                'slotFrameHandle': slotframe_handle,
-                'slotOffset':      slotOffset,
-                'channelOffset':   channelOffset,
-                'neighbor':        neighbor,
-                'cellOptions':     cellOptions,
-            }
-        )
-
         # add cell
         cell = Cell(slotOffset, channelOffset, cellOptions, neighbor)
         slotframe.add(cell)
@@ -242,19 +233,6 @@ class Tsch(object):
         cell = self.get_cell(slotOffset, channelOffset, neighbor, slotframe_handle)
         assert cell.mac_addr == neighbor
         assert cell.options == cellOptions
-
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_DELETE_CELL,
-            {
-                '_mote_id':        self.mote.id,
-                'slotFrameHandle': slotframe_handle,
-                'slotOffset':      slotOffset,
-                'channelOffset':   channelOffset,
-                'neighbor':        neighbor,
-                'cellOptions':     cellOptions,
-            }
-        )
 
         # delete cell
         slotframe.delete(cell)
@@ -1101,7 +1079,11 @@ class Clock(object):
 
 
 class SlotFrame(object):
-    def __init__(self, num_slots):
+    def __init__(self, mote_id, slotframe_handle, num_slots):
+        self.log = SimEngine.SimLog.SimLog().log
+
+        self.mote_id = mote_id
+        self.slotframe_handle = slotframe_handle
         self.length = num_slots
         self.slots  = [[] for _ in range(self.length)]
         # index by neighbor_mac_addr for quick access
@@ -1121,6 +1103,19 @@ class SlotFrame(object):
         else:
             self.cells[cell.mac_addr].append(cell)
 
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_ADD_CELL,
+            {
+                '_mote_id':        self.mote_id,
+                'slotFrameHandle': self.slotframe_handle,
+                'slotOffset':      cell.slot_offset,
+                'channelOffset':   cell.channel_offset,
+                'neighbor':        cell.mac_addr,
+                'cellOptions':     cell.options
+            }
+        )
+
     def delete(self, cell):
         assert cell.slot_offset < self.length
         assert cell in self.slots[cell.slot_offset]
@@ -1129,6 +1124,19 @@ class SlotFrame(object):
         self.cells[cell.mac_addr].remove(cell)
         if len(self.cells[cell.mac_addr]) == 0:
             del self.cells[cell.mac_addr]
+
+        # log
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_DELETE_CELL,
+            {
+                '_mote_id':        self.mote_id,
+                'slotFrameHandle': self.slotframe_handle,
+                'slotOffset':      cell.slot_offset,
+                'channelOffset':   cell.channel_offset,
+                'neighbor':        cell.mac_addr,
+                'cellOptions':     cell.options,
+            }
+        )
 
     def get_cells_by_slot_offset(self, slot_offset):
         assert slot_offset < self.length
