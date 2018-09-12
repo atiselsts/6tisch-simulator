@@ -21,6 +21,7 @@ import SimEngine.Mote.MoteDefines as d
 
 DAGROOT_ID = 0  # we assume first mote is DAGRoot
 DAGROOT_IP = 'fd00::1:0'
+BATTERY_AA_CAPACITY_mAh = 2821.5
 
 # =========================== decorators ======================================
 
@@ -187,7 +188,7 @@ def kpis_all(inputfile):
                     else:
                         motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
                         assert motestats['avg_current_uA'] > 0
-                        motestats['lifetime_AA_years'] = (2200*1000/float(motestats['avg_current_uA']))/(24.0*365)
+                        motestats['lifetime_AA_years'] = (BATTERY_AA_CAPACITY_mAh*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if 'join_asn' in motestats:
                     # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
                     motestats['latencies']         = []
