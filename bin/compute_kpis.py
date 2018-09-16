@@ -1,3 +1,5 @@
+from __future__ import division
+
 # =========================== adjust path =====================================
 
 import os
@@ -13,6 +15,7 @@ if __name__ == '__main__':
 
 import json
 import glob
+import numpy as np
 
 from SimEngine import SimLog
 import SimEngine.Mote.MoteDefines as d
@@ -21,6 +24,7 @@ import SimEngine.Mote.MoteDefines as d
 
 DAGROOT_ID = 0  # we assume first mote is DAGRoot
 DAGROOT_IP = 'fd00::1:0'
+BATTERY_AA_CAPACITY_mAh = 2821.5
 
 # =========================== decorators ======================================
 
@@ -31,6 +35,11 @@ def openfile(func):
     return inner
 
 # =========================== helpers =========================================
+
+def mean(numbers):
+    return float(sum(numbers)) / max(len(numbers), 1)
+
+# =========================== KPIs ============================================
 
 @openfile
 def kpis_all(inputfile):
@@ -187,7 +196,7 @@ def kpis_all(inputfile):
                     else:
                         motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
                         assert motestats['avg_current_uA'] > 0
-                        motestats['lifetime_AA_years'] = (2200*1000/float(motestats['avg_current_uA']))/(24.0*365)
+                        motestats['lifetime_AA_years'] = (BATTERY_AA_CAPACITY_mAh*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if 'join_asn' in motestats:
                     # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
                     motestats['latencies']         = []
@@ -214,6 +223,111 @@ def kpis_all(inputfile):
                         motestats['WARNING'] = "mote didn't send or receive pkts"
                 else:
                     motestats['WARNING'] = "mote didn't join"
+
+    # === network stats
+    for (run_id, per_mote_stats) in allstats.items():
+
+        #-- define stats
+
+        app_packets_sent = 0
+        app_packets_received = 0
+        app_packets_lost = 0
+        joining_times = []
+        us_latencies = []
+        current_consumed = []
+        slot_duration = file_settings['tsch_slotDuration']
+
+        #-- compute stats
+
+        for (mote_id, motestats) in per_mote_stats.items():
+            # counters
+
+            app_packets_sent += motestats['upstream_num_tx']
+            app_packets_received += motestats['upstream_num_rx']
+            app_packets_lost += motestats['upstream_num_lost']
+
+            # joining times
+
+            joining_times.append(motestats['join_asn'])
+
+            # latency
+
+            us_latencies += motestats['latencies']
+
+            # current consumed
+
+            current_consumed.append(motestats['charge'])
+
+        #-- save stats
+
+        allstats[run_id]['global-stats'] = {
+            'e2e-upstream-delivery': [
+                {
+                    'name': 'E2E Upstream Delivery Ratio',
+                    'unit': '%',
+                    'value': 1 - app_packets_lost / app_packets_sent
+                },
+                {
+                    'name': 'E2E Upstream Loss Rate',
+                    'unit': '%',
+                    'value':  app_packets_lost / app_packets_sent
+                }
+            ],
+            'e2e-upstream-latency': [
+                {
+                    'name': 'E2E Upstream Latency',
+                    'unit': 's',
+                    'mean': mean(us_latencies),
+                    'min': min(us_latencies),
+                    'max': max(us_latencies),
+                    '99%': np.percentile(us_latencies, 99)
+                },
+                {
+                    'name': 'E2E Upstream Latency',
+                    'unit': 'slots',
+                    'mean': mean(us_latencies) / slot_duration,
+                    'min': min(us_latencies) / slot_duration,
+                    'max': max(us_latencies) / slot_duration,
+                    '99%': np.percentile(us_latencies, 99) / slot_duration
+                }
+            ],
+            'current-consumed': [
+                {
+                    'name': 'Current Consumed',
+                    'unit': 'mA',
+                    'mean': mean(current_consumed),
+                    '99%': np.percentile(current_consumed, 99)
+                }
+            ],
+            'joining-time': [
+                {
+                    'name': 'Joining Time',
+                    'unit': 'slots',
+                    'min': min(joining_times),
+                    'max': max(joining_times),
+                    'mean': mean(joining_times),
+                    '99%': np.percentile(joining_times, 99)
+                }
+            ],
+            'app-packets-sent': [
+                {
+                    'name': 'Number of application packets sent',
+                    'total': app_packets_sent
+                }
+            ],
+            'app_packets_received': [
+                {
+                    'name': 'Number of application packets received',
+                    'total': app_packets_lost
+                }
+            ],
+            'app_packets_lost': [
+                {
+                    'name': 'Number of application packets lost',
+                    'total': app_packets_lost
+                }
+            ]
+        }
 
     # === remove unnecessary stats
 
