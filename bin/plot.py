@@ -13,6 +13,7 @@ import argparse
 import json
 import glob
 from collections import OrderedDict
+import numpy as np
 
 # third party
 import matplotlib
@@ -24,6 +25,7 @@ import matplotlib.pyplot as plt
 KPIS = [
     'latency_max_s',
     'latency_avg_s',
+    'latencies',
     'lifetime_AA_years',
     'sync_time_s',
     'join_time_s',
@@ -65,16 +67,40 @@ def main(options):
 
         # plot
         try:
-            plt.boxplot(data.values())
-            plt.xticks(range(1, len(data) + 1), data.keys())
-            plt.ylabel(key)
-            savefig(subfolder, key)
-            plt.clf()
-        except TypeError:
-            print "Cannot create a plot for {0}.".format(key)
+            if key in ['lifetime_AA_years', 'latencies']:
+                plot_cdf(data, key, subfolder)
+            else:
+                plot_box(data, key, subfolder)
+
+        except TypeError as e:
+            print "Cannot create a plot for {0}: {1}.".format(key, e)
     print "Plots are saved in the {0} folder.".format(subfolder)
 
 # =========================== helpers =========================================
+
+def plot_cdf(data, key, subfolder):
+    for k, values in data.iteritems():
+        # convert list of list to list
+        if type(values[0]) == list:
+            values = sum(values, [])
+
+        # compute CDF
+        sorted_data = np.sort(values)
+        yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
+        plt.plot(sorted_data, yvals, label=k)
+
+    plt.xlabel(key)
+    plt.ylabel("CDF")
+    plt.legend()
+    savefig(subfolder, key + ".cdf")
+    plt.clf()
+
+def plot_box(data, key, subfolder):
+    plt.boxplot(data.values())
+    plt.xticks(range(1, len(data) + 1), data.keys())
+    plt.ylabel(key)
+    savefig(subfolder, key)
+    plt.clf()
 
 def savefig(output_folder, output_name, output_format="png"):
     # check if output folder exists and create it if not
