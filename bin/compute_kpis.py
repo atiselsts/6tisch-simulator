@@ -341,7 +341,6 @@ def kpis_all(inputfile):
             if 'join_asn' in motestats:
                 del motestats['upstream_pkts']
                 del motestats['hops']
-                del motestats['latencies']
                 del motestats['join_asn']
 
     return allstats
