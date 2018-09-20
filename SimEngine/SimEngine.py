@@ -358,6 +358,11 @@ class SimEngine(DiscreteEventEngine):
                 'value': self.random_seed
             }
         )
+        # flush buffered logs, which are supposed to be 'config' and
+        # 'random_seed' lines, right now. This could help, for instance, when a
+        # simulation is stuck by an infinite loop without writing these
+        # 'config' and 'random_seed' to a log file.
+        SimLog.SimLog().flush()
         
         # select dagRoot
         self.motes[self.DAGROOT_ID].setDagRoot()
