@@ -95,6 +95,39 @@ class SimConfig(dict):
     def get_startTime(cls):
         return cls._startTime
 
+    @staticmethod
+    def generate_config(settings_dict, random_seed):
+        regular_field = settings_dict
+        # remove cpuID, run_id, log_directory, and combinationKeys, which
+        # shouldn't be in the regular field
+        del regular_field['cpuID']
+        del regular_field['run_id']
+        del regular_field['logDirectory']
+        del regular_field['combinationKeys']
+        # put random seed
+        regular_field['exec_randomSeed'] = random_seed
+
+        # save exec_numMotes value and remove 'exec_numMotes' from
+        # regular_field
+        exec_numMote = regular_field['exec_numMotes']
+        del regular_field['exec_numMotes']
+
+        config_json = {
+            'settings': {
+                'combination': {'exec_numMotes': [exec_numMote]},
+                'regular': regular_field
+            }
+        }
+        config_json['version'] = 0
+        config_json['post'] = []
+        config_json['log_directory_name'] = 'startTime'
+        config_json['logging'] = 'all'
+        config_json['execution'] = {
+            'numCPUs': 1,
+            'numRuns': 1
+        }
+        return config_json
+
     def _decide_log_directory_name(self):
 
         assert SimConfig._log_directory_name is None

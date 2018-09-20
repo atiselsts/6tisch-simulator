@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import traceback
+import json
 
 import Mote
 import SimSettings
@@ -147,23 +148,19 @@ class DiscreteEventEngine(threading.Thread):
             output += ['']
             output += [traceback.format_exc()]
             output += ['==============================']
+            output += ['config.json to reproduce:']
             output += ['']
-            output += ['The following settings are used:']
-            output += ['']
-            for k, v in SimSettings.SimSettings().__dict__.iteritems():
-                if (
-                        (k == 'exec_randomSeed')
-                        and
-                        (v in ['random', 'context'])
-                    ):
-                    # put the random seed value in output
-                    # exec_randomSeed: random
-                    v = '{0} ({1})'.format(v, self.random_seed)
-                output += ['{0}: {1}'.format(str(k), str(v))]
-            output += ['']
-            output += ['==============================']
             output += ['']
             output  = '\n'.join(output)
+            output += json.dumps(
+                SimConfig.SimConfig.generate_config(
+                    settings_dict = self.settings.__dict__,
+                    random_seed   = self.random_seed
+                ),
+                indent = 4
+            )
+            output += '\n\n==============================\n'
+
             sys.stderr.write(output)
 
             # flush all the buffered log data
