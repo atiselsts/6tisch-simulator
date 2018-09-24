@@ -230,6 +230,7 @@ def kpis_all(inputfile):
         joining_times = []
         us_latencies = []
         current_consumed = []
+        lifetimes = []
         slot_duration = file_settings['tsch_slotDuration']
 
         #-- compute stats
@@ -256,6 +257,8 @@ def kpis_all(inputfile):
             # current consumed
 
             current_consumed.append(motestats['charge'])
+            if motestats['lifetime_AA_years'] is not None:
+                lifetimes.append(motestats['lifetime_AA_years'])
 
         #-- save stats
 
@@ -298,6 +301,14 @@ def kpis_all(inputfile):
                     '99%': np.percentile(current_consumed, 99)
                 }
             ],
+            'network_lifetime':[
+                {
+                    'name': 'Network Lifetime',
+                    'unit': 'years',
+                    'min': min(lifetimes),
+                    'total_capacity_mAh': BATTERY_AA_CAPACITY_mAh,
+                }
+            ],
             'joining-time': [
                 {
                     'name': 'Joining Time',
@@ -317,7 +328,7 @@ def kpis_all(inputfile):
             'app_packets_received': [
                 {
                     'name': 'Number of application packets received',
-                    'total': app_packets_lost
+                    'total': app_packets_received
                 }
             ],
             'app_packets_lost': [
