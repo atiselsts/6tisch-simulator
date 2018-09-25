@@ -766,12 +766,20 @@ class SixPTransaction(object):
     def _timeout_handler(self):
         # check whether the transaction has completed at the same ASN as this
         # timeout. if this is the case, we do nothing.
+        if self.isInitiator:
+            srcMac = self.initiator
+            dstMac = self.peerMac
+        else:
+            srcMac = self.peerMac
+            dstMac = self.responder
+
         if self.is_valid is True:
             self.log(
                 SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
                 {
                     '_mote_id': self.mote.id,
-                    'peerMac' : self.peerMac,
+                    'srcMac'  : srcMac,
+                    'dstMac'  : dstMac,
                     'seqNum'  : self.seqNum,
                     'cmd'     : self.request['app']['code']
                 }

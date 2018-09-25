@@ -67,7 +67,7 @@ LOG_MSF_ERROR_SCHEDULE_FULL       = {'type': 'msf.error.schedule_full',   'keys'
 LOG_SIXP_TX                       = {'type': 'sixp.tx',                   'keys': ['_mote_id','packet']}
 LOG_SIXP_RX                       = {'type': 'sixp.rx',                   'keys': ['_mote_id','packet']}
 LOG_SIXP_TRANSACTION_COMPLETED    = {'type': 'sixp.comp',                 'keys': ['_mote_id','peerMac','seqNum', 'cmd']}
-LOG_SIXP_TRANSACTION_TIMEOUT      = {'type': 'sixp.timeout',              'keys': ['_mote_id','peerMac','seqNum', 'cmd']}
+LOG_SIXP_TRANSACTION_TIMEOUT      = {'type': 'sixp.timeout',              'keys': ['_mote_id','srcMac','dstMac','seqNum', 'cmd']}
 
 # === tsch
 LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}
