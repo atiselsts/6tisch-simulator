@@ -35,6 +35,7 @@ DROPREASON_MAX_RETRIES            = 'max_retries'
 DROPREASON_REASSEMBLY_BUFFER_FULL = 'reassembly_buffer_full'
 DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
 DROPREASON_TIME_EXCEEDED          = 'time_exceeded'
+DROPREASON_RANK_ERROR             = 'rank_error'
 
 # === app
 LOG_APP_TX                        = {'type': 'app.tx',                    'keys': ['_mote_id','packet']}

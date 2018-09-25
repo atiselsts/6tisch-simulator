@@ -195,6 +195,37 @@ class Sixlowpan(object):
             else:
                 # packet not for me
 
+                # check if there is a possible routing loop by seeing the
+                # packet source address
+                preferred_parent_mac_addr = self.mote.rpl.getPreferredParent()
+                if (
+                        (
+                            ('downward' not in packet['net'])
+                            or
+                            (packet['net']['downward'] is False)
+                        )
+                        and
+                        (preferred_parent_mac_addr is not None)
+                        and
+                        (packet['mac']['srcMac'] == preferred_parent_mac_addr)
+                    ):
+                    # we received an upward packet from our parent
+                    if (
+                            ('rank_error' in packet['net'])
+                            and
+                            (packet['net']['rank_error'] is True)
+                        ):
+                        # this packet should be discarded
+                        # https://tools.ietf.org/html/rfc6550#section-11.2.2
+                        self.mote.drop_packet(
+                            packet = packet,
+                            reason = SimEngine.SimLog.DROPREASON_RANK_ERROR
+                        )
+                        return
+                    else:
+                        # set Rank-Error and forward this packet
+                        packet['net']['rank_error'] = True
+
                 # forward
                 self.forward(packet)
 
