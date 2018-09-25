@@ -237,13 +237,22 @@ class SixP(object):
             # do nothing if the transaction is not found in the table
             pass
 
-    def abort_transaction(self, transaction_key):
-        if transaction_key in self.transaction_table:
-            assert transaction_key in self.transaction_table
-            del self.transaction_table[transaction_key]
-        else:
-            # do nothing if the transaction is not found in the table
-            pass
+    def abort_transaction(self, request_packet):
+        transaction_key = SixPTransaction.get_transaction_key(request_packet)
+        transaction = self.transaction_table[transaction_key]
+        assert transaction is not None
+        assert transaction.isInitiator
+        transaction._invalidate()
+        self.log(
+            SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
+            {
+                '_mote_id': self.mote.id,
+                'srcMac'  : transaction.initiator,
+                'dstMac'  : transaction.peerMac,
+                'seqNum'  : transaction.seqNum,
+                'cmd'     : transaction.request['app']['code']
+            }
+        )
 
     def increment_seqnum(self, peerMac):
         assert peerMac in self.seqnum_table.keys()

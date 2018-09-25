@@ -228,12 +228,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # clear all the cells allocated for the old parent
         def _callback(event, packet):
             if event == d.SIXP_CALLBACK_EVENT_FAILURE:
-                # optimization which is not mentioned in 6P/MSF spec:
-                # remove the outstanding transaction because we're deleting all
-                # the cells scheduled to the peer now
-                self.mote.sixp.abort_transaction(
-                    sixp.SixPTransaction.get_transaction_key(packet)
-                )
+                # optimization which is not mentioned in 6P/MSF spec: remove
+                # the outstanding transaction because we're deleting all the
+                # cells scheduled to the peer now. The outstanding transaction
+                # should have the same transaction key as the packet we were
+                # trying to send.
+                self.mote.sixp.abort_transaction(packet)
             self._clear_cells(old_parent)
 
         if old_parent is not None:
