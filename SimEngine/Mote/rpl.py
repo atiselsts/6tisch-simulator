@@ -632,3 +632,6 @@ class RplOF0(object):
                 old_preferred = old_parent_mac_addr,
                 new_preferred = new_parent_mac_addr
             )
+
+            # reset Trickle Timer
+            self.rpl.trickle_timer.reset()
