@@ -221,6 +221,8 @@ class Sixlowpan(object):
                             packet = packet,
                             reason = SimEngine.SimLog.DROPREASON_RANK_ERROR
                         )
+                        # reset Trickle timer
+                        self.mote.rpl.trickle_timer.reset()
                         return
                     else:
                         # set Rank-Error and forward this packet
