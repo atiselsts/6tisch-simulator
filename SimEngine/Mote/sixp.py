@@ -238,18 +238,31 @@ class SixP(object):
             pass
 
     def abort_transaction(self, initiator_mac_addr, responder_mac_addr):
+        # make sure we don't have a transaction which was initiated by the peer
+        # of our target transaction
         dummy_packet = {
             'mac': {
-                'srcMac': initiator_mac_addr,
-                'dstMac': responder_mac_addr,
+                'srcMac': responder_mac_addr,
+                'dstMac': initiator_mac_addr,
             },
             'app': {'msgType': d.SIXP_MSG_TYPE_REQUEST}
         }
         transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
+        assert transaction_key not in self.transaction_table
+
+        # make sure we have a transaction to abort
+        dummy_packet['mac']['srcMac'] = initiator_mac_addr
+        dummy_packet['mac']['dstMac'] = responder_mac_addr
+        transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
         transaction = self.transaction_table[transaction_key]
         assert transaction is not None
         assert transaction.isInitiator
+
         transaction._invalidate()
+        self.mote.tsch.remove_frames_in_tx_queue(
+            type   = d.PKT_TYPE_SIXP,
+            dstMac = responder_mac_addr
+        )
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
             {
