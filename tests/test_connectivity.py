@@ -2,6 +2,8 @@
 Tests for SimEngine.Connectivity
 """
 import itertools
+import json
+import gzip
 import os
 import random
 import shutil
@@ -10,6 +12,8 @@ import types
 from scipy.stats import t
 from numpy import average, std
 from math import sqrt
+import pytest
+import k7
 
 import test_utils as u
 from SimEngine import SimLog
@@ -292,3 +296,28 @@ def test_lockon(sim_engine):
     # receive even the preamble of the packet.
     logs = u.read_log_file([SimLog.LOG_PROP_DROP_LOCKON['type']])
     assert len(logs) == 0
+
+#=== test if the simulator ends without an error
+
+ROOT_DIR        = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+TRACE_FILE_PATH = os.path.join(ROOT_DIR, 'traces/grenoble.k7.gz')
+
+@pytest.fixture(params=['FullyMeshed', 'Linear', 'K7', 'Random'])
+def fixture_conn_class(request):
+    return request.param
+
+def test_runsim(sim_engine, fixture_conn_class):
+    # run the simulation with each conn_class. use a shorter
+    # 'exec_numSlotframesPerRun' so that this test doesn't take long time
+    diff_config = {
+        'exec_numSlotframesPerRun': 100,
+        'conn_class'              : fixture_conn_class
+    }
+    if fixture_conn_class == 'K7':
+        with gzip.open(TRACE_FILE_PATH, 'r') as trace:
+            header = json.loads(trace.readline())
+            diff_config['exec_numMotes'] = header['node_count']
+        diff_config['conn_trace'] = TRACE_FILE_PATH
+
+    sim_engine = sim_engine(diff_config=diff_config)
+    u.run_until_end(sim_engine)

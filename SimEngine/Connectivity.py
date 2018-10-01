@@ -509,22 +509,22 @@ class ConnectivityK7(ConnectivityBase):
 
     # overloaded methods
 
-    def get_pdr(self, source, destination, channel):
+    def get_pdr(self, src_id, dst_id, channel):
         # update PDR matrix if we are a new row in our K7 file
         if  self.connectivity_matrix_timestamp < self.engine.asn:
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
-        return super(ConnectivityK7, self).get_pdr(source, destination, channel)
+        return super(ConnectivityK7, self).get_pdr(src_id, dst_id, channel)
 
-    def get_rssi(self, source, destination, channel):
+    def get_rssi(self, src_id, dst_id, channel):
         # update PDR matrix if we are a new row in our K7 file
         if  self.connectivity_matrix_timestamp < self.engine.asn:
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
-        print source, destination, channel
-        return super(ConnectivityK7, self).get_rssi(source, destination, channel)
+        print src_id, dst_id, channel
+        return super(ConnectivityK7, self).get_rssi(src_id, dst_id, channel)
 
     # ======================= private =========================================
 
