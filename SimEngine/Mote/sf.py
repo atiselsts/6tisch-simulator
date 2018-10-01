@@ -233,7 +233,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 # cells scheduled to the peer now. The outstanding transaction
                 # should have the same transaction key as the packet we were
                 # trying to send.
-                self.mote.sixp.abort_transaction(packet)
+                self.mote.sixp.abort_transaction(
+                    initiator_mac_addr=packet['mac']['srcMac'],
+                    responder_mac_addr=packet['mac']['dstMac']
+                )
             self._clear_cells(old_parent)
 
         if old_parent is not None:

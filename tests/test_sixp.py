@@ -443,6 +443,29 @@ class TestTransaction:
         # RC_ERR_BUSY should be sent to the ADD request with SeqNum of 0
         assert rc_err_busy_logs[0]['packet']['app']['seqNum'] == 0
 
+    def test_abort(self, sim_engine):
+        sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
+
+        install_sf(sim_engine.motes, SchedulingFunctionTwoStep)
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        assert len(root.sixp.transaction_table) == 0
+        assert len(root.tsch.txQueue) == 0
+
+        root.sf.issue_add_request(mote.get_mac_addr())
+
+        assert len(root.sixp.transaction_table) == 1
+        assert len(root.tsch.txQueue) == 1
+
+        root.sixp.abort_transaction(
+            initiator_mac_addr = root.get_mac_addr(),
+            responder_mac_addr = mote.get_mac_addr()
+        )
+
+        assert len(root.sixp.transaction_table) == 0
+        assert len(root.tsch.txQueue) == 0
+
 
 class TestSeqNum:
 
