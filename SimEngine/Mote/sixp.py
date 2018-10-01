@@ -237,8 +237,15 @@ class SixP(object):
             # do nothing if the transaction is not found in the table
             pass
 
-    def abort_transaction(self, request_packet):
-        transaction_key = SixPTransaction.get_transaction_key(request_packet)
+    def abort_transaction(self, initiator_mac_addr, responder_mac_addr):
+        dummy_packet = {
+            'mac': {
+                'srcMac': initiator_mac_addr,
+                'dstMac': responder_mac_addr,
+            },
+            'app': {'msgType': d.SIXP_MSG_TYPE_REQUEST}
+        }
+        transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
         transaction = self.transaction_table[transaction_key]
         assert transaction is not None
         assert transaction.isInitiator
