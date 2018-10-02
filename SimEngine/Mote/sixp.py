@@ -194,6 +194,9 @@ class SixP(object):
             # when it receives the request.
             transaction.start(callback, timeout_value)
 
+            # keep the response packet in case of abortion
+            transaction.response = copy.deepcopy(packet)
+
         # enqueue
         self._tsch_enqueue(packet)
 
@@ -220,6 +223,9 @@ class SixP(object):
         transaction = self._find_transaction(packet)
         transaction.set_callback(callback)
 
+        # keep the confirmation packet
+        transaction.confirmation = copy.deepcopy(packet)
+
         # enqueue
         self._tsch_enqueue(packet)
 
@@ -238,31 +244,28 @@ class SixP(object):
             pass
 
     def abort_transaction(self, initiator_mac_addr, responder_mac_addr):
-        # make sure we don't have a transaction which was initiated by the peer
-        # of our target transaction
+        # make sure we have a transaction to abort
         dummy_packet = {
             'mac': {
-                'srcMac': responder_mac_addr,
-                'dstMac': initiator_mac_addr,
+                'srcMac': initiator_mac_addr,
+                'dstMac': responder_mac_addr
             },
             'app': {'msgType': d.SIXP_MSG_TYPE_REQUEST}
         }
         transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
-        assert transaction_key not in self.transaction_table
-
-        # make sure we have a transaction to abort
-        dummy_packet['mac']['srcMac'] = initiator_mac_addr
-        dummy_packet['mac']['dstMac'] = responder_mac_addr
-        transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
         transaction = self.transaction_table[transaction_key]
         assert transaction is not None
-        assert transaction.isInitiator
 
         transaction._invalidate()
-        self.mote.tsch.remove_packets_in_tx_queue(
-            type   = d.PKT_TYPE_SIXP,
-            dstMac = responder_mac_addr
-        )
+        if transaction.isInitiator:
+            if transaction.confirmation is not None:
+                packet_in_tx_queue = transaction.confirmation
+            else:
+                packet_in_tx_queue = transaction.request
+        else:
+                packet_in_tx_queue = transaction.response
+
+        self.mote.tsch.remove_tx_packet(packet_in_tx_queue)
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
             {
@@ -606,6 +609,8 @@ class SixPTransaction(object):
 
         # local variables
         self.request          = copy.deepcopy(request)
+        self.response         = None
+        self.confirmation     = None
         self.callbakc         = None
         self.type             = self._determine_transaction_type()
         self.key              = self.get_transaction_key(request)
