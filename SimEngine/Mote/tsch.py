@@ -368,7 +368,7 @@ class Tsch(object):
                 ]
             )
 
-    def remove_frames_in_tx_queue(self, type, dstMac=None):
+    def remove_packets_in_tx_queue(self, type, dstMac=None):
         i = 0
         while i < len(self.txQueue):
             if (

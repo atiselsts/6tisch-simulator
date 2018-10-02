@@ -259,7 +259,7 @@ class SixP(object):
         assert transaction.isInitiator
 
         transaction._invalidate()
-        self.mote.tsch.remove_frames_in_tx_queue(
+        self.mote.tsch.remove_packets_in_tx_queue(
             type   = d.PKT_TYPE_SIXP,
             dstMac = responder_mac_addr
         )
@@ -817,7 +817,7 @@ class SixPTransaction(object):
             self._invalidate()
 
             # remove a pending frame in TX queue if necessary
-            self.mote.tsch.remove_frames_in_tx_queue(
+            self.mote.tsch.remove_packets_in_tx_queue(
                 type   = d.PKT_TYPE_SIXP,
                 dstMac = self.peerMac
             )
