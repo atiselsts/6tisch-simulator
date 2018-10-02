@@ -354,7 +354,7 @@ class Rpl(object):
         )
 
         # remove other possible DAOs from the queue
-        self.mote.tsch.remove_frames_in_tx_queue(type=d.PKT_TYPE_DAO)
+        self.mote.tsch.remove_packets_in_tx_queue(type=d.PKT_TYPE_DAO)
 
         # send
         self.mote.sixlowpan.sendPacket(newDAO)
