@@ -443,10 +443,16 @@ class TestTransaction:
         # RC_ERR_BUSY should be sent to the ADD request with SeqNum of 0
         assert rc_err_busy_logs[0]['packet']['app']['seqNum'] == 0
 
-    def test_abort(self, sim_engine):
+    @pytest.fixture(
+        params=[d.SIXP_MSG_TYPE_REQUEST, d.SIXP_MSG_TYPE_CONFIRMATION]
+    )
+    def fixture_msg_type(self, request):
+        return request.param
+
+    def test_abort_on_initiator(self, sim_engine, fixture_msg_type):
         sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
 
-        install_sf(sim_engine.motes, SchedulingFunctionTwoStep)
+        install_sf(sim_engine.motes, SchedulingFunctionThreeStep)
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
 
@@ -455,6 +461,35 @@ class TestTransaction:
 
         root.sf.issue_add_request(mote.get_mac_addr())
 
+        if fixture_msg_type == d.SIXP_MSG_TYPE_REQUEST:
+            logs = u.read_log_file([SimLog.LOG_SIXP_TX['type']])
+            assert len(logs) == 1
+            assert logs[0]['_mote_id'] == root.id
+            assert logs[0]['packet']['app']['msgType'] == (
+                d.SIXP_MSG_TYPE_REQUEST
+            )
+        else:
+            assert fixture_msg_type == d.SIXP_MSG_TYPE_CONFIRMATION
+            u.run_until_asn(sim_engine, 102)
+
+            # we should have two sixp.rx logs: one is for the request, the
+            # other is for response
+            logs = u.read_log_file([SimLog.LOG_SIXP_RX['type']])
+            assert len(logs) == 2
+            assert logs[0]['_mote_id'] == mote.id
+            assert logs[1]['_mote_id'] == root.id
+
+            # we should have three sixp.tx logs for each msg_type
+            logs = u.read_log_file([SimLog.LOG_SIXP_TX['type']])
+            assert len(logs) == 3
+            assert logs[0]['_mote_id'] == root.id
+            assert logs[1]['_mote_id'] == mote.id
+            assert logs[2]['_mote_id'] == root.id
+            assert logs[2]['packet']['app']['msgType'] == (
+                d.SIXP_MSG_TYPE_CONFIRMATION
+            )
+
+        # abort the transaction on the initiator
         assert len(root.sixp.transaction_table) == 1
         assert len(root.tsch.txQueue) == 1
 
@@ -466,6 +501,40 @@ class TestTransaction:
         assert len(root.sixp.transaction_table) == 0
         assert len(root.tsch.txQueue) == 0
 
+    def test_abort_on_responder(self, sim_engine):
+        sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
+
+        install_sf(sim_engine.motes, SchedulingFunctionTwoStep)
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        root.sf.issue_add_request(mote.get_mac_addr())
+        u.run_until_asn(sim_engine, 101)
+
+        # mote should receive the request
+        logs = u.read_log_file([SimLog.LOG_SIXP_RX['type']])
+        assert len(logs) == 1
+        assert logs[0]['_mote_id'] == mote.id
+
+        # we should have two sixp.tx logs: one is for the request, the other is
+        # for response
+        logs = u.read_log_file([SimLog.LOG_SIXP_TX['type']])
+        assert len(logs) == 2
+        assert logs[0]['_mote_id'] == root.id
+        assert logs[1]['_mote_id'] == mote.id
+        assert logs[1]['packet']['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
+
+        # abort the transaction on the responder
+        assert len(mote.sixp.transaction_table) == 1
+        assert len(mote.tsch.txQueue) == 1
+
+        mote.sixp.abort_transaction(
+            initiator_mac_addr = root.get_mac_addr(),
+            responder_mac_addr = mote.get_mac_addr()
+        )
+
+        assert len(mote.sixp.transaction_table) == 0
+        assert len(mote.tsch.txQueue) == 0
 
 class TestSeqNum:
 
