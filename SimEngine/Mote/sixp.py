@@ -92,14 +92,14 @@ class SixP(object):
                     (transaction.type == d.SIXP_TRANSACTION_TYPE_3_STEP)
                 )
             ):
+            # complete the transaction
+            transaction.complete()
+
             # invoke callback
             transaction.invoke_callback(
                 event       = d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION,
                 packet      = packet
             )
-
-            # complete the transaction
-            transaction.complete()
         else:
             # do nothing
             pass
@@ -378,12 +378,6 @@ class SixP(object):
             # Cannot find an corresponding transaction; ignore this packet
             pass
         else:
-            # invoke callback
-            transaction.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-                packet      = response
-            )
-
             # complete the transaction if necessary
             if transaction.type == d.SIXP_TRANSACTION_TYPE_2_STEP:
                 transaction.complete()
@@ -394,18 +388,18 @@ class SixP(object):
                 # never happens
                 raise Exception()
 
+            # invoke callback
+            transaction.invoke_callback(
+                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
+                packet      = response
+            )
+
     def _recv_confirmation(self, confirmation):
         transaction = self._find_transaction(confirmation)
         if transaction is None:
             # Cannot find an corresponding transaction; ignore this packet
             pass
         else:
-            # pass this to the scheduling function
-            transaction.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-                packet      = confirmation
-            )
-
             if transaction.type == d.SIXP_TRANSACTION_TYPE_2_STEP:
                 # This shouldn't happen; ignore this packet
                 pass
@@ -415,6 +409,12 @@ class SixP(object):
             else:
                 # never happens
                 raise Exception()
+
+            # pass this to the scheduling function
+            transaction.invoke_callback(
+                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
+                packet      = confirmation
+            )
 
     def _create_packet(
             self,
