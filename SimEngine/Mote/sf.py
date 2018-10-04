@@ -876,6 +876,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_relocating_cells  = 0
             cell_list             = []
 
+        # we don't have any cell to relocate; done
+        if len(relocation_cell_list) == 0:
+            return
+
         # prepare candidate_cell_list
         candidate_cell_list = self._create_available_cell_list(
             self.DEFAULT_CELL_LIST_LEN
