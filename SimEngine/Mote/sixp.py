@@ -611,7 +611,7 @@ class SixPTransaction(object):
         self.request          = copy.deepcopy(request)
         self.response         = None
         self.confirmation     = None
-        self.callbakc         = None
+        self.callback         = None
         self.type             = self._determine_transaction_type()
         self.key              = self.get_transaction_key(request)
         self.is_valid         = False
