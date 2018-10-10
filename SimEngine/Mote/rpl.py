@@ -66,13 +66,13 @@ class Rpl(object):
     # getters/setters
 
     def get_rank(self):
-        return self.of.get_rank()
+        return self.of.rank
 
     def getDagRank(self):
-        if self.of.get_rank() is None:
+        if self.of.rank is None:
             return None
         else:
-            return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
+            return int(self.of.rank / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
@@ -108,7 +108,7 @@ class Rpl(object):
             SimEngine.SimLog.LOG_RPL_CHURN,
             {
                 "_mote_id":        self.mote.id,
-                "rank":            self.of.get_rank(),
+                "rank":            self.of.rank,
                 "preferredParent": new_preferred
             }
         )
@@ -209,7 +209,7 @@ class Rpl(object):
         newDIO = {
             'type':              d.PKT_TYPE_DIO,
             'app': {
-                'rank':          self.of.get_rank(),
+                'rank':          self.of.rank,
                 'dodagId':       self.dodagId,
             },
             'net': {
@@ -421,9 +421,6 @@ class RplOFNone(object):
     def set_rank(self, new_rank):
         self.rank = new_rank
 
-    def get_rank(self):
-        return self.rank
-
     def set_preferred_parent(self, new_preferred_parent):
         self.preferred_parent = new_preferred_parent
 
@@ -471,9 +468,6 @@ class RplOF0(object):
 
         # change preferred parent if necessary
         self._update_preferred_parent()
-
-    def get_rank(self):
-        return self._calculate_rank(self.preferred_parent)
 
     def get_preferred_parent(self):
         if self.preferred_parent is None:
@@ -546,6 +540,9 @@ class RplOF0(object):
             assert step_of_rank <= self.MAXIMUM_STEP_OF_RANK
             neighbor['rank_increase'] = step_of_rank * d.RPL_MINHOPRANKINCREASE
 
+            if neighbor == self.preferred_parent:
+                self.rank = self._calculate_rank(self.preferred_parent)
+
     def _calculate_rank(self, neighbor):
         if (
                 (neighbor is None)
@@ -573,25 +570,23 @@ class RplOF0(object):
             # self.parents is empty
             candidate = None
 
-        current_rank = self.get_rank()
         new_rank = self._calculate_rank(candidate)
 
         if (
-                (current_rank is None)
+                (self.rank is None)
                 and
                 (new_rank is None)
             ):
             # we don't have any available parent
             rank_difference = None
         elif (
-                (current_rank is None)
+                (self.rank is None)
                 and
                 (new_rank is not None)
             ):
             rank_difference = new_rank
         else:
-            rank_difference = current_rank - new_rank
-            assert rank_difference >= 0
+            rank_difference = self.rank - new_rank
 
         # Section 6.4, RFC 8180
         #
@@ -605,6 +600,7 @@ class RplOF0(object):
         if rank_difference is not None:
             if self.PARENT_SWITCH_THRESHOLD < rank_difference:
                 new_parent = candidate
+                self.rank = new_rank
             else:
                 new_parent = None
         else:

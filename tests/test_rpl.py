@@ -288,7 +288,7 @@ class TestOF0(object):
         # since it advertises the infinite rank (see section 8.2.2.5, RFC
         # 6550). In other words, mote shouldn't have any effective rank. It
         # should have None for its rank.
-        assert mote.rpl.of.get_rank() is None
+        assert mote.rpl.of.rank is None
 
 
 @pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
