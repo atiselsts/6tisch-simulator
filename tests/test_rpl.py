@@ -9,6 +9,7 @@ import pytest
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.rpl as rpl
+from SimEngine import SimLog
 
 @pytest.fixture(params=['FullyMeshed','Linear'])
 def fixture_conn_class(request):
@@ -362,3 +363,71 @@ def test_handle_routing_loop_at_root(sim_engine):
     root.rpl.computeSourceRoute(addr_1)
 
     assert True
+
+@pytest.fixture(params=['smaller', 'same', 'larger'])
+def fixture_rank_value(request):
+    return request.param
+
+def test_dodag_parent(sim_engine, fixture_rank_value):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'  : 3,
+            'secjoin_enabled': False
+        }
+    )
+
+    root   = sim_engine.motes[0]
+    parent = sim_engine.motes[1]
+    child  = sim_engine.motes[2]
+
+    # get them connected to the network
+    eb = root.tsch._create_EB()
+    parent.tsch._action_receiveEB(eb)
+    child.tsch._action_receiveEB(eb)
+
+    dio = root.rpl._create_DIO()
+    dio['mac'] = {'srcMac': root.get_mac_addr()}
+    parent.rpl.action_receiveDIO(dio)
+
+    dio = parent.rpl._create_DIO()
+    dio['mac'] = {'srcMac': parent.get_mac_addr()}
+    child.rpl.action_receiveDIO(dio)
+
+    # make sure they are ready for the test
+    assert parent.clear_to_send_EBs_DATA() is True
+    assert child.clear_to_send_EBs_DATA() is True
+    assert len(child.rpl.of.parents) == 1
+    assert child.rpl.of.parents[0]['mac_addr'] == parent.get_mac_addr()
+
+    # create a DIO of 'parent' fot the test
+    dio = parent.rpl._create_DIO()
+    dio['mac'] = {'srcMac': parent.get_mac_addr()}
+    if fixture_rank_value == 'smaller':
+        dio['app']['rank'] = child.rpl.get_rank() - d.RPL_MINHOPRANKINCREASE
+    elif fixture_rank_value == 'same':
+        dio['app']['rank'] = child.rpl.get_rank()
+    elif fixture_rank_value == 'larger':
+        dio['app']['rank'] = child.rpl.get_rank() + d.RPL_MINHOPRANKINCREASE
+    else:
+        raise NotImplementedError()
+
+    # process the global clock
+    sim_engine.asn += 10
+
+    # give the dio to 'child'
+    child.rpl.action_receiveDIO(dio)
+
+    # see what happened
+    if fixture_rank_value == 'smaller':
+        # the parent should remain in the parent set of the child
+        assert child.rpl.of.parents[0]['mac_addr'] == parent.get_mac_addr()
+    else:
+        # the parent should have been removed from the parent set of the child
+        assert len(child.rpl.of.parents) == 0
+        # the child should send a DIO having INFINITE_RANK
+        logs = u.read_log_file(
+            filter    = [SimLog.LOG_RPL_DIO_TX['type']],
+            after_asn = sim_engine.getAsn() - 1
+        )
+        assert len(logs) == 1
+        assert logs[0]['packet']['app']['rank'] == 65535
