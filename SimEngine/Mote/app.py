@@ -214,8 +214,10 @@ class AppPeriodic(AppBase):
         )
 
     def _send_a_single_packet(self):
-        assert self.mote.rpl.dodagId!=None
-        
+        if self.mote.rpl.dodagId == None:
+            # it seems we left the dodag; stop the transmission
+            return
+
         self._send_packet(
             dstIp          = self.mote.rpl.dodagId,
             packet_length  = self.settings.app_pkLength
@@ -244,8 +246,10 @@ class AppBurst(AppBase):
     #======================== private ==========================================
 
     def _send_burst_packets(self):
-        assert self.mote.rpl.dodagId!=None
-        
+        if self.mote.rpl.dodagId == None:
+            # we're not part of the network now
+            return
+
         for _ in range(0, self.settings.app_burstNumPackets):
             self._send_packet(
                 dstIp         = self.mote.rpl.dodagId,

@@ -126,7 +126,12 @@ class Rpl(object):
         self.trickle_timer.reset()
 
     def local_repair(self):
-        self._send_DIO()
+        assert (
+            (self.of.rank is None)
+            or
+            (self.of.rank == d.RPL_INFINITE_RANK)
+        )
+        self._send_DIO() # sending a DIO with the infinite rank
         self.trickle_timer.stop()
         self.dodagId = None
 
