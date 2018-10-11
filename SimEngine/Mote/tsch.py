@@ -968,7 +968,7 @@ class Tsch(object):
                 'dstMac': self.clock.source
             }
         }
-        self.enqueue(packet)
+        self.enqueue(packet, priority=True)
         # the next keep-alive event will be scheduled on receiving an ACK
 
     def _start_keep_alive_timer(self):
