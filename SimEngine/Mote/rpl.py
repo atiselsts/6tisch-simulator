@@ -452,9 +452,27 @@ class RplOF0(object):
 
     @property
     def parents(self):
-        return (
-            [n for n in self.neighbors if self._calculate_rank(n) is not None]
-        )
+        # a parent should have a lower rank than us by MinHopRankIncrease at
+        # least. See section 3.5.1 of RFC 6550:
+        #    "MinHopRankIncrease is the minimum increase in Rank between a node
+        #     and any of its DODAG parents."
+        _parents = []
+        for neighbor in self.neighbors:
+            if self._calculate_rank(neighbor) is None:
+                # skip this one
+                continue
+
+            if (
+                    (self.rank is None)
+                    or
+                    (
+                        d.RPL_MINHOPRANKINCREASE <=
+                        self.rank - neighbor['advertised_rank']
+                    )
+                ):
+                _parents.append(neighbor)
+
+        return _parents
 
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
