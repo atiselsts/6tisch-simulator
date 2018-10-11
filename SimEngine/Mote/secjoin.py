@@ -96,7 +96,10 @@ class SecJoin(object):
             if self.mote.dagRoot is False:
                 # I'm the join proxy
 
-                assert self.mote.rpl.dodagId is not None
+                if self.mote.rpl.dodagId is None:
+                    # ignore this request; we may have performed the local
+                    # repair
+                    return
 
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {
