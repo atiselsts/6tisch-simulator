@@ -125,6 +125,11 @@ class Rpl(object):
         # reset trickle timer to inform new rank quickly
         self.trickle_timer.reset()
 
+    def local_repair(self):
+        self._send_DIO()
+        self.trickle_timer.stop()
+        self.dodagId = None
+
     # === DIS
 
     def action_receiveDIS(self, packet):
@@ -205,11 +210,16 @@ class Rpl(object):
         if dstIp is None:
             dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
 
+        if self.of.rank is None:
+            rank = d.RPL_INFINITE_RANK
+        else:
+            rank = self.of.rank
+
         # create
         newDIO = {
             'type':              d.PKT_TYPE_DIO,
             'app': {
-                'rank':          self.of.rank,
+                'rank':          rank,
                 'dodagId':       self.dodagId,
             },
             'net': {
@@ -302,6 +312,10 @@ class Rpl(object):
         """
         Enqueue a DAO and schedule next one.
         """
+
+        if self.of.get_preferred_parent() is None:
+            # stop sending DAO
+            return
 
         # enqueue
         self._action_enqueueDAO()
@@ -584,11 +598,11 @@ class RplOF0(object):
     def _update_preferred_parent(self):
         try:
             candidate = min(self.parents, key=self._calculate_rank)
+            new_rank = self._calculate_rank(candidate)
         except ValueError:
             # self.parents is empty
             candidate = None
-
-        new_rank = self._calculate_rank(candidate)
+            new_rank = d.RPL_INFINITE_RANK
 
         if (
                 (self.rank is None)
@@ -615,12 +629,17 @@ class RplOF0(object):
         #   path, the candidate node is selected as the new parent only if the
         #   difference between the new path and the current path is greater
         #   than the defined PARENT_SWITCH_THRESHOLD.
-        if rank_difference is not None:
+        if (
+                (new_rank != d.RPL_INFINITE_RANK)
+                and
+                (rank_difference is not None)
+            ):
             if self.PARENT_SWITCH_THRESHOLD < rank_difference:
                 new_parent = candidate
                 self.rank = new_rank
             else:
-                new_parent = None
+                # no change on preferred parent
+                new_parent = self.preferred_parent
         else:
             new_parent = None
 
@@ -649,3 +668,17 @@ class RplOF0(object):
 
             # reset Trickle Timer
             self.rpl.trickle_timer.reset()
+        elif (
+                (new_parent is None)
+                and
+                (self.preferred_parent is not None)
+            ):
+            old_parent_mac_addr = self.preferred_parent['mac_addr']
+            self.neighbors = []
+            self.preferred_parent = None
+            self.rank = None
+            self.rpl.indicate_preferred_parent_change(
+                old_preferred = old_parent_mac_addr,
+                new_preferred = self.preferred_parent,
+            )
+            self.rpl.local_repair()
