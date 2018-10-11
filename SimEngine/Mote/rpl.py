@@ -134,6 +134,7 @@ class Rpl(object):
         self._send_DIO() # sending a DIO with the infinite rank
         self.trickle_timer.stop()
         self.dodagId = None
+        self.mote.tsch.stopSendingEBs()
 
     # === DIS
 
