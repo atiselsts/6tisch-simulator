@@ -66,13 +66,13 @@ class Rpl(object):
     # getters/setters
 
     def get_rank(self):
-        return self.of.get_rank()
+        return self.of.rank
 
     def getDagRank(self):
-        if self.of.get_rank() is None:
+        if self.of.rank is None:
             return None
         else:
-            return int(self.of.get_rank() / d.RPL_MINHOPRANKINCREASE)
+            return int(self.of.rank / d.RPL_MINHOPRANKINCREASE)
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
@@ -108,7 +108,7 @@ class Rpl(object):
             SimEngine.SimLog.LOG_RPL_CHURN,
             {
                 "_mote_id":        self.mote.id,
-                "rank":            self.of.get_rank(),
+                "rank":            self.of.rank,
                 "preferredParent": new_preferred
             }
         )
@@ -124,6 +124,11 @@ class Rpl(object):
 
         # reset trickle timer to inform new rank quickly
         self.trickle_timer.reset()
+
+    def local_repair(self):
+        self._send_DIO()
+        self.trickle_timer.stop()
+        self.dodagId = None
 
     # === DIS
 
@@ -205,11 +210,16 @@ class Rpl(object):
         if dstIp is None:
             dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
 
+        if self.of.rank is None:
+            rank = d.RPL_INFINITE_RANK
+        else:
+            rank = self.of.rank
+
         # create
         newDIO = {
             'type':              d.PKT_TYPE_DIO,
             'app': {
-                'rank':          self.of.get_rank(),
+                'rank':          rank,
                 'dodagId':       self.dodagId,
             },
             'net': {
@@ -302,6 +312,10 @@ class Rpl(object):
         """
         Enqueue a DAO and schedule next one.
         """
+
+        if self.of.get_preferred_parent() is None:
+            # stop sending DAO
+            return
 
         # enqueue
         self._action_enqueueDAO()
@@ -421,9 +435,6 @@ class RplOFNone(object):
     def set_rank(self, new_rank):
         self.rank = new_rank
 
-    def get_rank(self):
-        return self.rank
-
     def set_preferred_parent(self, new_preferred_parent):
         self.preferred_parent = new_preferred_parent
 
@@ -455,9 +466,27 @@ class RplOF0(object):
 
     @property
     def parents(self):
-        return (
-            [n for n in self.neighbors if self._calculate_rank(n) is not None]
-        )
+        # a parent should have a lower rank than us by MinHopRankIncrease at
+        # least. See section 3.5.1 of RFC 6550:
+        #    "MinHopRankIncrease is the minimum increase in Rank between a node
+        #     and any of its DODAG parents."
+        _parents = []
+        for neighbor in self.neighbors:
+            if self._calculate_rank(neighbor) is None:
+                # skip this one
+                continue
+
+            if (
+                    (self.rank is None)
+                    or
+                    (
+                        d.RPL_MINHOPRANKINCREASE <=
+                        self.rank - neighbor['advertised_rank']
+                    )
+                ):
+                _parents.append(neighbor)
+
+        return _parents
 
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
@@ -471,9 +500,6 @@ class RplOF0(object):
 
         # change preferred parent if necessary
         self._update_preferred_parent()
-
-    def get_rank(self):
-        return self._calculate_rank(self.preferred_parent)
 
     def get_preferred_parent(self):
         if self.preferred_parent is None:
@@ -546,6 +572,9 @@ class RplOF0(object):
             assert step_of_rank <= self.MAXIMUM_STEP_OF_RANK
             neighbor['rank_increase'] = step_of_rank * d.RPL_MINHOPRANKINCREASE
 
+            if neighbor == self.preferred_parent:
+                self.rank = self._calculate_rank(self.preferred_parent)
+
     def _calculate_rank(self, neighbor):
         if (
                 (neighbor is None)
@@ -569,29 +598,27 @@ class RplOF0(object):
     def _update_preferred_parent(self):
         try:
             candidate = min(self.parents, key=self._calculate_rank)
+            new_rank = self._calculate_rank(candidate)
         except ValueError:
             # self.parents is empty
             candidate = None
-
-        current_rank = self.get_rank()
-        new_rank = self._calculate_rank(candidate)
+            new_rank = d.RPL_INFINITE_RANK
 
         if (
-                (current_rank is None)
+                (self.rank is None)
                 and
                 (new_rank is None)
             ):
             # we don't have any available parent
             rank_difference = None
         elif (
-                (current_rank is None)
+                (self.rank is None)
                 and
                 (new_rank is not None)
             ):
             rank_difference = new_rank
         else:
-            rank_difference = current_rank - new_rank
-            assert rank_difference >= 0
+            rank_difference = self.rank - new_rank
 
         # Section 6.4, RFC 8180
         #
@@ -602,11 +629,17 @@ class RplOF0(object):
         #   path, the candidate node is selected as the new parent only if the
         #   difference between the new path and the current path is greater
         #   than the defined PARENT_SWITCH_THRESHOLD.
-        if rank_difference is not None:
+        if (
+                (new_rank != d.RPL_INFINITE_RANK)
+                and
+                (rank_difference is not None)
+            ):
             if self.PARENT_SWITCH_THRESHOLD < rank_difference:
                 new_parent = candidate
+                self.rank = new_rank
             else:
-                new_parent = None
+                # no change on preferred parent
+                new_parent = self.preferred_parent
         else:
             new_parent = None
 
@@ -635,3 +668,17 @@ class RplOF0(object):
 
             # reset Trickle Timer
             self.rpl.trickle_timer.reset()
+        elif (
+                (new_parent is None)
+                and
+                (self.preferred_parent is not None)
+            ):
+            old_parent_mac_addr = self.preferred_parent['mac_addr']
+            self.neighbors = []
+            self.preferred_parent = None
+            self.rank = None
+            self.rpl.indicate_preferred_parent_change(
+                old_preferred = old_parent_mac_addr,
+                new_preferred = self.preferred_parent,
+            )
+            self.rpl.local_repair()
