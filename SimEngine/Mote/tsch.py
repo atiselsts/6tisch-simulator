@@ -430,11 +430,15 @@ class Tsch(object):
         if self.pktToSend['mac']['dstMac'] == d.BROADCAST_ADDRESS:
             # I just sent a broadcast packet
 
-            assert self.pktToSend['type'] in [d.PKT_TYPE_EB,d.PKT_TYPE_DIO]
+            assert self.pktToSend['type'] in [
+                d.PKT_TYPE_EB,
+                d.PKT_TYPE_DIO,
+                d.PKT_TYPE_DIS
+            ]
             assert isACKed == False
 
             # EBs are never in txQueue, no need to remove.
-            if self.pktToSend['type'] == d.PKT_TYPE_DIO:
+            if self.pktToSend['type'] != d.PKT_TYPE_EB:
                 self.dequeue(self.pktToSend)
 
         else:
@@ -581,7 +585,10 @@ class Tsch(object):
             if   packet['type'] == d.PKT_TYPE_EB:
                 self._action_receiveEB(packet)
             elif 'net' in packet:
-                assert packet['type'] == d.PKT_TYPE_DIO
+                assert packet['type'] in [
+                    d.PKT_TYPE_DIO,
+                    d.PKT_TYPE_DIS
+                ]
                 self.mote.sixlowpan.recvPacket(packet)
             else:
                 raise SystemError()

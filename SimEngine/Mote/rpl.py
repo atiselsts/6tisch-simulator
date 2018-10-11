@@ -164,15 +164,16 @@ class Rpl(object):
     def _stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def _send_DIS(self):
+    def _send_DIS(self, dstIp=None):
 
-        if   self.dis_mode == 'dis_unicast':
-            # join_proxy is a possible parent
-            dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
-        elif self.dis_mode == 'dis_broadcast':
-            dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
-        elif self.dis_mode == 'disabled':
-            return
+        if dstIp is None:
+            if   self.dis_mode == 'dis_unicast':
+                # join_proxy is a possible parent
+                dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
+            elif self.dis_mode == 'dis_broadcast':
+                dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
+            elif self.dis_mode == 'disabled':
+                return
 
         dis = {
             'type': d.PKT_TYPE_DIS,

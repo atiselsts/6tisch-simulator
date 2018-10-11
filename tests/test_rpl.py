@@ -299,8 +299,11 @@ def fixture_dis_mode(request):
 def test_dis(sim_engine, fixture_dis_mode):
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes' : 2,
-            'rpl_extensions': [fixture_dis_mode]
+            'exec_numMotes'           : 2,
+            'rpl_extensions'          : [fixture_dis_mode],
+            'secjoin_enabled'         : False,
+            'app_pkPeriod'            : 0,
+            'tsch_keep_alive_interval': 0
         }
     )
 
@@ -311,8 +314,10 @@ def test_dis(sim_engine, fixture_dis_mode):
     eb = root.tsch._create_EB()
     mote.tsch._action_receiveEB(eb)
 
+    # stop the trickle timer for this test
+    root.rpl.trickle_timer.stop()
+
     # prepare sendPacket() for this test
-    sednPacket_is_called = False
     result = {'dis': None, 'dio': None}
     def sendPacket(self, packet):
         if packet['type'] == d.PKT_TYPE_DIS:
@@ -329,17 +334,22 @@ def test_dis(sim_engine, fixture_dis_mode):
             else:
                 assert dstIp == d.IPV6_ALL_RPL_NODES_ADDRESS
             result['dio'] = packet
+        self.original_sendPacket(packet)
 
+    mote.sixlowpan.original_sendPacket = mote.sixlowpan.sendPacket
     mote.sixlowpan.sendPacket = types.MethodType(sendPacket, mote.sixlowpan)
+    root.sixlowpan.original_sendPacket = root.sixlowpan.sendPacket
     root.sixlowpan.sendPacket = types.MethodType(sendPacket, root.sixlowpan)
     mote.rpl._send_DIS()
+
+    # run the simulation for a while
+    u.run_until_asn(sim_engine, 1000)
 
     if fixture_dis_mode is None:
         assert result['dis'] is None
         assert result['dio'] is None
     else:
         assert result['dis'] is not None
-        root.rpl.action_receiveDIS(result['dis'])
     if fixture_dis_mode == 'dis_unicast':
         assert result['dio'] is not None
     else:
