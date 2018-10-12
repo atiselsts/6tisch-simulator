@@ -482,10 +482,19 @@ class RplOF0(object):
 
     # Constants defined in RFC 8180
     UPPER_LIMIT_OF_ACCEPTABLE_ETX = 3
-    DEFAULT_STEP_OF_RANK = 3
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
-    PARENT_SWITCH_THRESHOLD = 640
+    PARENT_SWITCH_RANK_THRESHOLD = 640
+
+    ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
+    # if we have a "good" link to the parent, stay with the parent even if the
+    # rank of the parent is worse than the best neighbor by more than
+    # PARENT_SWITCH_RANK_THRESHOLD. rank_increase is computed as per Section
+    # 5.1.1. of RFC 8180.
+    ETX_GOOD_LINK = 2
+    PARENT_SWITCH_RANK_INCREASE_THRESHOLD = (
+        ((3 * ETX_GOOD_LINK) - 2) * d.RPL_MINHOPRANKINCREASE
+    )
 
     def __init__(self, rpl):
         self.rpl = rpl
@@ -526,6 +535,15 @@ class RplOF0(object):
         if neighbor is None:
             neighbor = self._add_neighbor(mac_addr)
         self._update_neighbor_rank(neighbor, rank)
+
+        # if we received the infinite rank from our preferred parent,
+        # invalidate our rank
+        if (
+                (self.preferred_parent == neighbor)
+                and
+                (rank == d.RPL_INFINITE_RANK)
+            ):
+            self.rank = None
 
         # change preferred parent if necessary
         self._update_preferred_parent()
@@ -585,12 +603,12 @@ class RplOF0(object):
             etx = float(neighbor['numTx']) / neighbor['numTxAck']
 
         if etx is None:
-            step_of_rank = self.DEFAULT_STEP_OF_RANK
-        elif etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
+            etx = self.ETX_DEFAULT
+
+        if etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
             step_of_rank = None
         else:
             step_of_rank = (3 * etx) - 2
-
         if step_of_rank is None:
             # this neighbor will not be considered as a parent
             neighbor['rank_increase'] = None
@@ -625,6 +643,29 @@ class RplOF0(object):
                 return rank
 
     def _update_preferred_parent(self):
+        if (
+                (self.preferred_parent is not None)
+                and
+                (self.preferred_parent['advertised_rank'] is not None)
+                and
+                (self.rank is not None)
+                and
+                (
+                    (self.preferred_parent['advertised_rank'] - self.rank) <
+                    self.PARENT_SWITCH_RANK_THRESHOLD
+                )
+                and
+                (
+                    self.preferred_parent['rank_increase'] <
+                    self.PARENT_SWITCH_RANK_INCREASE_THRESHOLD
+                )
+            ):
+            # stay with the current parent. the link to the parent is
+            # good. but, if the parent rank is higher than us and the
+            # difference is more than self.PARENT_SWITCH_RANK_THRESHOLD, we
+            # dump the parent. otherwise, we may create a routing loop.
+            return
+
         try:
             candidate = min(self.parents, key=self._calculate_rank)
             new_rank = self._calculate_rank(candidate)
