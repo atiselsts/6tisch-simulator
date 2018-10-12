@@ -484,7 +484,6 @@ class RplOF0(object):
     UPPER_LIMIT_OF_ACCEPTABLE_ETX = 3
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
-    PARENT_SWITCH_RANK_THRESHOLD = 640
 
     ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
     # if we have a "good" link to the parent, stay with the parent even if the
@@ -652,7 +651,7 @@ class RplOF0(object):
                 and
                 (
                     (self.preferred_parent['advertised_rank'] - self.rank) <
-                    self.PARENT_SWITCH_RANK_THRESHOLD
+                    d.RPL_PARENT_SWITCH_RANK_THRESHOLD
                 )
                 and
                 (
@@ -662,8 +661,8 @@ class RplOF0(object):
             ):
             # stay with the current parent. the link to the parent is
             # good. but, if the parent rank is higher than us and the
-            # difference is more than self.PARENT_SWITCH_RANK_THRESHOLD, we
-            # dump the parent. otherwise, we may create a routing loop.
+            # difference is more than d.RPL_PARENT_SWITCH_RANK_THRESHOLD, we dump
+            # the parent. otherwise, we may create a routing loop.
             return
 
         try:
@@ -696,7 +695,7 @@ class RplOF0(object):
             #   PARENT_SWITCH_RANK_THRESHOLD.
 
             if rank_difference is not None:
-                if self.PARENT_SWITCH_RANK_THRESHOLD < rank_difference:
+                if d.RPL_PARENT_SWITCH_RANK_THRESHOLD < rank_difference:
                     new_parent = candidate
                     self.rank = new_rank
                 else:
