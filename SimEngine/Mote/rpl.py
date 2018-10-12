@@ -131,9 +131,15 @@ class Rpl(object):
             or
             (self.of.rank == d.RPL_INFINITE_RANK)
         )
+        self.log(
+            SimEngine.SimLog.LOG_RPL_LOCAL_REPAIR,
+            {
+                "_mote_id":        self.mote.id
+            }
+        )
         self._send_DIO() # sending a DIO with the infinite rank
-        self.trickle_timer.stop()
         self.dodagId = None
+        self.trickle_timer.stop()
         self.mote.tsch.stopSendingEBs()
 
     # === DIS

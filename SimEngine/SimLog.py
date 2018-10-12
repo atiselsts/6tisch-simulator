@@ -53,6 +53,7 @@ LOG_RPL_DIO_RX                    = {'type': 'rpl.dio.rx',                'keys'
 LOG_RPL_DAO_TX                    = {'type': 'rpl.dao.tx',                'keys': ['_mote_id','packet']}
 LOG_RPL_DAO_RX                    = {'type': 'rpl.dao.rx',                'keys': ['_mote_id','packet']}
 LOG_RPL_CHURN                     = {'type': 'rpl.churn',                 'keys': ['_mote_id','rank','preferredParent']}
+LOG_RPL_LOCAL_REPAIR              = {'type': 'rpl.local_repair',          'keys': ['_mote_id']}
 
 # === 6LoWPAN
 LOG_SIXLOWPAN_PKT_TX              = {'type': 'sixlowpan.pkt.tx',          'keys': ['_mote_id','packet']}
