@@ -10,6 +10,9 @@ import MoteDefines as d
 
 
 class TrickleTimer(object):
+    STATE_STOPPED = 'stopped'
+    STATE_RUNNING = 'running'
+
     def __init__(self, i_min, i_max, k, callback):
         assert isinstance(i_min, (int, long))
         assert isinstance(i_max, (int, long))
@@ -33,6 +36,7 @@ class TrickleTimer(object):
         self.counter = 0
         self.interval = 0
         self.user_callback = callback
+        self.state = self.STATE_STOPPED
 
     def start(self):
         # Section 4.2:
@@ -40,14 +44,19 @@ class TrickleTimer(object):
         #       the range of [Imin, Imax] -- that is, greater than or equal to
         #       Imin and less than or equal to Imax.  The algorithm then begins
         #       the first interval.
+        self.state = self.STATE_RUNNING
         self.interval = random.randint(self.min_interval, self.max_interval)
         self._start_next_interval()
 
     def stop(self):
         self.engine.removeFutureEvent(self.unique_tag_base + '_at_i')
         self.engine.removeFutureEvent(self.unique_tag_base + '_at_t')
+        self.state = self.STATE_STOPPED
 
     def reset(self):
+        if self.state == self.STATE_STOPPED:
+            return
+
         # this method is expected to be called in an event of "inconsistency"
         #
         # Section 4.2:
@@ -74,6 +83,9 @@ class TrickleTimer(object):
         self.counter += 1
 
     def _start_next_interval(self):
+        if self.state == self.STATE_STOPPED:
+            return
+
         # reset the counter
         self.counter = 0
 
