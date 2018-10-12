@@ -250,7 +250,8 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
             'exec_numSlotframesPerRun': 10000,
             'exec_numMotes'           : 2,
             'app_pkPeriod'            : 0,
-            'secjoin_enabled'         : False
+            'secjoin_enabled'         : False,
+            'tsch_keep_alive_interval': 0
         }
     )
     sim_log = SimLog.SimLog()
