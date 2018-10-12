@@ -46,6 +46,7 @@ def test_redundancy_constant(sim_engine, num_consistency):
     trickle_timer = TrickleTimer(Imin, Imax, K, _callback)
     # set one slotframe long to the interval (for test purpose)
     INITIAL_INTERVAL = 1010 # ms
+    trickle_timer.start()
     trickle_timer.interval = INITIAL_INTERVAL
     trickle_timer._start_next_interval()
 
@@ -78,6 +79,7 @@ def test_interval_doubling(sim_engine):
     trickle_timer = TrickleTimer(i_min, i_max, K, _callback)
     # set one slotframe long to the interval manually (for test purpose)
     INITIAL_INTERVAL = 1010 # ms
+    trickle_timer.start()
     trickle_timer.interval = INITIAL_INTERVAL
     trickle_timer._start_next_interval()
 
