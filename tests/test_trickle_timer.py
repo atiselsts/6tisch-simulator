@@ -128,3 +128,22 @@ def test_reset(sim_engine):
             assert original_event_at_t is not event
         elif event[3] == trickle_timer.unique_tag_base + '_at_i':
             assert original_event_at_end_of_interval is not event
+
+
+def test_stop(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1
+        }
+    )
+
+    def _callback():
+        pass
+
+    # remove all the scheduled events
+    sim_engine.events = []
+    trickle_timer = TrickleTimer(Imin, Imax, K, _callback)
+    trickle_timer.start()
+    assert len(sim_engine.events) == 2
+    trickle_timer.stop()
+    assert len(sim_engine.events) == 0
