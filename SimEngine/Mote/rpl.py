@@ -615,46 +615,36 @@ class RplOF0(object):
         except ValueError:
             # self.parents is empty
             candidate = None
-            new_rank = d.RPL_INFINITE_RANK
+            new_rank = None
 
-        if (
-                (self.rank is None)
-                and
-                (new_rank is None)
-            ):
+        if new_rank is None:
             # we don't have any available parent
-            rank_difference = None
-        elif (
-                (self.rank is None)
-                and
-                (new_rank is not None)
-            ):
-            rank_difference = new_rank
+            new_parent = None
+        elif self.rank is None:
+            new_parent = candidate
+            self.rank = new_rank
         else:
+            # (new_rank is not None) and (self.rank is None)
             rank_difference = self.rank - new_rank
 
-        # Section 6.4, RFC 8180
-        #
-        #   Per [RFC6552] and [RFC6719], the specification RECOMMENDS the use
-        #   of a boundary value (PARENT_SWITCH_THRESHOLD) to avoid constant
-        #   changes of the parent when ranks are compared.  When evaluating a
-        #   parent that belongs to a smaller path cost than the current minimum
-        #   path, the candidate node is selected as the new parent only if the
-        #   difference between the new path and the current path is greater
-        #   than the defined PARENT_SWITCH_THRESHOLD.
-        if (
-                (new_rank != d.RPL_INFINITE_RANK)
-                and
-                (rank_difference is not None)
-            ):
-            if self.PARENT_SWITCH_THRESHOLD < rank_difference:
-                new_parent = candidate
-                self.rank = new_rank
-            else:
-                # no change on preferred parent
-                new_parent = self.preferred_parent
-        else:
-            new_parent = None
+            # Section 6.4, RFC 8180
+            #
+            #   Per [RFC6552] and [RFC6719], the specification RECOMMENDS the
+            #   use of a boundary value (PARENT_SWITCH_RANK_THRESHOLD) to avoid
+            #   constant changes of the parent when ranks are compared.  When
+            #   evaluating a parent that belongs to a smaller path cost than
+            #   the current minimum path, the candidate node is selected as the
+            #   new parent only if the difference between the new path and the
+            #   current path is greater than the defined
+            #   PARENT_SWITCH_RANK_THRESHOLD.
+
+            if rank_difference is not None:
+                if self.PARENT_SWITCH_RANK_THRESHOLD < rank_difference:
+                    new_parent = candidate
+                    self.rank = new_rank
+                else:
+                    # no change on preferred parent
+                    new_parent = self.preferred_parent
 
         if (
                 (new_parent is not None)
@@ -692,6 +682,9 @@ class RplOF0(object):
             self.rank = None
             self.rpl.indicate_preferred_parent_change(
                 old_preferred = old_parent_mac_addr,
-                new_preferred = self.preferred_parent,
+                new_preferred = None
             )
             self.rpl.local_repair()
+        else:
+            # do nothing
+            pass
