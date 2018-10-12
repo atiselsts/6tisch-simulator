@@ -245,7 +245,7 @@ class TestOF0(object):
         dio_from_mote_1['app']['rank'] = 256 + 1
         dio_from_mote_2['app']['rank'] = (
             dio_from_mote_1['app']['rank'] +
-            mote_3.rpl.of.PARENT_SWITCH_THRESHOLD
+            d.RPL_PARENT_SWITCH_RANK_THRESHOLD
         )
 
         # inject DIO from mote_2 to mote_3

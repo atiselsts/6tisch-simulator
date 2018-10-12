@@ -131,9 +131,15 @@ class Rpl(object):
             or
             (self.of.rank == d.RPL_INFINITE_RANK)
         )
+        self.log(
+            SimEngine.SimLog.LOG_RPL_LOCAL_REPAIR,
+            {
+                "_mote_id":        self.mote.id
+            }
+        )
         self._send_DIO() # sending a DIO with the infinite rank
-        self.trickle_timer.stop()
         self.dodagId = None
+        self.trickle_timer.stop()
         self.mote.tsch.stopSendingEBs()
 
     # === DIS
@@ -197,6 +203,8 @@ class Rpl(object):
     # === DIO
 
     def _send_DIO(self, dstIp=None):
+        assert self.dodagId is not None
+
         dio = self._create_DIO(dstIp)
 
         # log
@@ -263,8 +271,24 @@ class Rpl(object):
             }
         )
 
+        # handle the infinite rank
+        if packet['app']['rank'] == d.RPL_INFINITE_RANK:
+            if self.dodagId is None:
+                # ignore this DIO
+                return
+            else:
+                # if the DIO has the infinite rank, reset the Trickle timer
+                self.trickle_timer.reset()
+
+        # feed our OF with the received DIO
+        self.of.update(packet)
+
         # record dodagId
-        if self.dodagId is None:
+        if (
+                (self.dodagId is None)
+                and
+                (self.getPreferredParent() is not None)
+            ):
             # join the RPL network
             self.dodagId = packet['app']['dodagId']
             self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
@@ -272,8 +296,6 @@ class Rpl(object):
             self.trickle_timer.reset()
             self._stop_dis_timer()
 
-        # feed our OF with the received DIO
-        self.of.update(packet)
 
     # === DAO
 
@@ -460,10 +482,18 @@ class RplOF0(object):
 
     # Constants defined in RFC 8180
     UPPER_LIMIT_OF_ACCEPTABLE_ETX = 3
-    DEFAULT_STEP_OF_RANK = 3
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
-    PARENT_SWITCH_THRESHOLD = 640
+
+    ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
+    # if we have a "good" link to the parent, stay with the parent even if the
+    # rank of the parent is worse than the best neighbor by more than
+    # PARENT_SWITCH_RANK_THRESHOLD. rank_increase is computed as per Section
+    # 5.1.1. of RFC 8180.
+    ETX_GOOD_LINK = 2
+    PARENT_SWITCH_RANK_INCREASE_THRESHOLD = (
+        ((3 * ETX_GOOD_LINK) - 2) * d.RPL_MINHOPRANKINCREASE
+    )
 
     def __init__(self, rpl):
         self.rpl = rpl
@@ -504,6 +534,15 @@ class RplOF0(object):
         if neighbor is None:
             neighbor = self._add_neighbor(mac_addr)
         self._update_neighbor_rank(neighbor, rank)
+
+        # if we received the infinite rank from our preferred parent,
+        # invalidate our rank
+        if (
+                (self.preferred_parent == neighbor)
+                and
+                (rank == d.RPL_INFINITE_RANK)
+            ):
+            self.rank = None
 
         # change preferred parent if necessary
         self._update_preferred_parent()
@@ -563,12 +602,12 @@ class RplOF0(object):
             etx = float(neighbor['numTx']) / neighbor['numTxAck']
 
         if etx is None:
-            step_of_rank = self.DEFAULT_STEP_OF_RANK
-        elif etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
+            etx = self.ETX_DEFAULT
+
+        if etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
             step_of_rank = None
         else:
             step_of_rank = (3 * etx) - 2
-
         if step_of_rank is None:
             # this neighbor will not be considered as a parent
             neighbor['rank_increase'] = None
@@ -603,52 +642,65 @@ class RplOF0(object):
                 return rank
 
     def _update_preferred_parent(self):
+        if (
+                (self.preferred_parent is not None)
+                and
+                (self.preferred_parent['advertised_rank'] is not None)
+                and
+                (self.rank is not None)
+                and
+                (
+                    (self.preferred_parent['advertised_rank'] - self.rank) <
+                    d.RPL_PARENT_SWITCH_RANK_THRESHOLD
+                )
+                and
+                (
+                    self.preferred_parent['rank_increase'] <
+                    self.PARENT_SWITCH_RANK_INCREASE_THRESHOLD
+                )
+            ):
+            # stay with the current parent. the link to the parent is
+            # good. but, if the parent rank is higher than us and the
+            # difference is more than d.RPL_PARENT_SWITCH_RANK_THRESHOLD, we dump
+            # the parent. otherwise, we may create a routing loop.
+            return
+
         try:
             candidate = min(self.parents, key=self._calculate_rank)
             new_rank = self._calculate_rank(candidate)
         except ValueError:
             # self.parents is empty
             candidate = None
-            new_rank = d.RPL_INFINITE_RANK
+            new_rank = None
 
-        if (
-                (self.rank is None)
-                and
-                (new_rank is None)
-            ):
+        if new_rank is None:
             # we don't have any available parent
-            rank_difference = None
-        elif (
-                (self.rank is None)
-                and
-                (new_rank is not None)
-            ):
-            rank_difference = new_rank
+            new_parent = None
+        elif self.rank is None:
+            new_parent = candidate
+            self.rank = new_rank
         else:
+            # (new_rank is not None) and (self.rank is None)
             rank_difference = self.rank - new_rank
 
-        # Section 6.4, RFC 8180
-        #
-        #   Per [RFC6552] and [RFC6719], the specification RECOMMENDS the use
-        #   of a boundary value (PARENT_SWITCH_THRESHOLD) to avoid constant
-        #   changes of the parent when ranks are compared.  When evaluating a
-        #   parent that belongs to a smaller path cost than the current minimum
-        #   path, the candidate node is selected as the new parent only if the
-        #   difference between the new path and the current path is greater
-        #   than the defined PARENT_SWITCH_THRESHOLD.
-        if (
-                (new_rank != d.RPL_INFINITE_RANK)
-                and
-                (rank_difference is not None)
-            ):
-            if self.PARENT_SWITCH_THRESHOLD < rank_difference:
-                new_parent = candidate
-                self.rank = new_rank
-            else:
-                # no change on preferred parent
-                new_parent = self.preferred_parent
-        else:
-            new_parent = None
+            # Section 6.4, RFC 8180
+            #
+            #   Per [RFC6552] and [RFC6719], the specification RECOMMENDS the
+            #   use of a boundary value (PARENT_SWITCH_RANK_THRESHOLD) to avoid
+            #   constant changes of the parent when ranks are compared.  When
+            #   evaluating a parent that belongs to a smaller path cost than
+            #   the current minimum path, the candidate node is selected as the
+            #   new parent only if the difference between the new path and the
+            #   current path is greater than the defined
+            #   PARENT_SWITCH_RANK_THRESHOLD.
+
+            if rank_difference is not None:
+                if d.RPL_PARENT_SWITCH_RANK_THRESHOLD < rank_difference:
+                    new_parent = candidate
+                    self.rank = new_rank
+                else:
+                    # no change on preferred parent
+                    new_parent = self.preferred_parent
 
         if (
                 (new_parent is not None)
@@ -686,6 +738,9 @@ class RplOF0(object):
             self.rank = None
             self.rpl.indicate_preferred_parent_change(
                 old_preferred = old_parent_mac_addr,
-                new_preferred = self.preferred_parent,
+                new_preferred = None
             )
             self.rpl.local_repair()
+        else:
+            # do nothing
+            pass

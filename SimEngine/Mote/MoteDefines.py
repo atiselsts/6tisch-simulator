@@ -28,7 +28,8 @@ PKT_LEN_JOIN_RESPONSE                       = 20
 
 # === rpl
 RPL_MINHOPRANKINCREASE                      = 256
-RPL_PARENT_SWITCH_THRESHOLD                 = 640
+RPL_PARENT_SWITCH_RANK_THRESHOLD            = 640
+
 RPL_INFINITE_RANK                           = 65535
 
 # === ipv6
