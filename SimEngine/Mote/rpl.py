@@ -203,6 +203,8 @@ class Rpl(object):
     # === DIO
 
     def _send_DIO(self, dstIp=None):
+        assert self.dodagId is not None
+
         dio = self._create_DIO(dstIp)
 
         # log
@@ -269,8 +271,24 @@ class Rpl(object):
             }
         )
 
+        # handle the infinite rank
+        if packet['app']['rank'] == d.RPL_INFINITE_RANK:
+            if self.dodagId is None:
+                # ignore this DIO
+                return
+            else:
+                # if the DIO has the infinite rank, reset the Trickle timer
+                self.trickle_timer.reset()
+
+        # feed our OF with the received DIO
+        self.of.update(packet)
+
         # record dodagId
-        if self.dodagId is None:
+        if (
+                (self.dodagId is None)
+                and
+                (self.getPreferredParent() is not None)
+            ):
             # join the RPL network
             self.dodagId = packet['app']['dodagId']
             self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
@@ -278,8 +296,6 @@ class Rpl(object):
             self.trickle_timer.reset()
             self._stop_dis_timer()
 
-        # feed our OF with the received DIO
-        self.of.update(packet)
 
     # === DAO
 
