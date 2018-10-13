@@ -145,15 +145,19 @@ class Rpl(object):
     # === DIS
 
     def action_receiveDIS(self, packet):
-        if   self.mote.is_my_ipv6_addr(packet['net']['dstIp']):
-            # unicast DIS; send unicast DIO back to the source
-            self._send_DIO(packet['net']['srcIp'])
-        elif packet['net']['dstIp'] == d.IPV6_ALL_RPL_NODES_ADDRESS:
-            # broadcast DIS
-            self.trickle_timer.reset()
+        if self.dodagId is None:
+            # ignore DIS
+            pass
         else:
-            # shouldn't happen
-            assert False
+            if   self.mote.is_my_ipv6_addr(packet['net']['dstIp']):
+                # unicast DIS; send unicast DIO back to the source
+                self._send_DIO(packet['net']['srcIp'])
+            elif packet['net']['dstIp'] == d.IPV6_ALL_RPL_NODES_ADDRESS:
+                # broadcast DIS
+                self.trickle_timer.reset()
+            else:
+                # shouldn't happen
+                assert False
 
     def _get_dis_mode(self):
         if   'dis_unicast' in self.settings.rpl_extensions:
