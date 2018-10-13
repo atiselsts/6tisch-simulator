@@ -186,6 +186,8 @@ class Rpl(object):
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
             elif self.dis_mode == 'disabled':
                 return
+            # schedule the next DIS
+            self._start_dis_timer()
 
         dis = {
             'type': d.PKT_TYPE_DIS,
@@ -198,7 +200,6 @@ class Rpl(object):
         }
 
         self.mote.sixlowpan.sendPacket(dis)
-        self._start_dis_timer()
 
     # === DIO
 
