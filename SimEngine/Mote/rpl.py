@@ -97,7 +97,7 @@ class Rpl(object):
             self.trickle_timer.reset()
         else:
             # start sending DIS
-            self._send_DIS()
+            self.send_DIS()
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -168,7 +168,7 @@ class Rpl(object):
     def _start_dis_timer(self):
         self.engine.scheduleIn(
             delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
-            cb             = self._send_DIS,
+            cb             = self.send_DIS,
             uniqueTag      = str(self.mote.id) + 'dis',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
         )
@@ -176,7 +176,7 @@ class Rpl(object):
     def _stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def _send_DIS(self, dstIp=None):
+    def send_DIS(self, dstIp=None):
 
         if dstIp is None:
             if   self.dis_mode == 'dis_unicast':
