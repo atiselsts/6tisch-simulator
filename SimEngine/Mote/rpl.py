@@ -97,7 +97,7 @@ class Rpl(object):
             self.trickle_timer.reset()
         else:
             # start sending DIS
-            self._send_DIS()
+            self.send_DIS()
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -145,15 +145,19 @@ class Rpl(object):
     # === DIS
 
     def action_receiveDIS(self, packet):
-        if   self.mote.is_my_ipv6_addr(packet['net']['dstIp']):
-            # unicast DIS; send unicast DIO back to the source
-            self._send_DIO(packet['net']['srcIp'])
-        elif packet['net']['dstIp'] == d.IPV6_ALL_RPL_NODES_ADDRESS:
-            # broadcast DIS
-            self.trickle_timer.reset()
+        if self.dodagId is None:
+            # ignore DIS
+            pass
         else:
-            # shouldn't happen
-            assert False
+            if   self.mote.is_my_ipv6_addr(packet['net']['dstIp']):
+                # unicast DIS; send unicast DIO back to the source
+                self._send_DIO(packet['net']['srcIp'])
+            elif packet['net']['dstIp'] == d.IPV6_ALL_RPL_NODES_ADDRESS:
+                # broadcast DIS
+                self.trickle_timer.reset()
+            else:
+                # shouldn't happen
+                assert False
 
     def _get_dis_mode(self):
         if   'dis_unicast' in self.settings.rpl_extensions:
@@ -168,7 +172,7 @@ class Rpl(object):
     def _start_dis_timer(self):
         self.engine.scheduleIn(
             delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
-            cb             = self._send_DIS,
+            cb             = self.send_DIS,
             uniqueTag      = str(self.mote.id) + 'dis',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
         )
@@ -176,7 +180,7 @@ class Rpl(object):
     def _stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def _send_DIS(self, dstIp=None):
+    def send_DIS(self, dstIp=None):
 
         if dstIp is None:
             if   self.dis_mode == 'dis_unicast':
@@ -186,6 +190,8 @@ class Rpl(object):
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
             elif self.dis_mode == 'disabled':
                 return
+            # schedule the next DIS
+            self._start_dis_timer()
 
         dis = {
             'type': d.PKT_TYPE_DIS,
@@ -198,7 +204,6 @@ class Rpl(object):
         }
 
         self.mote.sixlowpan.sendPacket(dis)
-        self._start_dis_timer()
 
     # === DIO
 
