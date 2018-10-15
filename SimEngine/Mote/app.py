@@ -216,6 +216,7 @@ class AppPeriodic(AppBase):
     def _send_a_single_packet(self):
         if self.mote.rpl.dodagId == None:
             # it seems we left the dodag; stop the transmission
+            self.sending_first_packet = True
             return
 
         self._send_packet(
