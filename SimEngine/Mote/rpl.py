@@ -208,7 +208,9 @@ class Rpl(object):
     # === DIO
 
     def _send_DIO(self, dstIp=None):
-        assert self.dodagId is not None
+        if self.dodagId is None:
+            # seems we performed local repair
+            return
 
         dio = self._create_DIO(dstIp)
 
