@@ -314,13 +314,15 @@ class SixP(object):
                     timeout_value = None
                 )
             except TransactionAdditionError:
-                # We cannot have more than one transaction for the same pair of
-                # initiator and responder. This is the case when a CLAER
-                # transaction expires on the initiator and the transaction is
-                # alive on the responder. The initiator would issue another
-                # request which has SeqNum 1, but the responder still has the
-                # transaction of CLEAR with SeqNum 0. In such a case, respond
-                # with RC_ERR_BUSY using SeqNum of the incoming request.
+                # SixPTransaction() would raise an exception when there is a
+                # state mismatch between the initiator and the responder after
+                # a CLEAR transaction, where CLEAR transaction expires on the
+                # initiator and the transaction is alive on the
+                # responder. Then, the initiator issues another request which
+                # has SeqNum 1, but the responder still has the transaction of
+                # CLEAR with SeqNum 0. In such a case, SixPTransaction() raises
+                # an exception we will respond with RC_ERR_BUSY using SeqNum of
+                # the incoming request.
                 self.send_response(
                     dstMac      = request['mac']['srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
@@ -377,6 +379,10 @@ class SixP(object):
                     dstMac      = request['mac']['srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
                 )
+                # terminate the outstanding transaction and call the timeout
+                # handler. the method of timeout_handler() does everything for
+                # us including removing the scheduled timer task.
+                transaction.timeout_handler()
 
     def _recv_response(self, response):
         self.transaction_table
@@ -678,7 +684,7 @@ class SixPTransaction(object):
 
         self.engine.scheduleAtAsn(
             asn              = self.engine.getAsn() + timeout_value,
-            cb               = self._timeout_handler,
+            cb               = self.timeout_handler,
             uniqueTag        = self.event_unique_tag,
             intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS,
         )
@@ -708,6 +714,47 @@ class SixPTransaction(object):
 
         if self.callback is not None:
             self.callback(event, packet)
+
+    def timeout_handler(self):
+        # check whether the transaction has completed at the same ASN as this
+        # timeout. if this is the case, we do nothing.
+        if self.isInitiator:
+            srcMac = self.initiator
+            dstMac = self.peerMac
+        else:
+            srcMac = self.peerMac
+            dstMac = self.responder
+
+        if self.is_valid is True:
+            self.log(
+                SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
+                {
+                    '_mote_id': self.mote.id,
+                    'srcMac'  : srcMac,
+                    'dstMac'  : dstMac,
+                    'seqNum'  : self.seqNum,
+                    'cmd'     : self.request['app']['code']
+                }
+            )
+
+            self._invalidate()
+
+            # remove a pending frame in TX queue if necessary
+            self.mote.tsch.remove_packets_in_tx_queue(
+                type   = d.PKT_TYPE_SIXP,
+                dstMac = self.peerMac
+            )
+
+            # need to invoke the callback after the invalidation; otherwise, a new
+            # transaction to the same peer would fail due to duplicate (concurrent)
+            # transaction.
+            self.invoke_callback(
+                event  = d.SIXP_CALLBACK_EVENT_TIMEOUT,
+                packet = None
+            )
+        else:
+            # the transaction has already been invalidated; do nothing here.
+            pass
 
     # ======================= private ==========================================
 
@@ -803,44 +850,3 @@ class SixPTransaction(object):
             raise Exception()
 
         return one_way_delay * num_round_trips
-
-    def _timeout_handler(self):
-        # check whether the transaction has completed at the same ASN as this
-        # timeout. if this is the case, we do nothing.
-        if self.isInitiator:
-            srcMac = self.initiator
-            dstMac = self.peerMac
-        else:
-            srcMac = self.peerMac
-            dstMac = self.responder
-
-        if self.is_valid is True:
-            self.log(
-                SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
-                {
-                    '_mote_id': self.mote.id,
-                    'srcMac'  : srcMac,
-                    'dstMac'  : dstMac,
-                    'seqNum'  : self.seqNum,
-                    'cmd'     : self.request['app']['code']
-                }
-            )
-
-            self._invalidate()
-
-            # remove a pending frame in TX queue if necessary
-            self.mote.tsch.remove_packets_in_tx_queue(
-                type   = d.PKT_TYPE_SIXP,
-                dstMac = self.peerMac
-            )
-
-            # need to invoke the callback after the invalidation; otherwise, a new
-            # transaction to the same peer would fail due to duplicate (concurrent)
-            # transaction.
-            self.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_TIMEOUT,
-                packet      = None
-            )
-        else:
-            # the transaction has already been invalidated; do nothing here.
-            pass
