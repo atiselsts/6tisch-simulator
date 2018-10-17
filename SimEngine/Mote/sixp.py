@@ -191,7 +191,8 @@ class SixP(object):
             assert transaction is not None
 
             # A corresponding transaction instance is supposed to be created
-            # when it receives the request.
+            # when it receives the request. its timer is restarted with the
+            # specified callback and timeout_value now.
             transaction.start(callback, timeout_value)
 
             # keep the response packet in case of abortion
@@ -306,6 +307,12 @@ class SixP(object):
             # create a new transaction instance for the incoming request
             try:
                 transaction = SixPTransaction(self.mote, request)
+                # start the timer now. callback and timeout_value can be set
+                # in send_response()
+                transaction.start(
+                    callback      = None,
+                    timeout_value = None
+                )
             except TransactionAdditionError:
                 # We cannot have more than one transaction for the same pair of
                 # initiator and responder. This is the case when a CLAER
