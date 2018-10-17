@@ -625,8 +625,8 @@ class RplOF0(object):
             assert step_of_rank <= self.MAXIMUM_STEP_OF_RANK
             neighbor['rank_increase'] = step_of_rank * d.RPL_MINHOPRANKINCREASE
 
-            if neighbor == self.preferred_parent:
-                self.rank = self._calculate_rank(self.preferred_parent)
+        if neighbor == self.preferred_parent:
+            self.rank = self._calculate_rank(self.preferred_parent)
 
     def _calculate_rank(self, neighbor):
         if (
