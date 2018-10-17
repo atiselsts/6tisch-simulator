@@ -97,7 +97,7 @@ class Rpl(object):
             self.trickle_timer.reset()
         else:
             # start sending DIS
-            self.send_DIS()
+            self.send_DIS(dstIp=None, firstTime=True)
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -180,18 +180,22 @@ class Rpl(object):
     def _stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def send_DIS(self, dstIp=None):
+    def send_DIS(self, dstIp=None, firstTime=False):
 
-        if dstIp is None:
-            if   self.dis_mode == 'dis_unicast':
+        if firstTime is True:
+            assert dstIp is None
+            if self.dis_mode == 'dis_unicast':
                 # join_proxy is a possible parent
                 dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
             elif self.dis_mode == 'dis_broadcast':
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
             elif self.dis_mode == 'disabled':
                 return
-            # schedule the next DIS
-            self._start_dis_timer()
+        else:
+            if dstIp is None:
+                dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
+            else:
+                pass
 
         dis = {
             'type': d.PKT_TYPE_DIS,

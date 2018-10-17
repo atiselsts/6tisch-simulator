@@ -380,7 +380,7 @@ def test_dis(sim_engine, fixture_dis_mode):
     mote.sixlowpan.sendPacket = types.MethodType(sendPacket, mote.sixlowpan)
     root.sixlowpan.original_sendPacket = root.sixlowpan.sendPacket
     root.sixlowpan.sendPacket = types.MethodType(sendPacket, root.sixlowpan)
-    mote.rpl.send_DIS()
+    mote.rpl.send_DIS(dstIp=None, firstTime=True)
 
     # run the simulation for a while
     u.run_until_asn(sim_engine, 1000)
