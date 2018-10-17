@@ -738,8 +738,8 @@ class SixPTransaction(object):
             # transaction to the same peer would fail due to duplicate (concurrent)
             # transaction.
             self.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_TIMEOUT,
-                packet      = None
+                event  = d.SIXP_CALLBACK_EVENT_TIMEOUT,
+                packet = None
             )
         else:
             # the transaction has already been invalidated; do nothing here.
