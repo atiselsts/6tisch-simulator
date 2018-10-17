@@ -290,6 +290,46 @@ class TestOF0(object):
         # should have None for its rank.
         assert mote.rpl.of.rank is None
 
+    def test_upper_limit_of_accepatble_etx(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'  : 2,
+                'secjoin_enabled': False
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # get mote synched and joined
+        eb = root.tsch._create_EB()
+        mote.tsch._action_receiveEB(eb)
+
+        dio = root.rpl._create_DIO()
+        dio['mac'] = {'srcMac': root.get_mac_addr()}
+        mote.rpl.action_receiveDIO(dio)
+
+        # now mote has root as its preferred parent
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # install a dummy cell
+        mote.tsch.addCell(1, 1, root.get_mac_addr(), [d.CELLOPTION_TX])
+        cell = mote.tsch.get_cells(root.get_mac_addr())[0]
+
+        # when ETX exceeds UPPER_LIMIT_OF_ACCEPTABLE_ETX, mote should leave
+        # root
+        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=True) # ETX is 1
+        for _ in range(mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX - 1):
+            mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+
+        # ETX == UPPER_LIMIT_OF_ACCEPTABLE_ETX; root should be still mote's
+        # parent
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # mote should lose its preferred parent
+        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+        assert mote.rpl.getPreferredParent() is None
+
 
 @pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
 def fixture_dis_mode(request):
