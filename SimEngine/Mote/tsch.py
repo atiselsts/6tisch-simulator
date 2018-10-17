@@ -735,6 +735,10 @@ class Tsch(object):
             else:
                 assert self.active_cell.is_tx_on()
                 self._action_TX(self.pktToSend)
+                if self.pktToSend['mac']['dstMac'] == self.clock.source:
+                    # we're going to send a frame to our time source; reset the
+                    # keep-alive timer
+                    self._reset_keep_alive_timer()
         else:
             # do nothing
             pass
