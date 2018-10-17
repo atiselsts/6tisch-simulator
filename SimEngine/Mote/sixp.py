@@ -307,13 +307,15 @@ class SixP(object):
             try:
                 transaction = SixPTransaction(self.mote, request)
             except TransactionAdditionError:
-                # We cannot have more than one transaction for the same pair of
-                # initiator and responder. This is the case when a CLAER
-                # transaction expires on the initiator and the transaction is
-                # alive on the responder. The initiator would issue another
-                # request which has SeqNum 1, but the responder still has the
-                # transaction of CLEAR with SeqNum 0. In such a case, respond
-                # with RC_ERR_BUSY using SeqNum of the incoming request.
+                # SixPTransaction() would raise an exception when there is a
+                # state mismatch between the initiator and the responder after
+                # a CLEAR transaction, where CLEAR transaction expires on the
+                # initiator and the transaction is alive on the
+                # responder. Then, the initiator issues another request which
+                # has SeqNum 1, but the responder still has the transaction of
+                # CLEAR with SeqNum 0. In such a case, SixPTransaction() raises
+                # an exception we will respond with RC_ERR_BUSY using SeqNum of
+                # the incoming request.
                 self.send_response(
                     dstMac      = request['mac']['srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
