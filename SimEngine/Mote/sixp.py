@@ -372,6 +372,10 @@ class SixP(object):
                     dstMac      = request['mac']['srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
                 )
+                # terminate the outstanding transaction and call the timeout
+                # handler. the method of timeout_handler() does everything for
+                # us including removing the scheduled timer task.
+                transaction.timeout_handler()
 
     def _recv_response(self, response):
         self.transaction_table
