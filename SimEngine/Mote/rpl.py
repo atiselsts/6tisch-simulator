@@ -149,6 +149,13 @@ class Rpl(object):
     # === DIS
 
     def action_receiveDIS(self, packet):
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DIS_RX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    packet,
+            }
+        )
         if self.dodagId is None:
             # ignore DIS
             pass
@@ -207,7 +214,13 @@ class Rpl(object):
             },
             'app' : {}
         }
-
+        self.log(
+            SimEngine.SimLog.LOG_RPL_DIS_TX,
+            {
+                "_mote_id":  self.mote.id,
+                "packet":    dis,
+            }
+        )
         self.mote.sixlowpan.sendPacket(dis)
 
     # === DIO
