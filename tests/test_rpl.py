@@ -330,6 +330,22 @@ class TestOF0(object):
         mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
         assert mote.rpl.getPreferredParent() is None
 
+        # give the DIO again
+        mote.rpl.action_receiveDIO(dio)
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # if mote has many consecutive transmission failures without any
+        # success, it should leave the preferred parent
+        for _ in range(mote.rpl.of.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK):
+            mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+
+        # mote should still have the preferred parent
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # then, it should lose it
+        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+        assert mote.rpl.getPreferredParent() is None
+
 
 @pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
 def fixture_dis_mode(request):

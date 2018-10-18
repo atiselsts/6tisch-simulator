@@ -501,6 +501,8 @@ class RplOF0(object):
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
 
+    # Custom constants
+    MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK = 10
     ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
     # if we have a "good" link to the parent, stay with the parent even if the
     # rank of the parent is worse than the best neighbor by more than
@@ -612,8 +614,11 @@ class RplOF0(object):
 
     def _update_neighbor_rank_increase(self, neighbor):
         if neighbor['numTxAck'] == 0:
-            # ETX is not available
-            etx = None
+            if neighbor['numTx'] > self.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK:
+                etx = self.UPPER_LIMIT_OF_ACCEPTABLE_ETX + 1 # set invalid ETX
+            else:
+                # ETX is not available
+                etx = None
         else:
             etx = float(neighbor['numTx']) / neighbor['numTxAck']
 
