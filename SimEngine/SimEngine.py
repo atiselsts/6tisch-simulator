@@ -148,6 +148,13 @@ class DiscreteEventEngine(threading.Thread):
             output += ['']
             output += [traceback.format_exc()]
             output += ['==============================']
+            output += ['']
+            output += ['The current ASN is {0}'.format(self.asn)]
+            output += ['The log file is {0}'.format(
+                self.settings.getOutputFile()
+            )]
+            output += ['']
+            output += ['==============================']
             output += ['config.json to reproduce:']
             output += ['']
             output += ['']
