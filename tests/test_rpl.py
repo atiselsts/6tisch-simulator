@@ -330,6 +330,22 @@ class TestOF0(object):
         mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
         assert mote.rpl.getPreferredParent() is None
 
+        # give the DIO again
+        mote.rpl.action_receiveDIO(dio)
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # if mote has many consecutive transmission failures without any
+        # success, it should leave the preferred parent
+        for _ in range(mote.rpl.of.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK):
+            mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+
+        # mote should still have the preferred parent
+        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
+
+        # then, it should lose it
+        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+        assert mote.rpl.getPreferredParent() is None
+
 
 @pytest.fixture(params=['dis_unicast', 'dis_broadcast', None])
 def fixture_dis_mode(request):
@@ -380,7 +396,7 @@ def test_dis(sim_engine, fixture_dis_mode):
     mote.sixlowpan.sendPacket = types.MethodType(sendPacket, mote.sixlowpan)
     root.sixlowpan.original_sendPacket = root.sixlowpan.sendPacket
     root.sixlowpan.sendPacket = types.MethodType(sendPacket, root.sixlowpan)
-    mote.rpl.send_DIS(dstIp=None, firstTime=True)
+    mote.rpl.send_DIS(dstIp=None, repeat=False)
 
     # run the simulation for a while
     u.run_until_asn(sim_engine, 1000)

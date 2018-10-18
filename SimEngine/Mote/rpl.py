@@ -97,7 +97,7 @@ class Rpl(object):
             self.trickle_timer.reset()
         else:
             # start sending DIS
-            self.send_DIS(dstIp=None, firstTime=True)
+            self.send_DIS(dstIp=None, repeat=True)
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -142,7 +142,7 @@ class Rpl(object):
         self.trickle_timer.stop()
         self.mote.tsch.stopSendingEBs()
         # start the DIS timer
-        self.send_DIS(dstIp=None, firstTime=True)
+        self.send_DIS(dstIp=None, repeat=True)
 
     # === DIS
 
@@ -182,9 +182,9 @@ class Rpl(object):
     def _stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def send_DIS(self, dstIp=None, firstTime=False):
+    def send_DIS(self, dstIp=None, repeat=True):
 
-        if firstTime is True:
+        if dstIp is None:
             assert dstIp is None
             if self.dis_mode == 'dis_unicast':
                 # join_proxy is a possible parent
@@ -193,14 +193,9 @@ class Rpl(object):
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
             elif self.dis_mode == 'disabled':
                 return
-            # we expect firstTime is True when the caller wants to send DIS
-            # periodically. so, (re-)start DIS timer here.
+
+        if repeat is True:
             self._start_dis_timer()
-        else:
-            if dstIp is None:
-                dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
-            else:
-                pass
 
         dis = {
             'type': d.PKT_TYPE_DIS,
@@ -501,6 +496,8 @@ class RplOF0(object):
     MINIMUM_STEP_OF_RANK = 1
     MAXIMUM_STEP_OF_RANK = 9
 
+    # Custom constants
+    MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK = 10
     ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
     # if we have a "good" link to the parent, stay with the parent even if the
     # rank of the parent is worse than the best neighbor by more than
@@ -612,8 +609,11 @@ class RplOF0(object):
 
     def _update_neighbor_rank_increase(self, neighbor):
         if neighbor['numTxAck'] == 0:
-            # ETX is not available
-            etx = None
+            if neighbor['numTx'] > self.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK:
+                etx = self.UPPER_LIMIT_OF_ACCEPTABLE_ETX + 1 # set invalid ETX
+            else:
+                # ETX is not available
+                etx = None
         else:
             etx = float(neighbor['numTx']) / neighbor['numTxAck']
 
