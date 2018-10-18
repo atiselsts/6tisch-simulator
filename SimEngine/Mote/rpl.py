@@ -96,8 +96,10 @@ class Rpl(object):
             # RFC 6550
             self.trickle_timer.reset()
         else:
-            # start sending DIS
-            self.send_DIS(dstIp=None, repeat=True)
+            if self.dis_mode != 'disabled':
+                # send a first DIS and start the DIS timer. handle_dis_timer() does
+                # both of them
+                self.handle_dis_timer()
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -142,7 +144,7 @@ class Rpl(object):
         self.trickle_timer.stop()
         self.mote.tsch.stopSendingEBs()
         # start the DIS timer
-        self.send_DIS(dstIp=None, repeat=True)
+        self.start_dis_timer()
 
     # === DIS
 
@@ -171,32 +173,31 @@ class Rpl(object):
         else:
             return 'disabled'
 
-    def _start_dis_timer(self):
+    def start_dis_timer(self):
         self.engine.scheduleIn(
             delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
-            cb             = self.send_DIS,
+            cb             = self.handle_dis_timer,
             uniqueTag      = str(self.mote.id) + 'dis',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
         )
 
-    def _stop_dis_timer(self):
+    def stop_dis_timer(self):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
-    def send_DIS(self, dstIp=None, repeat=True):
+    def handle_dis_timer(self):
+        if self.dis_mode == 'dis_unicast':
+            # join_proxy is a possible parent
+            dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
+        elif self.dis_mode == 'dis_broadcast':
+            dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
+        else:
+            raise NotImplementedError()
 
-        if dstIp is None:
-            assert dstIp is None
-            if self.dis_mode == 'dis_unicast':
-                # join_proxy is a possible parent
-                dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
-            elif self.dis_mode == 'dis_broadcast':
-                dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
-            elif self.dis_mode == 'disabled':
-                return
+        self.send_DIS(dstIp)
+        self.start_dis_timer()
 
-        if repeat is True:
-            self._start_dis_timer()
-
+    def send_DIS(self, dstIp):
+        assert dstIp is not None
         dis = {
             'type': d.PKT_TYPE_DIS,
             'net' : {
@@ -305,7 +306,7 @@ class Rpl(object):
             self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
             self.trickle_timer.start()
             self.trickle_timer.reset()
-            self._stop_dis_timer()
+            self.stop_dis_timer()
 
 
     # === DAO
