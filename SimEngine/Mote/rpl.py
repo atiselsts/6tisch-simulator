@@ -97,9 +97,17 @@ class Rpl(object):
             self.trickle_timer.reset()
         else:
             if self.dis_mode != 'disabled':
-                # send a first DIS and start the DIS timer. handle_dis_timer() does
-                # both of them
-                self.handle_dis_timer()
+                # the destination address of the first DIS is determined based
+                # on self.dis_mode
+                if self.dis_mode == 'dis_unicast':
+                    # join_proxy is a possible parent
+                    dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
+                elif self.dis_mode == 'dis_broadcast':
+                    dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
+                else:
+                    raise NotImplementedError()
+                self.send_DIS(dstIp)
+                self.start_dis_timer()
 
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
@@ -192,15 +200,7 @@ class Rpl(object):
         self.engine.removeFutureEvent(str(self.mote.id) + 'dis')
 
     def handle_dis_timer(self):
-        if self.dis_mode == 'dis_unicast':
-            # join_proxy is a possible parent
-            dstIp = str(self.mote.tsch.join_proxy.ipv6_link_local())
-        elif self.dis_mode == 'dis_broadcast':
-            dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
-        else:
-            raise NotImplementedError()
-
-        self.send_DIS(dstIp)
+        self.send_DIS(d.IPV6_ALL_RPL_NODES_ADDRESS)
         self.start_dis_timer()
 
     def send_DIS(self, dstIp):

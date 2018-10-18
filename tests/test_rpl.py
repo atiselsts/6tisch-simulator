@@ -446,7 +446,7 @@ def test_dis_timer(sim_engine):
     # check DIS packets
     assert len(logs) > 1
     # the first DIS should be sent to the link-local address of root because
-    # 'dist-unicast' is specified
+    # 'dis_unicast' is specified
     logs[0]['packet']['net']['dstIp'] = root.get_ipv6_link_local_addr()
     # the rest should be sent to the multicast address despite of 'dis_unicast'
     for i in range(1, len(logs)):
