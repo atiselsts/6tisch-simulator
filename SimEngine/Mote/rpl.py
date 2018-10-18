@@ -191,6 +191,9 @@ class Rpl(object):
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
             elif self.dis_mode == 'disabled':
                 return
+            # we expect firstTime is True when the caller wants to send DIS
+            # periodically. so, (re-)start DIS timer here.
+            self._start_dis_timer()
         else:
             if dstIp is None:
                 dstIp = d.IPV6_ALL_RPL_NODES_ADDRESS
