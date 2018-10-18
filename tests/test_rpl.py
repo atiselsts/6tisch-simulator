@@ -413,8 +413,6 @@ def test_dis_config(sim_engine, fixture_dis_mode):
         assert result['dio'] is None
 
 
-
-
 def test_handle_routing_loop_at_root(sim_engine):
     sim_engine = sim_engine(diff_config={'exec_numMotes': 1})
     root = sim_engine.motes[0]
