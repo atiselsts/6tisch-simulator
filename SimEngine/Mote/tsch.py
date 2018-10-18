@@ -681,14 +681,19 @@ class Tsch(object):
             self.engine.removeFutureEvent(uniqueTag=(self.mote.id, '_action_active_cell'))
             return
 
-        tsDiffMin = min(
-            [
-                slotframe.get_num_slots_to_next_active_cell(asn)
-                for _, slotframe in self.slotframes.items() if (
-                    len(slotframe.get_busy_slots()) > 0
-                )
-            ]
-        )
+        try:
+            tsDiffMin = min(
+                [
+                    slotframe.get_num_slots_to_next_active_cell(asn)
+                    for _, slotframe in self.slotframes.items() if (
+                        len(slotframe.get_busy_slots()) > 0
+                    )
+                ]
+            )
+        except ValueError:
+            # we don't have any cell; return without scheduling the next active
+            # slot
+            return
 
         # schedule at that ASN
         self.engine.scheduleAtAsn(

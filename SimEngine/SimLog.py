@@ -52,6 +52,8 @@ LOG_RPL_DIO_TX                    = {'type': 'rpl.dio.tx',                'keys'
 LOG_RPL_DIO_RX                    = {'type': 'rpl.dio.rx',                'keys': ['_mote_id','packet']}
 LOG_RPL_DAO_TX                    = {'type': 'rpl.dao.tx',                'keys': ['_mote_id','packet']}
 LOG_RPL_DAO_RX                    = {'type': 'rpl.dao.rx',                'keys': ['_mote_id','packet']}
+LOG_RPL_DIS_TX                    = {'type': 'rpl.dis.tx',                'keys': ['_mote_id','packet']}
+LOG_RPL_DIS_RX                    = {'type': 'rpl.dis.rx',                'keys': ['_mote_id','packet']}
 LOG_RPL_CHURN                     = {'type': 'rpl.churn',                 'keys': ['_mote_id','rank','preferredParent']}
 LOG_RPL_LOCAL_REPAIR              = {'type': 'rpl.local_repair',          'keys': ['_mote_id']}
 

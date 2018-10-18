@@ -352,7 +352,7 @@ def fixture_dis_mode(request):
     return request.param
 
 
-def test_dis(sim_engine, fixture_dis_mode):
+def test_dis_config(sim_engine, fixture_dis_mode):
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes'           : 2,
@@ -412,6 +412,45 @@ def test_dis(sim_engine, fixture_dis_mode):
         # DIS is not sent immediately
         assert result['dio'] is None
 
+def test_dis_timer(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'           : 2,
+            'rpl_extensions'          : ['dis_unicast'],
+            'secjoin_enabled'         : False,
+            'app_pkPeriod'            : 0,
+            'tsch_keep_alive_interval': 0,
+            'exec_numSlotframesPerRun': rpl.Rpl.DEFAULT_DIS_INTERVAL_SECONDS + 1
+        }
+    )
+
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+
+    # get mote synchronized
+    eb = root.tsch._create_EB()
+    mote.tsch._action_receiveEB(eb)
+
+    # disable root's communication capability by deleting the minimal shared
+    # cell
+    root.tsch.delete_minimal_cell()
+
+    # run the simulation
+    u.run_until_end(sim_engine)
+
+    # collect DIS logs
+    logs = u.read_log_file(
+        filter = [SimLog.LOG_RPL_DIS_TX['type']]
+    )
+
+    # check DIS packets
+    assert len(logs) > 1
+    # the first DIS should be sent to the link-local address of root because
+    # 'dis_unicast' is specified
+    logs[0]['packet']['net']['dstIp'] = root.get_ipv6_link_local_addr()
+    # the rest should be sent to the multicast address despite of 'dis_unicast'
+    for i in range(1, len(logs)):
+        assert logs[i]['packet']['net']['dstIp'] == d.IPV6_ALL_RPL_NODES_ADDRESS
 
 def test_handle_routing_loop_at_root(sim_engine):
     sim_engine = sim_engine(diff_config={'exec_numMotes': 1})
