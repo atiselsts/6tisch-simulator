@@ -352,7 +352,7 @@ def fixture_dis_mode(request):
     return request.param
 
 
-def test_dis(sim_engine, fixture_dis_mode):
+def test_dis_config(sim_engine, fixture_dis_mode):
     sim_engine = sim_engine(
         diff_config = {
             'exec_numMotes'           : 2,
@@ -411,6 +411,8 @@ def test_dis(sim_engine, fixture_dis_mode):
     else:
         # DIS is not sent immediately
         assert result['dio'] is None
+
+
 
 
 def test_handle_routing_loop_at_root(sim_engine):
