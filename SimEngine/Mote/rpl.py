@@ -141,6 +141,8 @@ class Rpl(object):
         self.dodagId = None
         self.trickle_timer.stop()
         self.mote.tsch.stopSendingEBs()
+        # start the DIS timer
+        self.send_DIS(dstIp=None, firstTime=True)
 
     # === DIS
 
