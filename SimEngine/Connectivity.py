@@ -476,7 +476,7 @@ class ConnectivityK7(ConnectivityBase):
             for dest in self.engine.motes:
                 self.connectivity_matrix[source.id][dest.id] = {}
                 for chan in range(self.settings.phy_numChans):
-                    self.connectivity_matrix[source.id][dest.id][chan] = {}
+                    self.connectivity_matrix[source.id][dest.id][chan] = {'pdr': 0, 'rssi': -1000}
 
         # load first trace transaction and init
         self.first_date = None
