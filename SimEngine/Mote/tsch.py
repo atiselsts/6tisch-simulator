@@ -497,7 +497,7 @@ class Tsch(object):
         self.waitingFor = None
         self.pktToSend  = None
 
-    def rxDone(self, packet):
+    def rxDone(self, packet, channel):
 
         # local variables
         asn         = self.engine.getAsn()
@@ -542,8 +542,9 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_RXDONE,
             {
-                '_mote_id':        self.mote.id,
-                'packet':          packet,
+                '_mote_id': self.mote.id,
+                'channel':  channel,
+                'packet':   packet,
             }
         )
 
@@ -786,7 +787,6 @@ class Tsch(object):
 
         # indicate that we're waiting for the RX operation to finish
         self.waitingFor = d.WAITING_FOR_RX
-        self.channel    = self.active_cell.channel_offset
 
     # EBs
 

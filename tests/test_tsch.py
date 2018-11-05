@@ -280,7 +280,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     assert hop_1.rpl.dodagId is not None
 
     # make root ignore all the incoming frame for this test
-    def ignoreRx(self, packet):
+    def ignoreRx(self, packet, channel):
         self.waitingFor = None
         isACKed         = False
         return isACKed
