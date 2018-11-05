@@ -421,6 +421,8 @@ class Tsch(object):
             {
                 '_mote_id':       self.mote.id,
                 'channel':        channel,
+                'slot_offset':    active_cell.slot_offset,
+                'channel_offset': active_cell.channel_offset,
                 'packet':         self.pktToSend,
                 'isACKed':        isACKed,
             }
@@ -542,9 +544,17 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_RXDONE,
             {
-                '_mote_id': self.mote.id,
-                'channel':  channel,
-                'packet':   packet,
+                '_mote_id':       self.mote.id,
+                'channel':        channel,
+                'slot_offset':    (
+                    self.active_cell.slot_offset
+                    if self.active_cell else None
+                ),
+                'channel_offset': (
+                    self.active_cell.channel_offset
+                    if self.active_cell else None
+                ),
+                'packet':         packet,
             }
         )
 
