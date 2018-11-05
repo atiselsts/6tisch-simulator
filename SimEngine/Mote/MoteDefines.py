@@ -89,6 +89,8 @@ TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 1
 TSCH_MAX_BACKOFF_EXPONENT                   = 7
+# https://gist.github.com/twatteyne/2e22ee3c1a802b685695#file-4e_tsch_default_ch-py
+TSCH_HOPPING_SEQUENCE                       = [5, 6, 12, 7, 15, 4, 14, 11, 8, 0, 1, 2, 13, 3, 9, 10]
 CELLOPTION_TX                               = 'TX'
 CELLOPTION_RX                               = 'RX'
 CELLOPTION_SHARED                           = 'SHARED'
