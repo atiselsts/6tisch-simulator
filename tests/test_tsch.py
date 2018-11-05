@@ -280,7 +280,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     assert hop_1.rpl.dodagId is not None
 
     # make root ignore all the incoming frame for this test
-    def ignoreRx(self, packet):
+    def ignoreRx(self, packet, channel):
         self.waitingFor = None
         isACKed         = False
         return isACKed
@@ -431,3 +431,37 @@ def test_get_available_slots(sim_engine):
 
     # slot offset 1 should not be in the available cells, now
     assert 1 not in mote.tsch.get_available_slots()
+
+def test_get_physical_channel(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'       : 1,
+            'tsch_slotframeLength': 101
+        }
+    )
+    mote = sim_engine.motes[0]
+    minimal_cell = mote.tsch.get_cell(
+        slot_offset      = 0,
+        channel_offset   = 0,
+        mac_addr         = None,
+        slotframe_handle = 0
+    )
+
+    assert minimal_cell is not None
+
+    for i in range(len(d.TSCH_HOPPING_SEQUENCE)):
+        if i > 0:
+            u.run_until_asn(
+                sim_engine,
+                (
+                    sim_engine.getAsn() +
+                    sim_engine.settings.tsch_slotframeLength
+                )
+            )
+            assert (
+                previous_channel !=
+                mote.tsch._get_physical_channel(minimal_cell)
+            )
+        else:
+            pass
+        previous_channel = mote.tsch._get_physical_channel(minimal_cell)

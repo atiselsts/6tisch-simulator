@@ -40,7 +40,6 @@ class Tsch(object):
         self.neighbor_table  = []
         self.pktToSend       = None
         self.waitingFor      = None
-        self.channel         = None
         self.active_cell     = None
         self.asnLastSync     = None
         self.isSync          = False
@@ -404,7 +403,7 @@ class Tsch(object):
 
     # interface with radio
 
-    def txDone(self, isACKed):
+    def txDone(self, isACKed, channel):
         assert isACKed in [True,False]
 
         asn         = self.engine.getAsn()
@@ -421,7 +420,9 @@ class Tsch(object):
             SimEngine.SimLog.LOG_TSCH_TXDONE,
             {
                 '_mote_id':       self.mote.id,
-                'channel':        self.channel,
+                'channel':        channel,
+                'slot_offset':    active_cell.slot_offset,
+                'channel_offset': active_cell.channel_offset,
                 'packet':         self.pktToSend,
                 'isACKed':        isACKed,
             }
@@ -498,7 +499,7 @@ class Tsch(object):
         self.waitingFor = None
         self.pktToSend  = None
 
-    def rxDone(self, packet):
+    def rxDone(self, packet, channel):
 
         # local variables
         asn         = self.engine.getAsn()
@@ -543,8 +544,17 @@ class Tsch(object):
         self.log(
             SimEngine.SimLog.LOG_TSCH_RXDONE,
             {
-                '_mote_id':        self.mote.id,
-                'packet':          packet,
+                '_mote_id':       self.mote.id,
+                'channel':        channel,
+                'slot_offset':    (
+                    self.active_cell.slot_offset
+                    if self.active_cell else None
+                ),
+                'channel_offset': (
+                    self.active_cell.channel_offset
+                    if self.active_cell else None
+                ),
+                'packet':         packet,
             }
         )
 
@@ -771,24 +781,37 @@ class Tsch(object):
 
         # send packet to the radio
         self.mote.radio.startTx(
-            channel = self.active_cell.channel_offset,
+            channel = self._get_physical_channel(self.active_cell),
             packet  = pktToSend,
         )
 
         # indicate that we're waiting for the TX operation to finish
         self.waitingFor = d.WAITING_FOR_TX
-        self.channel    = self.active_cell.channel_offset
 
     def _action_RX(self):
 
         # start listening
         self.mote.radio.startRx(
-            channel = self.active_cell.channel_offset
+            channel = self._get_physical_channel(self.active_cell)
         )
 
         # indicate that we're waiting for the RX operation to finish
         self.waitingFor = d.WAITING_FOR_RX
-        self.channel    = self.active_cell.channel_offset
+
+    def _get_physical_channel(self, cell):
+        # apply the default channel hopping sequence only if the phy_numChans
+        # is equal to the length of the sequence
+        if self.settings.phy_numChans == len(d.TSCH_HOPPING_SEQUENCE):
+            hopping_sequence = d.TSCH_HOPPING_SEQUENCE[:self.settings.phy_numChans]
+        else:
+            assert self.settings.phy_numChans > 0
+            hopping_sequence = range(self.settings.phy_numChans)
+
+        # see section 6.2.6.3 of IEEE 802.15.4-2015
+        return hopping_sequence[
+            (self.engine.getAsn() + cell.channel_offset) %
+            len(hopping_sequence)
+        ]
 
     # EBs
 
@@ -1136,6 +1159,7 @@ class SlotFrame(object):
             self.cells[cell.mac_addr] = [cell]
         else:
             self.cells[cell.mac_addr].append(cell)
+        cell.slotframe = self
 
         # log
         self.log(
@@ -1275,6 +1299,9 @@ class Cell(object):
             self.link_type = d.LINKTYPE_ADVERTISING
         else:
             self.link_type = d.LINKTYPE_NORMAL
+
+        # back reference to slotframe; this will be set in SlotFrame.add()
+        self.slotframe = None
 
         # stats
         self.num_tx     = 0

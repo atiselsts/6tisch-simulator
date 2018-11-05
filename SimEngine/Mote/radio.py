@@ -63,7 +63,6 @@ class Radio(object):
     def txDone(self, isACKed):
         """end of tx slot"""
         self.state = d.RADIO_STATE_OFF
-        self.channel = None
 
         assert self.onGoingTransmission
 
@@ -85,7 +84,10 @@ class Radio(object):
         self.onGoingTransmission = None
 
         # inform upper layer (TSCH)
-        self.mote.tsch.txDone(isACKed)
+        self.mote.tsch.txDone(isACKed, self.channel)
+
+        # reset the channel
+        self.channel = None
 
     # RX
 
@@ -99,7 +101,6 @@ class Radio(object):
 
         # switch radio state
         self.state   = d.RADIO_STATE_OFF
-        self.channel = None
 
         # log charge consumed
         if self.mote.tsch.getIsSync():
@@ -114,4 +115,10 @@ class Radio(object):
                 self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
 
         # inform upper layer (TSCH)
-        return self.mote.tsch.rxDone(packet)
+        is_acked = self.mote.tsch.rxDone(packet, self.channel)
+
+        # reset the channel
+        self.channel = None
+
+        # return whether the frame is acknowledged or not
+        return is_acked
