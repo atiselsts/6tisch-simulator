@@ -771,7 +771,7 @@ class Tsch(object):
 
         # send packet to the radio
         self.mote.radio.startTx(
-            channel = self.active_cell.channel_offset,
+            channel = self._get_physical_channel(self.active_cell),
             packet  = pktToSend,
         )
 
@@ -782,11 +782,26 @@ class Tsch(object):
 
         # start listening
         self.mote.radio.startRx(
-            channel = self.active_cell.channel_offset
+            channel = self._get_physical_channel(self.active_cell)
         )
 
         # indicate that we're waiting for the RX operation to finish
         self.waitingFor = d.WAITING_FOR_RX
+
+    def _get_physical_channel(self, cell):
+        # apply the default channel hopping sequence only if the phy_numChans
+        # is equal to the length of the sequence
+        if self.settings.phy_numChans == len(d.TSCH_HOPPING_SEQUENCE):
+            hopping_sequence = d.TSCH_HOPPING_SEQUENCE[:self.settings.phy_numChans]
+        else:
+            assert self.settings.phy_numChans > 0
+            hopping_sequence = range(self.settings.phy_numChans)
+
+        # see section 6.2.6.3 of IEEE 802.15.4-2015
+        return hopping_sequence[
+            (self.engine.getAsn() + cell.channel_offset) %
+            len(hopping_sequence)
+        ]
 
     # EBs
 
@@ -1134,6 +1149,7 @@ class SlotFrame(object):
             self.cells[cell.mac_addr] = [cell]
         else:
             self.cells[cell.mac_addr].append(cell)
+        cell.slotframe = self
 
         # log
         self.log(
@@ -1273,6 +1289,9 @@ class Cell(object):
             self.link_type = d.LINKTYPE_ADVERTISING
         else:
             self.link_type = d.LINKTYPE_NORMAL
+
+        # back reference to slotframe; this will be set in SlotFrame.add()
+        self.slotframe = None
 
         # stats
         self.num_tx     = 0
