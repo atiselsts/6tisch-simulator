@@ -399,9 +399,9 @@ def test_select_active_tx_cell(sim_engine):
     mote.tsch.txQueue.append(frame_2)
     mote.tsch.txQueue.append(frame_3)
 
-    # set 1 to backoff_remaining_delay so that the TSCH stack skips the cell
-    # for neighbor_mac_adddr_2
-    mote.tsch.backoff_remaining_delay = 1
+    # set 1 to backoff_remaining_delay of frame_2 so that the TSCH stack skips
+    # the cell for neighbor_mac_adddr_2
+    frame_2['backoff_remaining_delay'] = 1
 
     # Tsch._select_active_cell() should select the cell for neighbor_mac_addr_1
     # because the frame for neighbor_mac_addr_2 is under retransmission

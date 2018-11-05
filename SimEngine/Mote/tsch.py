@@ -48,7 +48,6 @@ class Tsch(object):
         self.clock           = Clock(self.mote)
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
-        self.backoff_remaining_delay = 0
         # pending bit
         self.pending_bit_enabled            = False
         self.args_for_next_pending_bit_task = None
@@ -474,7 +473,8 @@ class Tsch(object):
                 self._update_backoff_state(
                     isRetransmission = self._is_retransmission(self.pktToSend),
                     isSharedLink     = d.CELLOPTION_SHARED in active_cell.options,
-                    isTXSuccess      = isACKed
+                    isTXSuccess      = isACKed,
+                    packet           = self.pktToSend
                 )
 
             if isACKed:
@@ -700,9 +700,11 @@ class Tsch(object):
                             and
                             self._is_retransmission(_packet_to_send)
                             and
-                            (self.backoff_remaining_delay > 0)
+                            ('backoff_remaining_delay' in _packet_to_send)
+                            and
+                            (_packet_to_send['backoff_remaining_delay'] > 0)
                         ):
-                            self.backoff_remaining_delay -= 1
+                            _packet_to_send['backoff_remaining_delay'] -= 1
                             # skip this cell for transmission
                         else:
                             packet_to_send = _packet_to_send
@@ -715,6 +717,12 @@ class Tsch(object):
                 ):
                 active_cell = cell
 
+        if (
+                (packet_to_send is not None)
+                and
+                ('backoff_remaining_delay' in packet_to_send)
+            ):
+            del packet_to_send['backoff_remaining_delay']
         return active_cell, packet_to_send
 
     def _schedule_next_active_slot(self):
@@ -967,10 +975,7 @@ class Tsch(object):
         # Section 6.2.5.3 of IEEE 802.15.4-2015: "The MAC sublayer shall delay
         # for a random number in the range 0 to (2**BE - 1) shared links (on
         # any slotframe) before attempting a retransmission on a shared link."
-        self.backoff_remaining_delay = random.randint(
-            0,
-            pow(2, self.backoff_exponent) - 1
-        )
+        return random.randint(0, pow(2, self.backoff_exponent) - 1)
 
     def _reset_backoff_state(self):
         old_be = self.backoff_exponent
@@ -983,9 +988,8 @@ class Tsch(object):
                 'new_be'  : self.backoff_exponent
             }
         )
-        self._decide_backoff_delay()
 
-    def _increase_backoff_state(self):
+    def _increase_backoff_exponent(self):
         old_be = self.backoff_exponent
         # In Figure 6-6 of IEEE 802.15.4, BE (backoff exponent) is updated as
         # "BE - min(BE 0 1, macMinBe)". However, it must be incorrect. The
@@ -1003,13 +1007,13 @@ class Tsch(object):
                 'new_be'  : self.backoff_exponent
             }
         )
-        self._decide_backoff_delay()
 
     def _update_backoff_state(
             self,
             isRetransmission,
             isSharedLink,
-            isTXSuccess
+            isTXSuccess,
+            packet
         ):
         if isSharedLink:
             if isTXSuccess:
@@ -1022,7 +1026,7 @@ class Tsch(object):
                     # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff window
                     # increases for each consecutive failed transmission in a
                     # shared link."
-                    self._increase_backoff_state()
+                    self._increase_backoff_exponent()
                 else:
                     # First attempt to transmit the packet
                     #
@@ -1030,6 +1034,7 @@ class Tsch(object):
                     # encountering a transmission failure in a shared link
                     # shall initialize the BE to macMinBe."
                     self._reset_backoff_state()
+                packet['backoff_remaining_delay'] = self._decide_backoff_delay()
 
         else:
             # dedicated link (which is different from a dedicated *cell*)
