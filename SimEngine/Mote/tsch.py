@@ -49,6 +49,9 @@ class Tsch(object):
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
         self.backoff_remaining_delay = 0
+        # pending bit
+        self.pending_bit_enabled            = False
+        self.args_for_next_pending_bit_task = None
 
         # install the default slotframe
         self.add_slotframe(
@@ -130,6 +133,9 @@ class Tsch(object):
     def get_cells(self, mac_addr=None, slotframe_handle=0):
         slotframe = self.slotframes[slotframe_handle]
         return slotframe.get_cells_by_mac_addr(mac_addr)
+
+    def enable_pending_bit(self):
+        self.pending_bit_enabled = True
 
     # slotframe
     def get_slotframe(self, slotframe_handle):
@@ -411,8 +417,6 @@ class Tsch(object):
 
         self.active_cell = None
 
-        assert active_cell is not None
-        assert d.CELLOPTION_TX in active_cell.options
         assert self.waitingFor == d.WAITING_FOR_TX
 
         # log
@@ -421,8 +425,14 @@ class Tsch(object):
             {
                 '_mote_id':       self.mote.id,
                 'channel':        channel,
-                'slot_offset':    active_cell.slot_offset,
-                'channel_offset': active_cell.channel_offset,
+                'slot_offset':    (
+                    active_cell.slot_offset
+                    if active_cell else None
+                ),
+                'channel_offset': (
+                    active_cell.channel_offset
+                    if active_cell else None
+                ),
                 'packet':         self.pktToSend,
                 'isACKed':        isACKed,
             }
@@ -452,20 +462,27 @@ class Tsch(object):
                     (self.pktToSend['type'] == d.PKT_TYPE_SIXP)
                 ):
                 self.mote.sixp.recv_mac_ack(self.pktToSend)
-            self.mote.rpl.indicate_tx(active_cell, self.pktToSend['mac']['dstMac'], isACKed)
 
-            # update the backoff exponent
-            self._update_backoff_state(
-                isRetransmission = self._is_retransmission(self.pktToSend),
-                isSharedLink     = d.CELLOPTION_SHARED in active_cell.options,
-                isTXSuccess      = isACKed
-            )
+            if active_cell:
+                self.mote.rpl.indicate_tx(
+                    active_cell,
+                    self.pktToSend['mac']['dstMac'],
+                    isACKed
+                )
+
+                # update the backoff exponent
+                self._update_backoff_state(
+                    isRetransmission = self._is_retransmission(self.pktToSend),
+                    isSharedLink     = d.CELLOPTION_SHARED in active_cell.options,
+                    isTXSuccess      = isACKed
+                )
 
             if isACKed:
                 # ... which was ACKed
 
                 # update schedule stats
-                active_cell.increment_num_tx_ack()
+                if active_cell:
+                    active_cell.increment_num_tx_ack()
 
                 # time correction
                 if self.clock.source == self.pktToSend['mac']['dstMac']:
@@ -475,6 +492,19 @@ class Tsch(object):
 
                 # remove packet from queue
                 self.dequeue(self.pktToSend)
+
+                # process the pending bit field
+                if (
+                        (self.pktToSend['mac']['pending_bit'] is True)
+                        and
+                        self._is_next_slot_unused()
+                    ):
+                    self._schedule_next_tx_for_pending_bit(
+                        self.pktToSend['mac']['dstMac'],
+                        channel
+                    )
+                else:
+                    self.args_for_next_pending_bit_task = None
 
             else:
                 # ... which was NOT ACKed
@@ -515,8 +545,6 @@ class Tsch(object):
 
         # make sure I'm in the right state
         if self.getIsSync():
-            assert active_cell is not None
-            assert active_cell.is_rx_on
             assert self.waitingFor == d.WAITING_FOR_RX
 
         # not waiting for anything anymore
@@ -565,14 +593,26 @@ class Tsch(object):
             self._reset_keep_alive_timer()
 
         # update schedule stats
-        if self.getIsSync():
-            active_cell.increment_num_rx()
+        if (
+                self.getIsSync()
+                and
+                active_cell
+            ):
+                active_cell.increment_num_rx()
 
         if   self.mote.is_my_mac_addr(packet['mac']['dstMac']):
             # link-layer unicast to me
 
             # ACK frame
             isACKed = True
+
+            # process the pending bit field
+            if (
+                    (packet['mac']['pending_bit'] is True)
+                    and
+                    self._is_next_slot_unused()
+                ):
+                self._schedule_next_rx_by_pending_bit(channel)
 
             # dispatch to the right upper layer
             if   packet['type'] == d.PKT_TYPE_SIXP:
@@ -677,7 +717,6 @@ class Tsch(object):
 
         return active_cell, packet_to_send
 
-
     def _schedule_next_active_slot(self):
 
         assert self.getIsSync()
@@ -714,6 +753,8 @@ class Tsch(object):
         )
 
     def _action_active_cell(self):
+        # cancel a task for the pending bit if scheduled on the same slot
+        self.args_for_next_pending_bit_task = None
 
         # local shorthands
         asn = self.engine.getAsn()
@@ -749,7 +790,12 @@ class Tsch(object):
                 self._action_RX()
             else:
                 assert self.active_cell.is_tx_on()
-                self._action_TX(self.pktToSend)
+                self._action_TX(
+                    pktToSend = self.pktToSend,
+                    channel   = self._get_physical_channel(self.active_cell)
+                )
+                # update cell stats
+                self.active_cell.increment_num_tx()
                 if self.pktToSend['mac']['dstMac'] == self.clock.source:
                     # we're going to send a frame to our time source; reset the
                     # keep-alive timer
@@ -774,16 +820,35 @@ class Tsch(object):
         # schedule the next active slot
         self._schedule_next_active_slot()
 
-    def _action_TX(self,pktToSend):
-
-        # update cell stats
-        self.active_cell.increment_num_tx()
+    def _action_TX(self, pktToSend, channel):
+        # set the pending bit field
+        if (
+                (pktToSend['mac']['dstMac'] != d.BROADCAST_ADDRESS)
+                and
+                (
+                    # we have more than one packet destined to the same
+                    # neighbor
+                    len(
+                        [
+                            packet for packet in self.txQueue
+                            if (
+                                packet['mac']['dstMac'] ==
+                                pktToSend['mac']['dstMac']
+                            )
+                        ]
+                    ) > 1
+                )
+                and
+                self._is_next_slot_unused()
+                and
+                self.pending_bit_enabled
+            ):
+            pktToSend['mac']['pending_bit'] = True
+        else:
+            pktToSend['mac']['pending_bit'] = False
 
         # send packet to the radio
-        self.mote.radio.startTx(
-            channel = self._get_physical_channel(self.active_cell),
-            packet  = pktToSend,
-        )
+        self.mote.radio.startTx(channel, pktToSend)
 
         # indicate that we're waiting for the TX operation to finish
         self.waitingFor = d.WAITING_FOR_TX
@@ -1045,6 +1110,82 @@ class Tsch(object):
 
     def _get_keep_alive_event_tag(self):
         return '{0}-{1}'.format(self.mote.id, 'tsch.keep_alive_event')
+
+    # Pending bit
+    def _schedule_next_tx_for_pending_bit(self, dstMac, channel):
+        self.args_for_next_pending_bit_task = {
+            'dstMac' : dstMac,
+            'channel': channel
+        }
+        self.engine.scheduleAtAsn(
+            asn            = self.engine.getAsn() + 1,
+            cb             = self._action_tx_for_pending_bit,
+            uniqueTag      = (self.mote.id, '_action_tx_for_pending_bit'),
+            intraSlotOrder = d.INTRASLOTORDER_STARTSLOT,
+        )
+
+    def _schedule_next_rx_by_pending_bit(self, channel):
+        self.args_for_next_pending_bit_task = {
+            'channel': channel
+        }
+        self.engine.scheduleAtAsn(
+            asn            = self.engine.getAsn() + 1,
+            cb             = self._action_rx_for_pending_bit,
+            uniqueTag      = (self.mote.id, '_action_rx_for_pending_bit'),
+            intraSlotOrder = d.INTRASLOTORDER_STARTSLOT,
+        )
+
+    def _action_tx_for_pending_bit(self):
+        if self.args_for_next_pending_bit_task is None:
+            # it seems this TX was canceled by an active cell scheduled on the
+            # same slot
+            return
+
+        assert self.waitingFor == None
+        assert self.pktToSend == None
+
+        for packet in self.txQueue:
+            if (
+                    packet['mac']['dstMac'] ==
+                    self.args_for_next_pending_bit_task['dstMac']
+                ):
+                self.pktToSend = packet
+                break
+
+        if self.pktToSend is None:
+            # done
+            return
+        else:
+            # self.args_for_next_pending_bit_task will be updated in the TX
+            # operation
+            self._action_TX(
+                pktToSend = self.pktToSend,
+                channel   = self.args_for_next_pending_bit_task['channel']
+            )
+
+    def _action_rx_for_pending_bit(self):
+        if self.args_for_next_pending_bit_task is None:
+            # it seems this RX was canceled by an active cell scheduled on the
+            # same slot
+            return
+
+        # self.args_for_next_pending_bit_task will be updated in the RX
+        # operation
+        self.mote.radio.startRx(
+            self.args_for_next_pending_bit_task['channel']
+        )
+        self.waitingFor = d.WAITING_FOR_RX
+
+    def _is_next_slot_unused(self):
+        ret_val = True
+        for slotframe in self.slotframes.values():
+            next_slot = (self.engine.getAsn() + 1) % slotframe.length
+            cells_on_next_slot = slotframe.get_cells_by_slot_offset(next_slot)
+            if len(cells_on_next_slot) > 0:
+                ret_val = False
+                break
+
+        return ret_val
 
 
 class Clock(object):
