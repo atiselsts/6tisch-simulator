@@ -985,7 +985,7 @@ class Tsch(object):
         )
         self._decide_backoff_delay()
 
-    def _increase_backoff_state(self):
+    def _increase_backoff_exponent(self):
         old_be = self.backoff_exponent
         # In Figure 6-6 of IEEE 802.15.4, BE (backoff exponent) is updated as
         # "BE - min(BE 0 1, macMinBe)". However, it must be incorrect. The
@@ -1022,7 +1022,7 @@ class Tsch(object):
                     # Section 6.2.5.3 of IEEE 802.15.4-2015: "The backoff window
                     # increases for each consecutive failed transmission in a
                     # shared link."
-                    self._increase_backoff_state()
+                    self._increase_backoff_exponent()
                 else:
                     # First attempt to transmit the packet
                     #
