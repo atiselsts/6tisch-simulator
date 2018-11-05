@@ -40,7 +40,6 @@ class Tsch(object):
         self.neighbor_table  = []
         self.pktToSend       = None
         self.waitingFor      = None
-        self.channel         = None
         self.active_cell     = None
         self.asnLastSync     = None
         self.isSync          = False
@@ -404,7 +403,7 @@ class Tsch(object):
 
     # interface with radio
 
-    def txDone(self, isACKed):
+    def txDone(self, isACKed, channel):
         assert isACKed in [True,False]
 
         asn         = self.engine.getAsn()
@@ -421,7 +420,7 @@ class Tsch(object):
             SimEngine.SimLog.LOG_TSCH_TXDONE,
             {
                 '_mote_id':       self.mote.id,
-                'channel':        self.channel,
+                'channel':        channel,
                 'packet':         self.pktToSend,
                 'isACKed':        isACKed,
             }
@@ -777,7 +776,6 @@ class Tsch(object):
 
         # indicate that we're waiting for the TX operation to finish
         self.waitingFor = d.WAITING_FOR_TX
-        self.channel    = self.active_cell.channel_offset
 
     def _action_RX(self):
 

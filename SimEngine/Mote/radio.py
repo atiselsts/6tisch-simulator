@@ -63,7 +63,6 @@ class Radio(object):
     def txDone(self, isACKed):
         """end of tx slot"""
         self.state = d.RADIO_STATE_OFF
-        self.channel = None
 
         assert self.onGoingTransmission
 
@@ -85,7 +84,10 @@ class Radio(object):
         self.onGoingTransmission = None
 
         # inform upper layer (TSCH)
-        self.mote.tsch.txDone(isACKed)
+        self.mote.tsch.txDone(isACKed, self.channel)
+
+        # reset the channel
+        self.channel = None
 
     # RX
 
