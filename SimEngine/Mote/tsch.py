@@ -544,8 +544,7 @@ class Tsch(object):
         packet = new_packet
 
         # make sure I'm in the right state
-        if self.getIsSync():
-            assert self.waitingFor == d.WAITING_FOR_RX
+        assert self.waitingFor == d.WAITING_FOR_RX
 
         # not waiting for anything anymore
         self.waitingFor = None
