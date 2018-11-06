@@ -557,6 +557,14 @@ class Tsch(object):
         if packet['mac']['srcMac'] not in self.neighbor_table:
             self.neighbor_table.append(packet['mac']['srcMac'])
 
+        # accept only EBs while we're not syncrhonized
+        if (
+                (self.getIsSync() is False)
+                and
+                (packet['type'] != d.PKT_TYPE_EB)
+            ):
+            return False # isACKed
+
         # abort if I received a frame for someone else
         if (
                 (packet['mac']['dstMac'] != d.BROADCAST_ADDRESS)
