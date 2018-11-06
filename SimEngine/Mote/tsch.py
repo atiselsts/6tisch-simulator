@@ -606,13 +606,9 @@ class Tsch(object):
             # ACK frame
             isACKed = True
 
-            # process the pending bit field
-            if (
-                    (packet['mac']['pending_bit'] is True)
-                    and
-                    self._is_next_slot_unused()
-                ):
-                self._schedule_next_rx_by_pending_bit(channel)
+            # save the pending bit here since the packet instance may be made
+            # empty by an upper layer process
+            is_pending_bit_on = packet['mac']['pending_bit']
 
             # dispatch to the right upper layer
             if   packet['type'] == d.PKT_TYPE_SIXP:
@@ -624,6 +620,13 @@ class Tsch(object):
                 self.mote.sixlowpan.recvPacket(packet)
             else:
                 raise SystemError()
+
+            if (
+                    is_pending_bit_on
+                    and
+                    self._is_next_slot_unused()
+                ):
+                self._schedule_next_rx_by_pending_bit(channel)
 
         elif packet['mac']['dstMac'] == d.BROADCAST_ADDRESS:
             # link-layer broadcast
