@@ -107,7 +107,7 @@ class Radio(object):
             if not packet:
                 # didn't receive any frame (idle listen)
                 self.mote.batt.logChargeConsumed(d.CHARGE_Idle_uC)
-            elif packet['mac']['dstMac'] == self.mote.id:
+            elif packet['mac']['dstMac'] == self.mote.get_mac_addr():
                 # unicast frame for me, I sent an ACK
                 self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
             else:

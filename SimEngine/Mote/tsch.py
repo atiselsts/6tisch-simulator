@@ -544,8 +544,7 @@ class Tsch(object):
         packet = new_packet
 
         # make sure I'm in the right state
-        if self.getIsSync():
-            assert self.waitingFor == d.WAITING_FOR_RX
+        assert self.waitingFor == d.WAITING_FOR_RX
 
         # not waiting for anything anymore
         self.waitingFor = None
@@ -557,6 +556,14 @@ class Tsch(object):
         # add the source mote to the neighbor list if it's not listed yet
         if packet['mac']['srcMac'] not in self.neighbor_table:
             self.neighbor_table.append(packet['mac']['srcMac'])
+
+        # accept only EBs while we're not syncrhonized
+        if (
+                (self.getIsSync() is False)
+                and
+                (packet['type'] != d.PKT_TYPE_EB)
+            ):
+            return False # isACKed
 
         # abort if I received a frame for someone else
         if (
