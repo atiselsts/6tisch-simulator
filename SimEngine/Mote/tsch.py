@@ -1063,6 +1063,16 @@ class Tsch(object):
         if self.clock.source is None:
             return
 
+        if (
+                (len(self.txQueue) > 0)
+                and
+                (self.txQueue[0]['mac']['dstMac'] == self.clock.source)
+            ):
+            # don't send a keep-alive packet if the first packet in the TX
+            # queue has the MAC address of the preferred parent (clock source)
+            # as its destination address
+            return
+
         packet = {
             'type': d.PKT_TYPE_KEEP_ALIVE,
             'mac': {
