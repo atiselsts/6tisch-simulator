@@ -38,7 +38,7 @@ Simulated protocol stack
 |--------------------------------------------------------------------------------------------------------------|------------------------------------------|
 | [RFC6550](https://tools.ietf.org/html/rfc6550), [RFC6552](https://tools.ietf.org/html/rfc6552)               | RPL, non-storing mode, OF0               |
 | [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                        |
-| [draft-watteyne-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-watteyne-6lo-minimal-fragment-02) | 6LoWPAN Fragment Forwarding              |
+| [draft-ietf-6lo-minimal-fragment-00](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-00)         | 6LoWPAN Fragment Forwarding              |
 | [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                    |
 | [draft-ietf-6tisch-msf-01](https://tools.ietf.org/html/draft-ietf-6tisch-msf-01)                             | 6TiSCH Minimal Scheduling Function (MSF) |
 | [draft-ietf-6tisch-minimal-security-07](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-07)   | 6TiSCH Minimal Security (join process)   |
