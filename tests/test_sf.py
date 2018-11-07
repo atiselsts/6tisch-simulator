@@ -11,6 +11,7 @@ import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine import SimEngine
+from SimEngine.Mote.sf import SchedulingFunctionMSF
 
 # =========================== helpers =========================================
 
@@ -213,118 +214,173 @@ class TestMSF(object):
 
         sim_engine = sim_engine(
             diff_config = {
+                'exec_randomSeed': 3413860673863013345,
                 'app_pkPeriod'            : 0,
-                'app_pkPeriodVar'         : 0.05,
-                'exec_numMotes'           : 3,
+                'app_pkPeriodVar'         : 0,
+                'exec_numMotes'           : 2,
                 'exec_numSlotframesPerRun': 4000,
                 'rpl_daoPeriod'           : 0,
+                'tsch_keep_alive_interval': 0,
+                'tsch_probBcast_ebProb'   : 0,
                 'secjoin_enabled'         : False,
                 'sf_class'                : 'MSF',
                 'conn_class'              : 'Linear',
             }
         )
 
-        # XXX
-        d.MSF_MIN_NUM_TX = 10
-
         # for quick access
-        root                     = sim_engine.motes[0]
-        hop_1                    = sim_engine.motes[1]
-        hop_2                    = sim_engine.motes[2]
-        asn_at_end_of_simulation = (
-            sim_engine.settings.tsch_slotframeLength *
-            sim_engine.settings.exec_numSlotframesPerRun
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # disable DIO
+        def do_nothing(self):
+            pass
+        mote.rpl._send_DIO = types.MethodType(do_nothing, mote)
+
+        # get the mote joined
+        eb = root.tsch._create_EB()
+        mote.tsch._action_receiveEB(eb)
+        dio = root.rpl._create_DIO()
+        dio['mac'] = {
+            'srcMac': root.get_mac_addr(),
+            'dstMac': d.BROADCAST_ADDRESS
+        }
+        mote.sixlowpan.recvPacket(dio)
+
+        # 1. test autonomous cell installation
+        # 1.1 test autonomous RX cell
+        cells = [
+            cell for cell in mote.tsch.get_cells(
+                mac_addr         = None,
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+        # 1.2 test autonomous TX cell to root
+        cells = [
+            cell for cell in mote.tsch.get_cells(
+                mac_addr         = root.get_mac_addr(),
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+            )
+            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_SHARED]
+        ]
+        assert len(cells) == 1
+
+        # 2. test dedicated cell allocation
+        # 2.1 decrease MSF_MIN_NUM_TX and MSF_MAX_NUMCELLS to speed up this test
+        d.MSF_MIN_NUM_TX   = 10
+        d.MSF_MAX_NUMCELLS = 10
+
+        # 2.2 confirm the mote doesn't have any dedicated cell
+        cells = [
+            cell for cell in  mote.tsch.get_cells(
+                mac_addr         = root.get_mac_addr(),
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+            )
+            if cell.options == [d.CELLOPTION_TX]
+        ]
+        assert len(cells) == 0
+
+        # 2.2 send an application packet per slotframe
+        mote.settings.app_pkPeriod = (
+            mote.settings.tsch_slotframeLength *
+            mote.settings.tsch_slotDuration
+        )
+        mote.app.startSendingData()
+
+        # 2.3 run for 10 slotframes
+        assert mote.sf.cell_utilization == 0.0
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
         )
 
-        # make hop_1 not receive anything on dedicated RX cells other than the
-        # first allocated one than one dedicated RX cell so that MSF would
-        # perform cell relocation
-        hop_1.tsch.original_addCell        = hop_1.tsch.addCell
-        hop_1.tsch.original_tsch_action_RX = hop_1.tsch._action_RX
-        def new_addCell(
-                self,
-                slotOffset,
-                channelOffset,
-                neighbor,
-                cellOptions,
-                slotframe_handle=0
-            ):
+        # 2.4 confirm the cell usage reaches 100%
+        assert mote.sf.cell_utilization == 1.0
+
+        # 2.5 one dedicated cell should be allocated in the next 2 slotframes
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
+        )
+        cells = [
+            cell for cell in  mote.tsch.get_cells(
+                mac_addr         = root.get_mac_addr(),
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+            )
+            if cell.options == [d.CELLOPTION_TX]
+        ]
+        assert len(cells) == 1
+        slot_offset = cells[0].slot_offset
+
+        # 3. test cell relocation
+        # 3.1 increase the following Rpl values in order to avoid invalidating
+        # the root as a parent
+        mote.rpl.of.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK = 100
+        mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX = 100
+        mote.rpl.of.MAXIMUM_STEP_OF_RANK = 100
+
+        # 3.2 deny input frames over the dedicated cell on the side of the root
+        def rxDone_wrapper(self, packet, channel):
             if (
-                    (cellOptions == [d.CELLOPTION_RX])
+                    (packet is not None)
                     and
                     (
-                        len(
-                            filter(
-                                lambda cell: cell.options == [d.CELLOPTION_RX],
-                                self.mote.tsch.get_cells(neighbor)
-                            )
-                        ) == 0
+                        (
+                            self.engine.getAsn() %
+                            mote.settings.tsch_slotframeLength
+                        ) == slot_offset
                     )
                 ):
-
-                # remember the slotoffset of first allocated dedicated cell. While
-                # this cell might be deleted later, ignore such an edge case for
-                # this test.
-                self.first_dedicated_slot_offset = slotOffset
-
-            self.original_addCell(
-                slotOffset,
-                channelOffset,
-                neighbor,
-                cellOptions,
-                slotframe_handle
-            )
-        def new_action_RX(self):
-            slotframe   = self.get_slotframe(self.mote.sf.SLOTFRAME_HANDLE)
-            cells        = slotframe.get_cells_at_asn(self.engine.getAsn())
-            if (
-                    (len(cells) > 0)
-                    and
-                    (cells[0].mac_addr is not None)
-                    and
-                    hasattr(self, 'first_dedicated_slot_offset')
-                    and
-                    ((self.first_dedicated_slot_offset) != cells[0].slot_offset)
-                ):
-                # do nothing on this dedicated cell
-                pass
+                self.active_cell = None
+                self.waitingFor = None
+                # silently discard this packet
+                return False
             else:
-                self.original_tsch_action_RX()
+                return self.rxDone_original(packet, channel)
+        root.tsch.rxDone_original = root.tsch.rxDone
+        root.tsch.rxDone = types.MethodType(rxDone_wrapper, root.tsch)
 
-        hop_1.tsch.addCell    = types.MethodType(new_addCell, hop_1.tsch)
-        hop_1.tsch._action_RX = types.MethodType(new_action_RX, hop_1.tsch)
+        # 3.3 run for the next 20 slotframes
+        asn_start = sim_engine.getAsn()
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 20
+        )
 
-        # wait for the network formed
-        u.run_until_everyone_joined(sim_engine)
+        # 3.5 RELOCATE should have happened
+        logs = [
+            log for log in u.read_log_file(filter=['sixp.comp'], after_asn=asn_start)
+            if (
+                (log['_mote_id'] == mote.id)
+                and
+                (log['cmd'] == d.SIXP_CMD_RELOCATE)
+            )
+        ]
+        assert len(logs) == 1
 
-        # wait for hop_2 to get ready to start application
-        run_until_mote_is_ready_for_app(sim_engine, hop_2)
-        assert sim_engine.getAsn() < asn_at_end_of_simulation
+        # 4. test dedicated cell deallocation
+        # 4.1 stop application packet transmission
+        mote.settings.app_pkPeriod = 0
 
-        # generate application traffic which is supposed to trigger an ADD
-        # transaction between hop_2 and hop_1
-        asn_starting_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 1.3)
-        start_app_traffic(hop_2)
-        run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
-        assert sim_engine.getAsn() < asn_at_end_of_simulation
+        # 4.2 run for a while
+        asn_start = sim_engine.getAsn()
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 20
+        )
 
-        # increase the traffic
-        asn_increasing_app_traffic = sim_engine.getAsn()
-        set_app_traffic_rate(sim_engine, 0.5)
-        run_until_dedicated_tx_cell_is_allocated(sim_engine, hop_2)
-        assert sim_engine.getAsn() < asn_at_end_of_simulation
-
-        # decrease the traffic; run until a RELOCATE command is issued to the
-        # dedicated cell scheduled first
-        set_app_traffic_rate(sim_engine, 1.3)
-        run_until_sixp_cmd_is_seen(sim_engine, hop_2, d.SIXP_CMD_RELOCATE)
-        assert sim_engine.getAsn() < asn_at_end_of_simulation
-
-        # stop the traffic; run until a DELETE command is issued
-        stop_app_traffic(sim_engine)
-        run_until_sixp_cmd_is_seen(sim_engine, hop_2, d.SIXP_CMD_DELETE)
-        assert sim_engine.getAsn() < asn_at_end_of_simulation
+        # 4.3 DELETE should have happened
+        logs = [
+            log for log in u.read_log_file(filter=['sixp.comp'], after_asn=asn_start)
+            if (
+                (log['_mote_id'] == mote.id)
+                and
+                (log['cmd'] == d.SIXP_CMD_DELETE)
+            )
+        ]
+        assert len(logs) > 0
 
     def test_parent_switch(self, sim_engine):
         sim_engine = sim_engine(
