@@ -278,6 +278,8 @@ class SixP(object):
             }
         )
 
+        self.increment_seqnum(transaction.peerMac)
+
     def increment_seqnum(self, peerMac):
         assert peerMac in self.seqnum_table.keys()
         self.seqnum_table[peerMac] += 1
