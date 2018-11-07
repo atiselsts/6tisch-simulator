@@ -582,12 +582,12 @@ class Tsch(object):
                 '_mote_id':       self.mote.id,
                 'channel':        channel,
                 'slot_offset':    (
-                    self.active_cell.slot_offset
-                    if self.active_cell else None
+                    active_cell.slot_offset
+                    if active_cell else None
                 ),
                 'channel_offset': (
-                    self.active_cell.channel_offset
-                    if self.active_cell else None
+                    active_cell.channel_offset
+                    if active_cell else None
                 ),
                 'packet':         packet,
             }
