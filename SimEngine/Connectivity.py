@@ -22,7 +22,7 @@ import random
 import math
 from abc import abstractmethod
 import gzip
-from datetime import datetime
+import datetime as dt
 import json
 
 import SimSettings
@@ -470,12 +470,31 @@ class ConnectivityK7(ConnectivityBase):
 
     # ======================= inheritance =====================================
 
+    def __init__(self):
+
+        # init attributes
+
+        self.trace = []
+        self.connectivity_matrix_timestamp = None  # the datetime at which we stopped reading the trace
+        self.trace_position = 0  # the offset at which we stopped reading the trace
+        self.trace_iteration = 1  # increments each time we reach the end of the trace
+        self.first_date = None  # the first trace datetime. used to convert trace datetime into simulation ASN
+
+        # init parent class
+
+        super(ConnectivityK7, self).__init__()
+
     # definitions of abstract methods
 
     def _init_connectivity_matrix(self):
-        """ Fill the matrix using the connectivity trace"""
+        """
+        Fill the matrix using the connectivity trace file.
+        The connectivity matrix is initialized with values representing the absence of a link.
+        The connectivity trace file is then loaded into memory (connectivity values and trace meta information).
+        """
 
         # create the matrix (You take the red pill and stay in Wonderland)
+
         for source in self.engine.motes:
             self.connectivity_matrix[source.id] = {}
             for dest in self.engine.motes:
@@ -485,34 +504,39 @@ class ConnectivityK7(ConnectivityBase):
                         self.CONNECTIVITY_MATRIX_NO_LINK
                     )
 
-        # load first trace transaction and init
-        self.first_date = None
-        with gzip.open(self.settings.conn_trace, 'r') as trace:
-            trace_header = json.loads(trace.readline())
-            csv_header = trace.readline().strip().split(',')
+        # load trace into memory and save metas (headers)
 
-            for line in trace:
-                # parse line
-                row = self._parse_line(csv_header, line)
+        with gzip.open(self.settings.conn_trace, 'r') as tracefile:
+            self.trace_header = json.loads(tracefile.readline())
+            self.csv_header = tracefile.readline().strip().split(',')
 
-                # only read first transaction
-                if row['transaction_id'] > 0:
-                    break
+            # check if the simulation settings match the trace file
 
-                # save file position
-                self.trace_position = trace.tell()
+            if self.settings.exec_numMotes != self.trace_header['node_count']:
+                print(
+                    "Wrong configuration. exec_numMotes is {0}, should be {1}".format(
+                        self.settings.exec_numMotes,
+                        self.trace_header['node_count']
+                    )
+                )
+                assert self.settings.exec_numMotes == self.trace_header['node_count']
 
-                # update matrix value
-                first_channel = trace_header['channels'][0]
-                for channel in row['channels']:
-                    channel_offset = channel - first_channel
-                    self.connectivity_matrix[row['src']][row['dst']][channel_offset] = {
-                        'pdr': float(row['pdr']),
-                        'rssi': row['mean_rssi'],
-                    }
+            # set the first date at the trace date + 1h
+            # the first hour of the trace is used for initialization
+            if self.first_date is None:
+                self.first_date = dt.datetime.strptime(self.trace_header['start_date'], "%Y-%m-%d %H:%M:%S") \
+                                  + dt.timedelta(hours=1)
 
-                # save matrix timestamp
-                self.connectivity_matrix_timestamp = row['asn']
+            # === use the first hour for initialization
+
+            for line in tracefile:
+
+                row = self._parse_line(line)
+
+                if row['asn'] < 0:  # if first hour, use row for matrix init
+                    self._set_connectivity(row['src'], row['dst'], row['channel'], row['pdr'], row['mean_rssi'])
+                else:  # else, load row into memory
+                    self.trace.append(row)
 
     # overloaded methods
 
@@ -530,76 +554,83 @@ class ConnectivityK7(ConnectivityBase):
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
-        print src_id, dst_id, channel
         return super(ConnectivityK7, self).get_rssi(src_id, dst_id, channel)
 
     # ======================= private =========================================
+
+    def _set_connectivity(self, src, dst, channel, pdr, mean_rssi):
+        """
+        Modify the connectivity matrix.
+        If no channel is given (i.e. channel is None), set all channels to the same value.
+        :param src:
+        :param dst:
+        :param channel:
+        :param pdr:
+        :param mean_rssi:
+        :return:
+        """
+        if channel is None:
+            for channel_offset in range(self.settings.phy_numChans):
+                self.connectivity_matrix[src][dst][channel_offset] = {
+                    'pdr': float(pdr),
+                    'rssi': mean_rssi,
+                }
+        else:
+            first_channel = self.trace_header['channels'][0]
+            channel_offset = channel - first_channel
+            self.connectivity_matrix[src][dst][channel_offset] = {
+                'pdr': float(pdr),
+                'rssi': mean_rssi,
+            }
 
     def _update_connectivity_matrix_from_trace(self):
         """ Read the connectivity trace and fill the connectivity matrix
         :return: Timestamp when to update the matrix again
         """
 
-        with gzip.open(self.settings.conn_trace, 'r') as trace:
-            trace_header = json.loads(trace.readline())
-            csv_header = trace.readline().strip().split(',')
+        while True:
+            row = self.trace[self.trace_position]
 
-            # move to last recorded position
-            trace.seek(self.trace_position)
+            # return next update ASN
 
-            for line in trace:
-                # parse line
-                row = self._parse_line(csv_header, line)
+            if row['asn'] * self.trace_iteration > self.engine.asn:
+                return row['asn']
 
-                # save file position
-                self.trace_position = trace.tell()
+            # update matrix value
 
-                # return next update ASN
-                if row['asn'] > self.engine.asn:
-                    return row['asn']
+            self._set_connectivity(row['src'], row['dst'], row['channel'], row['pdr'], row['mean_rssi'])
 
-                # update matrix value
-                first_channel = trace_header['channels'][0]
-                for channel in row['channels']:
-                    channel_offset = channel - first_channel
-                    self.connectivity_matrix[row['src']][row['dst']][channel_offset] = {
-                        'pdr': float(row['pdr']),
-                        'rssi': row['mean_rssi'],
-                    }
+            # save current trace position
 
-        raise Exception("""
-                        Reached the end of the trace file without finding a matching row.
-                        The simulation duration is longer than the trace duration.
-                        """)
+            if self.trace_position == len(self.trace) - 1:  # restart from the beginning of the trace
+                self.trace_position = 0
+                self.trace_iteration += 1
+            else:
+                self.trace_position += 1
 
-    def _parse_line(self, csv_header, line):
+    def _parse_line(self, line):
+
         # === read and parse line
+
         vals = line.strip().split(',')
-        row = dict(zip(csv_header, vals))
+        row = dict(zip(self.csv_header, vals))
 
         # === change row format
 
-        row['src'] = int(row['src'])
-        row['dst'] = int(row['dst'])
-        row['transaction_id'] = int(row['transaction_id'])
-        row['datetime'] = datetime.strptime(row['datetime'], "%Y-%m-%d %H:%M:%S")
+        row['src'] = int(row['src']) if row['src'] else None
+        row['dst'] = int(row['dst']) if row['dst'] else None
+        row['channel'] = int(row['channel']) if row['channel'] else None
+        row['datetime'] = dt.datetime.strptime(row['datetime'], "%Y-%m-%d %H:%M:%S")
 
         # rssi
+
         if row['mean_rssi'] == '':
             row['mean_rssi'] = self.CONNECTIVITY_MATRIX_NO_LINK['rssi']
         else:
             row['mean_rssi'] = float(row['mean_rssi'])
 
-        # channel string to list
-        row['channels'] = [int(c) for c in row['channels'].strip("[]").split(';')]
-
         # === add ASN value to row
 
-        # save first row datetime if it does not exits
-        if self.first_date is None:
-            self.first_date = row['datetime']
-
-        # convert row datetime to ASN
         time_delta = row['datetime'] - self.first_date
         row['asn'] = int(time_delta.total_seconds() / float(self.settings.tsch_slotDuration))
 
@@ -628,7 +659,6 @@ class ConnectivityRandom(ConnectivityBase):
 
         # initialize the singleton
         super(ConnectivityRandom, self).__init__()
-
 
     def _init_connectivity_matrix(self):
 
