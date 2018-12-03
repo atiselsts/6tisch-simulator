@@ -71,6 +71,9 @@ def test_config(sim_engine):
                 if   re.match(r'^import', line):
                     # skip import line
                     continue
+                elif re.match(r'^\s*#', line):
+                    # skip comment line
+                    continue
                 elif re.search(r'SimSettings', line):
                     if (
                             re.search(r'SimSettings\(\)\.__dict__', line)
