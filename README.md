@@ -221,6 +221,11 @@ You can run the simulator using connectivity traces in your K7 file instead of u
 * `conn_class` should be set with `"K7"`
 * `conn_trace` should be set with your K7 file path
 
+Requirements:
+
+* the number of nodes in the simulation must match the number of nodes in the trace file.
+* the trace duration should be longer that 1 hour has the first hour is used for initialization
+
 ### more on applications
 
 `AppPeriodic` and `AppBurst` are available.
