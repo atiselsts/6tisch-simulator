@@ -82,7 +82,13 @@ def kpis_all(inputfile):
         # populate
         if run_id not in allstats:
             allstats[run_id] = {}
-        if '_mote_id' in logline and mote_id not in allstats[run_id]:
+        if (
+                ('_mote_id' in logline)
+                and
+                (mote_id not in allstats[run_id])
+                and
+                (mote_id != DAGROOT_ID)
+            ):
             allstats[run_id][mote_id] = init_mote()
 
         if   logline['_type'] == SimLog.LOG_TSCH_SYNCED['type']:
