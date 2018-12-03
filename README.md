@@ -75,8 +75,9 @@ Simulated protocol stack
    ```
    $ python runSim.py
    ```
-    * raw output data is in `bin/simData/`.
-    * raw charts are in `bin/simPlots/`.
+    * a new directory having the timestamp value as its name is created under
+      `bin/simData/` (e.g., `bin/simData/20181203-161254-775`)
+    * raw output data and raw charts are stored in the newly created directory
 1. Take a look at `bin/config.json` to see the configuration of the simulations you just ran.
 
 The simulator can be run on a cluster system. Here is an example for a cluster built with OAR and Conda:
