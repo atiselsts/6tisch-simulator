@@ -91,6 +91,7 @@ class AppBase(object):
             },
             'app': {
                 'appcounter':    self.appcounter,
+                'timestamp':     self.engine.getAsn()
             }
 
         }
