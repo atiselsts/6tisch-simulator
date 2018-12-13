@@ -46,7 +46,7 @@ class AppBase(object):
         self.engine     = SimEngine.SimEngine.SimEngine()
         self.settings   = SimEngine.SimSettings.SimSettings()
         self.log        = SimEngine.SimLog.SimLog().log
-        
+
         # local variables
         self.appcounter = 0
 
@@ -80,7 +80,7 @@ class AppBase(object):
             packet_type,
             packet_length,
         ):
-        
+
         # create data packet
         dataPacket = {
             'type':              packet_type,
@@ -102,18 +102,18 @@ class AppBase(object):
         return dataPacket
 
     def _send_packet(self, dstIp, packet_length):
-        
+
         # abort if I'm not ready to send DATA yet
         if self.mote.clear_to_send_EBs_DATA()==False:
             return
-        
+
         # create
         packet = self._generate_packet(
             dstIp          = dstIp,
             packet_type    = d.PKT_TYPE_DATA,
             packet_length  = packet_length
         )
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_APP_TX,
@@ -122,7 +122,7 @@ class AppBase(object):
                 'packet':         packet,
             }
         )
-        
+
         # send
         self.mote.sixlowpan.sendPacket(packet)
 
@@ -155,7 +155,7 @@ class AppRoot(AppBase):
         )
 
     #======================== private ==========================================
-    
+
     def _send_ack(self, destination, packet_length=None):
 
         if packet_length is None:
