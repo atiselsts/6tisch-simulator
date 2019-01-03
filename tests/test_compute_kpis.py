@@ -117,7 +117,12 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
 
     # confirm if compute_kpis.py referred the right log file
     # the first line of output has the log directory name
-    assert re.search(sim_settings.getOutputFile(), output[0]) is not None
+    assert (
+        re.search(
+            os.path.basename(sim_settings.getOutputFile()),
+            output[0]
+        ) is not None
+    )
 
     # convert the body of the output, which is a JSON string, to an object
     json_string = '\n'.join(output[1:-1])
