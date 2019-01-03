@@ -102,6 +102,7 @@ class SimConfig(dict):
         # shouldn't be in the regular field
         del regular_field['cpuID']
         del regular_field['run_id']
+        del regular_field['logRootDirectoryPath']
         del regular_field['logDirectory']
         del regular_field['combinationKeys']
         # put random seed

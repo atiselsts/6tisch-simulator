@@ -46,7 +46,13 @@ def test_config(sim_engine):
     # remove elements which are not configuration keys
     keys_found_in_config_file = [
         key for key in keys_found_in_config_file if (
-            key not in ['cpuID', 'run_id', 'combinationKeys', 'logDirectory']
+            key not in [
+                'cpuID',
+                'run_id',
+                'combinationKeys',
+                'logRootDirectoryPath',
+                'logDirectory'
+            ]
         )
     ]
     # convert keys_found_in_config_file to a set

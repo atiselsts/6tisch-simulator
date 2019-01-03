@@ -20,11 +20,11 @@ import re
 class SimSettings(object):
 
     # ==== class attributes / definitions
-    LOG_ROOT_DIR   = 'simData'
+    DEFAULT_LOG_ROOT_DIR = 'simData'
 
     # ==== start singleton
-    _instance      = None
-    _init          = False
+    _instance = None
+    _init     = False
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -32,7 +32,14 @@ class SimSettings(object):
         return cls._instance
     # ==== end singleton
 
-    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, **kwargs):
+    def __init__(
+            self,
+            cpuID=None,
+            run_id=None,
+            failIfNotInit=False,
+            log_root_dir=DEFAULT_LOG_ROOT_DIR,
+            **kwargs
+        ):
 
         if failIfNotInit and not self._init:
             raise EnvironmentError('SimSettings singleton not initialized.')
@@ -45,21 +52,22 @@ class SimSettings(object):
         # ==== end singleton
 
         # store params
-        self.cpuID                          = cpuID
-        self.run_id                         = run_id
+        self.cpuID                = cpuID
+        self.run_id               = run_id
+        self.logRootDirectoryPath = os.path.abspath(log_root_dir)
 
         self.__dict__.update(kwargs)
 
     def setLogDirectory(self, log_directory_name):
-        self.logDirectory    = log_directory_name
+        self.logDirectory = log_directory_name
 
     def setCombinationKeys(self, combinationKeys):
         self.combinationKeys = combinationKeys
 
     def getOutputFile(self):
         # directory
-        dirname   = os.path.join(
-            self.LOG_ROOT_DIR,
+        dirname = os.path.join(
+            self.logRootDirectoryPath,
             self.logDirectory,
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
@@ -82,14 +90,14 @@ class SimSettings(object):
 
         # file
         if self.cpuID is None:
-            tempname         = 'output.dat'
+            tempname = 'output.dat'
         else:
-            tempname         = 'output_cpu{0}.dat'.format(self.cpuID)
-        datafilename         = os.path.join(dirname, tempname)
+            tempname = 'output_cpu{0}.dat'.format(self.cpuID)
+        datafilename = os.path.join(dirname, tempname)
 
         return datafilename
 
     def destroy(self):
         cls = type(self)
-        cls._instance       = None
-        cls._init           = False
+        cls._instance = None
+        cls._init     = False
