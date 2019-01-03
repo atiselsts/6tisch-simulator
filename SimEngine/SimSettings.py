@@ -20,7 +20,7 @@ import re
 class SimSettings(object):
 
     # ==== class attributes / definitions
-    LOG_ROOT_DIR   = 'simData'
+    DEFAULT_LOG_ROOT_DIR   = 'simData'
 
     # ==== start singleton
     _instance      = None
@@ -32,7 +32,14 @@ class SimSettings(object):
         return cls._instance
     # ==== end singleton
 
-    def __init__(self, cpuID=None, run_id=None, failIfNotInit=False, **kwargs):
+    def __init__(
+            self,
+            cpuID=None,
+            run_id=None,
+            failIfNotInit=False,
+            log_root_dir=DEFAULT_LOG_ROOT_DIR,
+            **kwargs
+        ):
 
         if failIfNotInit and not self._init:
             raise EnvironmentError('SimSettings singleton not initialized.')
@@ -47,6 +54,7 @@ class SimSettings(object):
         # store params
         self.cpuID                          = cpuID
         self.run_id                         = run_id
+        self.logRootDirectoryPath = os.path.abspath(log_root_dir)
 
         self.__dict__.update(kwargs)
 
@@ -59,7 +67,7 @@ class SimSettings(object):
     def getOutputFile(self):
         # directory
         dirname   = os.path.join(
-            self.LOG_ROOT_DIR,
+            self.logRootDirectoryPath,
             self.logDirectory,
             '_'.join(['{0}_{1}'.format(k, getattr(self, k)) for k in self.combinationKeys]),
         )
