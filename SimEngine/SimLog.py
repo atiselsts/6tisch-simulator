@@ -119,26 +119,32 @@ class SimLog(object):
         cls._init = True
         # ==== end singleton
 
-        # get singletons
-        self.settings   = SimSettings.SimSettings()
-        self.engine     = None # will be defined by set_simengine
+        try:
+            # get singletons
+            self.settings   = SimSettings.SimSettings()
+            self.engine     = None # will be defined by set_simengine
 
-        # local variables
-        self.log_filters = []
+            # local variables
+            self.log_filters = []
 
-        # open log file
-        self.log_output_file = open(self.settings.getOutputFile(), 'a')
+            # open log file
+            self.log_output_file = open(self.settings.getOutputFile(), 'a')
 
-        # write config to log file; if a file with the same file name exists,
-        # append logs to the file. this happens if you multiple runs on the
-        # same CPU. And amend config line; config line in log file should have
-        # '_type' field. And 'run_id' type should be '_run_id'
-        config_line = copy.deepcopy(self.settings.__dict__)
-        config_line['_type']   = 'config'
-        config_line['_run_id'] = config_line['run_id']
-        del config_line['run_id']
-        json_string = json.dumps(config_line)
-        self.log_output_file.write(json_string + '\n')
+            # write config to log file; if a file with the same file name exists,
+            # append logs to the file. this happens if you multiple runs on the
+            # same CPU. And amend config line; config line in log file should have
+            # '_type' field. And 'run_id' type should be '_run_id'
+            config_line = copy.deepcopy(self.settings.__dict__)
+            config_line['_type']   = 'config'
+            config_line['_run_id'] = config_line['run_id']
+            del config_line['run_id']
+            json_string = json.dumps(config_line)
+            self.log_output_file.write(json_string + '\n')
+        except:
+            # destroy the singleton
+            cls._instance = None
+            cls._init = False
+            raise
 
     def log(self, simlog, content):
         """
