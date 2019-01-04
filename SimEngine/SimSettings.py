@@ -51,12 +51,18 @@ class SimSettings(object):
         cls._init = True
         # ==== end singleton
 
-        # store params
-        self.cpuID                = cpuID
-        self.run_id               = run_id
-        self.logRootDirectoryPath = os.path.abspath(log_root_dir)
+        try:
+            # store params
+            self.cpuID                = cpuID
+            self.run_id               = run_id
+            self.logRootDirectoryPath = os.path.abspath(log_root_dir)
 
-        self.__dict__.update(kwargs)
+            self.__dict__.update(kwargs)
+        except:
+            # destroy the singleton
+            cls._instance = None
+            cls._init = False
+            raise
 
     def setLogDirectory(self, log_directory_name):
         self.logDirectory = log_directory_name
