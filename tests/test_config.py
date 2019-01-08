@@ -109,6 +109,9 @@ def test_config(sim_engine):
                     elif key == '__dict__':
                         # this is not a key; skip it
                         continue
+                    elif key == 'run_id':
+                        # run_id is not a setting key; ignore this
+                        continue
                     else:
                         # add the key referred from a core file
                         keys_found_in_core_files.add(m.group(2))

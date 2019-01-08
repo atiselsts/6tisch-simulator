@@ -30,6 +30,10 @@ import SimEngine
 
 class Mote(object):
 
+    MAC_ADDR_TYPE_EUI64       = 'eui64'
+    IPV6_ADDR_TYPE_LINK_LOCAL = 'link-local'
+    IPV6_ADDR_TYPE_GLOBAL     = 'global'
+
     def __init__(self, id, eui64=None):
 
         # store params
@@ -84,6 +88,14 @@ class Mote(object):
     def add_ipv6_prefix(self, prefix):
         # having more than one prefix is not supported
         self.ipv6_prefix = netaddr.IPAddress(prefix)
+        self.log(
+            SimEngine.SimLog.LOG_IPV6_ADD_ADDR,
+            {
+                '_mote_id': self.id,
+                'type'    : self.IPV6_ADDR_TYPE_GLOBAL,
+                'addr'    : self.get_ipv6_global_addr()
+            }
+        )
 
     def delete_ipv6_prefix(self):
         # having more than one prefix is not supported
@@ -194,3 +206,19 @@ class Mote(object):
                 self.eui64 = netaddr.EUI(local_eui64.value + self.id)
         else:
             self.eui64 = netaddr.EUI(eui64)
+        self.log(
+            SimEngine.SimLog.LOG_MAC_ADD_ADDR,
+            {
+                '_mote_id': self.id,
+                'type'    : self.MAC_ADDR_TYPE_EUI64,
+                'addr'    : str(self.eui64)
+            }
+        )
+        self.log(
+            SimEngine.SimLog.LOG_IPV6_ADD_ADDR,
+            {
+                '_mote_id': self.id,
+                'type'    : self.IPV6_ADDR_TYPE_LINK_LOCAL,
+                'addr'    : self.get_ipv6_link_local_addr()
+            }
+        )

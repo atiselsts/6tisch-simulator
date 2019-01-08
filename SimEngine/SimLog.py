@@ -85,8 +85,10 @@ LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys'
 LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','channel','slot_offset', 'channel_offset', 'packet']}
 LOG_TSCH_BACKOFF_EXPONENT_UPDATED = {'type': 'tsch.be.updated',           'keys': ['_mote_id','old_be', 'new_be']}
 
-# === batt
+# === mote info
 LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
+LOG_MAC_ADD_ADDR                  = {'type': 'mac.add_addr',              'keys': ['_mote_id', 'type', 'addr']}
+LOG_IPV6_ADD_ADDR                 = {'type': 'ipv6.add_addr',             'keys': ['_mote_id', 'type', 'addr']}
 
 # === propagation
 LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet']}
@@ -166,12 +168,19 @@ class SimLog(object):
                 )
             )
 
+        # if self.engine is not available, consider the current time
+        # is ASN 0.
+        if self.engine is None:
+            asn = 0
+        else:
+            asn = self.engine.asn
+
         # update the log content
         content.update(
             {
-                "_asn":       self.engine.asn,
+                "_asn":       asn,
                 "_type":      simlog["type"],
-                "_run_id":    self.engine.run_id
+                "_run_id":    self.settings.run_id
             }
         )
 
