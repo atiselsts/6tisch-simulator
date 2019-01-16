@@ -1,4 +1,3 @@
-
 """
 """
 
@@ -37,6 +36,7 @@ class Tsch(object):
         # local variables
         self.slotframes      = {}
         self.txQueue         = []
+        self.txQueueSize     = self.settings.tsch_tx_queue_size
         self.neighbor_table  = []
         self.pktToSend       = None
         self.waitingFor      = None
@@ -260,7 +260,7 @@ class Tsch(object):
             if (
                     (priority is False)
                     and
-                    (len(self.txQueue) >= d.TSCH_QUEUE_SIZE)
+                    (len(self.txQueue) >= self.txQueueSize)
                 ):
                 # my TX queue is full
 
