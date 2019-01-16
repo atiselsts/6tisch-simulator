@@ -347,7 +347,8 @@ class TestPacketDelivery:
 class TestFragmentationAndReassembly(object):
 
     TSCH_MAX_PAYLOAD    = 90
-    MAX_APP_PAYLOAD_LEN = TSCH_MAX_PAYLOAD  * d.TSCH_QUEUE_SIZE
+    TSCH_TX_QUEUE_SIZE  = 10
+    MAX_APP_PAYLOAD_LEN = TSCH_MAX_PAYLOAD  * TSCH_TX_QUEUE_SIZE
 
     APP_PKLENGTH = range(TSCH_MAX_PAYLOAD+1, MAX_APP_PAYLOAD_LEN, TSCH_MAX_PAYLOAD)
     @pytest.fixture(params=APP_PKLENGTH)
@@ -378,6 +379,7 @@ class TestFragmentationAndReassembly(object):
                 'app_pkPeriodVar'                          : 0,
                 'tsch_probBcast_ebProb'                    : 0,
                 'tsch_max_payload_len'                     : self.TSCH_MAX_PAYLOAD,
+                'tsch_tx_queue_size'                       : self.TSCH_TX_QUEUE_SIZE,
                 'app_pkLength'                             : app_pkLength,
                 'fragmentation'                            : fragmentation,
                 'fragmentation_ff_discard_vrb_entry_policy': fragmentation_ff_discard_vrb_entry_policy

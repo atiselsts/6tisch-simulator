@@ -1,4 +1,3 @@
-
 # === admin
 NUM_SUFFICIENT_TX                           = 10      # sufficient num. of tx to estimate pdr by ACK
 WAITING_FOR_TX                              = 'waiting_for_tx'
@@ -85,7 +84,6 @@ MSF_RELOCATE_PDRTHRES                       = 0.5  # in [0-1]
 MSF_MIN_NUM_TX                              = 100  # min number for PDR to be significant
 
 # === tsch
-TSCH_QUEUE_SIZE                             = 10
 TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 1
 TSCH_MAX_BACKOFF_EXPONENT                   = 7

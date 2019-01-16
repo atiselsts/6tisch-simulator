@@ -39,9 +39,9 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
 
     # fill the TX queue with dummy frames
     dummy_frame = {'type': 'dummy_frame_type'}
-    for _ in range(0, d.TSCH_QUEUE_SIZE):
+    for _ in range(0, hop1.tsch.txQueueSize):
         hop1.tsch.txQueue.append(dummy_frame)
-    assert len(hop1.tsch.txQueue) == d.TSCH_QUEUE_SIZE
+    assert len(hop1.tsch.txQueue) == hop1.tsch.txQueueSize
 
     # prepare an additional frame
     test_frame = {
