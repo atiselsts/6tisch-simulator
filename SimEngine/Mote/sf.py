@@ -1090,7 +1090,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         return hash_value & 0xFFFF
 
 
-class SchedulingFunctionMSFold(SchedulingFunctionMSF):
+class SchedulingFunctionMSFChang(SchedulingFunctionMSF):
     INITIAL_NUM_TXRX_CELLS = 1
 
     def _allocate_autonomous_rx_cell(self):
