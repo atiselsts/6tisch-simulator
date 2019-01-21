@@ -15,7 +15,7 @@
             "secjoin_enabled":                             true,
 
             "app":                                         "AppPeriodic",
-            "app_pkPeriod":                                10,
+            "app_pkPeriod":                                60,
             "app_pkPeriodVar":                             0.05,
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
