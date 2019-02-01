@@ -265,6 +265,9 @@ def kpis_all(inputfile):
             current_consumed.append(motestats['charge'])
             if motestats['lifetime_AA_years'] is not None:
                 lifetimes.append(motestats['lifetime_AA_years'])
+            current_consumed = [
+                value for value in current_consumed if value is not None
+            ]
 
         #-- save stats
 
@@ -333,8 +336,14 @@ def kpis_all(inputfile):
                 {
                     'name': 'Current Consumed',
                     'unit': 'mA',
-                    'mean': mean(current_consumed),
-                    '99%': np.percentile(current_consumed, 99)
+                    'mean': (
+                        mean(current_consumed)
+                        if current_consumed else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(current_consumed, 99)
+                        if current_consumed else 'N/A'
+                    )
                 }
             ],
             'network_lifetime':[
