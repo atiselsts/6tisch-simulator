@@ -265,6 +265,9 @@ def kpis_all(inputfile):
             current_consumed.append(motestats['charge'])
             if motestats['lifetime_AA_years'] is not None:
                 lifetimes.append(motestats['lifetime_AA_years'])
+            current_consumed = [
+                value for value in current_consumed if value is not None
+            ]
 
         #-- save stats
 
@@ -273,45 +276,84 @@ def kpis_all(inputfile):
                 {
                     'name': 'E2E Upstream Delivery Ratio',
                     'unit': '%',
-                    'value': 1 - app_packets_lost / app_packets_sent
+                    'value': (
+                        1 - app_packets_lost / app_packets_sent
+                        if app_packets_sent > 0 else 'N/A'
+                    )
                 },
                 {
                     'name': 'E2E Upstream Loss Rate',
                     'unit': '%',
-                    'value':  app_packets_lost / app_packets_sent
+                    'value': (
+                        app_packets_lost / app_packets_sent
+                        if app_packets_sent > 0 else 'N/A'
+                    )
                 }
             ],
             'e2e-upstream-latency': [
                 {
                     'name': 'E2E Upstream Latency',
                     'unit': 's',
-                    'mean': mean(us_latencies),
-                    'min': min(us_latencies),
-                    'max': max(us_latencies),
-                    '99%': np.percentile(us_latencies, 99)
+                    'mean': (
+                        mean(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    'min': (
+                        min(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    'max': (
+                        max(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(us_latencies, 99)
+                        if us_latencies else 'N/A'
+                    )
                 },
                 {
                     'name': 'E2E Upstream Latency',
                     'unit': 'slots',
-                    'mean': mean(us_latencies) / slot_duration,
-                    'min': min(us_latencies) / slot_duration,
-                    'max': max(us_latencies) / slot_duration,
-                    '99%': np.percentile(us_latencies, 99) / slot_duration
+                    'mean': (
+                        mean(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    'min': (
+                        min(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    'max': (
+                        max(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(us_latencies, 99) / slot_duration
+                        if us_latencies else 'N/A'
+                    )
                 }
             ],
             'current-consumed': [
                 {
                     'name': 'Current Consumed',
                     'unit': 'mA',
-                    'mean': mean(current_consumed),
-                    '99%': np.percentile(current_consumed, 99)
+                    'mean': (
+                        mean(current_consumed)
+                        if current_consumed else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(current_consumed, 99)
+                        if current_consumed else 'N/A'
+                    )
                 }
             ],
             'network_lifetime':[
                 {
                     'name': 'Network Lifetime',
                     'unit': 'years',
-                    'min': min(lifetimes),
+                    'min': (
+                        min(lifetimes)
+                        if lifetimes else 'N/A'
+                    ),
                     'total_capacity_mAh': BATTERY_AA_CAPACITY_mAh,
                 }
             ],
@@ -319,10 +361,22 @@ def kpis_all(inputfile):
                 {
                     'name': 'Joining Time',
                     'unit': 'slots',
-                    'min': min(joining_times),
-                    'max': max(joining_times),
-                    'mean': mean(joining_times),
-                    '99%': np.percentile(joining_times, 99)
+                    'min': (
+                        min(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    'max': (
+                        max(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    'mean': (
+                        mean(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(joining_times, 99)
+                        if joining_times else 'N/A'
+                    )
                 }
             ],
             'app-packets-sent': [
