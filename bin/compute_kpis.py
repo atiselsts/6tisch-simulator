@@ -350,7 +350,10 @@ def kpis_all(inputfile):
                 {
                     'name': 'Network Lifetime',
                     'unit': 'years',
-                    'min': min(lifetimes),
+                    'min': (
+                        min(lifetimes)
+                        if lifetimes else 'N/A'
+                    ),
                     'total_capacity_mAh': BATTERY_AA_CAPACITY_mAh,
                 }
             ],
