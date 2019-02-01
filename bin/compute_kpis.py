@@ -273,12 +273,18 @@ def kpis_all(inputfile):
                 {
                     'name': 'E2E Upstream Delivery Ratio',
                     'unit': '%',
-                    'value': 1 - app_packets_lost / app_packets_sent
+                    'value': (
+                        1 - app_packets_lost / app_packets_sent
+                        if app_packets_sent > 0 else 'N/A'
+                    )
                 },
                 {
                     'name': 'E2E Upstream Loss Rate',
                     'unit': '%',
-                    'value':  app_packets_lost / app_packets_sent
+                    'value': (
+                        app_packets_lost / app_packets_sent
+                        if app_packets_sent > 0 else 'N/A'
+                    )
                 }
             ],
             'e2e-upstream-latency': [
