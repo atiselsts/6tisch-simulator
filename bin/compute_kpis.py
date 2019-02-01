@@ -291,18 +291,42 @@ def kpis_all(inputfile):
                 {
                     'name': 'E2E Upstream Latency',
                     'unit': 's',
-                    'mean': mean(us_latencies),
-                    'min': min(us_latencies),
-                    'max': max(us_latencies),
-                    '99%': np.percentile(us_latencies, 99)
+                    'mean': (
+                        mean(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    'min': (
+                        min(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    'max': (
+                        max(us_latencies)
+                        if us_latencies else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(us_latencies, 99)
+                        if us_latencies else 'N/A'
+                    )
                 },
                 {
                     'name': 'E2E Upstream Latency',
                     'unit': 'slots',
-                    'mean': mean(us_latencies) / slot_duration,
-                    'min': min(us_latencies) / slot_duration,
-                    'max': max(us_latencies) / slot_duration,
-                    '99%': np.percentile(us_latencies, 99) / slot_duration
+                    'mean': (
+                        mean(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    'min': (
+                        min(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    'max': (
+                        max(us_latencies) / slot_duration
+                        if us_latencies else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(us_latencies, 99) / slot_duration
+                        if us_latencies else 'N/A'
+                    )
                 }
             ],
             'current-consumed': [
