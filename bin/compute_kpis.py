@@ -361,10 +361,22 @@ def kpis_all(inputfile):
                 {
                     'name': 'Joining Time',
                     'unit': 'slots',
-                    'min': min(joining_times),
-                    'max': max(joining_times),
-                    'mean': mean(joining_times),
-                    '99%': np.percentile(joining_times, 99)
+                    'min': (
+                        min(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    'max': (
+                        max(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    'mean': (
+                        mean(joining_times)
+                        if joining_times else 'N/A'
+                    ),
+                    '99%': (
+                        np.percentile(joining_times, 99)
+                        if joining_times else 'N/A'
+                    )
                 }
             ],
             'app-packets-sent': [
