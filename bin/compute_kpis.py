@@ -53,7 +53,6 @@ def init_mote():
         'latencies': [],
         'hops': [],
         'charge': None,
-        'packet_drops': {},
         'lifetime_AA_years': None,
         'avg_current_uA': None,
     }
@@ -157,19 +156,6 @@ def kpis_all(inputfile):
                 d.IPV6_DEFAULT_HOP_LIMIT - hop_limit + 1
             )
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = asn
-
-        elif logline['_type'] == SimLog.LOG_PACKET_DROPPED['type']:
-            # packet dropped
-
-            # shorthands
-            mote_id    = logline['_mote_id']
-            reason     = logline['reason']
-
-            # populate
-            if reason not in allstats[run_id][mote_id]['packet_drops']:
-                allstats[run_id][mote_id]['packet_drops'][reason] = 0
-
-            allstats[run_id][mote_id]['packet_drops'][reason] += 1
 
         elif logline['_type'] == SimLog.LOG_BATT_CHARGE['type']:
             # battery charge
