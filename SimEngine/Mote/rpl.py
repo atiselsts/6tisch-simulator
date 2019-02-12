@@ -511,7 +511,7 @@ class RplOF0(object):
     MAXIMUM_STEP_OF_RANK = 9
 
     # Custom constants
-    MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK = 10
+    MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_SUCCESS = 10
     ETX_DEFAULT = UPPER_LIMIT_OF_ACCEPTABLE_ETX
     # if we have a "good" link to the parent, stay with the parent even if the
     # rank of the parent is worse than the best neighbor by more than
@@ -521,6 +521,8 @@ class RplOF0(object):
     PARENT_SWITCH_RANK_INCREASE_THRESHOLD = (
         ((3 * ETX_GOOD_LINK) - 2) * d.RPL_MINHOPRANKINCREASE
     )
+    # The number of transmissions that is needed for ETX calculation
+    ETX_NUM_TX_CUTOFF = 100
 
     def __init__(self, rpl):
         self.rpl = rpl
@@ -581,22 +583,45 @@ class RplOF0(object):
             return self.preferred_parent['mac_addr']
 
     def update_etx(self, cell, mac_addr, isACKed):
+        assert mac_addr != d.BROADCAST_ADDRESS
+        assert d.CELLOPTION_TX in cell.options
+
         neighbor = self._find_neighbor(mac_addr)
         if neighbor is None:
             # we've not received DIOs from this neighbor; ignore the neighbor
             return
+
+        if cell.mac_addr is None:
+            # we calculate ETX only on dedicated cells
+            # XXX: Although it'd be better to exclude cells having
+            # SHARED bit on as well, this is not good for the
+            # autonomous cell defined by MSF.
+            return
+
+        neighbor['numTx'] += 1
+        if isACKed is True:
+            neighbor['numTxAck'] += 1
+
+        if neighbor['numTx'] >= self.ETX_NUM_TX_CUTOFF:
+            # update ETX
+            assert neighbor['numTxAck'] > 0
+            neighbor['etx'] = float(neighbor['numTx']) / neighbor['numTxAck']
+            # reset counters
+            neighbor['numTx'] = 0
+            neighbor['numTxAck'] = 0
         elif (
-                (cell.mac_addr == mac_addr)
+                (neighbor['numTxAck'] == 0)
                 and
-                (d.CELLOPTION_TX in cell.options)
-                and
-                (d.CELLOPTION_SHARED not in cell.options)
+                (
+                    self.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_SUCCESS <=
+                    neighbor['numTx']
+                )
             ):
-            neighbor['numTx'] += 1
-            if isACKed is True:
-                neighbor['numTxAck'] += 1
-            self._update_neighbor_rank_increase(neighbor)
-            self._update_preferred_parent()
+            # set invalid ETX
+            neighbor['etx'] = self.UPPER_LIMIT_OF_ACCEPTABLE_ETX + 1
+
+        self._update_neighbor_rank_increase(neighbor)
+        self._update_preferred_parent()
 
     def _add_neighbor(self, mac_addr):
         assert self._find_neighbor(mac_addr) is None
@@ -606,7 +631,8 @@ class RplOF0(object):
             'advertised_rank': None,
             'rank_increase': None,
             'numTx': 0,
-            'numTxAck': 0
+            'numTxAck': 0,
+            'etx': self.ETX_DEFAULT
         }
         self.neighbors.append(neighbor)
         self._update_neighbor_rank_increase(neighbor)
@@ -622,22 +648,10 @@ class RplOF0(object):
         neighbor['advertised_rank'] = new_advertised_rank
 
     def _update_neighbor_rank_increase(self, neighbor):
-        if neighbor['numTxAck'] == 0:
-            if neighbor['numTx'] > self.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK:
-                etx = self.UPPER_LIMIT_OF_ACCEPTABLE_ETX + 1 # set invalid ETX
-            else:
-                # ETX is not available
-                etx = None
-        else:
-            etx = float(neighbor['numTx']) / neighbor['numTxAck']
-
-        if etx is None:
-            etx = self.ETX_DEFAULT
-
-        if etx > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
+        if neighbor['etx'] > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
             step_of_rank = None
         else:
-            step_of_rank = (3 * etx) - 2
+            step_of_rank = (3 * neighbor['etx']) - 2
         if step_of_rank is None:
             # this neighbor will not be considered as a parent
             neighbor['rank_increase'] = None
