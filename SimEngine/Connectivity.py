@@ -556,7 +556,11 @@ class ConnectivityK7(ConnectivityBase):
 
     def get_pdr(self, src_id, dst_id, channel):
         # update PDR matrix if we are a new row in our K7 file
-        if  self.connectivity_matrix_timestamp < self.engine.asn:
+        if (
+                (self.connectivity_matrix_timestamp is not None)
+                and
+                (self.connectivity_matrix_timestamp < self.engine.asn)
+            ):
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
