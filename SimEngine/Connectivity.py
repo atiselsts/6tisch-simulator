@@ -477,7 +477,6 @@ class ConnectivityK7(ConnectivityBase):
         self.trace = []
         self.connectivity_matrix_timestamp = None  # the datetime at which we stopped reading the trace
         self.trace_position = 0  # the offset at which we stopped reading the trace
-        self.trace_iteration = 1  # increments each time we reach the end of the trace
         self.first_date = None  # the first trace datetime. used to convert trace datetime into simulation ASN
 
         # init parent class
@@ -509,6 +508,14 @@ class ConnectivityK7(ConnectivityBase):
         with gzip.open(self.settings.conn_trace, 'r') as tracefile:
             self.trace_header = json.loads(tracefile.readline())
             self.csv_header = tracefile.readline().strip().split(',')
+            start_date = dt.datetime.strptime(
+                self.trace_header['start_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
+            stop_date = dt.datetime.strptime(
+                self.trace_header['stop_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
 
             # check if the simulation settings match the trace file
 
@@ -521,11 +528,18 @@ class ConnectivityK7(ConnectivityBase):
                 )
                 assert self.settings.exec_numMotes == self.trace_header['node_count']
 
+
+            numSlotframes = (
+                (stop_date - start_date).total_seconds() /
+                self.settings.tsch_slotDuration
+            )
+            if self.settings.exec_numSlotframesPerRun > numSlotframes:
+                raise ValueError('exec_numSlotframesPerRun is too long')
+
             # set the first date at the trace date + 1h
             # the first hour of the trace is used for initialization
             if self.first_date is None:
-                self.first_date = dt.datetime.strptime(self.trace_header['start_date'], "%Y-%m-%d %H:%M:%S") \
-                                  + dt.timedelta(hours=1)
+                self.first_date = start_date + dt.timedelta(hours=1)
 
             # === use the first hour for initialization
 
@@ -550,7 +564,11 @@ class ConnectivityK7(ConnectivityBase):
 
     def get_rssi(self, src_id, dst_id, channel):
         # update PDR matrix if we are a new row in our K7 file
-        if  self.connectivity_matrix_timestamp < self.engine.asn:
+        if (
+                (self.connectivity_matrix_timestamp is not None)
+                and
+                (self.connectivity_matrix_timestamp < self.engine.asn)
+            ):
             self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
 
         # then call the parent's method
@@ -587,26 +605,30 @@ class ConnectivityK7(ConnectivityBase):
         """ Read the connectivity trace and fill the connectivity matrix
         :return: Timestamp when to update the matrix again
         """
+        assert self.trace_position < len(self.trace)
 
         while True:
             row = self.trace[self.trace_position]
 
             # return next update ASN
 
-            if row['asn'] * self.trace_iteration > self.engine.asn:
-                return row['asn']
+            if row['asn'] > self.engine.asn:
+                next_asn_to_update = row['asn']
+                break
 
             # update matrix value
 
             self._set_connectivity(row['src'], row['dst'], row['channel'], row['pdr'], row['mean_rssi'])
 
-            # save current trace position
+            # increment trace_position
+            self.trace_position += 1
 
-            if self.trace_position == len(self.trace) - 1:  # restart from the beginning of the trace
-                self.trace_position = 0
-                self.trace_iteration += 1
-            else:
-                self.trace_position += 1
+            if self.trace_position == len(self.trace):
+                # we hit the bottom of the trace
+                next_asn_to_update = None
+                break
+
+        return next_asn_to_update
 
     def _parse_line(self, line):
 
