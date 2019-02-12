@@ -159,6 +159,7 @@ class TestOF0(object):
                 'secjoin_enabled'         : False,
                 'tsch_keep_alive_interval': 0,
                 'conn_class'              : 'Linear',
+                'sf_class'                : 'MSF'
             }
         )
 
@@ -170,7 +171,7 @@ class TestOF0(object):
         )
 
         # get the network ready to be test
-        u.run_until_everyone_joined(sim_engine)
+        u.run_until_mote_is_ready_for_app(sim_engine, motes[-1])
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # set ETX=100/75 (numTx=100, numTxAck=75)
@@ -185,9 +186,18 @@ class TestOF0(object):
 
             # set numTx and numTxAck
             preferred_parent = mote.rpl.of.preferred_parent
-            preferred_parent['numTx'] = 100
-            preferred_parent['numTxAck'] = 75
-            mote.rpl.of._update_neighbor_rank_increase(preferred_parent)
+            autonomous_cell = mote.tsch.get_cells(
+                mac_addr         = preferred_parent['mac_addr'],
+                slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            )[0]
+            preferred_parent['numTx'] = 99
+            preferred_parent['numTxAck'] = 74
+            # inform RPL of the 100th transmission that is success
+            mote.rpl.of.update_etx(
+                cell     = autonomous_cell,
+                mac_addr = preferred_parent['mac_addr'],
+                isACKed  = True
+            )
 
         # test using rank values in Figure 4 of RFC 8180
         assert motes[0].rpl.get_rank()   == 256
@@ -318,16 +328,16 @@ class TestOF0(object):
 
         # when ETX exceeds UPPER_LIMIT_OF_ACCEPTABLE_ETX, mote should leave
         # root
-        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=True) # ETX is 1
-        for _ in range(mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX - 1):
-            mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
-
-        # ETX == UPPER_LIMIT_OF_ACCEPTABLE_ETX; root should be still mote's
-        # parent
-        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
-
-        # mote should lose its preferred parent
+        preferred_parent = mote.rpl.of.preferred_parent
+        preferred_parent['numTx'] = 99
+        preferred_parent['numTxAck'] = (
+            preferred_parent['numTx'] /
+            mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX
+        )
         mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
+
+        # now ETX is larger than UPPER_LIMIT_OF_ACCEPTABLE_ETX; root
+        # should be still mote's parent
         assert mote.rpl.getPreferredParent() is None
 
         # give the DIO again
@@ -336,14 +346,8 @@ class TestOF0(object):
 
         # if mote has many consecutive transmission failures without any
         # success, it should leave the preferred parent
-        for _ in range(mote.rpl.of.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_ACK):
+        for _ in range(mote.rpl.of.MAX_NUM_OF_CONSECUTIVE_FAILURES_WITHOUT_SUCCESS):
             mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
-
-        # mote should still have the preferred parent
-        assert mote.rpl.getPreferredParent() == root.get_mac_addr()
-
-        # then, it should lose it
-        mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
         assert mote.rpl.getPreferredParent() is None
 
 
