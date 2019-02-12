@@ -508,6 +508,14 @@ class ConnectivityK7(ConnectivityBase):
         with gzip.open(self.settings.conn_trace, 'r') as tracefile:
             self.trace_header = json.loads(tracefile.readline())
             self.csv_header = tracefile.readline().strip().split(',')
+            start_date = dt.datetime.strptime(
+                self.trace_header['start_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
+            stop_date = dt.datetime.strptime(
+                self.trace_header['stop_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
 
             # check if the simulation settings match the trace file
 
@@ -520,11 +528,18 @@ class ConnectivityK7(ConnectivityBase):
                 )
                 assert self.settings.exec_numMotes == self.trace_header['node_count']
 
+
+            numSlotframes = (
+                (stop_date - start_date).total_seconds() /
+                self.settings.tsch_slotDuration
+            )
+            if self.settings.exec_numSlotframesPerRun > numSlotframes:
+                raise ValueError('exec_numSlotframesPerRun is too long')
+
             # set the first date at the trace date + 1h
             # the first hour of the trace is used for initialization
             if self.first_date is None:
-                self.first_date = dt.datetime.strptime(self.trace_header['start_date'], "%Y-%m-%d %H:%M:%S") \
-                                  + dt.timedelta(hours=1)
+                self.first_date = start_date + dt.timedelta(hours=1)
 
             # === use the first hour for initialization
 
