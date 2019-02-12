@@ -560,3 +560,44 @@ class TestMSF(object):
         slot_offset, channel_offset = mote.sf._get_autonomous_cell(mac_addr)
         assert slot_offset == 1
         assert channel_offset == 0
+
+    def test_clear(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'  : 2,
+                'sf_class'       : 'MSF',
+                'conn_class'     : 'Linear',
+                'secjoin_enabled': False
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+        root_mac_addr = root.get_mac_addr()
+
+        run_until_mote_is_ready_for_app(sim_engine, mote)
+
+        cells = mote.tsch.get_cells(
+            mac_addr         = root_mac_addr,
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+        )
+        assert len(cells) == 1
+        # mote should have the autonomous cell of the root
+        assert cells[0].mac_addr == root_mac_addr
+        assert d.CELLOPTION_TX in cells[0].options
+        assert d.CELLOPTION_RX not in cells[0].options
+        assert d.CELLOPTION_SHARED in cells[0].options
+        # keep the reference to the autonomous cell
+        root_autonomous_cell = cells[0]
+
+        # execute CLEAR (call the equivalent internal method of the
+        # SF)
+        mote.sf._clear_cells(root_mac_addr)
+
+        # get the autonomous cell again
+        cells = mote.tsch.get_cells(
+            mac_addr         = root_mac_addr,
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+        )
+        assert len(cells) == 1
+        assert cells[0] == root_autonomous_cell

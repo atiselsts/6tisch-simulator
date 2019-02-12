@@ -433,13 +433,20 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
         for cell in cells:
             assert neighbor == cell.mac_addr
-            self.mote.tsch.deleteCell(
-                slotOffset       = cell.slot_offset,
-                channelOffset    = cell.channel_offset,
-                neighbor         = cell.mac_addr,
-                cellOptions      = cell.options,
-                slotframe_handle = self.SLOTFRAME_HANDLE
-            )
+            if d.CELLOPTION_SHARED in cell.options:
+                # we consider this cell as the autonomous one of the
+                # neighbor, which must not be deleted by CLEAR. Skip
+                # this cell:
+                # https://tools.ietf.org/html/draft-ietf-6tisch-msf-01#section-3
+                pass
+            else:
+                self.mote.tsch.deleteCell(
+                    slotOffset       = cell.slot_offset,
+                    channelOffset    = cell.channel_offset,
+                    neighbor         = cell.mac_addr,
+                    cellOptions      = cell.options,
+                    slotframe_handle = self.SLOTFRAME_HANDLE
+                )
 
     def _relocate_cells(
             self,
