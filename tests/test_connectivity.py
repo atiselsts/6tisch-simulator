@@ -1,6 +1,7 @@
 """
 Tests for SimEngine.Connectivity
 """
+import datetime as dt
 import itertools
 import json
 import gzip
@@ -17,7 +18,7 @@ import k7
 
 import test_utils as u
 from SimEngine import SimLog
-
+from SimEngine import Connectivity
 
 #============================ helpers =========================================
 
@@ -87,37 +88,103 @@ def test_linear_matrix(sim_engine):
                     assert matrix[c][p][channelOffset]['pdr']  ==  0.00
                     assert matrix[c][p][channelOffset]['rssi'] == -1000
 
-def test_k7_matrix(sim_engine):
-    """ verify the connectivity matrix for the 'K7' class is as expected """
-
-    num_motes = 50
-    here = os.path.dirname(__file__)
-    engine = sim_engine(
-        diff_config = {
-            'exec_numMotes': num_motes,
-            'conn_class':    'K7',
-            'conn_trace':    os.path.join(here, '..', 'traces', 'grenoble.k7.gz'),
-            'phy_numChans':  15,
-        }
+class TestK7(object):
+    TRACE_FILE_PATH = os.path.join(
+        os.path.dirname(__file__),
+        '../traces/grenoble.k7.gz'
     )
-    motes  = engine.motes
-    matrix = engine.connectivity.connectivity_matrix
 
-    print_connectivity_matrix(matrix)
+    @property
+    def header(self):
+        with gzip.open(self.TRACE_FILE_PATH, 'r') as tracefile:
+            return json.loads(tracefile.readline())
 
-    assert motes[0].dagRoot is True
+    @property
+    def num_motes(self):
+        return self.header['node_count']
 
-    for src in range(0, num_motes):
-        for dst in range(0, num_motes):
-            if src == dst:
-                continue
-            for channelOffset in range(engine.settings.phy_numChans):
-                assert 'pdr' in matrix[src][dst][channelOffset]
-                assert 'rssi' in matrix[src][dst][channelOffset]
-                assert isinstance(matrix[src][dst][channelOffset]['pdr'], (int, long, float))
-                assert isinstance(matrix[src][dst][channelOffset]['rssi'], (int, long, float))
-                assert 0 <= matrix[src][dst][channelOffset]['pdr'] <= 1
-                assert -1000 <= matrix[src][dst][channelOffset]['rssi'] <= 0
+    @property
+    def channels(self):
+        return self.header['channels']
+
+    @property
+    def trace_duration(self):
+        start_time = dt.datetime.strptime(
+            self.header['start_date'],
+            "%Y-%m-%d %H:%M:%S"
+        )
+        stop_time = dt.datetime.strptime(
+            self.header['stop_date'],
+            "%Y-%m-%d %H:%M:%S"
+        )
+        return (stop_time - start_time).total_seconds()
+
+    def test_free_run(self, sim_engine):
+        """ verify the connectivity matrix for the 'K7' class is as expected """
+
+
+
+        engine = sim_engine(
+            diff_config = {
+                'exec_numMotes': self.num_motes,
+                'conn_class'   : 'K7',
+                'conn_trace'   : self.TRACE_FILE_PATH,
+                'phy_numChans' : len(self.channels)
+            }
+        )
+        motes  = engine.motes
+        matrix = engine.connectivity.connectivity_matrix
+
+        print_connectivity_matrix(matrix)
+
+        assert motes[0].dagRoot is True
+
+        for src in range(0, self.num_motes):
+            for dst in range(0, self.num_motes):
+                if src == dst:
+                    continue
+                for channelOffset in range(engine.settings.phy_numChans):
+                    assert 'pdr' in matrix[src][dst][channelOffset]
+                    assert 'rssi' in matrix[src][dst][channelOffset]
+                    assert isinstance(matrix[src][dst][channelOffset]['pdr'], (int, long, float))
+                    assert isinstance(matrix[src][dst][channelOffset]['rssi'], (int, long, float))
+                    assert 0 <= matrix[src][dst][channelOffset]['pdr'] <= 1
+                    assert -1000 <= matrix[src][dst][channelOffset]['rssi'] <= 0
+
+
+    @pytest.fixture(params=['short', 'equal', 'long'])
+    def fixture_test_type(self, request):
+        return request.param
+
+    def test_simulation_time(self, sim_engine, fixture_test_type):
+        tsch_slotDuration = 0.010
+        numSlotframes = self.trace_duration / tsch_slotDuration
+
+        if fixture_test_type == 'short':
+            numSlotframes -= 1
+        elif fixture_test_type == 'equal':
+            pass
+        elif fixture_test_type == 'long':
+            numSlotframes += 1
+        else:
+            raise NotImplementedError()
+
+        diff_config = {
+            'exec_numSlotframesPerRun': numSlotframes,
+            'exec_numMotes'           : self.num_motes,
+            'conn_class'              : 'K7',
+            'conn_trace'              : self.TRACE_FILE_PATH,
+            'tsch_slotDuration'       : tsch_slotDuration
+        }
+
+        if fixture_test_type == 'long':
+            with pytest.raises(ValueError):
+                sim_engine(diff_config=diff_config)
+            # destroy the ConnectivityK7 instance
+            connectivity = Connectivity.ConnectivityK7()
+            connectivity.destroy()
+        else:
+            sim_engine(diff_config=diff_config)
 
 #=== verify propagate function doesn't raise exception
 
