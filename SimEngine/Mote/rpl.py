@@ -651,7 +651,9 @@ class RplOF0(object):
         if neighbor['etx'] > self.UPPER_LIMIT_OF_ACCEPTABLE_ETX:
             step_of_rank = None
         else:
-            step_of_rank = (3 * neighbor['etx']) - 2
+            # step_of_rank is strictly positive integer as per RFC6552
+            step_of_rank = int((3 * neighbor['etx']) - 2)
+
         if step_of_rank is None:
             # this neighbor will not be considered as a parent
             neighbor['rank_increase'] = None
