@@ -67,25 +67,6 @@ def run_until_dedicated_tx_cell_is_allocated(sim_engine, mote):
         [d.CELLOPTION_TX]
     )
 
-def run_until_mote_is_ready_for_app(sim_engine, mote):
-    mote.rpl.original_action_receive_dio = mote.rpl.action_receiveDIO
-    def new_action_receive_dio(self, packet):
-        assert self.mote.dagRoot is False
-        if (
-                self.mote.tsch.getIsSync()
-                and
-                self.mote.secjoin.getIsJoined()
-            ):
-            mote.rpl.original_action_receive_dio(packet)
-            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
-            mote.rpl.action_receiveDIO = mote.rpl.original_action_receive_dio
-        else:
-            # it's not ready; do nothing
-            pass
-    mote.rpl.action_receiveDIO = types.MethodType(new_action_receive_dio, mote.rpl)
-
-    u.run_until_end(sim_engine)
-
 def run_until_sixp_cmd_is_seen(sim_engine, mote, cmd):
     mote.sixp.original_tsch_enqueue = mote.sixp._tsch_enqueue
     def new_tsch_enqueue(self, packet):
@@ -404,7 +385,7 @@ class TestMSF(object):
 
         # wait for hop_2 to get ready. this is when the network is ready to
         # operate.
-        run_until_mote_is_ready_for_app(sim_engine, mote_2)
+        u.run_until_mote_is_ready_for_app(sim_engine, mote_2)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # stop DIO (and EB) transmission
@@ -474,7 +455,7 @@ class TestMSF(object):
         )
 
         # wait for hop_1 to get ready.
-        run_until_mote_is_ready_for_app(sim_engine, hop_1)
+        u.run_until_mote_is_ready_for_app(sim_engine, hop_1)
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
         # fill up the hop_1's schedule
@@ -575,7 +556,7 @@ class TestMSF(object):
         mote = sim_engine.motes[1]
         root_mac_addr = root.get_mac_addr()
 
-        run_until_mote_is_ready_for_app(sim_engine, mote)
+        u.run_until_mote_is_ready_for_app(sim_engine, mote)
 
         cells = mote.tsch.get_cells(
             mac_addr         = root_mac_addr,

@@ -92,6 +92,25 @@ def run_until_everyone_joined(sim_engine):
     # run until the simulator is paused
     run_until_end(sim_engine)
 
+def run_until_mote_is_ready_for_app(sim_engine, mote):
+    mote.rpl.original_action_receive_dio = mote.rpl.action_receiveDIO
+    def new_action_receive_dio(self, packet):
+        assert self.mote.dagRoot is False
+        if (
+                self.mote.tsch.getIsSync()
+                and
+                self.mote.secjoin.getIsJoined()
+            ):
+            mote.rpl.original_action_receive_dio(packet)
+            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
+            mote.rpl.action_receiveDIO = mote.rpl.original_action_receive_dio
+        else:
+            # it's not ready; do nothing
+            pass
+    mote.rpl.action_receiveDIO = types.MethodType(new_action_receive_dio, mote.rpl)
+
+    run_until_end(sim_engine)
+
 def read_log_file(filter=[], after_asn=0):
     """return contents in a log file as a list of log objects
 
