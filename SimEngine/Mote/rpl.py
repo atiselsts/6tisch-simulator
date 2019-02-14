@@ -6,7 +6,7 @@ references:
 - IETF RFC 8180
 
 note:
-- global/local repair is not supported
+- global repair is not supported
 """
 
 # =========================== imports =========================================
