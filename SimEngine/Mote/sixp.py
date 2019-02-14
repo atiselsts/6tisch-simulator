@@ -31,16 +31,16 @@ class SixP(object):
     def __init__(self, mote):
 
         # store params
-        self.mote                  = mote
+        self.mote              = mote
 
         # singletons (quicker access, instead of recreating every time)
-        self.engine                = SimEngine.SimEngine.SimEngine()
-        self.settings              = SimEngine.SimSettings.SimSettings()
-        self.log                   = SimEngine.SimLog.SimLog().log
+        self.engine            = SimEngine.SimEngine.SimEngine()
+        self.settings          = SimEngine.SimSettings.SimSettings()
+        self.log               = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.seqnum_table          = {} # indexed by neighbor_id
-        self.transaction_table     = {} # indexed by [initiator, responder]
+        self.seqnum_table      = {} # indexed by neighbor_id
+        self.transaction_table = {} # indexed by [initiator, responder]
 
     # ======================= public ==========================================
 
@@ -97,8 +97,8 @@ class SixP(object):
 
             # invoke callback
             transaction.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION,
-                packet      = packet
+                event  = d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION,
+                packet = packet
             )
         else:
             # do nothing
@@ -405,8 +405,8 @@ class SixP(object):
 
             # invoke callback
             transaction.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-                packet      = response
+                event  = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
+                packet = response
             )
 
     def _recv_confirmation(self, confirmation):
@@ -427,8 +427,8 @@ class SixP(object):
 
             # pass this to the scheduling function
             transaction.invoke_callback(
-                event       = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-                packet      = confirmation
+                event  = d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
+                packet = confirmation
             )
 
     def _create_packet(
@@ -660,16 +660,26 @@ class SixPTransaction(object):
                 or
                 (packet['app']['msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
             ):
-            initiator       = packet['mac']['srcMac']
-            responder       = packet['mac']['dstMac']
+            initiator = packet['mac']['srcMac']
+            responder = packet['mac']['dstMac']
         elif packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE:
-            initiator       = packet['mac']['dstMac']
-            responder       = packet['mac']['srcMac']
+            initiator = packet['mac']['dstMac']
+            responder = packet['mac']['srcMac']
         else:
             # shouldn't come here
             raise Exception()
 
         return '{0}-{1}'.format(initiator, responder)
+
+    @property
+    def last_packet(self):
+        if self.confirmation:
+            last_packet = self.confirmation
+        elif self.response:
+            last_packet = self.response
+        else:
+            last_packet = self.request
+        return last_packet
 
     def get_peerMac(self):
         return self.peerMac
@@ -685,10 +695,10 @@ class SixPTransaction(object):
             timeout_value = self._get_default_timeout_value()
 
         self.engine.scheduleAtAsn(
-            asn              = self.engine.getAsn() + timeout_value,
-            cb               = self.timeout_handler,
-            uniqueTag        = self.event_unique_tag,
-            intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS,
+            asn            = self.engine.getAsn() + timeout_value,
+            cb             = self.timeout_handler,
+            uniqueTag      = self.event_unique_tag,
+            intraSlotOrder = d.INTRASLOTORDER_STACKTASKS,
         )
 
     def complete(self):
@@ -706,13 +716,7 @@ class SixPTransaction(object):
         self._invalidate()
 
     def invoke_callback(self, event, packet):
-        if   event in [
-            d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-            d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION
-            ]:
-            assert packet is not None
-        elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
-            assert packet is None
+        assert packet is not None
 
         if self.callback is not None:
             self.callback(event, packet)
@@ -747,12 +751,12 @@ class SixPTransaction(object):
                 dstMac = self.peerMac
             )
 
-            # need to invoke the callback after the invalidation; otherwise, a new
-            # transaction to the same peer would fail due to duplicate (concurrent)
-            # transaction.
+            # need to invoke the callback after the invalidation;
+            # otherwise, a new transaction to the same peer would fail
+            # due to duplicate (concurrent) transaction.
             self.invoke_callback(
                 event  = d.SIXP_CALLBACK_EVENT_TIMEOUT,
-                packet = None
+                packet = self.last_packet
             )
         else:
             # the transaction has already been invalidated; do nothing here.
