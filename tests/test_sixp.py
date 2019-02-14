@@ -302,7 +302,7 @@ class TestTransaction:
         result = {'is_request_callback_called': False}
         def request_callback(event, packet):
             assert event  == d.SIXP_CALLBACK_EVENT_TIMEOUT
-            assert packet is None
+            assert packet
             result['is_request_callback_called'] = True
         mote_0.sixp.send_request(
             dstMac   = mote_1.get_mac_addr(),
@@ -314,7 +314,7 @@ class TestTransaction:
         result['is_response_callback_called'] = False
         def response_callback(event, packet):
             assert event  == d.SIXP_CALLBACK_EVENT_TIMEOUT
-            assert packet is None
+            assert packet
             result['is_response_callback_called'] = True
         def recv_request(self, packet):
             self.mote.sixp.send_response(
