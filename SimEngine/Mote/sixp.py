@@ -671,6 +671,16 @@ class SixPTransaction(object):
 
         return '{0}-{1}'.format(initiator, responder)
 
+    @property
+    def last_packet(self):
+        if self.confirmation:
+            last_packet = self.confirmation
+        elif self.response:
+            last_packet = self.response
+        else:
+            last_packet = self.request
+        return last_packet
+
     def get_peerMac(self):
         return self.peerMac
 
@@ -706,13 +716,7 @@ class SixPTransaction(object):
         self._invalidate()
 
     def invoke_callback(self, event, packet):
-        if   event in [
-            d.SIXP_CALLBACK_EVENT_PACKET_RECEPTION,
-            d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION
-            ]:
-            assert packet is not None
-        elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
-            assert packet is None
+        assert packet is not None
 
         if self.callback is not None:
             self.callback(event, packet)
@@ -752,7 +756,7 @@ class SixPTransaction(object):
             # transaction.
             self.invoke_callback(
                 event  = d.SIXP_CALLBACK_EVENT_TIMEOUT,
-                packet = None
+                packet = self.last_packet
             )
         else:
             # the transaction has already been invalidated; do nothing here.
