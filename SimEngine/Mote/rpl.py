@@ -6,7 +6,7 @@ references:
 - IETF RFC 8180
 
 note:
-- global/local repair is not supported
+- global repair is not supported
 """
 
 # =========================== imports =========================================
@@ -136,6 +136,7 @@ class Rpl(object):
         self.trickle_timer.reset()
 
     def local_repair(self):
+        self.of.reset()
         assert (
             (self.of.rank is None)
             or
@@ -475,32 +476,40 @@ class Rpl(object):
         return returnVal
 
 
-class RplOFNone(object):
-
+class RplOFBase(object):
     def __init__(self, rpl):
         self.rpl = rpl
         self.rank = None
         self.preferred_parent = None
 
+    def reset(self):
+        self.rank = None
+        old_parent_mac_addr = self.get_preferred_parent()
+        self.preferred_parent = None
+        self.rpl.indicate_preferred_parent_change(
+            old_preferred = old_parent_mac_addr,
+            new_preferred = None
+        )
+
     def update(self, dio):
-        # do nothing on the root
         pass
 
+    def update_etx(self, cell, mac_addr, isACKed):
+        pass
+
+    def get_preferred_parent(self):
+        return self.preferred_parent
+
+
+class RplOFNone(RplOFBase):
     def set_rank(self, new_rank):
         self.rank = new_rank
 
     def set_preferred_parent(self, new_preferred_parent):
         self.preferred_parent = new_preferred_parent
 
-    def get_preferred_parent(self):
-        return self.preferred_parent
 
-    def update_etx(self, cell, mac_addr, isACKed):
-        # do nothing
-        pass
-
-
-class RplOF0(object):
+class RplOF0(RplOFBase):
 
     # Constants defined in RFC 6550
     INFINITE_RANK = 65535
@@ -525,10 +534,8 @@ class RplOF0(object):
     ETX_NUM_TX_CUTOFF = 100
 
     def __init__(self, rpl):
-        self.rpl = rpl
+        super(RplOF0, self).__init__(rpl)
         self.neighbors = []
-        self.rank = None
-        self.preferred_parent = None
 
     @property
     def parents(self):
@@ -553,6 +560,10 @@ class RplOF0(object):
                 _parents.append(neighbor)
 
         return _parents
+
+    def reset(self):
+        self.neighbors = []
+        super(RplOF0, self).reset()
 
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
@@ -778,14 +789,6 @@ class RplOF0(object):
                 and
                 (self.preferred_parent is not None)
             ):
-            old_parent_mac_addr = self.preferred_parent['mac_addr']
-            self.neighbors = []
-            self.preferred_parent = None
-            self.rank = None
-            self.rpl.indicate_preferred_parent_change(
-                old_preferred = old_parent_mac_addr,
-                new_preferred = None
-            )
             self.rpl.local_repair()
         else:
             # do nothing
