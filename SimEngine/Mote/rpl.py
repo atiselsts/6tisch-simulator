@@ -136,6 +136,7 @@ class Rpl(object):
         self.trickle_timer.reset()
 
     def local_repair(self):
+        self.of.reset()
         assert (
             (self.of.rank is None)
             or
@@ -481,6 +482,15 @@ class RplOFBase(object):
         self.rank = None
         self.preferred_parent = None
 
+    def reset(self):
+        self.rank = None
+        old_parent_mac_addr = self.get_preferred_parent()
+        self.preferred_parent = None
+        self.rpl.indicate_preferred_parent_change(
+            old_preferred = old_parent_mac_addr,
+            new_preferred = None
+        )
+
     def update(self, dio):
         pass
 
@@ -550,6 +560,10 @@ class RplOF0(RplOFBase):
                 _parents.append(neighbor)
 
         return _parents
+
+    def reset(self):
+        self.neighbors = []
+        super(RplOF0, self).reset()
 
     def update(self, dio):
         mac_addr = dio['mac']['srcMac']
@@ -775,14 +789,6 @@ class RplOF0(RplOFBase):
                 and
                 (self.preferred_parent is not None)
             ):
-            old_parent_mac_addr = self.preferred_parent['mac_addr']
-            self.neighbors = []
-            self.preferred_parent = None
-            self.rank = None
-            self.rpl.indicate_preferred_parent_change(
-                old_preferred = old_parent_mac_addr,
-                new_preferred = None
-            )
             self.rpl.local_repair()
         else:
             # do nothing
