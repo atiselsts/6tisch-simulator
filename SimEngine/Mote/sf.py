@@ -82,6 +82,10 @@ class SchedulingFunctionBase(object):
     def recv_request(self, packet):
         raise NotImplementedError() # abstractmethod
 
+    @abstractmethod
+    def clear_to_send_EBs_DATA(self):
+        raise NotImplementedError() # abstractmethod
+
 
 class SchedulingFunctionSFNone(SchedulingFunctionBase):
 
@@ -108,6 +112,10 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 
     def recv_request(self, packet):
         pass # do nothing
+
+    def clear_to_send_EBs_DATA(self):
+        # always return True
+        return True
 
 
 class SchedulingFunctionMSF(SchedulingFunctionBase):
@@ -270,6 +278,29 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # not implemented or not supported
             # ignore this request
             pass
+
+    def clear_to_send_EBs_DATA(self):
+        # True if we have a TX cell to the current parent
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        parent_addr = self.mote.rpl.getPreferredParent()
+        if (
+                (slotframe is None)
+                or
+                (parent_addr is None)
+            ):
+            tx_cells = []
+        else:
+            tx_cells = [
+                cell for cell in slotframe.get_cells_by_mac_addr(parent_addr)
+                if d.CELLOPTION_TX in cell.options
+            ]
+
+        if self.mote.dagRoot:
+            ret_val = True
+        else:
+            ret_val = bool(tx_cells)
+
+        return ret_val
 
     # ======================= private ==========================================
 

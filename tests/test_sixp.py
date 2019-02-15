@@ -71,6 +71,9 @@ class SchedulingFunctionTest(SchedulingFunctionBase):
             callback    = self._response_callback
         )
 
+    def clear_to_send_EBs_DATA(self):
+        return True
+
     # ======================= private ==========================================
 
     def _issue_add_request(self, peerMac, cellList):

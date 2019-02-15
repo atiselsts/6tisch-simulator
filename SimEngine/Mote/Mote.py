@@ -156,19 +156,27 @@ class Mote(object):
         returnVal = True
 
         # I need to be synchronized
-        if returnVal==True:
-            if self.tsch.getIsSync()==False:
+        if returnVal is True:
+            if self.tsch.getIsSync() is False:
                 returnVal = False
 
         # I need to have joined
-        if returnVal==True:
-            if self.secjoin.getIsJoined()==False:
+        if returnVal is True:
+            if self.secjoin.getIsJoined() is False:
                 returnVal = False
 
         # I must have a preferred parent (or be the dagRoot)
-        if returnVal==True:
-            if self.dagRoot==False and self.rpl.getPreferredParent()==None:
+        if returnVal is True:
+            if (
+                    (self.dagRoot is False)
+                    and
+                    (self.rpl.getPreferredParent() is None)
+                ):
                 returnVal = False
+
+        # ask SF if its schedule is ready for EB/Data
+        if returnVal is True:
+            returnVal = self.sf.clear_to_send_EBs_DATA()
 
         return returnVal
 
