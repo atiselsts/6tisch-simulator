@@ -475,32 +475,31 @@ class Rpl(object):
         return returnVal
 
 
-class RplOFNone(object):
-
+class RplOFBase(object):
     def __init__(self, rpl):
         self.rpl = rpl
         self.rank = None
         self.preferred_parent = None
 
     def update(self, dio):
-        # do nothing on the root
         pass
 
+    def update_etx(self, cell, mac_addr, isACKed):
+        pass
+
+    def get_preferred_parent(self):
+        return self.preferred_parent
+
+
+class RplOFNone(RplOFBase):
     def set_rank(self, new_rank):
         self.rank = new_rank
 
     def set_preferred_parent(self, new_preferred_parent):
         self.preferred_parent = new_preferred_parent
 
-    def get_preferred_parent(self):
-        return self.preferred_parent
 
-    def update_etx(self, cell, mac_addr, isACKed):
-        # do nothing
-        pass
-
-
-class RplOF0(object):
+class RplOF0(RplOFBase):
 
     # Constants defined in RFC 6550
     INFINITE_RANK = 65535
@@ -525,10 +524,8 @@ class RplOF0(object):
     ETX_NUM_TX_CUTOFF = 100
 
     def __init__(self, rpl):
-        self.rpl = rpl
+        super(RplOF0, self).__init__(rpl)
         self.neighbors = []
-        self.rank = None
-        self.preferred_parent = None
 
     @property
     def parents(self):
