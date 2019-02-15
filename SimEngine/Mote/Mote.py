@@ -174,6 +174,10 @@ class Mote(object):
                 ):
                 returnVal = False
 
+        # ask SF if its schedule is ready for EB/Data
+        if returnVal is True:
+            returnVal = self.sf.clear_to_send_EBs_DATA()
+
         return returnVal
 
     # ==== dropping
