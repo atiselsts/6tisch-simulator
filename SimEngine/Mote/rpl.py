@@ -123,17 +123,36 @@ class Rpl(object):
             }
         )
 
-        # trigger DAO
-        self._schedule_sendDAO(firstDAO=True)
+        if new_preferred is None:
+            assert old_preferred
+            # stop the DAO timer
+            self._stop_sendDAO()
 
-        # use the new parent as our clock source
-        self.mote.tsch.clock.sync(new_preferred)
+            # don't change the clock source
+
+            # trigger a DIO which advertises infinite rank
+            self._send_DIO()
+
+            # stop the trickle timer
+            self.trickle_timer.stop()
+
+            # stop the EB transmission
+            self.mote.tsch.stopSendingEBs()
+
+            # start the DIS timer
+            self.start_dis_timer()
+        else:
+            # trigger DAO
+            self._schedule_sendDAO(firstDAO=True)
+
+            # use the new parent as our clock source
+            self.mote.tsch.clock.sync(new_preferred)
+
+            # reset trickle timer to inform new rank quickly
+            self.trickle_timer.reset()
 
         # trigger 6P ADD if parent changed
         self.mote.sf.indication_parent_change(old_preferred, new_preferred)
-
-        # reset trickle timer to inform new rank quickly
-        self.trickle_timer.reset()
 
     def local_repair(self):
         self.of.reset()
@@ -148,12 +167,7 @@ class Rpl(object):
                 "_mote_id":        self.mote.id
             }
         )
-        self._send_DIO() # sending a DIO with the infinite rank
         self.dodagId = None
-        self.trickle_timer.stop()
-        self.mote.tsch.stopSendingEBs()
-        # start the DIS timer
-        self.start_dis_timer()
 
     # === DIS
 
@@ -362,6 +376,9 @@ class Rpl(object):
             uniqueTag        = (self.mote.id, '_action_sendDAO'),
             intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS,
         )
+
+    def _stop_sendDAO(self):
+        self.engine.removeFutureEvent((self.mote.id, '_action_sendDAO'))
 
     def _action_sendDAO(self):
         """
