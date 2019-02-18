@@ -363,6 +363,9 @@ class Rpl(object):
             intraSlotOrder   = d.INTRASLOTORDER_STACKTASKS,
         )
 
+    def _stop_sendDAO(self):
+        self.engine.removeFutureEvent((self.mote.id, '_action_sendDAO'))
+
     def _action_sendDAO(self):
         """
         Enqueue a DAO and schedule next one.
