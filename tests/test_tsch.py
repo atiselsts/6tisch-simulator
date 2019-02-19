@@ -9,6 +9,7 @@ import types
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
+from SimEngine.Mote import tsch
 
 # frame_type having "True" in "first_enqueuing" can be enqueued to TX queue
 # even if the queue is full.
@@ -557,3 +558,47 @@ def test_pending_bit(sim_engine, fixture_pending_bit_enabled):
             (logs[1]['_asn'] - logs[0]['_asn']) ==
             sim_engine.settings.tsch_slotframeLength
         )
+
+@pytest.fixture(params=[
+    'no_diff',
+    'slot_offset',
+    'channel_offset',
+    'cell_options',
+    'mac_addr',
+    'link_type'
+])
+def fixture_cell_comparison_test_type(request):
+    return request.param
+
+def test_cell_comparison(fixture_cell_comparison_test_type):
+    cell_attributes = {
+        'slot_offset'   : 1,
+        'channel_offset': 2,
+        'options'       : [d.CELLOPTION_TX],
+        'mac_addr'      : None,
+        'is_advertising': False
+    }
+    cell_1 = tsch.Cell(**cell_attributes)
+
+    if fixture_cell_comparison_test_type == 'no_diff':
+        # do nothing
+        pass
+    elif fixture_cell_comparison_test_type == 'slot_offset':
+        cell_attributes['slot_offset'] += 1
+    elif fixture_cell_comparison_test_type == 'channel_offset':
+        cell_attributes['channel_offset'] += 1
+    elif fixture_cell_comparison_test_type == 'cell_options':
+        cell_attributes['options'] = [d.CELLOPTION_RX]
+    elif fixture_cell_comparison_test_type == 'mac_addr':
+        cell_attributes['mac_addr'] = 'dummy_mac_addr'
+    elif fixture_cell_comparison_test_type == 'link_type':
+        cell_attributes['is_advertising'] = True
+    else:
+        raise NotImplementedError()
+
+    cell_2 = tsch.Cell(**cell_attributes)
+
+    if fixture_cell_comparison_test_type == 'no_diff':
+        assert cell_1 == cell_2
+    else:
+        assert cell_1 != cell_2
