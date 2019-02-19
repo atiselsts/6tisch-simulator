@@ -1488,6 +1488,9 @@ class Cell(object):
             )
         )
 
+    def __eq__(self, other):
+        return str(self) == str(other)
+
     def increment_num_tx(self):
         self.num_tx += 1
 
