@@ -1482,10 +1482,14 @@ class Cell(object):
                     'slot_offset: {0}'.format(self.slot_offset),
                     'channel_offset: {0}'.format(self.channel_offset),
                     'mac_addr: {0}'.format(self.mac_addr),
-                    'options: [{0}]'.format(', '.join(self.options))
+                    'options: [{0}]'.format(', '.join(self.options)),
+                    'link_type: {0}'.format(self.link_type)
                 ]
             )
         )
+
+    def __eq__(self, other):
+        return str(self) == str(other)
 
     def increment_num_tx(self):
         self.num_tx += 1
