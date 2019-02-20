@@ -92,6 +92,7 @@ class Radio(object):
     # RX
 
     def startRx(self, channel):
+        assert channel in d.TSCH_HOPPING_SEQUENCE
         assert self.state != d.RADIO_STATE_RX
         self.state = d.RADIO_STATE_RX
         self.channel = channel
