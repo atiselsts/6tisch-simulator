@@ -675,12 +675,10 @@ class Tsch(object):
         assert not self.getIsSync()
 
         # choose random channel
-        channel = random.randint(0, self.settings.phy_numChans-1)
+        channel = random.choice(self.hopping_sequence)
 
         # start listening
-        self.mote.radio.startRx(
-            channel = channel,
-        )
+        self.mote.radio.startRx(channel)
 
         # indicate that we're waiting for the RX operation to finish
         self.waitingFor = d.WAITING_FOR_RX
