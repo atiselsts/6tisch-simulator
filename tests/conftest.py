@@ -12,8 +12,8 @@ import test_utils                 as u
 
 def pdr_not_null(c,p,engine):
     returnVal = False
-    for channel in range(engine.settings.phy_numChans):
-        if engine.connectivity.get_pdr(c.id,p.id,channel)>0:
+    for channel in d.TSCH_HOPPING_SEQUENCE:
+        if engine.connectivity.get_pdr(c.id,p.id,channel) > 0:
             returnVal = True
     return returnVal
 

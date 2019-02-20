@@ -3,7 +3,7 @@
 Creates a connectivity matrix and provide methods to get the connectivity
 between two motes.
 
-The connectivity matrix is indexed by source id, destination id and channel offset.
+The connectivity matrix is indexed by source id, destination id and channel.
 Each cell of the matrix is a dict with the fields `pdr` and `rssi`
 
 The connectivity matrix can be filled statically at startup or be updated along
@@ -80,6 +80,9 @@ class ConnectivityBase(object):
         self.engine   = SimEngine.SimEngine()
         self.log      = SimEngine.SimLog.SimLog().log
 
+        # shorthands
+        self.num_channels = self.settings.phy_numChans
+
         # local variables
         self.connectivity_matrix = {} # described at the top of the file
         self.connectivity_matrix_timestamp = 0
@@ -89,7 +92,7 @@ class ConnectivityBase(object):
             self.connectivity_matrix[source.id] = {}
             for destination in self.engine.motes:
                 self.connectivity_matrix[source.id][destination.id] = {}
-                for channel in range(self.settings.phy_numChans):
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_NO_LINK
                     )
@@ -143,7 +146,7 @@ class ConnectivityBase(object):
         slotOffset = asn % self.settings.tsch_slotframeLength
 
         # repeat propagation for each channel
-        for channel in range(self.settings.phy_numChans):
+        for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
 
             # === accounting
 
@@ -438,7 +441,7 @@ class ConnectivityFullyMeshed(ConnectivityBase):
     def _init_connectivity_matrix(self):
         for source in self.engine.motes:
             for destination in self.engine.motes:
-                for channel in range(self.settings.phy_numChans):
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_PERFECT_LINK
                     )
@@ -454,7 +457,7 @@ class ConnectivityLinear(ConnectivityBase):
         parent = None
         for mote in self.engine.motes:
             if parent is not None:
-                for channel in range(self.settings.phy_numChans):
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[mote.id][parent.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_PERFECT_LINK
                     )
@@ -498,8 +501,8 @@ class ConnectivityK7(ConnectivityBase):
             self.connectivity_matrix[source.id] = {}
             for dest in self.engine.motes:
                 self.connectivity_matrix[source.id][dest.id] = {}
-                for chan in range(self.settings.phy_numChans):
-                    self.connectivity_matrix[source.id][dest.id][chan] = copy.copy(
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+                    self.connectivity_matrix[source.id][dest.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_NO_LINK
                     )
 
@@ -592,15 +595,13 @@ class ConnectivityK7(ConnectivityBase):
         :return:
         """
         if channel is None:
-            for channel_offset in range(self.settings.phy_numChans):
-                self.connectivity_matrix[src][dst][channel_offset] = {
+            for _channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+                self.connectivity_matrix[src][dst][_channel] = {
                     'pdr': float(pdr),
                     'rssi': mean_rssi,
                 }
         else:
-            first_channel = self.trace_header['channels'][0]
-            channel_offset = channel - first_channel
-            self.connectivity_matrix[src][dst][channel_offset] = {
+            self.connectivity_matrix[src][dst][channel] = {
                 'pdr': float(pdr),
                 'rssi': mean_rssi,
             }
@@ -732,6 +733,7 @@ class ConnectivityRandom(ConnectivityBase):
                 # count deployed motes who have enough PDR values to this
                 # mote
                 good_pdr_count = 0
+                base_channel = d.TSCH_HOPPING_SEQUENCE[0]
                 for deployed_mote_id in self.coordinates.keys():
                     rssi = self.pister_hack.compute_rssi(
                         {
@@ -744,9 +746,9 @@ class ConnectivityRandom(ConnectivityBase):
                         }
                     )
                     pdr = self.pister_hack.convert_rssi_to_pdr(rssi)
-                    # memorize the rssi and pdr values at channel 0
-                    self._set_rssi(target_mote.id, deployed_mote_id, 0, rssi)
-                    self._set_pdr(target_mote.id, deployed_mote_id, 0, pdr)
+                    # memorize the rssi and pdr values at the base channel
+                    self._set_rssi(target_mote.id, deployed_mote_id, base_channel, rssi)
+                    self._set_pdr(target_mote.id, deployed_mote_id, base_channel, pdr)
 
                     if init_min_pdr <= pdr:
                         good_pdr_count += 1
@@ -769,17 +771,21 @@ class ConnectivityRandom(ConnectivityBase):
                     self.coordinates[target_mote.id] = coordinate
                     # copy the rssi and pdr values to other channels
                     for deployed_mote_id in self.coordinates.keys():
-                        rssi = self.get_rssi(target_mote.id, deployed_mote_id, channel=0)
-                        pdr  = self.get_pdr(target_mote.id, deployed_mote_id, channel=0)
-                        for channel in range(1, self.settings.phy_numChans):
-                            self._set_rssi(target_mote.id, deployed_mote_id, channel, rssi)
-                            self._set_pdr(target_mote.id, deployed_mote_id, channel, pdr)
+                        rssi = self.get_rssi(target_mote.id, deployed_mote_id, base_channel)
+                        pdr  = self.get_pdr(target_mote.id, deployed_mote_id, base_channel)
+                        for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+                            if channel == base_channel:
+                                # do nothing
+                                pass
+                            else:
+                                self._set_rssi(target_mote.id, deployed_mote_id, channel, rssi)
+                                self._set_pdr(target_mote.id, deployed_mote_id, channel, pdr)
                     mote_is_deployed = True
                 else:
                     # remove memorized values at channel 0
                     for deployed_mote_id in self.coordinates.keys():
-                        self._clear_rssi(target_mote.id, deployed_mote_id, channel=0)
-                        self._clear_pdr(target_mote.id, deployed_mote_id, channel=0)
+                        self._clear_rssi(target_mote.id, deployed_mote_id, base_channel)
+                        self._clear_pdr(target_mote.id, deployed_mote_id, base_channel)
                     # try another random coordinate
                     continue
 

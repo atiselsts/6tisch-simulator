@@ -21,6 +21,7 @@
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
 
+            "rpl_of":                                      "OF0",
             "rpl_daoPeriod":                               60,
             "rpl_extensions":                              ["dis_unicast"],
 
