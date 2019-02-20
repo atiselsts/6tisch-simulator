@@ -224,7 +224,7 @@ def test_retransmission_count(sim_engine):
     hop1.rpl.trickle_timer.stop()
 
     # set 0% of PDR to the link between the two motes
-    for channel in range(sim_engine.settings.phy_numChans):
+    for channel in d.TSCH_HOPPING_SEQUENCE:
         connectivity_matrix[root.id][hop1.id][channel]['pdr'] = 0
         connectivity_matrix[hop1.id][root.id][channel]['pdr'] = 0
 

@@ -17,6 +17,7 @@ import pytest
 import k7
 
 import test_utils as u
+import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine import Connectivity
 
@@ -40,6 +41,7 @@ def print_connectivity_matrix(matrix):
     output        += ['\t|'+line]
 
     # body
+    channel = d.TSCH_HOPPING_SEQUENCE[0]
     for source in matrix:
         line       = []
         line      += [str(source)]
@@ -47,7 +49,7 @@ def print_connectivity_matrix(matrix):
             if source == dest:
                 line += ['N/A']
             else:
-                line  += [str(matrix[source][dest][0]['pdr'])]
+                line  += [str(matrix[source][dest][channel]['pdr'])]
         line       = '\t|'.join(line)
         output    += [line]
 
@@ -80,13 +82,13 @@ def test_linear_matrix(sim_engine):
     for c in range(0, num_motes):
         for p in range(0, num_motes):
             if (c == p+1) or (c+1 == p):
-                for channelOffset in range(engine.settings.phy_numChans):
-                    assert matrix[c][p][channelOffset]['pdr']  ==  1.00
-                    assert matrix[c][p][channelOffset]['rssi'] ==   -10
+                for channel in d.TSCH_HOPPING_SEQUENCE:
+                    assert matrix[c][p][channel]['pdr']  ==  1.00
+                    assert matrix[c][p][channel]['rssi'] ==   -10
             else:
-                for channelOffset in range(engine.settings.phy_numChans):
-                    assert matrix[c][p][channelOffset]['pdr']  ==  0.00
-                    assert matrix[c][p][channelOffset]['rssi'] == -1000
+                for channel in d.TSCH_HOPPING_SEQUENCE:
+                    assert matrix[c][p][channel]['pdr']  ==  0.00
+                    assert matrix[c][p][channel]['rssi'] == -1000
 
 class TestK7(object):
     TRACE_FILE_PATH = os.path.join(
@@ -143,13 +145,13 @@ class TestK7(object):
             for dst in range(0, self.num_motes):
                 if src == dst:
                     continue
-                for channelOffset in range(engine.settings.phy_numChans):
-                    assert 'pdr' in matrix[src][dst][channelOffset]
-                    assert 'rssi' in matrix[src][dst][channelOffset]
-                    assert isinstance(matrix[src][dst][channelOffset]['pdr'], (int, long, float))
-                    assert isinstance(matrix[src][dst][channelOffset]['rssi'], (int, long, float))
-                    assert 0 <= matrix[src][dst][channelOffset]['pdr'] <= 1
-                    assert -1000 <= matrix[src][dst][channelOffset]['rssi'] <= 0
+                for channel in d.TSCH_HOPPING_SEQUENCE:
+                    assert 'pdr' in matrix[src][dst][channel]
+                    assert 'rssi' in matrix[src][dst][channel]
+                    assert isinstance(matrix[src][dst][channel]['pdr'], (int, long, float))
+                    assert isinstance(matrix[src][dst][channel]['rssi'], (int, long, float))
+                    assert 0 <= matrix[src][dst][channel]['pdr'] <= 1
+                    assert -1000 <= matrix[src][dst][channel]['rssi'] <= 0
 
 
     @pytest.fixture(params=['short', 'equal', 'long'])
@@ -215,18 +217,19 @@ class TestRandom(object):
         assert sim_engine.getAsn() < asn_at_end_of_simulation
 
     def test_getter(self, sim_engine):
+        num_channels = 2
         sim_engine = sim_engine(
             diff_config = {
                 'conn_class'                    : 'Random',
                 'exec_numMotes'                 : 2,
                 'conn_random_init_min_neighbors': 1,
-                'phy_numChans'                  : 2,
+                'phy_numChans'                  : num_channels,
             }
         )
 
         # PDR and RSSI should not change over time
         for src, dst in zip(sim_engine.motes[:-1], sim_engine.motes[1:]):
-            for channel in range(sim_engine.settings.phy_numChans):
+            for channel in d.TSCH_HOPPING_SEQUENCE[:num_channels]:
                 pdr  = []
                 rssi = []
 
@@ -256,7 +259,7 @@ class TestRandom(object):
 
         # PDR and RSSI should be the same within the same slot, of course
         for src, dst in zip(sim_engine.motes[:-1], sim_engine.motes[1:]):
-            for channel in range(sim_engine.settings.phy_numChans):
+            for channel in d.TSCH_HOPPING_SEQUENCE[:num_channels]:
                 pdr  = []
                 rssi = []
 
