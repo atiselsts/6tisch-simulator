@@ -52,6 +52,11 @@ class Tsch(object):
         self.pending_bit_enabled            = False
         self.args_for_next_pending_bit_task = None
 
+        assert self.settings.phy_numChans <= len(d.TSCH_HOPPING_SEQUENCE)
+        self.hopping_sequence = (
+            d.TSCH_HOPPING_SEQUENCE[:self.settings.phy_numChans]
+        )
+
         # install the default slotframe
         self.add_slotframe(
             slotframe_handle = 0,
@@ -882,18 +887,10 @@ class Tsch(object):
         self.waitingFor = d.WAITING_FOR_RX
 
     def _get_physical_channel(self, cell):
-        # apply the default channel hopping sequence only if the phy_numChans
-        # is equal to the length of the sequence
-        if self.settings.phy_numChans == len(d.TSCH_HOPPING_SEQUENCE):
-            hopping_sequence = d.TSCH_HOPPING_SEQUENCE[:self.settings.phy_numChans]
-        else:
-            assert self.settings.phy_numChans > 0
-            hopping_sequence = range(self.settings.phy_numChans)
-
         # see section 6.2.6.3 of IEEE 802.15.4-2015
-        return hopping_sequence[
+        return self.hopping_sequence[
             (self.engine.getAsn() + cell.channel_offset) %
-            len(hopping_sequence)
+            len(self.hopping_sequence)
         ]
 
     # EBs
