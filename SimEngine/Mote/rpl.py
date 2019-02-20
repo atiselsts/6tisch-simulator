@@ -13,6 +13,7 @@ note:
 
 import random
 import math
+import sys
 
 import netaddr
 
@@ -50,7 +51,7 @@ class Rpl(object):
 
         # local variables
         self.dodagId                   = None
-        self.of                        = RplOF0(self)
+        self.of                        = RplOFNone(self)
         self.trickle_timer             = TrickleTimer(
             i_min    = pow(2, self.DEFAULT_DIO_INTERVAL_MIN),
             i_max    = self.DEFAULT_DIO_INTERVAL_DOUBLINGS,
@@ -89,13 +90,16 @@ class Rpl(object):
     def start(self):
         if self.mote.dagRoot:
             self.dodagId = self.mote.get_ipv6_global_addr()
-            self.of = RplOFNone(self)
             self.of.set_rank(d.RPL_MINHOPRANKINCREASE)
             self.trickle_timer.start()
             # now start a new RPL instance; reset the timer as per Section 8.3 of
             # RFC 6550
             self.trickle_timer.reset()
         else:
+            if self.settings.rpl_of:
+                # update OF with one specified in config.json
+                of_class  = 'Rpl{0}'.format(self.settings.rpl_of)
+                self.of = getattr(sys.modules[__name__], of_class)(self)
             if self.dis_mode != 'disabled':
                 # the destination address of the first DIS is determined based
                 # on self.dis_mode

@@ -98,8 +98,9 @@ def test_source_route_calculation(sim_engine):
 def test_upstream_routing(sim_engine):
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numMotes': 3,
-            'conn_class'   : 'FullyMeshed'
+            'exec_numMotes'  : 3,
+            'conn_class'     : 'FullyMeshed',
+            'secjoin_enabled': False
         }
     )
 
