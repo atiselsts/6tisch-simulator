@@ -16,6 +16,7 @@ import math
 import sys
 
 import netaddr
+import numpy
 
 # Mote sub-modules
 
@@ -814,3 +815,172 @@ class RplOF0(RplOFBase):
         else:
             # do nothing
             pass
+
+
+class RplOFBestLinkPDR(RplOFBase):
+    NONE_PREFERRED_PARENT = {
+        'mac_addr': None,
+        'mote_id': None,
+        'rank': d.RPL_INFINITE_RANK,
+        'mean_link_pdr': 0
+    }
+
+    def __init__(self, rpl):
+        super(RplOFBestLinkPDR, self).__init__(rpl)
+        self.preferred_parent = self.NONE_PREFERRED_PARENT
+        self.neighbors = []
+        self.path_pdr = 0
+
+        # short hand
+        self.mote = self.rpl.mote
+        self.engine = self.rpl.engine
+        self.connectivity = self.engine.connectivity
+
+    @property
+    def parents(self):
+        # return neighbors which don't have us on their paths to the
+        # root
+        ret_val = []
+        for neighbor in self.neighbors:
+            parent_mote = self.engine.motes[neighbor['mote_id']]
+            while parent_mote.dagRoot is False:
+                assert parent_mote.rpl.of.preferred_parent
+                parent_id = parent_mote.rpl.of.preferred_parent['mote_id']
+
+                if (
+                        (parent_id is None)
+                        or
+                        (parent_mote.id == self.mote.id)
+                    ):
+                    # this mote doesn't have parent. OR we will make a
+                    # routing loop if we select this neighbor as our
+                    # preferred parent.
+                    parent_mote = None
+                    break
+
+                parent_mote = self.engine.motes[parent_id]
+
+            if parent_mote:
+                ret_val.append(neighbor)
+        return ret_val
+
+    def reset(self):
+        super(RplOFBestLinkPDR, self).reset()
+        self.preferred_parent = self.NONE_PREFERRED_PARENT
+        self.neighbors = []
+
+    def update(self, dio):
+        # short-hand
+        src_mac = dio['mac']['srcMac']
+
+        # update the 'parent' associated with the source MAC address
+        neighbor = self._find_neighbor(src_mac)
+        if dio['app']['rank'] == d.RPL_INFINITE_RANK:
+            if neighbor is None:
+                # do nothing
+                pass
+            else:
+                # remove the neighbor advertising the infinite rank
+                self.neighbors.remove(neighbor)
+        else:
+            if neighbor is None:
+                # add a new neighbor entry
+                neighbor = {
+                    'mac_addr': src_mac,
+                    'mote_id': self._find_mote_id(src_mac),
+                    'rank': None,
+                    'mean_link_pdr': 0
+                }
+                self.neighbors.append(neighbor)
+
+            # update the advertised rank and path ETX
+            neighbor['rank'] = dio['app']['rank']
+
+        # update mean PDRs of available neighbors
+        for neighbor in self.neighbors:
+            self._update_mean_link_pdr(neighbor)
+
+        # select the best neighbor the link to whom is the heighest PDR
+        if self.parents:
+            new_preferred_parent = self._find_best_parent()
+        else:
+            new_preferred_parent = self.NONE_PREFERRED_PARENT
+
+        if new_preferred_parent != self.preferred_parent:
+            old_preferred_parent = self.preferred_parent
+            self.preferred_parent = new_preferred_parent
+            self.rank = self._calculate_rank(new_preferred_parent)
+            self.rpl.indicate_preferred_parent_change(
+                old_preferred_parent['mac_addr'],
+                new_preferred_parent['mac_addr']
+            )
+
+    def update_etx(self, cell, mac_addr, isACKed):
+        # we don't evaluate link quality from frame transmission stats
+        pass
+
+    def get_preferred_parent(self):
+        if self.preferred_parent:
+            ret_val = self.preferred_parent['mac_addr']
+        else:
+            ret_val = None
+        return ret_val
+
+    @staticmethod
+    def _calculate_rank(neighbor):
+        # calculate ETX by inverting the path PDR and apply it to the
+        # fomula defined by RFC8180 for OF0
+        if (
+                (neighbor['rank'] == d.RPL_INFINITE_RANK)
+                or
+                (neighbor['mean_link_pdr'] == 0)
+            ):
+            rank = d.RPL_INFINITE_RANK
+        else:
+            etx = 1 / neighbor['mean_link_pdr']
+            step_of_rank = int(3 * etx - 2)
+            rank_increase = step_of_rank * d.RPL_MINHOPRANKINCREASE
+            rank = neighbor['rank'] + rank_increase
+        return rank
+
+    def _find_neighbor(self, mac_addr):
+        ret_val = None
+        for neighbor in self.neighbors:
+            if neighbor['mac_addr'] == mac_addr:
+                ret_val = neighbor
+                break
+        return ret_val
+
+    def _find_mote_id(self, mac_addr):
+        mote_id = None
+        for mote in self.engine.motes:
+            if mote.is_my_mac_addr(mac_addr):
+                mote_id = mote.id
+                break
+        assert mote_id is not None
+        return mote_id
+
+    def _update_mean_link_pdr(self, neighbor):
+        # we will calculate the mean PDR value over all the available
+        # channels and both of the directions
+        neighbor['mean_link_pdr'] = numpy.mean([
+            self.connectivity.get_pdr(src_id, dst_id, channel)
+            for channel in self.mote.tsch.hopping_sequence
+            for src_id, dst_id in [
+                (self.mote.id, neighbor['mote_id']),
+                (neighbor['mote_id'], self.mote.id)
+            ]
+        ])
+
+    def _find_best_parent(self):
+        # find a parent which brings the best rank for us. use mote_id
+        # for a tie-breaker.
+
+        # sort the neighbors
+        self.neighbors = sorted(
+            self.neighbors,
+            key=lambda e: (self._calculate_rank(e), e['mote_id'])
+        )
+
+        # then return the first neighbor in "parents"
+        return self.parents[0]
