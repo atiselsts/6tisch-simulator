@@ -80,6 +80,9 @@ class ConnectivityBase(object):
         self.engine   = SimEngine.SimEngine()
         self.log      = SimEngine.SimLog.SimLog().log
 
+        # shorthands
+        self.num_channels = self.settings.phy_numChans
+
         # local variables
         self.connectivity_matrix = {} # described at the top of the file
         self.connectivity_matrix_timestamp = 0
@@ -89,7 +92,7 @@ class ConnectivityBase(object):
             self.connectivity_matrix[source.id] = {}
             for destination in self.engine.motes:
                 self.connectivity_matrix[source.id][destination.id] = {}
-                for channel in d.TSCH_HOPPING_SEQUENCE:
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_NO_LINK
                     )
@@ -143,7 +146,7 @@ class ConnectivityBase(object):
         slotOffset = asn % self.settings.tsch_slotframeLength
 
         # repeat propagation for each channel
-        for channel in d.TSCH_HOPPING_SEQUENCE:
+        for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
 
             # === accounting
 
@@ -438,7 +441,7 @@ class ConnectivityFullyMeshed(ConnectivityBase):
     def _init_connectivity_matrix(self):
         for source in self.engine.motes:
             for destination in self.engine.motes:
-                for channel in d.TSCH_HOPPING_SEQUENCE:
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_PERFECT_LINK
                     )
@@ -454,7 +457,7 @@ class ConnectivityLinear(ConnectivityBase):
         parent = None
         for mote in self.engine.motes:
             if parent is not None:
-                for channel in d.TSCH_HOPPING_SEQUENCE:
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[mote.id][parent.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_PERFECT_LINK
                     )
@@ -498,7 +501,7 @@ class ConnectivityK7(ConnectivityBase):
             self.connectivity_matrix[source.id] = {}
             for dest in self.engine.motes:
                 self.connectivity_matrix[source.id][dest.id] = {}
-                for channel in d.TSCH_HOPPING_SEQUENCE:
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                     self.connectivity_matrix[source.id][dest.id][channel] = copy.copy(
                         self.CONNECTIVITY_MATRIX_NO_LINK
                     )
@@ -592,7 +595,7 @@ class ConnectivityK7(ConnectivityBase):
         :return:
         """
         if channel is None:
-            for _channel in d.TSCH_HOPPING_SEQUENCE:
+            for _channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                 self.connectivity_matrix[src][dst][_channel] = {
                     'pdr': float(pdr),
                     'rssi': mean_rssi,
@@ -770,7 +773,7 @@ class ConnectivityRandom(ConnectivityBase):
                     for deployed_mote_id in self.coordinates.keys():
                         rssi = self.get_rssi(target_mote.id, deployed_mote_id, base_channel)
                         pdr  = self.get_pdr(target_mote.id, deployed_mote_id, base_channel)
-                        for channel in d.TSCH_HOPPING_SEQUENCE:
+                        for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                             if channel == base_channel:
                                 # do nothing
                                 pass
