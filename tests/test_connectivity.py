@@ -19,7 +19,8 @@ import k7
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
-from SimEngine import Connectivity
+from SimEngine.SimConfig import SimConfig
+from SimEngine.Connectivity import Connectivity, ConnectivityMatrixBase
 
 #============================ helpers =========================================
 
@@ -30,31 +31,8 @@ def destroy_all_singletons(engine):
     SimLog.SimLog().destroy()
 
 def print_connectivity_matrix(matrix):
-    output         = []
-    output        += ['\n']
-
-    # header
-    line           = []
-    for source in matrix:
-        line      += [str(source)]
-    line           = '\t|'.join(line)
-    output        += ['\t|'+line]
-
-    # body
-    channel = d.TSCH_HOPPING_SEQUENCE[0]
-    for source in matrix:
-        line       = []
-        line      += [str(source)]
-        for dest in matrix:
-            if source == dest:
-                line += ['N/A']
-            else:
-                line  += [str(matrix[source][dest][channel]['pdr'])]
-        line       = '\t|'.join(line)
-        output    += [line]
-
-    output         = '\n'.join(output)
-    print output
+    # FIXME: re-implement this function later
+    pass
 
 #============================ tests ===========================================
 
@@ -73,7 +51,7 @@ def test_linear_matrix(sim_engine):
         }
     )
     motes  = engine.motes
-    matrix = engine.connectivity.connectivity_matrix
+    matrix = engine.connectivity.matrix
 
     print_connectivity_matrix(matrix)
 
@@ -83,12 +61,12 @@ def test_linear_matrix(sim_engine):
         for p in range(0, num_motes):
             if (c == p+1) or (c+1 == p):
                 for channel in d.TSCH_HOPPING_SEQUENCE:
-                    assert matrix[c][p][channel]['pdr']  ==  1.00
-                    assert matrix[c][p][channel]['rssi'] ==   -10
+                    assert matrix.get_pdr(c, p, channel)  ==  1.00
+                    assert matrix.get_rssi(c, p, channel) ==   -10
             else:
                 for channel in d.TSCH_HOPPING_SEQUENCE:
-                    assert matrix[c][p][channel]['pdr']  ==  0.00
-                    assert matrix[c][p][channel]['rssi'] == -1000
+                    assert matrix.get_pdr(c, p, channel)  ==  0.00
+                    assert matrix.get_rssi(c, p, channel) == -1000
 
 class TestK7(object):
     TRACE_FILE_PATH = os.path.join(
@@ -135,7 +113,7 @@ class TestK7(object):
             }
         )
         motes  = engine.motes
-        matrix = engine.connectivity.connectivity_matrix
+        matrix = engine.connectivity.matrix
 
         print_connectivity_matrix(matrix)
 
@@ -146,12 +124,12 @@ class TestK7(object):
                 if src == dst:
                     continue
                 for channel in d.TSCH_HOPPING_SEQUENCE:
-                    assert 'pdr' in matrix[src][dst][channel]
-                    assert 'rssi' in matrix[src][dst][channel]
-                    assert isinstance(matrix[src][dst][channel]['pdr'], (int, long, float))
-                    assert isinstance(matrix[src][dst][channel]['rssi'], (int, long, float))
-                    assert 0 <= matrix[src][dst][channel]['pdr'] <= 1
-                    assert -1000 <= matrix[src][dst][channel]['rssi'] <= 0
+                    pdr = matrix.get_pdr(src, dst, channel)
+                    rssi = matrix.get_rssi(src, dst, channel)
+                    assert isinstance(pdr, (int, long, float))
+                    assert isinstance(rssi, (int, long, float))
+                    assert 0 <= pdr <= 1
+                    assert ConnectivityMatrixBase.LINK_NONE['rssi'] <= rssi <= 0
 
 
     @pytest.fixture(params=['short', 'equal', 'long'])
@@ -183,10 +161,62 @@ class TestK7(object):
             with pytest.raises(ValueError):
                 sim_engine(diff_config=diff_config)
             # destroy the ConnectivityK7 instance
-            connectivity = Connectivity.ConnectivityK7()
+            connectivity = Connectivity()
             connectivity.destroy()
         else:
             sim_engine(diff_config=diff_config)
+
+    @pytest.fixture(params=[
+        'exact_match',
+        'all_covered',
+        'partly_covered',
+        'not_covered'
+    ])
+    def fixture_channels_coverage_type(self, request):
+        return request.param
+
+    def test_check_channels_in_header(
+            self,
+            sim_engine,
+            fixture_channels_coverage_type
+        ):
+        channels_in_header = self.header['channels']
+        assert channels_in_header
+
+        tsch_hoppping_sequence_backup = d.TSCH_HOPPING_SEQUENCE
+        d.TSCH_HOPPING_SEQUENCE = channels_in_header[:]
+        if fixture_channels_coverage_type == 'exact_match':
+            # do nothing
+            pass
+        elif fixture_channels_coverage_type == 'all_covered':
+            # remove the first channel in the sequence
+            d.TSCH_HOPPING_SEQUENCE.pop(0)
+        elif fixture_channels_coverage_type == 'partly_covered':
+            # add an invalid channel, which never be listed in the
+            # header
+            d.TSCH_HOPPING_SEQUENCE.append(-1)
+        elif fixture_channels_coverage_type == 'not_covered':
+            # put different channels to the hopping sequence from the ones
+            # listed in the header
+            d.TSCH_HOPPING_SEQUENCE = map(lambda x: x + 10, channels_in_header)
+        else:
+            raise NotImplementedError()
+
+        diff_config = {
+            'exec_numMotes': self.num_motes,
+            'conn_class': 'K7',
+            'conn_trace': self.TRACE_FILE_PATH,
+            'phy_numChans': len(d.TSCH_HOPPING_SEQUENCE)
+        }
+        if fixture_channels_coverage_type in ['partly_covered', 'not_covered']:
+            with pytest.raises(ValueError):
+                sim_engine(diff_config=diff_config)
+            connectivity = Connectivity()
+            connectivity.destroy()
+        else:
+            sim_engine(diff_config=diff_config)
+
+        d.TSCH_HOPPING_SEQUENCE = tsch_hoppping_sequence_backup
 
 #=== verify propagate function doesn't raise exception
 
@@ -303,7 +333,9 @@ class TestRandom(object):
                 force_initial_routing_and_scheduling_state = False,
                 run_id                                     = run_id
             )
-            coordinates[(sf_class, run_id)] = engine.connectivity.coordinates
+            coordinates[(sf_class, run_id)] = (
+                engine.connectivity.matrix.coordinates
+            )
             destroy_all_singletons(engine)
 
         # We have four sets of coordinates:

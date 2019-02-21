@@ -30,7 +30,7 @@ def test_parent_selection(sim_engine):
     )
 
     # shorthands
-    connectivity_matrix = sim_engine.connectivity.connectivity_matrix
+    connectivity_matrix = sim_engine.connectivity.matrix
     mote_0 = sim_engine.motes[0]
     mote_1 = sim_engine.motes[1]
     mote_2 = sim_engine.motes[2]
@@ -42,7 +42,7 @@ def test_parent_selection(sim_engine):
             (mote_0.id, mote_3.id),
             (mote_3.id, mote_0.id)
         ]:
-        connectivity_matrix[src_id][dst_id][channel]['pdr'] = 0.0
+        connectivity_matrix.set_pdr(src_id, dst_id, channel, 0.0)
 
     # degrade link PDRs to 30%:
     # - between mote 0 and mote 2
@@ -53,7 +53,7 @@ def test_parent_selection(sim_engine):
             (mote_1.id, mote_3.id),
             (mote_3.id, mote_1.id),
         ]:
-        connectivity_matrix[src_id][dst_id][channel]['pdr'] = 0.3
+        connectivity_matrix.set_pdr(src_id, dst_id, channel, 0.3)
 
     # now we have links shown below, () denotes link PDR:
     #
