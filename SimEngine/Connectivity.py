@@ -571,6 +571,26 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                     self.trace_header['node_count']
                 )
 
+            # check if all the channels in the hopping sequence are
+            # covered by ones listed in the header
+            if set(d.TSCH_HOPPING_SEQUENCE).issubset(
+                    set(self.trace_header['channels'])
+                ):
+                # the channels listed in the trace file are valid
+                pass
+            else:
+                raise ValueError(
+                    "All the channels in TSCH_HOPPING_SEQUENCE " +
+                    "must be covered by the trace file\n" +
+                    "TSCH_HOPPING_SEQUENCE: {0}\n".format(
+                        sorted(d.TSCH_HOPPING_SEQUENCE)
+                    ) +
+                    "Channels in the trace: {0}\n".format(
+                        sorted(self.trace_header['channels'])
+                    ) +
+                    "Check SimEngine/Mote/MoteDefines.py"
+                )
+
             numSlotframes = (
                 (stop_date - start_date).total_seconds() /
                 self.settings.tsch_slotDuration
