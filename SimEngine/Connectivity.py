@@ -630,61 +630,53 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             # file
             self._update()
 
-    def get_pdr(self, src_id, dst_id, channel):
-        # update matrix if necessary
-        self._update()
-        return self._matrix[src_id][dst_id][channel]['pdr']
-
-    def get_rssi(self, src_id, dst_id, channel):
-        self._update()
-        return self._matrix[src_id][dst_id][channel]['rssi']
-
     # ======================= private =========================================
 
     def _update(self):
-        if (
-                (self.asn_of_next_update is None)
-                or
-                (self.asn_of_next_update > self.engine.asn)
-            ):
-            # we don't need to update the matrix
-            pass
-        else:
-            # Read the connectivity trace and fill the connectivity
-            # matrix
-            assert self.trace_position < len(self.trace)
-            start_trace_position = self.trace_position
-            while True:
-                row = self.trace[self.trace_position]
+        assert self.asn_of_next_update >= self.engine.getAsn()
+        # Read the connectivity trace and fill the connectivity
+        # matrix
+        assert self.trace_position < len(self.trace)
+        start_trace_position = self.trace_position
+        while True:
+            row = self.trace[self.trace_position]
 
-                # return next update ASN
+            # return next update ASN
 
-                if row['asn'] > self.engine.asn:
-                    asn_of_next_update = row['asn']
-                    break
+            if row['asn'] > self.engine.asn:
+                asn_of_next_update = row['asn']
+                break
 
-                # update matrix value
+            # update matrix value
 
-                self._set_connectivity(row)
+            self._set_connectivity(row)
 
-                # increment trace_position
-                self.trace_position += 1
+            # increment trace_position
+            self.trace_position += 1
 
-                if self.trace_position == len(self.trace):
-                    # we hit the bottom of the trace
-                    asn_of_next_update = None
-                    break
+            if self.trace_position == len(self.trace):
+                # we hit the bottom of the trace
+                asn_of_next_update = None
+                break
 
-            # update 'asn_of_next_update' with a new ASN, which can be
-            # None
-            self.asn_of_next_update = asn_of_next_update
-            self.log(
-                SimEngine.SimLog.LOG_CONN_MATRIX_K7_UPDATE,
-                {
-                    'start_trace_position': start_trace_position,
-                    'end_trace_position': self.trace_position,
-                    'asn_of_next_update': self.asn_of_next_update
-                }
+        # update 'asn_of_next_update' with a new ASN, which can be
+        # None
+        self.asn_of_next_update = asn_of_next_update
+        self.log(
+            SimEngine.SimLog.LOG_CONN_MATRIX_K7_UPDATE,
+            {
+                'start_trace_position': start_trace_position,
+                'end_trace_position': self.trace_position,
+                'asn_of_next_update': self.asn_of_next_update
+            }
+        )
+        if self.asn_of_next_update:
+            assert self.engine.getAsn() < self.asn_of_next_update
+            self.engine.scheduleAtAsn(
+                asn            = self.asn_of_next_update,
+                cb             = self._update,
+                uniqueTag      = ('ConnectivityMatrixK7', 'update matrix'),
+                intraSlotOrder = d.INTRASLOTORDER_STARTSLOT
             )
 
     def _set_connectivity(self, row):
