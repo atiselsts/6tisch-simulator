@@ -19,6 +19,7 @@ import k7
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
+from SimEngine.SimConfig import SimConfig
 from SimEngine.Connectivity import Connectivity, ConnectivityMatrixBase
 
 #============================ helpers =========================================
@@ -164,6 +165,58 @@ class TestK7(object):
             connectivity.destroy()
         else:
             sim_engine(diff_config=diff_config)
+
+    @pytest.fixture(params=[
+        'exact_match',
+        'all_covered',
+        'partly_covered',
+        'not_covered'
+    ])
+    def fixture_channels_coverage_type(self, request):
+        return request.param
+
+    def test_check_channels_in_header(
+            self,
+            sim_engine,
+            fixture_channels_coverage_type
+        ):
+        channels_in_header = self.header['channels']
+        assert channels_in_header
+
+        tsch_hoppping_sequence_backup = d.TSCH_HOPPING_SEQUENCE
+        d.TSCH_HOPPING_SEQUENCE = channels_in_header[:]
+        if fixture_channels_coverage_type == 'exact_match':
+            # do nothing
+            pass
+        elif fixture_channels_coverage_type == 'all_covered':
+            # remove the first channel in the sequence
+            d.TSCH_HOPPING_SEQUENCE.pop(0)
+        elif fixture_channels_coverage_type == 'partly_covered':
+            # add an invalid channel, which never be listed in the
+            # header
+            d.TSCH_HOPPING_SEQUENCE.append(-1)
+        elif fixture_channels_coverage_type == 'not_covered':
+            # put different channels to the hopping sequence from the ones
+            # listed in the header
+            d.TSCH_HOPPING_SEQUENCE = map(lambda x: x + 10, channels_in_header)
+        else:
+            raise NotImplementedError()
+
+        diff_config = {
+            'exec_numMotes': self.num_motes,
+            'conn_class': 'K7',
+            'conn_trace': self.TRACE_FILE_PATH,
+            'phy_numChans': len(d.TSCH_HOPPING_SEQUENCE)
+        }
+        if fixture_channels_coverage_type in ['partly_covered', 'not_covered']:
+            with pytest.raises(ValueError):
+                sim_engine(diff_config=diff_config)
+            connectivity = Connectivity()
+            connectivity.destroy()
+        else:
+            sim_engine(diff_config=diff_config)
+
+        d.TSCH_HOPPING_SEQUENCE = tsch_hoppping_sequence_backup
 
 #=== verify propagate function doesn't raise exception
 
