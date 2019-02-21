@@ -20,7 +20,6 @@ import copy
 import sys
 import random
 import math
-from abc import abstractmethod
 import gzip
 import datetime as dt
 import json
@@ -39,28 +38,13 @@ CONN_TYPE_TRACE         = "trace"
 # =========================== classes =========================================
 
 class Connectivity(object):
-    def __new__(cls):
-        settings    = SimEngine.SimSettings.SimSettings()
-        class_name  = 'Connectivity{0}'.format(settings.conn_class)
-        return getattr(sys.modules[__name__], class_name)()
-
-class ConnectivityBase(object):
-    CONNECTIVITY_MATRIX_PERFECT_LINK = {
-        'pdr' : 1.00,
-        'rssi':  -10
-    }
-    CONNECTIVITY_MATRIX_NO_LINK = {
-        'pdr' :     0,
-        'rssi': -1000
-    }
-
     # ===== start singleton
     _instance = None
     _init = False
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
-            cls._instance = super(ConnectivityBase, cls).__new__(cls)
+            cls._instance = super(Connectivity, cls).__new__(cls)
         return cls._instance
     # ===== end singleton
 
@@ -80,25 +64,14 @@ class ConnectivityBase(object):
         self.engine   = SimEngine.SimEngine()
         self.log      = SimEngine.SimLog.SimLog().log
 
-        # shorthands
+        # short-hands and local variables
         self.num_channels = self.settings.phy_numChans
 
-        # local variables
-        self.connectivity_matrix = {} # described at the top of the file
-        self.connectivity_matrix_timestamp = 0
-
-        # at the beginning, connectivity matrix indicates no connectivity at all
-        for source in self.engine.motes:
-            self.connectivity_matrix[source.id] = {}
-            for destination in self.engine.motes:
-                self.connectivity_matrix[source.id][destination.id] = {}
-                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
-                    self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
-                        self.CONNECTIVITY_MATRIX_NO_LINK
-                    )
-
-        # introduce some connectivity in the matrix
-        self._init_connectivity_matrix()
+        # instantiate a connectivity matrix
+        conn_class_name = self.settings.conn_class
+        matrix_class_name = 'ConnectivityMatrix{0}'.format(conn_class_name)
+        matrix_class = getattr(sys.modules[__name__], matrix_class_name)
+        self.matrix = matrix_class(self)
 
         # schedule propagation task
         self._schedule_propagate()
@@ -108,35 +81,21 @@ class ConnectivityBase(object):
         cls._instance = None
         cls._init     = False
 
-    # ======================== abstract =======================================
-
-    @abstractmethod
-    def _init_connectivity_matrix(self):
-        raise NotImplementedError() # abstractmethod
-
-    # ======================== public =========================================
-
-    # === getters
-
     def get_pdr(self, src_id, dst_id, channel):
 
         assert isinstance(src_id, int)
         assert isinstance(dst_id, int)
-        assert isinstance(channel, int)
+        assert channel in d.TSCH_HOPPING_SEQUENCE
 
-        return self.connectivity_matrix[src_id][dst_id][channel]["pdr"]
+        return self.matrix.get_pdr(src_id, dst_id, channel)
 
     def get_rssi(self, src_id, dst_id, channel):
 
         assert isinstance(src_id, int)
         assert isinstance(dst_id, int)
-        assert isinstance(channel, int)
+        assert channel in d.TSCH_HOPPING_SEQUENCE
 
-        if "rssi" not in self.connectivity_matrix[src_id][dst_id][channel]:
-            pass
-        return self.connectivity_matrix[src_id][dst_id][channel]["rssi"]
-
-    # === propagation
+        return self.matrix.get_rssi(src_id, dst_id, channel)
 
     def propagate(self):
         """ Simulate the propagation of frames in a slot. """
@@ -293,10 +252,6 @@ class ConnectivityBase(object):
         # schedule next propagation
         self._schedule_propagate()
 
-    # ======================= private =========================================
-
-    # === schedule
-
     def _schedule_propagate(self):
         '''
         schedule a propagation task in the middle of the next slot.
@@ -309,16 +264,12 @@ class ConnectivityBase(object):
             intraSlotOrder   = d.INTRASLOTORDER_PROPAGATE,
         )
 
-    # === listeners
-
     def _get_listener_id_list(self, channel):
         returnVal = []
         for mote in self.engine.motes:
             if (mote.radio.state == d.RADIO_STATE_RX) and (mote.radio.channel == channel):
                 returnVal.append(mote.id)
         return returnVal
-
-    # === wireless
 
     def _compute_pdr_with_interference(self, listener_id, lockon_transmission, interfering_transmissions):
 
@@ -433,81 +384,119 @@ class ConnectivityBase(object):
 
         return pdr
 
-class ConnectivityFullyMeshed(ConnectivityBase):
+
+class ConnectivityMatrixBase(object):
+    LINK_PERFECT = {'pdr' : 1.00, 'rssi':  -10}
+    LINK_NONE    = {'pdr' :    0, 'rssi': -1000}
+
+    def __init__(self, connectivity):
+        # local variables
+        self.mote_id_list = [mote.id for mote in connectivity.engine.motes]
+        self.engine = connectivity.engine
+        self.settings = connectivity.settings
+        self._matrix = {}
+
+        # short hands
+        self.num_channels = self.settings.phy_numChans
+
+        # at the beginning, connectivity matrix indicates no connectivity at all
+        for src_id in self.mote_id_list:
+            self._matrix[src_id] = {}
+            for dst_id in self.mote_id_list:
+                self._matrix[src_id][dst_id] = {}
+                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+                    self._matrix[src_id][dst_id][channel] = copy.copy(
+                        self.LINK_NONE
+                    )
+
+        self._additional_initialization()
+
+    def _additional_initialization(self):
+        # override this method if you want to do more in __init__(),
+        # for instance, to fill the matrix with some values
+        pass
+
+    def set_pdr(self, src_id, dst_id, channel, pdr):
+        self._matrix[src_id][dst_id][channel]['pdr'] = pdr
+
+    def set_pdr_both_directions(self, mote_id_1, mote_id_2, channel, pdr):
+        self._matrix[mote_id_1][mote_id_2][channel]['pdr'] = pdr
+        self._matrix[mote_id_2][mote_id_1][channel]['pdr'] = pdr
+
+    def get_pdr(self, src_id, dst_id, channel):
+        return self._matrix[src_id][dst_id][channel]['pdr']
+
+    def set_rssi(self, src_id, dst_id, channel, rssi):
+        self._matrix[src_id][dst_id][channel]['rssi'] = rssi
+
+    def set_rssi_both_directions(self, mote_id_1, mote_id_2, channel, rssi):
+        self._matrix[mote_id_1][mote_id_2][channel]['rssi'] = rssi
+        self._matrix[mote_id_2][mote_id_1][channel]['rssi'] = rssi
+
+    def get_rssi(self, src_id, dst_id, channel):
+        return self._matrix[src_id][dst_id][channel]['rssi']
+
+class ConnectivityMatrixFullyMeshed(ConnectivityMatrixBase):
     """
     All nodes can hear all nodes with PDR=100%.
     """
 
-    def _init_connectivity_matrix(self):
-        for source in self.engine.motes:
-            for destination in self.engine.motes:
+    def _additional_initialization(self):
+        perfect_pdr = self.LINK_PERFECT['pdr']
+        perfect_rssi = self.LINK_PERFECT['rssi']
+        for src_id in self.mote_id_list:
+            for dst_id in self.mote_id_list:
                 for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
-                    self.connectivity_matrix[source.id][destination.id][channel] = copy.copy(
-                        self.CONNECTIVITY_MATRIX_PERFECT_LINK
-                    )
+                    self.set_pdr(src_id, dst_id, channel, perfect_pdr)
+                    self.set_rssi(src_id, dst_id, channel, perfect_rssi)
 
-class ConnectivityLinear(ConnectivityBase):
+class ConnectivityMatrixLinear(ConnectivityMatrixBase):
     """
     Perfect linear topology.
            100%     100%     100%       100%
         0 <----> 1 <----> 2 <----> ... <----> num_motes-1
     """
 
-    def _init_connectivity_matrix(self):
-        parent = None
-        for mote in self.engine.motes:
-            if parent is not None:
+    def _additional_initialization(self):
+        perfect_pdr = self.LINK_PERFECT['pdr']
+        perfect_rssi = self.LINK_PERFECT['rssi']
+        parent_id = None
+        for child_id in self.mote_id_list:
+            if parent_id is not None:
                 for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
-                    self.connectivity_matrix[mote.id][parent.id][channel] = copy.copy(
-                        self.CONNECTIVITY_MATRIX_PERFECT_LINK
+                    self.set_pdr_both_directions(
+                        child_id,
+                        parent_id,
+                        channel,
+                        perfect_pdr
                     )
-                    self.connectivity_matrix[parent.id][mote.id][channel] = copy.copy(
-                        self.CONNECTIVITY_MATRIX_PERFECT_LINK
+                    self.set_rssi_both_directions(
+                        child_id,
+                        parent_id,
+                        channel,
+                        perfect_rssi
                     )
-            parent = mote
+            parent_id = child_id
 
-class ConnectivityK7(ConnectivityBase):
+class ConnectivityMatrixK7(ConnectivityMatrixBase):
     """
     Replay K7 connectivity trace.
     """
 
-    # ======================= inheritance =====================================
-
-    def __init__(self):
-
-        # init attributes
-
-        self.trace = []
-        self.connectivity_matrix_timestamp = None  # the datetime at which we stopped reading the trace
-        self.trace_position = 0  # the offset at which we stopped reading the trace
-        self.first_date = None  # the first trace datetime. used to convert trace datetime into simulation ASN
-
-        # init parent class
-
-        super(ConnectivityK7, self).__init__()
-
-    # definitions of abstract methods
-
-    def _init_connectivity_matrix(self):
+    def _additional_initialization(self):
         """
         Fill the matrix using the connectivity trace file.
         The connectivity matrix is initialized with values representing the absence of a link.
         The connectivity trace file is then loaded into memory (connectivity values and trace meta information).
         """
 
-        # create the matrix (You take the red pill and stay in Wonderland)
-
-        for source in self.engine.motes:
-            self.connectivity_matrix[source.id] = {}
-            for dest in self.engine.motes:
-                self.connectivity_matrix[source.id][dest.id] = {}
-                for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
-                    self.connectivity_matrix[source.id][dest.id][channel] = copy.copy(
-                        self.CONNECTIVITY_MATRIX_NO_LINK
-                    )
+        # additional local variables
+        self.trace = []
+        self.trace_position = 0  # the offset at which we stopped reading the trace
+        self.first_date = None  # the first trace datetime. used to convert trace datetime into simulation ASN
+        self.asn_of_next_update = None
 
         # load trace into memory and save metas (headers)
-
         with gzip.open(self.settings.conn_trace, 'r') as tracefile:
             self.trace_header = json.loads(tracefile.readline())
             self.csv_header = tracefile.readline().strip().split(',')
@@ -555,33 +544,53 @@ class ConnectivityK7(ConnectivityBase):
                 else:  # else, load row into memory
                     self.trace.append(row)
 
-    # overloaded methods
-
     def get_pdr(self, src_id, dst_id, channel):
-        # update PDR matrix if we are a new row in our K7 file
-        if (
-                (self.connectivity_matrix_timestamp is not None)
-                and
-                (self.connectivity_matrix_timestamp < self.engine.asn)
-            ):
-            self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
-
-        # then call the parent's method
-        return super(ConnectivityK7, self).get_pdr(src_id, dst_id, channel)
+        # update matrix if necessary
+        self._update()
+        return self._matrix[src_id][dst_id][channel]['pdr']
 
     def get_rssi(self, src_id, dst_id, channel):
-        # update PDR matrix if we are a new row in our K7 file
-        if (
-                (self.connectivity_matrix_timestamp is not None)
-                and
-                (self.connectivity_matrix_timestamp < self.engine.asn)
-            ):
-            self.connectivity_matrix_timestamp = self._update_connectivity_matrix_from_trace()
-
-        # then call the parent's method
-        return super(ConnectivityK7, self).get_rssi(src_id, dst_id, channel)
+        self._update()
+        return self._matrix[src_id][dst_id][channel]['rssi']
 
     # ======================= private =========================================
+
+    def _update(self):
+        if (
+                (self.asn_of_next_update is None)
+                or
+                (self.asn_of_next_update > self.engine.asn)
+            ):
+            # we don't need to update the matrix
+            pass
+        else:
+            # Read the connectivity trace and fill the connectivity
+            # matrix
+            assert self.trace_position < len(self.trace)
+            while True:
+                row = self.trace[self.trace_position]
+
+                # return next update ASN
+
+                if row['asn'] > self.engine.asn:
+                    asn_of_next_update = row['asn']
+                    break
+
+                # update matrix value
+
+                self._set_connectivity(row['src'], row['dst'], row['channel'], row['pdr'], row['mean_rssi'])
+
+                # increment trace_position
+                self.trace_position += 1
+
+                if self.trace_position == len(self.trace):
+                    # we hit the bottom of the trace
+                    asn_of_next_update = None
+                    break
+
+            # update 'asn_of_next_update' with a new ASN, which can be
+            # None
+            self.asn_of_next_update = asn_of_next_update
 
     def _set_connectivity(self, src, dst, channel, pdr, mean_rssi):
         """
@@ -594,46 +603,14 @@ class ConnectivityK7(ConnectivityBase):
         :param mean_rssi:
         :return:
         """
-        if channel is None:
-            for _channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
-                self.connectivity_matrix[src][dst][_channel] = {
-                    'pdr': float(pdr),
-                    'rssi': mean_rssi,
-                }
-        else:
-            self.connectivity_matrix[src][dst][channel] = {
-                'pdr': float(pdr),
-                'rssi': mean_rssi,
-            }
-
-    def _update_connectivity_matrix_from_trace(self):
-        """ Read the connectivity trace and fill the connectivity matrix
-        :return: Timestamp when to update the matrix again
-        """
-        assert self.trace_position < len(self.trace)
-
-        while True:
-            row = self.trace[self.trace_position]
-
-            # return next update ASN
-
-            if row['asn'] > self.engine.asn:
-                next_asn_to_update = row['asn']
-                break
-
-            # update matrix value
-
-            self._set_connectivity(row['src'], row['dst'], row['channel'], row['pdr'], row['mean_rssi'])
-
-            # increment trace_position
-            self.trace_position += 1
-
-            if self.trace_position == len(self.trace):
-                # we hit the bottom of the trace
-                next_asn_to_update = None
-                break
-
-        return next_asn_to_update
+        for _channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+            if (
+                    (channel is None)
+                    or
+                    (channel == _channel)
+                ):
+                self.set_pdr(src, dst, _channel, float(pdr))
+                self.set_rssi(src, dst, _channel, mean_rssi)
 
     def _parse_line(self, line):
 
@@ -652,7 +629,7 @@ class ConnectivityK7(ConnectivityBase):
         # rssi
 
         if row['mean_rssi'] == '':
-            row['mean_rssi'] = self.CONNECTIVITY_MATRIX_NO_LINK['rssi']
+            row['mean_rssi'] = self.LINK_NONE['rssi']
         else:
             row['mean_rssi'] = float(row['mean_rssi'])
 
@@ -663,7 +640,8 @@ class ConnectivityK7(ConnectivityBase):
 
         return row
 
-class ConnectivityRandom(ConnectivityBase):
+
+class ConnectivityMatrixRandom(ConnectivityMatrixBase):
     """Random (topology) connectivity using the Pister-Hack model
 
     Note that it doesn't guarantee every motes has always at least as
@@ -674,20 +652,10 @@ class ConnectivityRandom(ConnectivityBase):
     every transmission.
     """
 
-    def __init__(self):
-        # the singleton has already been initialized
-        cls = type(self)
-        if cls._init:
-            return
-
-        # attributes specific to ConnectivityRandom
+    def _additional_initialization(self):
+        # additional local variables
         self.coordinates = {}  # (x, y) indexed by mote_id
         self.pister_hack = PisterHackModel()
-
-        # initialize the singleton
-        super(ConnectivityRandom, self).__init__()
-
-    def _init_connectivity_matrix(self):
 
         # ConnectivityRandom doesn't need the connectivity matrix. Instead, it
         # initializes coordinates of the motes. Its algorithm is:
@@ -715,13 +683,13 @@ class ConnectivityRandom(ConnectivityBase):
         assert init_min_neighbors <= self.settings.exec_numMotes
 
         # determine coordinates of the motes
-        for target_mote in self.engine.motes:
+        for target_mote_id in self.mote_id_list:
             mote_is_deployed = False
             while mote_is_deployed is False:
 
                 # select a tentative coordinate
-                if target_mote.id == 0:
-                    self.coordinates[target_mote.id] = (0, 0)
+                if target_mote_id == 0:
+                    self.coordinates[target_mote_id] = (0, 0)
                     mote_is_deployed = True
                     continue
 
@@ -737,7 +705,7 @@ class ConnectivityRandom(ConnectivityBase):
                 for deployed_mote_id in self.coordinates.keys():
                     rssi = self.pister_hack.compute_rssi(
                         {
-                            'mote'      : target_mote,
+                            'mote'      : self._get_mote(target_mote_id),
                             'coordinate': coordinate
                         },
                         {
@@ -747,8 +715,18 @@ class ConnectivityRandom(ConnectivityBase):
                     )
                     pdr = self.pister_hack.convert_rssi_to_pdr(rssi)
                     # memorize the rssi and pdr values at the base channel
-                    self._set_rssi(target_mote.id, deployed_mote_id, base_channel, rssi)
-                    self._set_pdr(target_mote.id, deployed_mote_id, base_channel, pdr)
+                    self.set_pdr_both_directions(
+                        target_mote_id,
+                        deployed_mote_id,
+                        base_channel,
+                        pdr
+                    )
+                    self.set_rssi_both_directions(
+                        target_mote_id,
+                        deployed_mote_id,
+                        base_channel,
+                        rssi
+                    )
 
                     if init_min_pdr <= pdr:
                         good_pdr_count += 1
@@ -768,24 +746,35 @@ class ConnectivityRandom(ConnectivityBase):
                         )
                     ):
                     # fix the coordinate of the mote
-                    self.coordinates[target_mote.id] = coordinate
+                    self.coordinates[target_mote_id] = coordinate
                     # copy the rssi and pdr values to other channels
                     for deployed_mote_id in self.coordinates.keys():
-                        rssi = self.get_rssi(target_mote.id, deployed_mote_id, base_channel)
-                        pdr  = self.get_pdr(target_mote.id, deployed_mote_id, base_channel)
+                        rssi = self.get_rssi(target_mote_id, deployed_mote_id, base_channel)
+                        pdr  = self.get_pdr(target_mote_id, deployed_mote_id, base_channel)
                         for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
                             if channel == base_channel:
                                 # do nothing
                                 pass
                             else:
-                                self._set_rssi(target_mote.id, deployed_mote_id, channel, rssi)
-                                self._set_pdr(target_mote.id, deployed_mote_id, channel, pdr)
+                                self.set_pdr_both_directions(
+                                    target_mote_id,
+                                    deployed_mote_id,
+                                    channel,
+                                    pdr
+                                )
+                                self.set_rssi_both_directions(
+                                    target_mote_id,
+                                    deployed_mote_id,
+                                    channel,
+                                    rssi
+                                )
+
                     mote_is_deployed = True
                 else:
                     # remove memorized values at channel 0
                     for deployed_mote_id in self.coordinates.keys():
-                        self._clear_rssi(target_mote.id, deployed_mote_id, base_channel)
-                        self._clear_pdr(target_mote.id, deployed_mote_id, base_channel)
+                        self._clear_rssi(target_mote_id, deployed_mote_id, base_channel)
+                        self._clear_pdr(target_mote_id, deployed_mote_id, base_channel)
                     # try another random coordinate
                     continue
 
@@ -794,22 +783,21 @@ class ConnectivityRandom(ConnectivityBase):
         # raises an exception.
         return [mote for mote in self.engine.motes if mote.id == mote_id][0]
 
-    def _set_rssi(self, mote_id_1, mote_id_2, channel, rssi):
-        # set the same RSSI to the both directions
-        self.connectivity_matrix[mote_id_1][mote_id_2][channel]['rssi'] = rssi
-        self.connectivity_matrix[mote_id_2][mote_id_1][channel]['rssi'] = rssi
-
     def _clear_rssi(self, mote_id_1, mote_id_2, channel):
-        INVALID_RSSI = self.CONNECTIVITY_MATRIX_NO_LINK['rssi']
-        self._set_rssi(mote_id_1, mote_id_2, channel, rssi=INVALID_RSSI)
-
-    def _set_pdr(self, mote_id_1, mote_id_2, channel, pdr):
-        # set the same RSSI to the both directions
-        self.connectivity_matrix[mote_id_1][mote_id_2][channel]['pdr'] = pdr
-        self.connectivity_matrix[mote_id_2][mote_id_1][channel]['pdr'] = pdr
+        self.set_rssi_both_directions(
+            mote_id_1,
+            mote_id_2,
+            channel,
+            self.LINK_NONE['rssi']
+        )
 
     def _clear_pdr(self, mote_id_1, mote_id_2, channel):
-        self._set_pdr(mote_id_1, mote_id_2, channel, pdr=0)
+        self.set_rssi_both_directions(
+            mote_id_1,
+            mote_id_2,
+            channel,
+            self.LINK_NONE['pdr']
+        )
 
 
 class PisterHackModel(object):
