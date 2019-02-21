@@ -479,6 +479,32 @@ class ConnectivityMatrixBase(object):
     def get_rssi(self, src_id, dst_id, channel):
         return self._matrix[src_id][dst_id][channel]['rssi']
 
+    def dump(self):
+        output = []
+        output += ['\n']
+
+        # header
+        line = []
+        for src_id in self._matrix:
+            line += [str(src_id)]
+        line = '\t|'.join(line)
+        output  += ['\t|'+line]
+
+        # body
+        channel = d.TSCH_HOPPING_SEQUENCE[0]
+        for src_id in self._matrix:
+            line = []
+            line += [str(src_id)]
+            for dst_id in self._matrix[src_id]:
+                if src_id == dst_id:
+                    line += ['N/A']
+                else:
+                    line += [str(self._matrix[src_id][dst_id][channel]['pdr'])]
+            line = '\t|'.join(line)
+            output += [line]
+
+        output = '\n'.join(output)
+        print output
 
 class ConnectivityMatrixFullyMeshed(ConnectivityMatrixBase):
     """
