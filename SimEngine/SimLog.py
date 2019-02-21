@@ -95,6 +95,9 @@ LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys'
 LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['_mote_id','channel','lockon_transmission','interfering_transmissions']}
 LOG_PROP_DROP_LOCKON              = {'type': 'prop.drop_lockon' ,         'keys': ['_mote_id','channel','lockon_transmission']}
 
+# === connectivity matrix
+LOG_CONN_MATRIX_K7_UPDATE         = {'type': 'conn.matrix.update',        'keys': ['start_trace_position', 'end_trace_position', 'asn_of_next_update']}
+
 # ============================ SimLog =========================================
 
 class SimLog(object):

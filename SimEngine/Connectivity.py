@@ -23,6 +23,7 @@ import math
 import gzip
 import datetime as dt
 import json
+import itertools
 
 import SimSettings
 import SimEngine
@@ -435,6 +436,7 @@ class ConnectivityMatrixBase(object):
         self.mote_id_list = [mote.id for mote in connectivity.engine.motes]
         self.engine = connectivity.engine
         self.settings = connectivity.settings
+        self.log = connectivity.log
         self._matrix = {}
 
         # short hands
@@ -537,18 +539,16 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # additional local variables
         self.trace = []
+        self.start_date = None
         # the offset at which we stopped reading the trace
         self.trace_position = 0
-        # the first trace datetime. used to convert trace datetime
-        # into simulation ASN
-        self.first_date = None
-        self.asn_of_next_update = None
+        self.asn_of_next_update = 0
 
         # load trace into memory and save metas (headers)
         with gzip.open(self.settings.conn_trace, 'r') as tracefile:
             self.trace_header = json.loads(tracefile.readline())
             self.csv_header = tracefile.readline().strip().split(',')
-            start_date = dt.datetime.strptime(
+            self.start_date = dt.datetime.strptime(
                 self.trace_header['start_date'],
                 "%Y-%m-%d %H:%M:%S"
             )
@@ -592,76 +592,92 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                 )
 
             numSlotframes = (
-                (stop_date - start_date).total_seconds() /
+                (stop_date - self.start_date).total_seconds() /
                 self.settings.tsch_slotDuration
             )
             if self.settings.exec_numSlotframesPerRun > numSlotframes:
                 raise ValueError('exec_numSlotframesPerRun is too long')
 
-            # set the first date at the trace date + 1h
-            # the first hour of the trace is used for initialization
-            if self.first_date is None:
-                self.first_date = start_date + dt.timedelta(hours=1)
-
-            # === use the first hour for initialization
+            links_waiting_for_initialization = list(
+                itertools.combinations(self.mote_id_list, 2)
+            )
 
             for line in tracefile:
-
                 row = self._parse_line(line)
                 # make sure that PDR is a float
                 row['pdr'] = float(row['pdr'])
-                if row['asn'] < 0:  # if first hour, use row for matrix init
-                    self._set_connectivity(row)
-                else:  # else, load row into memory
-                    self.trace.append(row)
+                if links_waiting_for_initialization:
+                    link = (row['src_id'], row['dst_id'])
+                    if link not in links_waiting_for_initialization:
+                        sys.stderr.write(
+                            "We cannot initialize the following links: "+
+                            "{0}\n".format(links_waiting_for_initialization) +
+                            "These links will be treated as 'disconnected'\n" +
+                            "The trace file may be broken.\n"
+                        )
+                        links_waiting_for_initialization = []
+                    else:
+                        # this row is used for the matrix
+                        # initialization. for this purpose, set ASN 0 so
+                        # that this row will be used in the first
+                        # _update() call
+                        row['asn'] = 0
+                        # remove the link from the list
+                        links_waiting_for_initialization.remove(link)
+                self.trace.append(row)
 
-    def get_pdr(self, src_id, dst_id, channel):
-        # update matrix if necessary
-        self._update()
-        return self._matrix[src_id][dst_id][channel]['pdr']
-
-    def get_rssi(self, src_id, dst_id, channel):
-        self._update()
-        return self._matrix[src_id][dst_id][channel]['rssi']
+            # initialize the matrix with the first part of the trace
+            # file
+            self._update()
 
     # ======================= private =========================================
 
     def _update(self):
-        if (
-                (self.asn_of_next_update is None)
-                or
-                (self.asn_of_next_update > self.engine.asn)
-            ):
-            # we don't need to update the matrix
-            pass
-        else:
-            # Read the connectivity trace and fill the connectivity
-            # matrix
-            assert self.trace_position < len(self.trace)
-            while True:
-                row = self.trace[self.trace_position]
+        assert self.asn_of_next_update >= self.engine.getAsn()
+        # Read the connectivity trace and fill the connectivity
+        # matrix
+        assert self.trace_position < len(self.trace)
+        start_trace_position = self.trace_position
+        while True:
+            row = self.trace[self.trace_position]
 
-                # return next update ASN
+            # return next update ASN
 
-                if row['asn'] > self.engine.asn:
-                    asn_of_next_update = row['asn']
-                    break
+            if row['asn'] > self.engine.asn:
+                asn_of_next_update = row['asn']
+                break
 
-                # update matrix value
+            # update matrix value
 
-                self._set_connectivity(row)
+            self._set_connectivity(row)
 
-                # increment trace_position
-                self.trace_position += 1
+            # increment trace_position
+            self.trace_position += 1
 
-                if self.trace_position == len(self.trace):
-                    # we hit the bottom of the trace
-                    asn_of_next_update = None
-                    break
+            if self.trace_position == len(self.trace):
+                # we hit the bottom of the trace
+                asn_of_next_update = None
+                break
 
-            # update 'asn_of_next_update' with a new ASN, which can be
-            # None
-            self.asn_of_next_update = asn_of_next_update
+        # update 'asn_of_next_update' with a new ASN, which can be
+        # None
+        self.asn_of_next_update = asn_of_next_update
+        self.log(
+            SimEngine.SimLog.LOG_CONN_MATRIX_K7_UPDATE,
+            {
+                'start_trace_position': start_trace_position,
+                'end_trace_position': self.trace_position,
+                'asn_of_next_update': self.asn_of_next_update
+            }
+        )
+        if self.asn_of_next_update:
+            assert self.engine.getAsn() < self.asn_of_next_update
+            self.engine.scheduleAtAsn(
+                asn            = self.asn_of_next_update,
+                cb             = self._update,
+                uniqueTag      = ('ConnectivityMatrixK7', 'update matrix'),
+                intraSlotOrder = d.INTRASLOTORDER_STARTSLOT
+            )
 
     def _set_connectivity(self, row):
         """Modify the connectivity matrix.  If no channel is given
@@ -673,8 +689,18 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                     or
                     (row['channel'] == channel)
                 ):
-                self.set_pdr(row['src'], row['dst'], channel, row['pdr'])
-                self.set_rssi(row['src'], row['dst'], channel, row['mean_rssi'])
+                self.set_pdr(
+                    row['src_id'],
+                    row['dst_id'],
+                    channel,
+                    row['pdr']
+                )
+                self.set_rssi(
+                    row['src_id'],
+                    row['dst_id'],
+                    channel,
+                    row['mean_rssi']
+                )
 
     def _parse_line(self, line):
 
@@ -685,8 +711,10 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # === change row format
 
-        row['src'] = int(row['src']) if row['src'] else None
-        row['dst'] = int(row['dst']) if row['dst'] else None
+        row['src_id'] = int(row['src']) if row['src'] else None
+        del row['src']
+        row['dst_id'] = int(row['dst']) if row['dst'] else None
+        del row['dst']
         row['channel'] = int(row['channel']) if row['channel'] else None
         row['datetime'] = dt.datetime.strptime(
             row['datetime'], "%Y-%m-%d %H:%M:%S"
@@ -701,7 +729,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # === add ASN value to row
 
-        time_delta = row['datetime'] - self.first_date
+        time_delta = row['datetime'] - self.start_date
         row['asn'] = int(
             time_delta.total_seconds() /
             float(self.settings.tsch_slotDuration)
