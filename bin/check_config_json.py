@@ -106,19 +106,20 @@ def collect_setting_keys_in_use():
                         '\.(\w+)'
                     )
                     m = re.search(pattern, line)
-                    key = m.group(2)
-                    if key in sim_settings_methods:
-                        # it's class/instance method; skip it
-                        continue
-                    elif key == '__dict__':
-                        # this is not a key; skip it
-                        continue
-                    elif key == 'run_id':
-                        # run_id is not a setting key; ignore this
-                        continue
-                    else:
-                        # add the key referred from a core file
-                        setting_keys.add(m.group(2))
+                    if m is not None:
+                        key = m.group(2)
+                        if key in sim_settings_methods:
+                            # it's class/instance method; skip it
+                            continue
+                        elif key == '__dict__':
+                            # this is not a key; skip it
+                            continue
+                        elif key == 'run_id':
+                            # run_id is not a setting key; ignore this
+                            continue
+                        else:
+                            # add the key referred from a core file
+                            setting_keys.add(m.group(2))
     return setting_keys
 
 
