@@ -636,10 +636,8 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                     link = (row['src_id'], row['dst_id'])
                     if link not in links_waiting_for_initialization:
                         sys.stderr.write(
-                            "We cannot initialize the following links: "+
-                            "{0}\n".format(links_waiting_for_initialization) +
-                            "These links will be treated as 'disconnected'\n" +
-                            "The trace file may be broken.\n"
+                            "Cannot find trace lines to initialize some links" +
+                            "These links will be treated as 'disconnected'\n"
                         )
                         links_waiting_for_initialization = []
                     else:
