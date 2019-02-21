@@ -435,6 +435,7 @@ class ConnectivityMatrixBase(object):
         self.mote_id_list = [mote.id for mote in connectivity.engine.motes]
         self.engine = connectivity.engine
         self.settings = connectivity.settings
+        self.log = connectivity.log
         self._matrix = {}
 
         # short hands
@@ -606,7 +607,6 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             # === use the first hour for initialization
 
             for line in tracefile:
-
                 row = self._parse_line(line)
                 # make sure that PDR is a float
                 row['pdr'] = float(row['pdr'])
@@ -638,6 +638,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             # Read the connectivity trace and fill the connectivity
             # matrix
             assert self.trace_position < len(self.trace)
+            start_trace_position = self.trace_position
             while True:
                 row = self.trace[self.trace_position]
 
@@ -662,6 +663,14 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             # update 'asn_of_next_update' with a new ASN, which can be
             # None
             self.asn_of_next_update = asn_of_next_update
+            self.log(
+                SimEngine.SimLog.LOG_CONN_MATRIX_K7_UPDATE,
+                {
+                    'start_trace_position': start_trace_position,
+                    'end_trace_position': self.trace_position,
+                    'asn_of_next_update': self.asn_of_next_update
+                }
+            )
 
     def _set_connectivity(self, row):
         """Modify the connectivity matrix.  If no channel is given
