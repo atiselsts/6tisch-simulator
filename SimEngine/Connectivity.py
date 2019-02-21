@@ -624,30 +624,28 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             if self.settings.exec_numSlotframesPerRun > numSlotframes:
                 raise ValueError('exec_numSlotframesPerRun is too long')
 
-            links_waiting_for_initialization = list(
-                itertools.combinations(self.mote_id_list, 2)
-            )
+            initialization_is_done = False
+            initialized_links = set([])
 
             for line in tracefile:
                 row = self._parse_line(line)
                 # make sure that PDR is a float
                 row['pdr'] = float(row['pdr'])
-                if links_waiting_for_initialization:
-                    link = (row['src_id'], row['dst_id'])
-                    if link not in links_waiting_for_initialization:
-                        sys.stderr.write(
-                            "Cannot find trace lines to initialize some links" +
-                            "These links will be treated as 'disconnected'\n"
-                        )
-                        links_waiting_for_initialization = []
+                if not initialization_is_done:
+                    link = (row['src_id'], row['dst_id'], row['channel'])
+                    if link in initialized_links:
+                        # we've already initlized this link
+                        initialization_is_done = True
+                        # we don't need to keep the links any more
+                        initialized_links = None
                     else:
-                        # this row is used for the matrix
-                        # initialization. for this purpose, set ASN 0 so
-                        # that this row will be used in the first
-                        # _update() call
+                        # this link has not been initialized. for this
+                        # purpose, set ASN 0 to this row so that this
+                        # row will be used to in the first _update()
+                        # call
                         row['asn'] = 0
-                        # remove the link from the list
-                        links_waiting_for_initialization.remove(link)
+                        # add the link to the list
+                        initialized_links.add(link)
                 self.trace.append(row)
 
             # initialize the matrix with the first part of the trace
