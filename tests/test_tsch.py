@@ -217,7 +217,7 @@ def test_retransmission_count(sim_engine):
     # short-hands
     root = sim_engine.motes[0]
     hop1 = sim_engine.motes[1]
-    connectivity_matrix = sim_engine.connectivity.connectivity_matrix
+    connectivity_matrix = sim_engine.connectivity.matrix
 
     # stop DIO timer
     root.rpl.trickle_timer.stop()
@@ -225,8 +225,12 @@ def test_retransmission_count(sim_engine):
 
     # set 0% of PDR to the link between the two motes
     for channel in d.TSCH_HOPPING_SEQUENCE:
-        connectivity_matrix[root.id][hop1.id][channel]['pdr'] = 0
-        connectivity_matrix[hop1.id][root.id][channel]['pdr'] = 0
+        connectivity_matrix.set_pdr_both_directions(
+            root.id,
+            hop1.id,
+            channel,
+            0
+        )
 
     # make hop1 send an application packet
     hop1.app._send_a_single_packet()
