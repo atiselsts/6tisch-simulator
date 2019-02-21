@@ -23,6 +23,7 @@ import math
 import gzip
 import datetime as dt
 import json
+import itertools
 
 import SimSettings
 import SimEngine
@@ -538,18 +539,16 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # additional local variables
         self.trace = []
+        self.start_date = None
         # the offset at which we stopped reading the trace
         self.trace_position = 0
-        # the first trace datetime. used to convert trace datetime
-        # into simulation ASN
-        self.first_date = None
-        self.asn_of_next_update = None
+        self.asn_of_next_update = 0
 
         # load trace into memory and save metas (headers)
         with gzip.open(self.settings.conn_trace, 'r') as tracefile:
             self.trace_header = json.loads(tracefile.readline())
             self.csv_header = tracefile.readline().strip().split(',')
-            start_date = dt.datetime.strptime(
+            self.start_date = dt.datetime.strptime(
                 self.trace_header['start_date'],
                 "%Y-%m-%d %H:%M:%S"
             )
@@ -593,27 +592,43 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                 )
 
             numSlotframes = (
-                (stop_date - start_date).total_seconds() /
+                (stop_date - self.start_date).total_seconds() /
                 self.settings.tsch_slotDuration
             )
             if self.settings.exec_numSlotframesPerRun > numSlotframes:
                 raise ValueError('exec_numSlotframesPerRun is too long')
 
-            # set the first date at the trace date + 1h
-            # the first hour of the trace is used for initialization
-            if self.first_date is None:
-                self.first_date = start_date + dt.timedelta(hours=1)
-
-            # === use the first hour for initialization
+            links_waiting_for_initialization = list(
+                itertools.combinations(self.mote_id_list, 2)
+            )
 
             for line in tracefile:
                 row = self._parse_line(line)
                 # make sure that PDR is a float
                 row['pdr'] = float(row['pdr'])
-                if row['asn'] < 0:  # if first hour, use row for matrix init
-                    self._set_connectivity(row)
-                else:  # else, load row into memory
-                    self.trace.append(row)
+                if links_waiting_for_initialization:
+                    link = (row['src'], row['dst'])
+                    if link not in links_waiting_for_initialization:
+                        sys.stderr.write(
+                            "We cannot initialize the following links: "+
+                            "{0}\n".format(links_waiting_for_initialization) +
+                            "These links will be treated as 'disconnected'\n" +
+                            "The trace file may be broken.\n"
+                        )
+                        links_waiting_for_initialization = []
+                    else:
+                        # this row is used for the matrix
+                        # initialization. for this purpose, set ASN 0 so
+                        # that this row will be used in the first
+                        # _update() call
+                        row['asn'] = 0
+                        # remove the link from the list
+                        links_waiting_for_initialization.remove(link)
+                self.trace.append(row)
+
+            # initialize the matrix with the first part of the trace
+            # file
+            self._update()
 
     def get_pdr(self, src_id, dst_id, channel):
         # update matrix if necessary
@@ -710,7 +725,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # === add ASN value to row
 
-        time_delta = row['datetime'] - self.first_date
+        time_delta = row['datetime'] - self.start_date
         row['asn'] = int(
             time_delta.total_seconds() /
             float(self.settings.tsch_slotDuration)
