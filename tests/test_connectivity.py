@@ -30,10 +30,6 @@ def destroy_all_singletons(engine):
     engine.settings.destroy()
     SimLog.SimLog().destroy()
 
-def print_connectivity_matrix(matrix):
-    # FIXME: re-implement this function later
-    pass
-
 #============================ tests ===========================================
 
 def test_linear_matrix(sim_engine):
@@ -53,7 +49,7 @@ def test_linear_matrix(sim_engine):
     motes  = engine.motes
     matrix = engine.connectivity.matrix
 
-    print_connectivity_matrix(matrix)
+    matrix.dump()
 
     assert motes[0].dagRoot is True
 
@@ -115,7 +111,7 @@ class TestK7(object):
         motes  = engine.motes
         matrix = engine.connectivity.matrix
 
-        print_connectivity_matrix(matrix)
+        matrix.dump()
 
         assert motes[0].dagRoot is True
 
