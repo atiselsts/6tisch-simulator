@@ -607,7 +607,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                 # make sure that PDR is a float
                 row['pdr'] = float(row['pdr'])
                 if links_waiting_for_initialization:
-                    link = (row['src'], row['dst'])
+                    link = (row['src_id'], row['dst_id'])
                     if link not in links_waiting_for_initialization:
                         sys.stderr.write(
                             "We cannot initialize the following links: "+
@@ -689,8 +689,18 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                     or
                     (row['channel'] == channel)
                 ):
-                self.set_pdr(row['src'], row['dst'], channel, row['pdr'])
-                self.set_rssi(row['src'], row['dst'], channel, row['mean_rssi'])
+                self.set_pdr(
+                    row['src_id'],
+                    row['dst_id'],
+                    channel,
+                    row['pdr']
+                )
+                self.set_rssi(
+                    row['src_id'],
+                    row['dst_id'],
+                    channel,
+                    row['mean_rssi']
+                )
 
     def _parse_line(self, line):
 
@@ -701,8 +711,10 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # === change row format
 
-        row['src'] = int(row['src']) if row['src'] else None
-        row['dst'] = int(row['dst']) if row['dst'] else None
+        row['src_id'] = int(row['src']) if row['src'] else None
+        del row['src']
+        row['dst_id'] = int(row['dst']) if row['dst'] else None
+        del row['dst']
         row['channel'] = int(row['channel']) if row['channel'] else None
         row['datetime'] = dt.datetime.strptime(
             row['datetime'], "%Y-%m-%d %H:%M:%S"
