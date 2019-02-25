@@ -914,6 +914,15 @@ class RplOFBestLinkPDR(RplOFBase):
             ret_val = None
         return ret_val
 
+    def poison_rpl_parent(self, mac_addr):
+        neighbor = self._find_neighbor(mac_addr)
+        if neighbor is not None:
+            self.neighbors.remove(neighbor)
+        # send a broadcast DIS to collect neighbors which we've not
+        # noticed
+        self.rpl.send_DIS(d.IPV6_ALL_RPL_NODES_ADDRESS)
+        self._update_preferred_parent()
+
     @staticmethod
     def _calculate_rank(neighbor):
         # calculate ETX by inverting the path PDR and apply it to the
