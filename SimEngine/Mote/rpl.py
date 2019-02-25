@@ -901,19 +901,7 @@ class RplOFBestLinkPDR(RplOFBase):
             self._update_mean_link_pdr(neighbor)
 
         # select the best neighbor the link to whom is the heighest PDR
-        if self.parents:
-            new_preferred_parent = self._find_best_parent()
-        else:
-            new_preferred_parent = self.NONE_PREFERRED_PARENT
-
-        if new_preferred_parent != self.preferred_parent:
-            old_preferred_parent = self.preferred_parent
-            self.preferred_parent = new_preferred_parent
-            self.rank = self._calculate_rank(new_preferred_parent)
-            self.rpl.indicate_preferred_parent_change(
-                old_preferred_parent['mac_addr'],
-                new_preferred_parent['mac_addr']
-            )
+        self._update_preferred_parent()
 
     def update_etx(self, cell, mac_addr, isACKed):
         # we don't evaluate link quality from frame transmission stats
@@ -959,6 +947,21 @@ class RplOFBestLinkPDR(RplOFBase):
                 break
         assert mote_id is not None
         return mote_id
+
+    def _update_preferred_parent(self):
+        if self.parents:
+            new_preferred_parent = self._find_best_parent()
+        else:
+            new_preferred_parent = self.NONE_PREFERRED_PARENT
+
+        if new_preferred_parent != self.preferred_parent:
+            old_preferred_parent = self.preferred_parent
+            self.preferred_parent = new_preferred_parent
+            self.rank = self._calculate_rank(new_preferred_parent)
+            self.rpl.indicate_preferred_parent_change(
+                old_preferred_parent['mac_addr'],
+                new_preferred_parent['mac_addr']
+            )
 
     def _update_mean_link_pdr(self, neighbor):
         # we will calculate the mean PDR value over all the available
