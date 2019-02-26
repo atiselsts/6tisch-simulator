@@ -118,7 +118,7 @@ class SixP(object):
             maxNumCells        = None,
             payload            = None,
             callback           = None,
-            timeout_value      = None
+            timeout_seconds    = None
         ):
 
         # create a packet
@@ -148,7 +148,7 @@ class SixP(object):
             )
         else:
             # ready to send the packet
-            transaction.start(callback, timeout_value)
+            transaction.start(callback, timeout_seconds)
 
             # reset the next sequence number for the peer to 0 when the request
             # is CLEAR
@@ -162,12 +162,12 @@ class SixP(object):
             self,
             dstMac,
             return_code,
-            seqNum        = None,
-            numCells      = None,
-            cellList      = None,
-            payload       = None,
-            callback      = None,
-            timeout_value = None
+            seqNum          = None,
+            numCells        = None,
+            cellList        = None,
+            payload         = None,
+            callback        = None,
+            timeout_seconds = None
         ):
 
         packet = self._create_packet(
@@ -192,8 +192,8 @@ class SixP(object):
 
             # A corresponding transaction instance is supposed to be created
             # when it receives the request. its timer is restarted with the
-            # specified callback and timeout_value now.
-            transaction.start(callback, timeout_value)
+            # specified callback and timeout_seconds now.
+            transaction.start(callback, timeout_seconds)
 
             # keep the response packet in case of abortion
             transaction.response = copy.deepcopy(packet)
@@ -309,11 +309,11 @@ class SixP(object):
             # create a new transaction instance for the incoming request
             try:
                 transaction = SixPTransaction(self.mote, request)
-                # start the timer now. callback and timeout_value can be set
-                # in send_response()
+                # start the timer now. callback and timeout_seconds
+                # can be set in send_response()
                 transaction.start(
-                    callback      = None,
-                    timeout_value = None
+                    callback        = None,
+                    timeout_seconds = None
                 )
             except TransactionAdditionError:
                 # SixPTransaction() would raise an exception when there is a
@@ -687,15 +687,15 @@ class SixPTransaction(object):
     def set_callback(self, callback):
         self.callback = callback
 
-    def start(self, callback, timeout_value):
+    def start(self, callback, timeout_seconds):
         self.set_callback(callback)
 
-        if timeout_value is None:
+        if timeout_seconds is None:
             # use the default timeout value
-            timeout_value = self._get_default_timeout_value()
+            timeout_seconds = self._get_default_timeout_seconds()
 
-        self.engine.scheduleAtAsn(
-            asn            = self.engine.getAsn() + timeout_value,
+        self.engine.scheduleIn(
+            delay          = timeout_seconds,
             cb             = self.timeout_handler,
             uniqueTag      = self.event_unique_tag,
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS,
@@ -799,7 +799,7 @@ class SixPTransaction(object):
 
         return transaction_type
 
-    def _get_default_timeout_value(self):
+    def _get_default_timeout_seconds(self):
 
         # draft-ietf-6tisch-6top-protocol-11 doesn't define the default timeout
         # value.
@@ -819,6 +819,7 @@ class SixPTransaction(object):
                 be = d.TSCH_MAX_BACKOFF_EXPONENT
         one_way_delay = (
             self.settings.tsch_slotframeLength *
+            self.settings.tsch_slotDuration *
             d.TSCH_MAXTXRETRIES *
             sum(be_list)
         )

@@ -264,10 +264,10 @@ class TestTransaction:
         # trigger an ADD transaction, which will terminate by timeout on the
         # initiator.sfinitiator's side
         initiator.sixp.send_request(
-            dstMac        = responder.get_mac_addr(),
-            command       = d.SIXP_CMD_ADD,
-            cellList      = [],
-            timeout_value = 200
+            dstMac          = responder.get_mac_addr(),
+            command         = d.SIXP_CMD_ADD,
+            cellList        = [],
+            timeout_seconds = 2
         )
 
         # wait a little bit
@@ -371,12 +371,12 @@ class TestTransaction:
         # step-1: let hop_1 issue an ADD request. In order to make the
         # transaction expire on hop_1, set a shorter timeout value on hop_1's
         # side
-        timeout_value = 1
+        timeout_seconds = 0.01
         hop_1.sixp.send_request(
-            dstMac        = root.get_mac_addr(),
-            command       = d.SIXP_CMD_ADD,
-            cellList      = [],
-            timeout_value = timeout_value
+            dstMac          = root.get_mac_addr(),
+            command         = d.SIXP_CMD_ADD,
+            cellList        = [],
+            timeout_seconds = timeout_seconds
         )
 
         # step-2: let root issue an CLEAR request when it receives an ADD
