@@ -522,6 +522,9 @@ class RplOFBase(object):
     def get_preferred_parent(self):
         return self.preferred_parent
 
+    def poison_rpl_parent(self, mac_addr):
+        pass
+
 
 class RplOFNone(RplOFBase):
     def set_rank(self, new_rank):
@@ -614,6 +617,17 @@ class RplOF0(RplOFBase):
             return None
         else:
             return self.preferred_parent['mac_addr']
+
+    def poison_rpl_parent(self, mac_addr):
+        if mac_addr is None:
+            neighbor = None
+        else:
+            neighbor = self._find_neighbor(mac_addr)
+
+        if neighbor:
+            self._update_neighbor_rank(neighbor, d.RPL_INFINITE_RANK)
+            self.rank = None
+            self._update_preferred_parent()
 
     def update_etx(self, cell, mac_addr, isACKed):
         assert mac_addr != d.BROADCAST_ADDRESS
