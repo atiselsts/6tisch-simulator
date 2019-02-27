@@ -5,8 +5,14 @@ import os
 
 import pytest
 
+import test_utils as u
 import SimEngine.Mote.MoteDefines as d
-from SimEngine.Connectivity import Connectivity, ConnectivityMatrixBase
+from SimEngine import SimLog
+from SimEngine.Connectivity import (
+    Connectivity,
+    ConnectivityMatrixBase,
+    ConnectivityMatrixK7
+)
 
 TRACE_FILE_PATH = os.path.join(
     os.path.dirname(__file__),

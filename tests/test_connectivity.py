@@ -13,8 +13,7 @@ import pytest
 import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
-from SimEngine.SimConfig import SimConfig
-from SimEngine.Connectivity import Connectivity, ConnectivityMatrixBase
+from SimEngine.Connectivity import ConnectivityMatrixK7
 
 #============================ helpers =========================================
 
@@ -264,3 +263,132 @@ def test_runsim(sim_engine, fixture_conn_class):
 
     sim_engine = sim_engine(diff_config=diff_config)
     u.run_until_end(sim_engine)
+
+
+@pytest.fixture(params=[
+    'test_setup',
+    'perfect_rssi',
+    'poor_rssi',
+    'worst_rssi',
+    'invalid_rssi'
+])
+def fixture_propagation_test_type(request):
+    return request.param
+
+
+def test_propagation(sim_engine, fixture_propagation_test_type):
+    PERFECT_PDR  = 1.0
+    RSSI_VALUES = {
+        'perfect_rssi': -10,
+        'poor_rssi'   : -90,
+        'worst_rssi'  : -97, # the worst in rssi_pdr_table of Connectivity.py
+        'invalid_rssi': -1000
+    }
+
+    num_motes = 2
+    num_frames = 1000
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numSlotframesPerRun': num_frames * (d.TSCH_MAXTXRETRIES + 1),
+            'exec_numMotes'           : num_motes,
+            'secjoin_enabled'         : False,
+            'app_pkPeriod'            : 0,
+            'rpl_of'                  : 'OFNone',
+            'rpl_daoPeriod'           : 0,
+            'rpl_extensions'          : [],
+            'sf_class'                : 'SFNone',
+            'tsch_slotframeLength'    : 2,
+            'tsch_probBcast_ebProb'   : 0,
+            'tsch_keep_alive_interval': 0,
+            'tsch_tx_queue_size'      : num_frames,
+            'conn_class'              : 'Linear', # this is intentional
+            'phy_numChans'            : 1
+        }
+    )
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+    # aliases
+    dst = root
+    src = mote
+
+    class TestConnectivityMatrixK7(ConnectivityMatrixK7):
+        def _additional_initialization(self):
+            # set up the connectivity matrix
+            channel = d.TSCH_HOPPING_SEQUENCE[0]
+            self.set_pdr(src.id, dst.id, channel, PERFECT_PDR)
+            self.set_rssi(
+                src.id,
+                dst.id,
+                channel,
+                RSSI_VALUES[fixture_propagation_test_type]
+            )
+            # dump the connectivity matrix
+            print 'The Connectivity Matrix ("1.0" means PDR of 100%):'
+            self.dump()
+
+    # replace the 'Linear' conn_class with the test purpose
+    # conn_class, TestConnectivityMatrixK7
+    if fixture_propagation_test_type != 'test_setup':
+        sim_engine.connectivity.matrix = TestConnectivityMatrixK7(
+            sim_engine.connectivity
+        )
+
+    # add a dedicated TX cell in order to avoid backoff wait
+    slot_offset = 1
+    channel_offset = 0
+    dst.tsch.addCell(
+        slot_offset,
+        channel_offset,
+        src.get_mac_addr(),
+        [d.CELLOPTION_RX]
+    )
+    src.tsch.addCell(
+        slot_offset,
+        channel_offset,
+        dst.get_mac_addr(),
+        [d.CELLOPTION_TX]
+    )
+
+    # get mote synchronized
+    eb = root.tsch._create_EB()
+    mote.tsch._action_receiveEB(eb)
+
+    # disabled the trickle timer
+    root.rpl.trickle_timer.stop()
+    mote.rpl.trickle_timer.stop()
+
+    # [test types]
+    #
+    # test_setup: verify if we can set up a test environment
+    # correctly, where there is no background traffic
+    #
+    # perfect_rssi/poor_rssi: all the transmission should succeed
+    # since the links between the two motes have a PDR of 100%
+    # regardless of their RSSI values
+
+    if fixture_propagation_test_type != 'test_setup':
+        # put frames to the TX queue of the source; use the keep-alive
+        # frame as the test packet
+        for seqno in range(num_frames):
+            packet = {
+                'type': d.PKT_TYPE_KEEP_ALIVE,
+                'mac': {
+                    'srcMac': src.get_mac_addr(),
+                    'dstMac': dst.get_mac_addr()
+                },
+                'app': { 'seq': seqno } # for debugging purpose
+            }
+            src.tsch.enqueue(packet)
+
+    u.run_until_end(sim_engine)
+
+    num_transmissions = len(u.read_log_file([SimLog.LOG_TSCH_TXDONE['type']]))
+
+    if fixture_propagation_test_type == 'test_setup':
+        # we shouldn't see any transmission
+        assert num_transmissions == 0
+    else:
+        # num_transmissions contains the number of retransmissions if
+        # any. in other words, num_transmissions should be equal to
+        # num_frames when no frame is dropped
+        assert num_transmissions == num_frames
