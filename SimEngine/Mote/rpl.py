@@ -818,11 +818,13 @@ class RplOF0(RplOFBase):
 
 
 class RplOFBestLinkPDR(RplOF0):
+    INVALID_RSSI_VALUE = -1000
     NONE_PREFERRED_PARENT = {
         'mac_addr': None,
         'mote_id': None,
         'rank': d.RPL_INFINITE_RANK,
-        'mean_link_pdr': 0
+        'mean_link_pdr': 0,
+        'mean_link_rssi': INVALID_RSSI_VALUE
     }
 
     def __init__(self, rpl):
@@ -897,7 +899,7 @@ class RplOFBestLinkPDR(RplOF0):
             neighbor['rank'] = dio['app']['rank']
 
         # update the PDR values
-        self._update_mean_pdr_of_neighbors()
+        self._update_link_quality_of_neighbors()
 
         # select the best neighbor the link to whom is the heighest PDR
         self._update_preferred_parent()
@@ -912,8 +914,9 @@ class RplOFBestLinkPDR(RplOF0):
         self.rpl.send_DIS(d.IPV6_ALL_RPL_NODES_ADDRESS)
 
     def update_etx(self, cell, mac_addr, isACKed):
-        # check the current PDR values of the links to our parents
-        self._update_mean_pdr_of_neighbors()
+        # check the current PDR and RSSI values of the links to our
+        # parents
+        self._update_link_quality_of_neighbors()
 
         # update the preferred parent if necessary
         self._update_preferred_parent()
@@ -952,9 +955,10 @@ class RplOFBestLinkPDR(RplOF0):
         assert mote_id is not None
         return mote_id
 
-    def _update_mean_pdr_of_neighbors(self):
+    def _update_link_quality_of_neighbors(self):
         for neighbor in self.neighbors:
             self._update_mean_link_pdr(neighbor)
+            self._update_mean_link_rssi(neighbor)
 
     def _update_preferred_parent(self):
         if self.parents:
@@ -1019,6 +1023,18 @@ class RplOFBestLinkPDR(RplOF0):
             ]
         ])
 
+    def _update_mean_link_rssi(self, neighbor):
+        # we will calculate the mean RSSI value over all the available
+        # channels.
+        neighbor['mean_link_rssi'] = numpy.mean([
+            self.connectivity.get_rssi(
+                src_id = self.mote.id,
+                dst_id = neighbor['mote_id'],
+                channel = channel
+            )
+            for channel in self.mote.tsch.hopping_sequence
+        ])
+
     def _find_best_parent(self):
         # find a parent which brings the best rank for us. use mote_id
         # for a tie-breaker.
@@ -1026,7 +1042,11 @@ class RplOFBestLinkPDR(RplOF0):
         # sort the neighbors
         self.neighbors = sorted(
             self.neighbors,
-            key=lambda e: (self._calculate_rank(e), e['mote_id'])
+            key=lambda e: (
+                self._calculate_rank(e),
+                e['mean_link_rssi'],
+                e['mote_id']
+            )
         )
 
         # then return the first neighbor in "parents"
