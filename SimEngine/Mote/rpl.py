@@ -831,12 +831,14 @@ class RplOF0(RplOFBase):
             pass
 
 
-class RplOFBestLinkPDR(RplOFBase):
+class RplOFBestLinkPDR(RplOF0):
+    INVALID_RSSI_VALUE = -1000
     NONE_PREFERRED_PARENT = {
         'mac_addr': None,
         'mote_id': None,
         'rank': d.RPL_INFINITE_RANK,
-        'mean_link_pdr': 0
+        'mean_link_pdr': 0,
+        'mean_link_rssi': INVALID_RSSI_VALUE
     }
 
     def __init__(self, rpl):
@@ -864,7 +866,7 @@ class RplOFBestLinkPDR(RplOFBase):
                 if (
                         (parent_id is None)
                         or
-                        (parent_mote.id == self.mote.id)
+                        (parent_id == self.mote.id)
                     ):
                     # this mote doesn't have parent. OR we will make a
                     # routing loop if we select this neighbor as our
@@ -910,31 +912,27 @@ class RplOFBestLinkPDR(RplOFBase):
             # update the advertised rank and path ETX
             neighbor['rank'] = dio['app']['rank']
 
-        # update mean PDRs of available neighbors
-        for neighbor in self.neighbors:
-            self._update_mean_link_pdr(neighbor)
+        # update the PDR values
+        self._update_link_quality_of_neighbors()
 
         # select the best neighbor the link to whom is the heighest PDR
         self._update_preferred_parent()
 
-    def update_etx(self, cell, mac_addr, isACKed):
-        # we don't evaluate link quality from frame transmission stats
-        pass
-
-    def get_preferred_parent(self):
-        if self.preferred_parent:
-            ret_val = self.preferred_parent['mac_addr']
-        else:
-            ret_val = None
-        return ret_val
-
     def poison_rpl_parent(self, mac_addr):
         neighbor = self._find_neighbor(mac_addr)
         if neighbor is not None:
-            self.neighbors.remove(neighbor)
+            neighbor['rank'] = d.RPL_INFINITE_RANK
+        self._update_preferred_parent()
         # send a broadcast DIS to collect neighbors which we've not
         # noticed
         self.rpl.send_DIS(d.IPV6_ALL_RPL_NODES_ADDRESS)
+
+    def update_etx(self, cell, mac_addr, isACKed):
+        # check the current PDR and RSSI values of the links to our
+        # parents
+        self._update_link_quality_of_neighbors()
+
+        # update the preferred parent if necessary
         self._update_preferred_parent()
 
     @staticmethod
@@ -971,20 +969,61 @@ class RplOFBestLinkPDR(RplOFBase):
         assert mote_id is not None
         return mote_id
 
+    def _update_link_quality_of_neighbors(self):
+        for neighbor in self.neighbors:
+            self._update_mean_link_pdr(neighbor)
+            self._update_mean_link_rssi(neighbor)
+
     def _update_preferred_parent(self):
         if self.parents:
             new_preferred_parent = self._find_best_parent()
+            new_rank = self._calculate_rank(new_preferred_parent)
         else:
+            new_preferred_parent = self.NONE_PREFERRED_PARENT
+            new_rank = d.RPL_INFINITE_RANK
+
+        if (
+                (new_preferred_parent != self.NONE_PREFERRED_PARENT)
+                and
+                (new_rank == d.RPL_INFINITE_RANK)
+                and
+                (self.preferred_parent != self.NONE_PREFERRED_PARENT)
+            ):
+            # we have only a parent having a bad rank or bad PDR; set
+            # None to new_preferred_parent in order to trigger parent
+            # switch
             new_preferred_parent = self.NONE_PREFERRED_PARENT
 
         if new_preferred_parent != self.preferred_parent:
-            old_preferred_parent = self.preferred_parent
-            self.preferred_parent = new_preferred_parent
-            self.rank = self._calculate_rank(new_preferred_parent)
-            self.rpl.indicate_preferred_parent_change(
-                old_preferred_parent['mac_addr'],
-                new_preferred_parent['mac_addr']
-            )
+            if (
+                    (new_preferred_parent == self.NONE_PREFERRED_PARENT)
+                    or
+                    (
+                        d.RPL_PARENT_SWITCH_RANK_THRESHOLD <
+                        (self._calculate_rank(self.preferred_parent) - new_rank)
+                    )
+                ):
+                # we're going to swith to the new parent, which may be
+                # NONE_PREFERRED_PARENT
+                old_preferred_parent = self.preferred_parent
+                self.preferred_parent = new_preferred_parent
+                self.rank = self._calculate_rank(new_preferred_parent)
+                self.rpl.indicate_preferred_parent_change(
+                    old_preferred_parent['mac_addr'],
+                    new_preferred_parent['mac_addr']
+                )
+
+                if (
+                        (
+                            self._calculate_rank(old_preferred_parent) ==
+                            d.RPL_INFINITE_RANK
+                        )
+                        and
+                        (old_preferred_parent in self.neighbors)
+                    ):
+                    # this neighbor should have been poisoned; remove
+                    # this one from our neighbor list
+                    self.neighbors.remove(old_preferred_parent)
 
     def _update_mean_link_pdr(self, neighbor):
         # we will calculate the mean PDR value over all the available
@@ -998,6 +1037,18 @@ class RplOFBestLinkPDR(RplOFBase):
             ]
         ])
 
+    def _update_mean_link_rssi(self, neighbor):
+        # we will calculate the mean RSSI value over all the available
+        # channels.
+        neighbor['mean_link_rssi'] = numpy.mean([
+            self.connectivity.get_rssi(
+                src_id = self.mote.id,
+                dst_id = neighbor['mote_id'],
+                channel = channel
+            )
+            for channel in self.mote.tsch.hopping_sequence
+        ])
+
     def _find_best_parent(self):
         # find a parent which brings the best rank for us. use mote_id
         # for a tie-breaker.
@@ -1005,7 +1056,11 @@ class RplOFBestLinkPDR(RplOFBase):
         # sort the neighbors
         self.neighbors = sorted(
             self.neighbors,
-            key=lambda e: (self._calculate_rank(e), e['mote_id'])
+            key=lambda e: (
+                self._calculate_rank(e),
+                e['mean_link_rssi'],
+                e['mote_id']
+            )
         )
 
         # then return the first neighbor in "parents"
