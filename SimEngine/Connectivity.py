@@ -206,7 +206,7 @@ class Connectivity(object):
                     pdr = self._compute_pdr_with_interference(
                         listener_id               = listener_id,
                         lockon_transmission       = lockon_transmission,
-                        interfering_transmissions = interfering_transmissions,
+                        interfering_transmissions = interfering_transmissions
                     )
 
                     # decide whether listener receives
