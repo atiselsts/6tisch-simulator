@@ -201,13 +201,23 @@ class Connectivity(object):
                             }
                         )
 
-                    # calculate the resulting pdr when taking
-                    # interferers into account
-                    pdr = self._compute_pdr_with_interference(
-                        listener_id               = listener_id,
-                        lockon_transmission       = lockon_transmission,
-                        interfering_transmissions = interfering_transmissions
-                    )
+                    if interfering_transmissions:
+                        # calculate the resulting pdr when taking
+                        # interferers into account
+                        pdr = self._compute_pdr_with_interference(
+                            listener_id               = listener_id,
+                            lockon_transmission       = lockon_transmission,
+                            interfering_transmissions = interfering_transmissions
+                        )
+                    else:
+                        # directly use the PDR value in the
+                        # connectivity matrix if there is no
+                        # interfering transmissions
+                        pdr = self.get_pdr(
+                            src_id  = t['tx_mote_id'],
+                            dst_id  = listener_id,
+                            channel = channel
+                        )
 
                     # decide whether listener receives
                     # lockon_transmission or not
