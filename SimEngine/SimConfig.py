@@ -146,7 +146,7 @@ class SimConfig(dict):
             # hostname is stored in platform.uname()[1]
             hostname = platform.uname()[1]
             log_directory_path = os.path.join(
-                SimSettings.SimSettings.LOG_ROOT_DIR,
+                SimSettings.SimSettings.DEFAULT_LOG_ROOT_DIR,
                 hostname
             )
             # add suffix if there is a directory having the same hostname
