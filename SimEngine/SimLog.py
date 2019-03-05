@@ -84,6 +84,8 @@ LOG_TSCH_DELETE_CELL              = {'type': 'tsch.delete_cell',          'keys'
 LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys': ['_mote_id','channel','slot_offset', 'channel_offset', 'packet','isACKed']}
 LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','channel','slot_offset', 'channel_offset', 'packet']}
 LOG_TSCH_BACKOFF_EXPONENT_UPDATED = {'type': 'tsch.be.updated',           'keys': ['_mote_id','old_be', 'new_be']}
+LOG_TSCH_ADD_SLOTFRAME            = {'type': 'tsch.add_slotframe',        'keys': ['_mote_id','slotFrameHandle','length']}
+LOG_TSCH_DELETE_SLOTFRAME         = {'type': 'tsch.delete_slotframe',     'keys': ['_mote_id','slotFrameHandle','length']}
 
 # === mote info
 LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
