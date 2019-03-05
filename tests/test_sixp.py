@@ -209,6 +209,54 @@ class SchedulingFunctionThreeStep(SchedulingFunctionTest):
         assert packet['app']['code']    == d.SIXP_RC_SUCCESS
 
 
+class SchedulingFunctionTwoStepForAbortion(SchedulingFunctionTwoStep):
+    def __init__(self, mote):
+        super(SchedulingFunctionTwoStepForAbortion, self).__init__(mote)
+        self.received_aborted_event = False
+
+    def _request_callback(self, event, packet):
+        if event == d.SIXP_CALLBACK_EVENT_ABORTED:
+            self.received_aborted_event = True
+        else:
+            super(SchedulingFunctionTwoStepForAbortion, self)._request_callback(
+                event,
+                packet
+            )
+
+    def _response_callback(self, event, packet):
+        if event == d.SIXP_CALLBACK_EVENT_ABORTED:
+            self.received_aborted_event = True
+        else:
+            super(SchedulingFunctionTwoStepForAbortion, self)._response_callback(
+                event,
+                packet
+            )
+
+
+class SchedulingFunctionThreeStepForAbortion(SchedulingFunctionThreeStep):
+    def __init__(self, mote):
+        super(SchedulingFunctionThreeStepForAbortion, self).__init__(mote)
+        self.received_aborted_event = False
+
+    def _request_callback(self, event, packet):
+        if event == d.SIXP_CALLBACK_EVENT_ABORTED:
+            self.received_aborted_event = True
+        else:
+            super(SchedulingFunctionThreeStepForAbortion, self)._request_callback(
+                event,
+                packet
+            )
+
+    def _confirmation_callback(self, event, packet):
+        if event == d.SIXP_CALLBACK_EVENT_ABORTED:
+            self.received_aborted_event = True
+        else:
+            super(SchedulingFunctionThreeStepForAbortion, self)._confirmation_callback(
+                event,
+                packet
+            )
+
+
 def install_sf(motes, sf_class):
     for mote in motes:
         mote.sf = sf_class(mote)
@@ -455,7 +503,7 @@ class TestTransaction:
     def test_abort_on_initiator(self, sim_engine, fixture_msg_type):
         sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
 
-        install_sf(sim_engine.motes, SchedulingFunctionThreeStep)
+        install_sf(sim_engine.motes, SchedulingFunctionThreeStepForAbortion)
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
 
@@ -496,10 +544,13 @@ class TestTransaction:
         assert len(root.sixp.transaction_table) == 1
         assert len(root.tsch.txQueue) == 1
 
+        # handler should receive the "aborted" event
+        assert root.sf.received_aborted_event is False
         root.sixp.abort_transaction(
             initiator_mac_addr = root.get_mac_addr(),
             responder_mac_addr = mote.get_mac_addr()
         )
+        assert root.sf.received_aborted_event is True
 
         assert len(root.sixp.transaction_table) == 0
         assert len(root.tsch.txQueue) == 0
@@ -507,7 +558,7 @@ class TestTransaction:
     def test_abort_on_responder(self, sim_engine):
         sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
 
-        install_sf(sim_engine.motes, SchedulingFunctionTwoStep)
+        install_sf(sim_engine.motes, SchedulingFunctionTwoStepForAbortion)
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
 
@@ -531,10 +582,13 @@ class TestTransaction:
         assert len(mote.sixp.transaction_table) == 1
         assert len(mote.tsch.txQueue) == 1
 
+        # handler should receive the "aborted" event
+        assert mote.sf.received_aborted_event is False
         mote.sixp.abort_transaction(
             initiator_mac_addr = root.get_mac_addr(),
             responder_mac_addr = mote.get_mac_addr()
         )
+        assert mote.sf.received_aborted_event is True
 
         assert len(mote.sixp.transaction_table) == 0
         assert len(mote.tsch.txQueue) == 0

@@ -256,6 +256,10 @@ class SixP(object):
         transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
         transaction = self.transaction_table[transaction_key]
         assert transaction is not None
+        transaction.invoke_callback(
+            event  = d.SIXP_CALLBACK_EVENT_ABORTED,
+            packet = transaction.last_packet
+        )
 
         transaction._invalidate()
         if transaction.isInitiator:
