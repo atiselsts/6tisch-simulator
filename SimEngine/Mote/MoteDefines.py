@@ -74,6 +74,7 @@ SIXP_CALLBACK_EVENT_PACKET_RECEPTION        = 'packet-reception'
 SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION       = 'mac-ack-reception'
 SIXP_CALLBACK_EVENT_TIMEOUT                 = 'timeout'
 SIXP_CALLBACK_EVENT_FAILURE                 = 'failure'
+SIXP_CALLBACK_EVENT_ABORTED                 = 'aborted'
 
 # === sf
 MSF_MAX_NUMCELLS                            = 12
