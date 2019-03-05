@@ -155,9 +155,25 @@ class Tsch(object):
             slotframe_handle = slotframe_handle,
             num_slots        = length
         )
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_ADD_SLOTFRAME,
+            {
+                "_mote_id"       : self.mote.id,
+                'slotFrameHandle': slotframe_handle,
+                'length'         : length
+            }
+        )
 
     def delete_slotframe(self, slotframe_handle):
         assert slotframe_handle in self.slotframes
+        self.log(
+            SimEngine.SimLog.LOG_TSCH_DELETE_SLOTFRAME,
+            {
+                "_mote_id"       : self.mote.id,
+                'slotFrameHandle': slotframe_handle,
+                'length'         : self.slotframes[slotframe_handle].length
+            }
+        )
         del self.slotframes[slotframe_handle]
 
     # EB / Enhanced Beacon
