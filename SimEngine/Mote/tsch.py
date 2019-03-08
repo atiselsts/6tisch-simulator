@@ -134,9 +134,16 @@ class Tsch(object):
                 return cell
         return None
 
-    def get_cells(self, mac_addr=None, slotframe_handle=0):
-        slotframe = self.slotframes[slotframe_handle]
-        return slotframe.get_cells_by_mac_addr(mac_addr)
+    def get_cells(self, mac_addr=None, slotframe_handle=None):
+        if slotframe_handle:
+            slotframe = self.slotframes[slotframe_handle]
+            ret_val = slotframe.get_cells_by_mac_addr(mac_addr)
+        else:
+            ret_val = []
+            for slotframe_handle in self.slotframes:
+                slotframe = self.slotframes[slotframe_handle]
+                ret_val += slotframe.get_cells_by_mac_addr(mac_addr)
+        return ret_val
 
     def enable_pending_bit(self):
         self.pending_bit_enabled = True
