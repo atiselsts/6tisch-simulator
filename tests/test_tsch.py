@@ -679,3 +679,34 @@ def test_advertising_link(sim_engine):
     assert len(tx_logs) > 0
     for tx_log in tx_logs:
         assert tx_log['slot_offset'] != normal_cell.slot_offset
+
+def test_get_cells(sim_engine):
+    SLOTFRAME_LENGTH = 101
+    sim_engine = sim_engine(
+        diff_config=
+        {
+            'exec_numMotes'       : 1,
+            'tsch_slotframeLength': SLOTFRAME_LENGTH
+        }
+    )
+    mote = sim_engine.motes[0]
+
+    assert len(mote.tsch.get_cells()) == 1
+
+    # add slotframe 1
+    mote.tsch.add_slotframe(1, SLOTFRAME_LENGTH)
+    # add a cell having None for its mac_addr
+    mote.tsch.addCell(
+        slotOffset    = 1,
+        channelOffset = 1,
+        neighbor      = None,
+        cellOptions   = [
+            d.CELLOPTION_TX,
+            d.CELLOPTION_RX,
+            d.CELLOPTION_SHARED
+        ],
+        slotframe_handle = 1
+    )
+
+    # get_cells() should return 2 now
+    assert len(mote.tsch.get_cells()) == 2
