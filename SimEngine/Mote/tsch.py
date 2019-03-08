@@ -211,7 +211,8 @@ class Tsch(object):
                 d.CELLOPTION_RX,
                 d.CELLOPTION_SHARED
             ],
-            slotframe_handle = 0
+            slotframe_handle = 0,
+            isAdvertising    = True
         )
 
     def delete_minimal_cell(self):
@@ -230,7 +231,15 @@ class Tsch(object):
 
     # schedule interface
 
-    def addCell(self, slotOffset, channelOffset, neighbor, cellOptions, slotframe_handle=0):
+    def addCell(
+            self,
+            slotOffset,
+            channelOffset,
+            neighbor,
+            cellOptions,
+            slotframe_handle=0,
+            isAdvertising=False
+        ):
 
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
@@ -239,7 +248,13 @@ class Tsch(object):
         slotframe = self.slotframes[slotframe_handle]
 
         # add cell
-        cell = Cell(slotOffset, channelOffset, cellOptions, neighbor)
+        cell = Cell(
+            slotOffset,
+            channelOffset,
+            cellOptions,
+            neighbor,
+            isAdvertising
+        )
         slotframe.add(cell)
 
         # reschedule the next active cell, in case it is now earlier
@@ -724,7 +739,24 @@ class Tsch(object):
 
                     # take care of the retransmission backoff algorithm
                     if _packet_to_send is not None:
-                        if (
+                        if _packet_to_send['type'] == d.PKT_TYPE_EB:
+                            if (
+                                    (
+                                        (cell.mac_addr is None)
+                                        or
+                                        (cell.mac_addr == d.BROADCAST_ADDRESS)
+                                    )
+                                    and
+                                    (cell.link_type == d.LINKTYPE_ADVERTISING)
+                                ):
+                                # we can send the EB on this link (cell)
+                                packet_to_send = _packet_to_send
+                                active_cell = cell
+                            else:
+                                # we don't send an EB on a NORMAL
+                                # link; skip this one
+                                pass
+                        elif (
                             cell.is_shared_on()
                             and
                             self._is_retransmission(_packet_to_send)

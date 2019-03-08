@@ -393,13 +393,31 @@ def test_select_active_tx_cell(sim_engine):
     mote.tsch.addCell(1, 1, neighbor_mac_addr_2, txshared_cell_options)
 
     # put one unicast frame for neighbor_1 to the TX queue first
-    frame_1 = {'mac': {'dstMac': neighbor_mac_addr_1, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_1 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_1,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
     mote.tsch.txQueue.append(frame_1)
 
     # put two unicast frames for neighbor_2 to the TX queue; the first of
     # the two frames is under retransmission
-    frame_2 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
-    frame_3 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_2 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_2,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
+    frame_3 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_2,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
     frame_2['mac']['retriesLeft'] -= 1
     mote.tsch.txQueue.append(frame_2)
     mote.tsch.txQueue.append(frame_3)
@@ -606,3 +624,58 @@ def test_cell_comparison(fixture_cell_comparison_test_type):
         assert cell_1 == cell_2
     else:
         assert cell_1 != cell_2
+
+def test_advertising_link(sim_engine):
+    # EB should be sent only on links having ADVERTISING on
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1,
+            'sf_class'     : 'SFNone',
+            'tsch_slotframeLength' : 2,
+            'tsch_probBcast_ebProb': 1.0,
+        }
+    )
+    root = sim_engine.motes[0]
+    # disable DIO so that there will be no traffic except for EBs.
+    root.rpl.trickle_timer.stop()
+
+    slotframe = root.tsch.get_slotframe(0)
+
+    # make sure we have one cell
+    assert len(slotframe.get_busy_slots()) == 1
+    cells = slotframe.get_cells_by_mac_addr(None)
+    assert len(cells) == 1
+
+    # the link-type of the minimal cell should be ADVERTISING
+    minimal_cell = cells[0]
+    assert minimal_cell.slot_offset == 0
+    assert minimal_cell.channel_offset == 0
+    assert (
+        sorted(minimal_cell.options) ==
+        sorted([
+            d.CELLOPTION_RX,
+            d.CELLOPTION_TX,
+            d.CELLOPTION_SHARED
+        ])
+    )
+    assert minimal_cell.mac_addr == None
+    assert minimal_cell.link_type == d.LINKTYPE_ADVERTISING
+
+    # add one cell whose link-type is NORMAL at slotoffset 1
+    normal_cell = tsch.Cell(
+        slot_offset    = 1,
+        channel_offset = 1,
+        options        = minimal_cell.options,
+        mac_addr       = None,
+        is_advertising = False
+    )
+    assert normal_cell.link_type == d.LINKTYPE_NORMAL
+    slotframe.add(normal_cell)
+
+    # run the simulation; we should have EBs only on the minimal cells
+    u.run_until_end(sim_engine)
+
+    tx_logs = u.read_log_file(filter=[SimLog.LOG_TSCH_TXDONE['type']])
+    assert len(tx_logs) > 0
+    for tx_log in tx_logs:
+        assert tx_log['slot_offset'] != normal_cell.slot_offset
