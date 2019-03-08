@@ -739,7 +739,24 @@ class Tsch(object):
 
                     # take care of the retransmission backoff algorithm
                     if _packet_to_send is not None:
-                        if (
+                        if _packet_to_send['type'] == d.PKT_TYPE_EB:
+                            if (
+                                    (
+                                        (cell.mac_addr is None)
+                                        or
+                                        (cell.mac_addr == d.BROADCAST_ADDRESS)
+                                    )
+                                    and
+                                    (cell.link_type == d.LINKTYPE_ADVERTISING)
+                                ):
+                                # we can send the EB on this link (cell)
+                                packet_to_send = _packet_to_send
+                                active_cell = cell
+                            else:
+                                # we don't send an EB on a NORMAL
+                                # link; skip this one
+                                pass
+                        elif (
                             cell.is_shared_on()
                             and
                             self._is_retransmission(_packet_to_send)
