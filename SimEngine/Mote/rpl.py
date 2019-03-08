@@ -412,7 +412,10 @@ class Rpl(object):
         """
 
         assert not self.mote.dagRoot
-        assert self.dodagId!=None
+
+        if self.dodagId is None:
+            # seems we've lost all the candidate parents; do nothing
+            return
 
         # abort if not ready yet
         if self.mote.clear_to_send_EBs_DATA()==False:
