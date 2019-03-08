@@ -211,7 +211,8 @@ class Tsch(object):
                 d.CELLOPTION_RX,
                 d.CELLOPTION_SHARED
             ],
-            slotframe_handle = 0
+            slotframe_handle = 0,
+            isAdvertising    = True
         )
 
     def delete_minimal_cell(self):
