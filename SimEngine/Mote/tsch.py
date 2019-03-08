@@ -230,7 +230,15 @@ class Tsch(object):
 
     # schedule interface
 
-    def addCell(self, slotOffset, channelOffset, neighbor, cellOptions, slotframe_handle=0):
+    def addCell(
+            self,
+            slotOffset,
+            channelOffset,
+            neighbor,
+            cellOptions,
+            slotframe_handle=0,
+            isAdvertising=False
+        ):
 
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
@@ -239,7 +247,13 @@ class Tsch(object):
         slotframe = self.slotframes[slotframe_handle]
 
         # add cell
-        cell = Cell(slotOffset, channelOffset, cellOptions, neighbor)
+        cell = Cell(
+            slotOffset,
+            channelOffset,
+            cellOptions,
+            neighbor,
+            isAdvertising
+        )
         slotframe.add(cell)
 
         # reschedule the next active cell, in case it is now earlier
