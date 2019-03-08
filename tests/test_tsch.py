@@ -393,13 +393,31 @@ def test_select_active_tx_cell(sim_engine):
     mote.tsch.addCell(1, 1, neighbor_mac_addr_2, txshared_cell_options)
 
     # put one unicast frame for neighbor_1 to the TX queue first
-    frame_1 = {'mac': {'dstMac': neighbor_mac_addr_1, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_1 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_1,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
     mote.tsch.txQueue.append(frame_1)
 
     # put two unicast frames for neighbor_2 to the TX queue; the first of
     # the two frames is under retransmission
-    frame_2 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
-    frame_3 = {'mac': {'dstMac': neighbor_mac_addr_2, 'retriesLeft': d.TSCH_MAXTXRETRIES}}
+    frame_2 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_2,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
+    frame_3 = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'dstMac': neighbor_mac_addr_2,
+            'retriesLeft': d.TSCH_MAXTXRETRIES
+        }
+    }
     frame_2['mac']['retriesLeft'] -= 1
     mote.tsch.txQueue.append(frame_2)
     mote.tsch.txQueue.append(frame_3)
