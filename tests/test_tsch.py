@@ -56,6 +56,64 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     # make sure that queuing that frame fails
     assert hop1.tsch.enqueue(test_frame) == False
 
+def test_enqueue_with_priority(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes': 1
+        }
+    )
+    mote = sim_engine.motes[0]
+
+    # make sure the TX queue is empty now
+    assert not mote.tsch.txQueue
+
+    # prepare the base dummy packet
+    base_dummy_packet = {
+        'type': d.PKT_TYPE_DATA,
+        'mac': {
+            'srcMac': mote.get_mac_addr(),
+            'dstMac': d.BROADCAST_ADDRESS
+        }
+    }
+
+    # put one normal packet to the TX queue
+    normal_packet = copy.deepcopy(base_dummy_packet)
+    normal_packet['seq'] = 1
+    mote.tsch.enqueue(normal_packet, priority=False)
+    assert len(mote.tsch.txQueue) == 1
+
+    # put one priority packet
+    priority_packet = copy.deepcopy(base_dummy_packet)
+    priority_packet['seq'] = 2
+    mote.tsch.enqueue(priority_packet, priority=True)
+    # now we have the priority packet first in the TX queue
+    assert (
+        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [2, 1]
+    )
+
+    # put another "normal" packet, which will be the last packet in
+    # the TX queue
+    normal_packet = copy.deepcopy(base_dummy_packet)
+    normal_packet['seq'] = 3
+    mote.tsch.enqueue(normal_packet, priority=False)
+    assert (
+        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [2, 1, 3]
+    )
+
+    # lastly, put another "priority" packet, which should be the next
+    # packet of the first priority packet
+    priority_packet = copy.deepcopy(base_dummy_packet)
+    priority_packet['seq'] = 4
+    mote.tsch.enqueue(priority_packet, priority=True)
+    # now we have the priority packet first in the TX queue
+    assert (
+        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [2, 4, 1, 3]
+    )
+
+
 def test_removeTypeFromQueue(sim_engine):
     sim_engine = sim_engine(
         diff_config = {
