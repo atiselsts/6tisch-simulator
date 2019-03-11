@@ -349,7 +349,12 @@ class Tsch(object):
             if priority:
                 # mark priority to this packet
                 packet['mac']['priority'] = True
-                self.txQueue.insert(0, packet)
+                index = len(self.txQueue)
+                for i, _ in enumerate(self.txQueue):
+                    if self.txQueue[i]['mac']['priority'] is False:
+                        index = i
+                        break
+                self.txQueue.insert(index, packet)
             else:
                 packet['mac']['priority'] = False
                 # add to txQueue

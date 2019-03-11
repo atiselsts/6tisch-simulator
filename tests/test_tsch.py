@@ -56,7 +56,6 @@ def test_enqueue_under_full_tx_queue(sim_engine,frame_type):
     # make sure that queuing that frame fails
     assert hop1.tsch.enqueue(test_frame) == False
 
-@pytest.mark.skip
 def test_enqueue_with_priority(sim_engine):
     sim_engine = sim_engine(
         diff_config = {
