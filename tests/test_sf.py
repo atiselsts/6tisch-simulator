@@ -193,6 +193,11 @@ class TestMSF(object):
         - expectation : MSF should trigger ADD/DELETE/RELOCATE accordingly
         """
 
+        # to make this test easy, change
+        # MSF_HOUSEKEEPINGCOLLISION_PERIOD to 1 second
+        msf_housekeeping_period_backup = d.MSF_HOUSEKEEPINGCOLLISION_PERIOD
+        d.MSF_HOUSEKEEPINGCOLLISION_PERIOD = 1
+
         sim_engine = sim_engine(
             diff_config = {
                 'exec_randomSeed': 3413860673863013345,
@@ -362,6 +367,9 @@ class TestMSF(object):
             )
         ]
         assert len(logs) > 0
+
+        # put the backup value to d.MSF_HOUSEKEEPINGCOLLISION_PERIOD
+        d.MSF_HOUSEKEEPINGCOLLISION_PERIOD = msf_housekeeping_period_backup
 
     def test_parent_switch(self, sim_engine):
         sim_engine = sim_engine(
