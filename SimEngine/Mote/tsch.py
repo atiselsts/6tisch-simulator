@@ -347,8 +347,11 @@ class Tsch(object):
             # set retriesLeft which should be renewed at every hop
             packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
             if priority:
+                # mark priority to this packet
+                packet['mac']['priority'] = True
                 self.txQueue.insert(0, packet)
             else:
+                packet['mac']['priority'] = False
                 # add to txQueue
                 self.txQueue    += [packet]
 
@@ -438,8 +441,9 @@ class Tsch(object):
         for i in range(len(self.txQueue)):
             tx_packet_copy = copy.deepcopy(self.txQueue[i])
 
-            # remove retriesLeft element for comparison
+            # remove retriesLeft and priority for comparison
             del tx_packet_copy['mac']['retriesLeft']
+            del tx_packet_copy['mac']['priority']
 
             if tx_packet_copy == packet:
                 target_packet_index = i
