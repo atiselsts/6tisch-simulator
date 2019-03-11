@@ -410,11 +410,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             pass
 
         # schedule next housekeeping
-        self.engine.scheduleAtAsn(
-            asn=self.engine.asn + d.MSF_HOUSEKEEPINGCOLLISION_PERIOD,
-            cb=self._housekeeping_collision,
-            uniqueTag=(self.mote.id, '_housekeeping_collision'),
-            intraSlotOrder=d.INTRASLOTORDER_STACKTASKS,
+        self.engine.scheduleIn(
+            delay         = d.MSF_HOUSEKEEPINGCOLLISION_PERIOD,
+            cb            = self._housekeeping_collision,
+            uniqueTag     = (self.mote.id, '_housekeeping_collision'),
+            intraSlotOrder= d.INTRASLOTORDER_STACKTASKS,
         )
 
     # cell manipulation helpers
