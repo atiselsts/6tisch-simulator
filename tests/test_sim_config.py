@@ -1,8 +1,10 @@
 import json
 
+import pytest
+
 import test_utils as u
 from SimEngine.SimConfig import SimConfig
-
+from SimEngine.SimLog import SimLog
 
 def test_generate_config(sim_engine):
     sim_engine = sim_engine()
@@ -57,3 +59,49 @@ def test_generate_config(sim_engine):
         random_seed   = sim_engine.random_seed
     )
     assert config == expected_config
+
+@pytest.fixture(params=[1000, None])
+def exec_num_slotframes_per_run(request):
+    return request.param
+
+
+@pytest.fixture(params=[10, None])
+def exec_minutes_per_run(request):
+    return request.param
+
+def test_exec_minutes_per_run(
+        sim_engine,
+        exec_num_slotframes_per_run,
+        exec_minutes_per_run
+    ):
+    diff_config = {
+        'exec_numSlotframesPerRun': exec_num_slotframes_per_run,
+        'exec_minutesPerRun'      : exec_minutes_per_run,
+        'tsch_slotDuration'       : 0.01,
+        'tsch_slotframeLength'    : 100,
+        'exec_numMotes'           : 1
+    }
+    if (
+            (exec_num_slotframes_per_run and exec_minutes_per_run)
+            or
+            ((not exec_num_slotframes_per_run) and (not exec_minutes_per_run))
+        ):
+        with pytest.raises(ValueError):
+            sim_engine = sim_engine(diff_config)
+        # for teardown
+        sim_engine = sim_engine(diff_config={})
+    else:
+        sim_engine = sim_engine(diff_config)
+
+        u.run_until_end(sim_engine)
+        if exec_num_slotframes_per_run:
+            end_asn = (
+                diff_config['tsch_slotframeLength'] *
+                exec_num_slotframes_per_run
+            )
+        else:
+            assert exec_minutes_per_run
+            end_asn = (
+                exec_minutes_per_run * 60 / diff_config['tsch_slotDuration']
+            )
+        assert sim_engine.getAsn() == end_asn
