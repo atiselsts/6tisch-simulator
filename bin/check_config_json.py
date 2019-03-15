@@ -120,6 +120,10 @@ def collect_setting_keys_in_use():
                         else:
                             # add the key referred from a core file
                             setting_keys.add(m.group(2))
+
+    # add exec_minutesPerRun which is found only in SimSettings, which
+    # is not processed in the loop above
+    setting_keys.add('exec_minutesPerRun')
     return setting_keys
 
 
