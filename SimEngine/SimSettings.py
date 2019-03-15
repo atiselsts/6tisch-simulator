@@ -57,7 +57,28 @@ class SimSettings(object):
             self.run_id               = run_id
             self.logRootDirectoryPath = os.path.abspath(log_root_dir)
 
-            self.__dict__.update(kwargs)
+            if kwargs:
+                self.__dict__.update(kwargs)
+                if self.exec_numSlotframesPerRun and self.exec_minutesPerRun:
+                    raise ValueError(
+                        'exec_numSlotframesPerRun should be null ' +
+                        'when exec_minutesPerRun is used'
+                    )
+                elif self.exec_minutesPerRun:
+                    assert self.exec_numSlotframesPerRun is None
+                    self.exec_numSlotframesPerRun = (
+                        self.exec_minutesPerRun *
+                        60 /
+                        self.tsch_slotDuration /
+                        self.tsch_slotframeLength
+                    )
+                elif self.exec_numSlotframesPerRun:
+                    assert self.exec_minutesPerRun is None
+                else:
+                    raise ValueError(
+                        'either exec_numSlotframesPerRun or ' +
+                        'exec_minutesPerRun should be specified'
+                    )
         except:
             # destroy the singleton
             cls._instance = None
