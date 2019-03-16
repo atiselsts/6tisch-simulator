@@ -768,3 +768,72 @@ def test_get_cells(sim_engine):
 
     # get_cells() should return 2 now
     assert len(mote.tsch.get_cells()) == 2
+
+@pytest.fixture(params=['root', 'mote_1'])
+def fixture_clock_source(request):
+    return request.param
+
+def test_eb_wait_timer(sim_engine, fixture_clock_source):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'        : 3,
+            'secjoin_enabled'      : False,
+            'tsch_probBcast_ebProb': 0
+        }
+    )
+
+    assert d.TSCH_MAX_EB_DELAY == 180
+    assert d.TSCH_NUM_NEIGHBORS_TO_WAIT == 2
+
+    root = sim_engine.motes[0]
+    mote_1 = sim_engine.motes[1]
+    mote_2 = sim_engine.motes[2]
+
+    # give an EB to mote_1, which will get synchronized after 180
+    # seconds
+    eb_root = root.tsch._create_EB()
+    mote_1.tsch._action_receiveEB(eb_root)
+
+    # run the simulation for 180 seconds - 1 slot
+    u.run_until_asn(
+        sim_engine,
+        (
+            sim_engine.getAsn() +
+            d.TSCH_MAX_EB_DELAY / sim_engine.settings.tsch_slotDuration - 1
+        )
+    )
+    assert mote_1.tsch.isSync is False
+    # proceed one slot
+    u.run_until_asn(sim_engine, sim_engine.getAsn() + 1)
+    assert mote_1.tsch.isSync is True
+
+    # give a DIO to mote_1 so that mote_1 can create an EB
+    dio = root.rpl._create_DIO()
+    dio['mac'] = {'srcMac': root.get_mac_addr()}
+    mote_1.rpl.action_receiveDIO(dio)
+    eb_mote_1 = mote_1.tsch._create_EB()
+
+    # ajudst join metric
+    if fixture_clock_source == 'root':
+        eb_root['mac']['join_metric'] = 1
+        eb_mote_1['mac']['join_metric'] = 100
+    elif fixture_clock_source == 'mote_1':
+        eb_root['mac']['join_metric'] = 100
+        eb_mote_1['mac']['join_metric'] = 1
+    else:
+        raise NotImplementedError(fixture_clock_source)
+
+    # give the EB to mote_2
+    mote_2.tsch._action_receiveEB(eb_root)
+    assert mote_2.tsch.isSync is False
+
+    # give an EB of mote_1 to mote_2, which makes mote_2 get
+    # synchronized immediately
+    mote_2.tsch._action_receiveEB(eb_mote_1)
+    assert mote_2.tsch.isSync is True
+
+    # mote_2 should select one as fixture_clock_source
+    if fixture_clock_source == 'root':
+        assert mote_2.tsch.clock.source == root.get_mac_addr()
+    else:
+        assert mote_2.tsch.clock.source == mote_1.get_mac_addr()
