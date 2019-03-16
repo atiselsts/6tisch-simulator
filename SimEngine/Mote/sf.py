@@ -188,7 +188,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.mac_addr is not None
 
         preferred_parent = self.mote.rpl.getPreferredParent()
-        if cell.mac_addr == preferred_parent:
+        if (
+                (cell.mac_addr == preferred_parent)
+                and
+                (cell.options == [d.CELLOPTION_TX])
+            ):
 
             # increment cell passed counter
             self.num_cells_elapsed += 1
