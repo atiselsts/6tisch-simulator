@@ -736,14 +736,25 @@ class Tsch(object):
 
     def _perform_synchronization(self):
         assert self.received_eb_list
-        for src_mac_addr, _ in self.received_eb_list.items():
-            time_source_mac_addr = src_mac_addr
-            break
-        self.clock.sync(time_source_mac_addr)
+
+        # [Section 6.3.6, IEEE802.15.4-2015]
+        # The higher layer may wait for additional
+        # MLME-BEACON-NOTIFY.indication primitives before selecting a
+        # TSCH network based upon the value of the Join Metric field
+        # in the TSCH Synchronization IE. (snip)
+        #
+        # NOTE- lower value in the Join Metric field indicates that
+        # connection of the beaconing device to a specific network
+        # device determined by the higher layer is a shorter route.
+        clock_source_mac_addr = min(
+            self.received_eb_list,
+            key=lambda x: self.received_eb_list[x]['mac']['join_metric']
+        )
+        self.clock.sync(clock_source_mac_addr)
         self.setIsSync(True) # mote
 
         # the mote that sent the EB is now by join proxy
-        self.join_proxy = netaddr.EUI(time_source_mac_addr)
+        self.join_proxy = netaddr.EUI(clock_source_mac_addr)
 
         # add the minimal cell to the schedule (read from EB)
         self.add_minimal_cell() # mote
