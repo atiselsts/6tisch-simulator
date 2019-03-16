@@ -488,8 +488,8 @@ class TestMSF(object):
         )
 
         # put dummy stats so that scheduling adaptation can be triggered
-        hop_1.sf.num_cells_passed = 100
-        hop_1.sf.num_cells_used   = hop_1.sf.num_cells_passed
+        hop_1.sf.num_cells_elapsed = 100
+        hop_1.sf.num_cells_used   = hop_1.sf.num_cells_elapsed
 
         # trigger scheduling adaptation
         if   function_under_test == 'adapt_to_traffic':

@@ -132,10 +132,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         super(SchedulingFunctionMSF, self).__init__(mote)
 
         # (additional) local variables
-        self.num_cells_passed = 0       # number of dedicated cells passed
-        self.num_cells_used   = 0       # number of dedicated cells used
-        self.cell_utilization = 0
-        self.locked_slots     = set([]) # slots in on-going ADD transactions
+        self.num_cells_elapsed = 0       # number of dedicated cells passed
+        self.num_cells_used    = 0       # number of dedicated cells used
+        self.cell_utilization  = 0
+        self.locked_slots      = set([]) # slots in on-going ADD transactions
 
     # ======================= public ==========================================
 
@@ -191,14 +191,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         if cell.mac_addr == preferred_parent:
 
             # increment cell passed counter
-            self.num_cells_passed += 1
+            self.num_cells_elapsed += 1
 
             # increment cell used counter
             if used:
                 self.num_cells_used += 1
 
             # adapt number of cells if necessary
-            if d.MSF_MAX_NUMCELLS <= self.num_cells_passed:
+            if d.MSF_MAX_NUMCELLS <= self.num_cells_elapsed:
                 self._adapt_to_traffic(preferred_parent)
                 self._reset_cell_counters()
 
@@ -304,7 +304,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # ======================= private ==========================================
 
     def _reset_cell_counters(self):
-        self.num_cells_passed = 0
+        self.num_cells_elapsed = 0
         self.num_cells_used   = 0
 
     def _adapt_to_traffic(self, neighbor):
@@ -315,7 +315,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         :param int neighbor:
         :return:
         """
-        cell_utilization = self.num_cells_used / float(self.num_cells_passed)
+        cell_utilization = self.num_cells_used / float(self.num_cells_elapsed)
         if cell_utilization != self.cell_utilization:
             self.log(
                 SimEngine.SimLog.LOG_MSF_CELL_UTILIZATION,
