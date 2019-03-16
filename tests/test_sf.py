@@ -92,12 +92,13 @@ def test_case(request):
 
 class TestMSF(object):
 
-    def test_no_txrx_cell_allocation_to_parent(self, sim_engine):
+    def test_initial_dedicated_cell_allocation_to_parent(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
                 'sf_class'     : 'MSF',
                 'conn_class'   : 'Linear',
+                'app_pkPeriod' : 0
             }
         )
 
@@ -107,15 +108,15 @@ class TestMSF(object):
             if (
                 (log['_mote_id'] == sim_engine.motes[1].id)
                 and
-                (sorted(log['cellOptions']) == sorted([d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]))
+                (sorted(log['cellOptions']) == sorted([d.CELLOPTION_TX]))
                 and
                 (log['neighbor'] is not None)
             )
         ]
 
-        # mote_1 shouldn't schedule one TX/RX/SHARED cell to its parent
+        # mote_1 should schedule one dedicated cell to its parent
         # (mote_0)
-        assert len(logs) == 0
+        assert len(logs) == 1
 
     def test_non_shared_autonomous_cell_allocation(self, sim_engine):
         sim_engine = sim_engine(

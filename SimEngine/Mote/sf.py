@@ -209,7 +209,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # old parent; note that there could be three types of cells:
         # (TX=1,RX=1,SHARED=1), (TX=1), and (RX=1)
         if old_parent is None:
-            num_tx_cells = 0
+            num_tx_cells = 1
             num_rx_cells = 0
         else:
             dedicated_cells = self.mote.tsch.get_cells(
@@ -341,8 +341,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 lambda cell: cell.options == [d.CELLOPTION_TX],
                 self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
             )
-            # delete one *TX* cell
-            if len(tx_cells) > 0:
+            # delete one *TX* cell but we need to keep one dedicated
+            # cell to our parent at least
+            if len(tx_cells) > 1:
                 self._request_deleting_cells(
                     neighbor     = neighbor,
                     num_cells    = 1,
