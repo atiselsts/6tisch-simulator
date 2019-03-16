@@ -117,7 +117,7 @@ class TestMSF(object):
         # (mote_0)
         assert len(logs) == 0
 
-    def test_autonomous_rx_cell_allocation(self, sim_engine):
+    def test_non_shared_autonomous_cell_allocation(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
@@ -131,7 +131,7 @@ class TestMSF(object):
         # root should have one autonomous RX cell just after its initialization
         cells = [
             cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
-            if cell.options == [d.CELLOPTION_RX]
+            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
 
@@ -144,7 +144,7 @@ class TestMSF(object):
         non_root.tsch._action_receiveEB(eb)
         cells = [
             cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
-            if cell.options == [d.CELLOPTION_RX]
+            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
 
