@@ -353,6 +353,18 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
     eb = root.tsch._create_EB()
     mote.tsch._action_receiveEB(eb)
 
+    # put a fake EB to mote so that it can get synchronized
+    # immediately
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
+    mote.tsch._action_receiveEB(eb_dummy)
+
     # disabled the trickle timer
     root.rpl.trickle_timer.stop()
     mote.rpl.trickle_timer.stop()

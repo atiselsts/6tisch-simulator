@@ -69,9 +69,20 @@ def test_parent_selection(sim_engine):
 
     # get all the motes synchronized
     eb = mote_0.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
     mote_1.tsch._action_receiveEB(eb)
+    mote_1.tsch._action_receiveEB(eb_dummy)
     mote_2.tsch._action_receiveEB(eb)
+    mote_2.tsch._action_receiveEB(eb_dummy)
     mote_3.tsch._action_receiveEB(eb)
+    mote_3.tsch._action_receiveEB(eb_dummy)
 
     # make sure all the motes don't have their parents
     for mote in sim_engine.motes:

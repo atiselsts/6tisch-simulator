@@ -236,9 +236,20 @@ class TestOF0(object):
 
         # let all the motes get synchronized
         eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
         mote_1.tsch._action_receiveEB(eb)
+        mote_1.tsch._action_receiveEB(eb_dummy)
         mote_2.tsch._action_receiveEB(eb)
+        mote_2.tsch._action_receiveEB(eb_dummy)
         mote_3.tsch._action_receiveEB(eb)
+        mote_3.tsch._action_receiveEB(eb_dummy)
 
         # let mote_1 and mote_2 join the RPL network
         dio_from_root = root.rpl._create_DIO()
@@ -284,7 +295,16 @@ class TestOF0(object):
 
         # get mote synched
         eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
         mote.tsch._action_receiveEB(eb)
+        mote.tsch._action_receiveEB(eb_dummy)
 
         # inject the DIO to mote, which shouldn't cause any exception
         dio_with_infinite_rank = root.rpl._create_DIO()
@@ -314,7 +334,16 @@ class TestOF0(object):
 
         # get mote synched and joined
         eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
         mote.tsch._action_receiveEB(eb)
+        mote.tsch._action_receiveEB(eb_dummy)
 
         dio = root.rpl._create_DIO()
         dio['mac'] = {'srcMac': root.get_mac_addr()}
@@ -373,7 +402,16 @@ def test_dis_config(sim_engine, fixture_dis_mode):
 
     # give EB to mote
     eb = root.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
     mote.tsch._action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb_dummy)
 
     # stop the trickle timer for this test
     root.rpl.trickle_timer.stop()
@@ -434,7 +472,16 @@ def test_dis_timer(sim_engine):
 
     # get mote synchronized
     eb = root.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
     mote.tsch._action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb_dummy)
 
     # disable root's communication capability by deleting the minimal shared
     # cell
@@ -492,8 +539,18 @@ def test_dodag_parent(sim_engine, fixture_rank_value):
 
     # get them connected to the network
     eb = root.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
     parent.tsch._action_receiveEB(eb)
+    parent.tsch._action_receiveEB(eb_dummy)
     child.tsch._action_receiveEB(eb)
+    child.tsch._action_receiveEB(eb_dummy)
 
     dio = root.rpl._create_DIO()
     dio['mac'] = {'srcMac': root.get_mac_addr()}
