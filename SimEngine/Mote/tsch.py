@@ -34,18 +34,19 @@ class Tsch(object):
         self.log      = SimEngine.SimLog.SimLog().log
 
         # local variables
-        self.slotframes      = {}
-        self.txQueue         = []
-        self.txQueueSize     = self.settings.tsch_tx_queue_size
-        self.neighbor_table  = []
-        self.pktToSend       = None
-        self.waitingFor      = None
-        self.active_cell     = None
-        self.asnLastSync     = None
-        self.isSync          = False
-        self.join_proxy      = None
-        self.iAmSendingEBs   = False
-        self.clock           = Clock(self.mote)
+        self.slotframes       = {}
+        self.txQueue          = []
+        self.txQueueSize      = self.settings.tsch_tx_queue_size
+        self.neighbor_table   = []
+        self.pktToSend        = None
+        self.waitingFor       = None
+        self.active_cell      = None
+        self.asnLastSync      = None
+        self.isSync           = False
+        self.join_proxy       = None
+        self.iAmSendingEBs    = False
+        self.clock            = Clock(self.mote)
+        self.received_eb_list = {} # indexed by source mac address
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
         # pending bit
@@ -733,6 +734,23 @@ class Tsch(object):
         # schedule next listeningForEB cell
         self.schedule_next_listeningForEB_cell()
 
+    def _perform_synchronization(self):
+        assert self.received_eb_list
+        for src_mac_addr, _ in self.received_eb_list.items():
+            time_source_mac_addr = src_mac_addr
+            break
+        self.clock.sync(time_source_mac_addr)
+        self.setIsSync(True) # mote
+
+        # the mote that sent the EB is now by join proxy
+        self.join_proxy = netaddr.EUI(time_source_mac_addr)
+
+        # add the minimal cell to the schedule (read from EB)
+        self.add_minimal_cell() # mote
+
+        # trigger join process
+        self.mote.secjoin.startJoinProcess()
+
     # active cell
 
     def _select_active_cell(self, candidate_cells):
@@ -1016,20 +1034,26 @@ class Tsch(object):
             return
 
         if not self.getIsSync():
+            event_tag = (self.mote.id, 'tsch', 'wait_eb')
+            if not self.received_eb_list:
+                # start the timer to wait for other EBs if this is the
+                # first received EB
+                self.engine.scheduleIn(
+                    delay          = d.TSCH_MAX_EB_DELAY,
+                    cb             = self._perform_synchronization,
+                    uniqueTag      = event_tag,
+                    intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
+                )
+            # add the EB to the list. If there is an EB from the
+            # the source, the EB is replaced by the new one
+            self.received_eb_list[packet['mac']['srcMac']] = packet
             # receiving EB while not sync'ed
-
-            # I'm now sync'ed!
-            self.clock.sync(packet['mac']['srcMac'])
-            self.setIsSync(True) # mote
-
-            # the mote that sent the EB is now by join proxy
-            self.join_proxy = netaddr.EUI(packet['mac']['srcMac'])
-
-            # add the minimal cell to the schedule (read from EB)
-            self.add_minimal_cell() # mote
-
-            # trigger join process
-            self.mote.secjoin.startJoinProcess()
+            if len(self.received_eb_list) == d.TSCH_NUM_NEIGHBORS_TO_WAIT:
+                self._perform_synchronization()
+                self.engine.removeFutureEvent(event_tag)
+                self.received_eb_list = {} # clear the list
+            else:
+                assert len(self.received_eb_list) < d.TSCH_NUM_NEIGHBORS_TO_WAIT
 
     # Retransmission backoff algorithm
     def _is_retransmission(self, packet):
