@@ -996,13 +996,11 @@ class Tsch(object):
             # create
             newEB = {
                 'type':            d.PKT_TYPE_EB,
-                'app': {
-                    'join_metric': self.mote.rpl.getDagRank() - 1,
-                },
                 'mac': {
                     'srcMac':      self.mote.get_mac_addr(),
                     'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-                },
+                    'join_metric': self.mote.rpl.getDagRank() - 1
+                }
             }
 
             # log

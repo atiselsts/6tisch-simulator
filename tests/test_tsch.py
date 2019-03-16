@@ -433,7 +433,7 @@ def test_eb_by_root(sim_engine):
     #   ...
     #   DAGRank(rank(0))-1 = 0 is compliant with 802.15.4's requirement of
     #   having the root use Join Metric = 0.
-    assert eb['app']['join_metric'] == 0
+    assert eb['mac']['join_metric'] == 0
 
 def test_select_active_tx_cell(sim_engine):
     # this test is for a particular case; it's not a general test for
