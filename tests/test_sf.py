@@ -235,22 +235,22 @@ class TestMSF(object):
         mote.sixlowpan.recvPacket(dio)
 
         # 1. test autonomous cell installation
-        # 1.1 test autonomous RX cell
+        # 1.1 test Non-SHARED autonomous cell
         cells = [
             cell for cell in mote.tsch.get_cells(
                 mac_addr         = None,
                 slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
             )
-            if cell.options == [d.CELLOPTION_RX]
+            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
-        # 1.2 test autonomous TX cell to root
+        # 1.2 test SHARED autonomous cell to root
         cells = [
             cell for cell in mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
                 slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
             )
-            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_SHARED]
+            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
         ]
         assert len(cells) == 1
 
@@ -259,7 +259,7 @@ class TestMSF(object):
         d.MSF_MIN_NUM_TX   = 10
         d.MSF_MAX_NUMCELLS = 10
 
-        # 2.2 confirm the mote doesn't have any dedicated cell
+        # 2.2 confirm the mote doesn't have any dedicated cell to its parent
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
@@ -269,24 +269,56 @@ class TestMSF(object):
         ]
         assert len(cells) == 0
 
-        # 2.2 send an application packet per slotframe
+        # 2.3 the mote should have triggered a 6P to allocate one
+        # dedicated cell
+        logs = u.read_log_file(filter=[SimLog.LOG_SIXP_TX['type']])
+        assert len(logs) == 1
+        packet = logs[0]['packet']
+        assert packet['mac']['dstMac'] == root.get_mac_addr()
+        assert packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST
+        assert packet['app']['code'] == d.SIXP_CMD_ADD
+        assert packet['app']['numCells'] == 1
+        assert packet['app']['cellOptions'] == [d.CELLOPTION_TX]
+
+        # in order to test the traffic adaptation mechanism of MSF,
+        # disable the pending bit feature
+        assert mote.tsch.pending_bit_enabled is True
+        mote.tsch.pending_bit_enabled = False
+
+        # wait until the managed cell is available
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
+        )
+
+        # mote should have one managed cell scheduled
+        cells = [
+            cell for cell in  mote.tsch.get_cells(
+                mac_addr         = root.get_mac_addr(),
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+            )
+            if cell.options == [d.CELLOPTION_TX]
+        ]
+        assert len(cells) == 1
+
+        # 2.4 send an application packet per slotframe
         mote.settings.app_pkPeriod = (
-            mote.settings.tsch_slotframeLength *
+            mote.settings.tsch_slotframeLength / 2 *
             mote.settings.tsch_slotDuration
         )
         mote.app.startSendingData()
 
-        # 2.3 run for 10 slotframes
+        # 2.5 run for 10 slotframes
         assert mote.sf.cell_utilization == 0.0
         u.run_until_asn(
             sim_engine,
             sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
         )
 
-        # 2.4 confirm the cell usage reaches 100%
+        # 2.6 confirm the cell usage reaches 100%
         assert mote.sf.cell_utilization == 1.0
 
-        # 2.5 one dedicated cell should be allocated in the next 2 slotframes
+        # 2.7 one dedicated cell should be allocated in the next 2 slotframes
         u.run_until_asn(
             sim_engine,
             sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
@@ -298,8 +330,14 @@ class TestMSF(object):
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
-        assert len(cells) == 1
+        assert len(cells) == 2
         slot_offset = cells[0].slot_offset
+
+        # adjust the packet interval
+        mote.settings.app_pkPeriod = (
+            mote.settings.tsch_slotframeLength / 3 *
+            mote.settings.tsch_slotDuration
+        )
 
         # 3. test cell relocation
         # 3.1 increase the following Rpl values in order to avoid invalidating
