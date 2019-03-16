@@ -142,7 +142,16 @@ class TestMSF(object):
 
         # make non_root synchronized
         eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
         non_root.tsch._action_receiveEB(eb)
+        non_root.tsch._action_receiveEB(eb_dummy)
         cells = [
             cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
             if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
@@ -226,7 +235,16 @@ class TestMSF(object):
 
         # get the mote joined
         eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
         mote.tsch._action_receiveEB(eb)
+        mote.tsch._action_receiveEB(eb_dummy)
         dio = root.rpl._create_DIO()
         dio['mac'] = {
             'srcMac': root.get_mac_addr(),
