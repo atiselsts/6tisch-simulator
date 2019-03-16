@@ -1126,13 +1126,3 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # assuming T (table size) is 16-bit
         return hash_value & 0xFFFF
-
-
-class SchedulingFunctionMSFChang(SchedulingFunctionMSF):
-    INITIAL_NUM_TXRX_CELLS = 1
-
-    def _allocate_autonomous_rx_cell(self):
-        pass
-
-    def _allocate_autonomous_tx_cell(self, mac_addr):
-        pass
