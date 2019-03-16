@@ -149,13 +149,13 @@ class TestMSF(object):
         assert len(cells) == 1
 
     @pytest.fixture(params=['start-up', 'neighbor-add'])
-    def fixture_autonomous_tx_cell_mode(self, request):
+    def fixture_shared_autonomous_cell_mode(self, request):
         return request.param
 
-    def test_autonomous_tx_cell_allocation(
+    def test_shared_autonomous_cell_allocation(
             self,
             sim_engine,
-            fixture_autonomous_tx_cell_mode
+            fixture_shared_autonomous_cell_mode
         ):
         sim_engine = sim_engine(
             diff_config = {
@@ -170,17 +170,17 @@ class TestMSF(object):
         # add root to mote's neighbor table
         root_mac_addr = root.get_mac_addr()
 
-        if fixture_autonomous_tx_cell_mode == 'start-up':
+        if fixture_shared_autonomous_cell_mode == 'start-up':
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
             mote.sf.start()
-        elif fixture_autonomous_tx_cell_mode == 'neighbor-add':
+        elif fixture_shared_autonomous_cell_mode == 'neighbor-add':
             mote.sf.start()
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
 
         cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
         assert len(cells) == 1
         assert cells[0].is_tx_on() is True
-        assert cells[0].is_rx_on() is False
+        assert cells[0].is_rx_on() is True
         assert cells[0].is_shared_on() is True
 
     def test_msf(self, sim_engine):
@@ -571,12 +571,12 @@ class TestMSF(object):
             slotframe_handle = mote.sf.SLOTFRAME_HANDLE
         )
         assert len(cells) == 1
-        # mote should have the autonomous cell of the root
+        # mote should have a SHARED autonomous cell of the root
         assert cells[0].mac_addr == root_mac_addr
         assert d.CELLOPTION_TX in cells[0].options
-        assert d.CELLOPTION_RX not in cells[0].options
+        assert d.CELLOPTION_RX in cells[0].options
         assert d.CELLOPTION_SHARED in cells[0].options
-        # keep the reference to the autonomous cell
+        # keep the reference to the SHARED autonomous cell
         root_autonomous_cell = cells[0]
 
         # execute CLEAR (call the equivalent internal method of the
