@@ -92,6 +92,7 @@ def test_exec_minutes_per_run(
         sim_engine = sim_engine(diff_config={})
     else:
         sim_engine = sim_engine(diff_config)
+        assert isinstance(sim_engine.settings.exec_numSlotframesPerRun, int)
 
         u.run_until_end(sim_engine)
         if exec_num_slotframes_per_run:
