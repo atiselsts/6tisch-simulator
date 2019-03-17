@@ -10,6 +10,7 @@
 
 # =========================== imports =========================================
 
+import math
 import os
 import re
 
@@ -66,14 +67,19 @@ class SimSettings(object):
                     )
                 elif self.exec_minutesPerRun:
                     assert self.exec_numSlotframesPerRun is None
-                    self.exec_numSlotframesPerRun = (
-                        self.exec_minutesPerRun *
-                        60 /
-                        self.tsch_slotDuration /
-                        self.tsch_slotframeLength
+                    self.exec_numSlotframesPerRun = int(
+                        math.ceil(
+                            self.exec_minutesPerRun *
+                            60 /
+                            self.tsch_slotDuration /
+                            self.tsch_slotframeLength
+                        )
                     )
                 elif self.exec_numSlotframesPerRun:
                     assert self.exec_minutesPerRun is None
+                    self.exec_numSlotframesPerRun = int(
+                        self.exec_numSlotframesPerRun
+                    )
                 else:
                     raise ValueError(
                         'either exec_numSlotframesPerRun or ' +
