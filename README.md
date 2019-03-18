@@ -24,7 +24,7 @@ Contributers:
 
 If you publish an academic paper using the results of the 6TiSCH Simulator, please cite:
 
-E. Municio, G. Daneels, M. Vucinic, S. Latre, J. Famaey, Y. Tanaka, K. Brun, K. Muraoka, X. Vilajosana, and T. Watteyne, "Simulating 6TiSCH Networks", Wiley Transactions on Emerging Telecommunications (ETT), 2018.
+E. Municio, G. Daneels, M. Vucinic, S. Latre, J. Famaey, Y. Tanaka, K. Brun, K. Muraoka, X. Vilajosana, and T. Watteyne, "Simulating 6TiSCH Networks", Wiley Transactions on Emerging Telecommunications (ETT), 2019; 30:e3494. https://doi.org/10.1002/ett.3494
 
 ## Scope
 
