@@ -762,6 +762,9 @@ class Tsch(object):
         # trigger join process
         self.mote.secjoin.startJoinProcess()
 
+        # clear the EB list
+        self.received_eb_list = {}
+
     # active cell
 
     def _select_active_cell(self, candidate_cells):
@@ -1060,7 +1063,6 @@ class Tsch(object):
             if len(self.received_eb_list) == d.TSCH_NUM_NEIGHBORS_TO_WAIT:
                 self._perform_synchronization()
                 self.engine.removeFutureEvent(event_tag)
-                self.received_eb_list = {} # clear the list
             else:
                 assert len(self.received_eb_list) < d.TSCH_NUM_NEIGHBORS_TO_WAIT
 
