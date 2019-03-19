@@ -113,6 +113,48 @@ def test_enqueue_with_priority(sim_engine):
         [2, 4, 1, 3]
     )
 
+    for i in range(5, sim_engine.settings.tsch_tx_queue_size + 1):
+        normal_packet = copy.deepcopy(base_dummy_packet)
+        normal_packet['seq'] = i
+        mote.tsch.enqueue(normal_packet, priority=False)
+
+    # the TX queue should be full
+    assert len(mote.tsch.txQueue) == sim_engine.settings.tsch_tx_queue_size
+
+    # seq of the last packet should be the same as the TX queue size
+    assert (
+        mote.tsch.txQueue[-1]['seq'] ==
+        sim_engine.settings.tsch_tx_queue_size
+    )
+
+    # add another priority packet
+    priority_packet = copy.deepcopy(base_dummy_packet)
+    new_pkt_seq = sim_engine.settings.tsch_tx_queue_size + 1
+    priority_packet['seq'] = new_pkt_seq
+    mote.tsch.enqueue(priority_packet, priority=True)
+
+    # the first three packets should be priority
+    assert (
+        map(lambda x: x['seq'], mote.tsch.txQueue[0:3]) ==
+        [2, 4, new_pkt_seq]
+    )
+    # the TX queue length shouldn't exceed the queue size
+    assert len(mote.tsch.txQueue) == sim_engine.settings.tsch_tx_queue_size
+    # the last packet in the queue should have
+    # (sim_engine.settings.tsch_tx_queue_size - 1) for its seq
+    priority_packet['seq'] = sim_engine.settings.tsch_tx_queue_size
+
+    # change all the packet in the TX queue to priority
+    for packet in mote.tsch.txQueue:
+        packet['mac']['priority'] = True
+
+    # add a priority packet, which should be dropped
+    priority_packet = copy.deepcopy(base_dummy_packet)
+    last_pkt_seq = sim_engine.settings.tsch_tx_queue_size + 2
+    priority_packet['seq'] = last_pkt_seq
+    mote.tsch.enqueue(priority_packet, priority=True)
+    assert len(mote.tsch.txQueue) == sim_engine.settings.tsch_tx_queue_size
+    assert mote.tsch.txQueue[-1]['seq'] != last_pkt_seq
 
 def test_removeTypeFromQueue(sim_engine):
     sim_engine = sim_engine(

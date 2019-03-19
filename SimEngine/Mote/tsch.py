@@ -300,22 +300,27 @@ class Tsch(object):
         goOn = True
 
         # check there is space in txQueue
-        if goOn:
-            if (
+        if (
+                goOn
+                and
+                (len(self.txQueue) >= self.txQueueSize)
+                and
+                (
                     (priority is False)
-                    and
-                    (len(self.txQueue) >= self.txQueueSize)
-                ):
-                # my TX queue is full
-
-                # drop
-                self.mote.drop_packet(
-                    packet  = packet,
-                    reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL,
+                    or
+                    self.txQueue[-1]['mac']['priority']
                 )
+            ):
+            # my TX queue is full
 
-                # couldn't enqueue
-                goOn = False
+            # drop
+            self.mote.drop_packet(
+                packet  = packet,
+                reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
+            )
+
+            # couldn't enqueue
+            goOn = False
 
         # check that I have cell to transmit on
         if goOn:
@@ -350,6 +355,17 @@ class Tsch(object):
             if priority:
                 # mark priority to this packet
                 packet['mac']['priority'] = True
+                # if the queue is full, we need to drop the last one
+                # in the queue or the new packet
+                if len(self.txQueue) == self.txQueueSize:
+                    assert not self.txQueue[-1]['mac']['priority']
+                    # drop the last one in the queue
+                    packet_to_drop = self.txQueue[-1]
+                    self.dequeue(packet_to_drop)
+                    self.mote.drop_packet(
+                        packet = packet_to_drop,
+                        reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
+                    )
                 index = len(self.txQueue)
                 for i, _ in enumerate(self.txQueue):
                     if self.txQueue[i]['mac']['priority'] is False:
