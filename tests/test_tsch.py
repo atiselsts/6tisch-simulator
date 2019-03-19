@@ -815,6 +815,8 @@ def test_eb_wait_timer(sim_engine, fixture_clock_source):
     # proceed one slot
     u.run_until_asn(sim_engine, sim_engine.getAsn() + 1)
     assert mote_1.tsch.isSync is True
+    # the EB list should be empty
+    assert not mote_1.tsch.received_eb_list
 
     # give a DIO to mote_1 so that mote_1 can create an EB
     dio = root.rpl._create_DIO()
@@ -840,6 +842,8 @@ def test_eb_wait_timer(sim_engine, fixture_clock_source):
     # synchronized immediately
     mote_2.tsch._action_receiveEB(eb_mote_1)
     assert mote_2.tsch.isSync is True
+    # the EB list should be empty
+    assert not mote_2.tsch.received_eb_list
 
     # mote_2 should select one as fixture_clock_source
     if fixture_clock_source == 'root':
