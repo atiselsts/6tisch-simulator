@@ -158,6 +158,10 @@ class SixP(object):
             # enqueue
             self._tsch_enqueue(packet)
 
+            # update transaction using the packet that has a valid
+            # seqnum in the MAC header
+            transaction.request = copy.deepcopy(packet)
+
     def send_response(
             self,
             dstMac,
@@ -184,7 +188,7 @@ class SixP(object):
         # for the response.
         if seqNum is not None:
             # do nothing
-            pass
+            transaction = None
         else:
             # update the transaction
             transaction = self._find_transaction(packet)
@@ -195,11 +199,11 @@ class SixP(object):
             # specified callback and timeout_seconds now.
             transaction.start(callback, timeout_seconds)
 
-            # keep the response packet in case of abortion
-            transaction.response = copy.deepcopy(packet)
-
         # enqueue
         self._tsch_enqueue(packet)
+        if transaction:
+            # keep the response packet in case of abortion
+            transaction.response = copy.deepcopy(packet)
 
     def send_confirmation(
             self,
@@ -224,11 +228,11 @@ class SixP(object):
         transaction = self._find_transaction(packet)
         transaction.set_callback(callback)
 
-        # keep the confirmation packet
-        transaction.confirmation = copy.deepcopy(packet)
-
         # enqueue
         self._tsch_enqueue(packet)
+
+        # keep the confirmation packet
+        transaction.confirmation = copy.deepcopy(packet)
 
     def add_transaction(self, transaction):
         if transaction.key in self.transaction_table:
@@ -270,7 +274,7 @@ class SixP(object):
         else:
                 packet_in_tx_queue = transaction.response
 
-        self.mote.tsch.remove_tx_packet(packet_in_tx_queue)
+        self.mote.tsch.txQueue.remove(packet_in_tx_queue)
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
             {

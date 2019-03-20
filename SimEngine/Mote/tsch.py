@@ -46,6 +46,7 @@ class Tsch(object):
         self.join_proxy       = None
         self.iAmSendingEBs    = False
         self.clock            = Clock(self.mote)
+        self.next_seqnum      = 0
         self.received_eb_list = {} # indexed by source mac address
         # backoff state
         self.backoff_exponent        = d.TSCH_MIN_BACKOFF_EXPONENT
@@ -352,6 +353,12 @@ class Tsch(object):
         if goOn:
             # set retriesLeft which should be renewed at every hop
             packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
+            # put the seqnum
+            packet['mac']['seqnum'] = self.next_seqnum
+            self.next_seqnum += 1
+            if self.next_seqnum > 255:
+                # sequence number field is 8-bit long
+                self.next_seqnum = 0
             if priority:
                 # mark priority to this packet
                 packet['mac']['priority'] = True
@@ -455,25 +462,6 @@ class Tsch(object):
                 del self.txQueue[i]
             else:
                 i += 1
-
-    def remove_tx_packet(self, packet):
-        """remove a specific TX packet in the queue"""
-        target_packet_index = None
-
-        for i in range(len(self.txQueue)):
-            tx_packet_copy = copy.deepcopy(self.txQueue[i])
-
-            # remove retriesLeft and priority for comparison
-            del tx_packet_copy['mac']['retriesLeft']
-            del tx_packet_copy['mac']['priority']
-
-            if tx_packet_copy == packet:
-                target_packet_index = i
-                break
-
-        if target_packet_index is not None:
-            del self.txQueue[target_packet_index]
-
 
     # interface with radio
 
