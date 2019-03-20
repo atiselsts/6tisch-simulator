@@ -274,7 +274,7 @@ class SixP(object):
         else:
                 packet_in_tx_queue = transaction.response
 
-        self.mote.tsch.txQueue.remove(packet_in_tx_queue)
+        self.mote.tsch.dequeue(packet_in_tx_queue)
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
             {
