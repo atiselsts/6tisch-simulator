@@ -67,17 +67,24 @@ Simulated protocol stack
    ```
 1. Install the Python dependencies:
    `cd simulator` and `pip install -r requirements.txt`
-1. Move down to `bin` directory:
-   ```
-   $ cd bin
-   ```
-1. Execute runSim.py:
-   ```
-   $ python runSim.py
-   ```
-    * a new directory having the timestamp value as its name is created under
-      `bin/simData/` (e.g., `bin/simData/20181203-161254-775`)
-    * raw output data and raw charts are stored in the newly created directory
+1. Execute `runSim.py` or start the GUI:
+    * runSim.py
+       ```
+       $ cd bin
+       $ python runSim.py
+       ```
+        * a new directory having the timestamp value as its name is created under
+          `bin/simData/` (e.g., `bin/simData/20181203-161254-775`)
+        * raw output data and raw charts are stored in the newly created directory
+    * GUI
+       ```
+       $ gui/backend/start
+       Starting the backend server on 127.0.0.1:8080
+       ```
+        * access http://127.0.0.1:8080 with a web browser
+        * raw output data are stored under `gui/simData`
+        * charts are NOT generated when the simulator is run via GUI
+
 1. Take a look at `bin/config.json` to see the configuration of the simulations you just ran.
 
 The simulator can be run on a cluster system. Here is an example for a cluster built with OAR and Conda:
@@ -86,12 +93,12 @@ The simulator can be run on a cluster system. Here is an example for a cluster b
     * Set `numCPUs` with `-1` (use all the available CPUs/cores) or a specific number of CPUs to be used
     * Set `log_directory_name` with `"hostname"`
 1. Create a shell script, `runSim.sh`, having the following lines:
-    
+
         #!/bin/sh
         #OAR -l /nodes=1
         source activate py27
         python runSim.py
-    
+
 1. Make the shell script file executable:
    ```
    $ chmod +x runSim.sh
@@ -116,7 +123,7 @@ The following commands could be useful to manage your jobs:
 
 * `$ oarstat`: show all the current jobs
 * `$ oarstat -u`: show *your* jobs
-* `$ oarstat -u -f`: show details of your jobs 
+* `$ oarstat -u -f`: show details of your jobs
 * `$ oardel 87132`: delete a job whose job ID is 87132
 * `$ oardel --array 87132`: delete all the jobs whose array ID is 87132
 
@@ -139,10 +146,10 @@ OAR_ARRAY_ID=87132
     * `SimConfig.py`: The overall configuration of running a simulation campaign.
     * `SimEngine.py`: Event-driven simulation engine at the core of this simulator.
     * `SimLog.py`: Used to save the simulation logs.
-    * `SimSettings.py`: The settings of a single simulation, part of a simulation campaign.    
-    * `Mote/`: Models a 6TiSCH mote running the different standards listed above.    
+    * `SimSettings.py`: The settings of a single simulation, part of a simulation campaign.
+    * `Mote/`: Models a 6TiSCH mote running the different standards listed above.
 * `bin/`: the scripts for you to run
-* `examples/`: example plots, shown in the documentation    
+* `gui/`: files for GUI (see "GUI" section for further information)
 * `tests/`: the unit tests, run using `pytest`
 * `traces/`: example `k7` connectivity traces
 
@@ -205,7 +212,7 @@ See `bin/config.json` to find  what parameters should be set and how they are co
 
 #### using a *k7* connectivity model
 
-`k7` is a popular format for connectivity traces. 
+`k7` is a popular format for connectivity traces.
 You can run the simulator using connectivity traces in your K7 file instead of using the propagation model.
 
 ```
@@ -235,6 +242,14 @@ Requirements:
 
 The format of the configuration file you pass is validated before starting the simulation. If your configuration file doesn't comply with the format, an `ConfigfileFormatException` is raised, containing a description of the format violation. The simulation is then not started.
 
+## GUI / 6TiSCH Simulator WebApp
+The repository of 6TiSCH Simulator has only artifacts of 6TiSCH Simulator WebApp.
+
+Full source code of the webapp is hosted at [https://github.com/yatch/6tisch-simulator-webapp/](https://github.com/yatch/6tisch-simulator-webapp/).
+[WEBAPP_COMMIT_INFO.txt](./gui/WEBAPP_COMMIT_INFO.txt) has the commit (version) of the webapp code that generates the files under `gui`.
+
+![Screenshot of GUI](figs/gui.png)
+
 ## About 6TiSCH
 
 | what         | where                                                                                                                                  |
@@ -243,9 +258,3 @@ The format of the configuration file you pass is validated before starting the s
 | data tracker | [http://tools.ietf.org/wg/6tisch/](http://tools.ietf.org/wg/6tisch/)                                                                   |
 | mailing list | [http://www.ietf.org/mail-archive/web/6tisch/current/maillist.html](http://www.ietf.org/mail-archive/web/6tisch/current/maillist.html) |
 | source       | [https://bitbucket.org/6tisch/](https://bitbucket.org/6tisch/)                                                                         |
-
-## Gallery
-
-|  |  |  |
-|--|--|--|
-| ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_topology.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/run_0_timelines.png) | ![](https://bytebucket.org/6tisch/simulator/raw/master/examples/gui.png) |
