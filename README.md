@@ -38,10 +38,10 @@ Simulated protocol stack
 |--------------------------------------------------------------------------------------------------------------|------------------------------------------|
 | [RFC6550](https://tools.ietf.org/html/rfc6550), [RFC6552](https://tools.ietf.org/html/rfc6552)               | RPL, non-storing mode, OF0               |
 | [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                        |
-| [draft-ietf-6lo-minimal-fragment-00](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-00)         | 6LoWPAN Fragment Forwarding              |
+| [draft-ietf-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-01)         | 6LoWPAN Fragment Forwarding              |
 | [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                    |
-| [draft-ietf-6tisch-msf-01](https://tools.ietf.org/html/draft-ietf-6tisch-msf-01)                             | 6TiSCH Minimal Scheduling Function (MSF) |
-| [draft-ietf-6tisch-minimal-security-07](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-07)   | 6TiSCH Minimal Security (join process)   |
+| [draft-ietf-6tisch-msf-02](https://tools.ietf.org/html/draft-ietf-6tisch-msf-02)                             | 6TiSCH Minimal Scheduling Function (MSF) |
+| [draft-ietf-6tisch-minimal-security-09](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-09)   | 6TiSCH Minimal Security (join process)   |
 | [RFC8480](https://tools.ietf.org/html/rfc8480)                                                               | 6TiSCH 6top Protocol (6P)                |
 | [RFC8180](https://tools.ietf.org/html/rfc8180)                                                               | Minimal 6TiSCH Configuration             |
 | [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/)                                           | IEEE802.15.4 TSCH                        |
