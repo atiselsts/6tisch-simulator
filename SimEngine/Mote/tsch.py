@@ -463,25 +463,6 @@ class Tsch(object):
             else:
                 i += 1
 
-    def remove_tx_packet(self, packet):
-        """remove a specific TX packet in the queue"""
-        target_packet_index = None
-
-        for i in range(len(self.txQueue)):
-            tx_packet_copy = copy.deepcopy(self.txQueue[i])
-
-            # remove retriesLeft and priority for comparison
-            del tx_packet_copy['mac']['retriesLeft']
-            del tx_packet_copy['mac']['priority']
-
-            if tx_packet_copy == packet:
-                target_packet_index = i
-                break
-
-        if target_packet_index is not None:
-            del self.txQueue[target_packet_index]
-
-
     # interface with radio
 
     def txDone(self, isACKed, channel):
