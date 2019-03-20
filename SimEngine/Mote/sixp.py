@@ -272,7 +272,7 @@ class SixP(object):
             else:
                 packet_in_tx_queue = transaction.request
         else:
-                packet_in_tx_queue = transaction.response
+            packet_in_tx_queue = transaction.response
 
         self.mote.tsch.dequeue(packet_in_tx_queue)
         self.log(
