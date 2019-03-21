@@ -549,19 +549,23 @@ class TestMSF(object):
         hop_1.sf.num_cells_used   = hop_1.sf.num_cells_elapsed
 
         # trigger scheduling adaptation
+        root_mac_addr = root.get_mac_addr()
+        hop_1.sf.retry_count[root_mac_addr] = 0
         if   function_under_test == 'adapt_to_traffic':
-            hop_1.sf._adapt_to_traffic(root.id)
+            hop_1.sf._adapt_to_traffic(root_mac_addr)
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
                 hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
             )[0]
             hop_1.sf._request_relocating_cells(
-                neighbor             = root.get_mac_addr(),
+                neighbor             = root_mac_addr,
                 cell_options         = [d.CELLOPTION_TX],
                 num_relocating_cells = 1,
                 cell_list            = [relocating_cell]
             )
+
+
         else:
             # not implemented
             assert False
