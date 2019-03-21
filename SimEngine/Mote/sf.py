@@ -153,11 +153,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         # install a Non-SHARED autonomous cell
-        self._allocate_non_shared_autonomous_cell()
+        self._allocate_autonomous_non_shared_cell()
 
         # install autonomous TX cells for neighbors
         for mac_addr in self.mote.sixlowpan.on_link_neighbor_list:
-            self._allocate_shared_autonomous_cell(mac_addr)
+            self._allocate_autonomous_shared_cell(mac_addr)
 
         if self.mote.dagRoot:
             # do nothing
@@ -182,7 +182,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # it's not ready to add cells
             pass
         else:
-            self._allocate_shared_autonomous_cell(neighbor_mac_addr)
+            self._allocate_autonomous_shared_cell(neighbor_mac_addr)
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
         assert cell.mac_addr is not None
@@ -1091,7 +1091,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         return (slot_offset, channel_offset)
 
-    def _allocate_non_shared_autonomous_cell(self):
+    def _allocate_autonomous_non_shared_cell(self):
         mac_addr = self.mote.get_mac_addr()
         slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
         self.mote.tsch.addCell(
@@ -1105,7 +1105,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             slotframe_handle = self.SLOTFRAME_HANDLE
         )
 
-    def _allocate_shared_autonomous_cell(self, mac_addr):
+    def _allocate_autonomous_shared_cell(self, mac_addr):
         slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
         self.mote.tsch.addCell(
             slotOffset       = slot_offset,

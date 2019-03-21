@@ -118,7 +118,7 @@ class TestMSF(object):
         # (mote_0)
         assert len(logs) == 1
 
-    def test_non_shared_autonomous_cell_allocation(self, sim_engine):
+    def test_autonomous_non_shared_cell_allocation(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
@@ -159,13 +159,13 @@ class TestMSF(object):
         assert len(cells) == 1
 
     @pytest.fixture(params=['start-up', 'neighbor-add'])
-    def fixture_shared_autonomous_cell_mode(self, request):
+    def fixture_autonomous_shared_cell_mode(self, request):
         return request.param
 
-    def test_shared_autonomous_cell_allocation(
+    def test_autonomous_shared_cell_allocation(
             self,
             sim_engine,
-            fixture_shared_autonomous_cell_mode
+            fixture_autonomous_shared_cell_mode
         ):
         sim_engine = sim_engine(
             diff_config = {
@@ -180,10 +180,10 @@ class TestMSF(object):
         # add root to mote's neighbor table
         root_mac_addr = root.get_mac_addr()
 
-        if fixture_shared_autonomous_cell_mode == 'start-up':
+        if fixture_autonomous_shared_cell_mode == 'start-up':
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
             mote.sf.start()
-        elif fixture_shared_autonomous_cell_mode == 'neighbor-add':
+        elif fixture_autonomous_shared_cell_mode == 'neighbor-add':
             mote.sf.start()
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
 
