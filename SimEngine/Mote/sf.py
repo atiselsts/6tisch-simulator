@@ -121,9 +121,8 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     SLOTFRAME_HANDLE = 1
-    INITIAL_NUM_TXRX_CELLS = 0
     DEFAULT_CELL_LIST_LEN = 5
-    TXRX_CELL_OPT = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
+    MAX_RETRY = 3
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
 
@@ -136,6 +135,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self.num_cells_used    = 0       # number of dedicated cells used
         self.cell_utilization  = 0
         self.locked_slots      = set([]) # slots in on-going ADD transactions
+        self.retry_count       = {}      # indexed by MAC address
 
     # ======================= public ==========================================
 
@@ -153,11 +153,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
         # install a Non-SHARED autonomous cell
-        self._allocate_non_shared_autonomous_cell()
+        self._allocate_autonomous_non_shared_cell()
 
         # install autonomous TX cells for neighbors
         for mac_addr in self.mote.sixlowpan.on_link_neighbor_list:
-            self._allocate_shared_autonomous_cell(mac_addr)
+            self._allocate_autonomous_shared_cell(mac_addr)
 
         if self.mote.dagRoot:
             # do nothing
@@ -182,7 +182,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # it's not ready to add cells
             pass
         else:
-            self._allocate_shared_autonomous_cell(neighbor_mac_addr)
+            self._allocate_autonomous_shared_cell(neighbor_mac_addr)
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
         assert cell.mac_addr is not None
@@ -232,12 +232,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     dedicated_cells
                 )
             )
-        self._request_adding_cells(
-            neighbor       = new_parent,
-            num_txrx_cells = self.INITIAL_NUM_TXRX_CELLS,
-            num_tx_cells   = num_tx_cells,
-            num_rx_cells   = num_rx_cells
-        )
+        if new_parent:
+            # reset the retry counter
+            # we may better to make sure there is no outstanding
+            # transaction with the same peer
+            self.retry_count[new_parent] = 0
+            self._request_adding_cells(
+                neighbor       = new_parent,
+                num_tx_cells   = num_tx_cells,
+                num_rx_cells   = num_rx_cells
+            )
 
         # clear all the cells allocated for the old parent
         def _callback(event, packet):
@@ -253,12 +257,28 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
             self._clear_cells(old_parent)
 
-        if old_parent is not None:
-            self.mote.sixp.send_request(
-                dstMac   = old_parent,
-                command  = d.SIXP_CMD_CLEAR,
-                callback = _callback
+        if old_parent:
+            cells = self.mote.tsch.get_cells(
+                mac_addr         = old_parent,
+                slotframe_handle = self.SLOTFRAME_HANDLE
             )
+            if len(cells) > 1:
+                self.mote.sixp.send_request(
+                    dstMac   = old_parent,
+                    command  = d.SIXP_CMD_CLEAR,
+                    callback = _callback
+                )
+            else:
+                assert len(cells) == 1
+                # this should be the autonomous cell
+                assert (
+                    sorted(cells[0].options) ==
+                    sorted([
+                        d.CELLOPTION_TX,
+                        d.CELLOPTION_RX,
+                        d.CELLOPTION_SHARED
+                    ])
+                )
 
     def detect_schedule_inconsistency(self, peerMac):
         # send a CLEAR request to the peer
@@ -333,6 +353,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 }
             )
             self.cell_utilization = cell_utilization
+
+        # reset retry counter
+        assert neighbor in self.retry_count
+        self.retry_count[neighbor] = 0
         if d.MSF_LIM_NUMCELLSUSED_HIGH < cell_utilization:
             # add one TX cell
             self._request_adding_cells(
@@ -403,6 +427,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
             ]
             if len(relocation_cell_list) > 0:
+                # reset retry counter
+                assert preferred_parent in self.retry_count
+                self.retry_count[preferred_parent] = 0
                 self._request_relocating_cells(
                     neighbor             = preferred_parent,
                     cell_options         = self.TX_CELL_OPT,
@@ -580,19 +607,13 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _request_adding_cells(
             self,
             neighbor,
-            num_txrx_cells = 0,
             num_tx_cells   = 0,
             num_rx_cells   = 0
         ):
 
-        # determine num_cells and cell_options; update num_{txrx,tx,rx}_cells
-        if   num_txrx_cells > 0:
-            assert num_txrx_cells == 1
-            cell_options   = self.TXRX_CELL_OPT
-            num_cells      = num_txrx_cells
-            num_txrx_cells = 0
-        elif num_tx_cells > 0:
-            cell_options   = self.TX_CELL_OPT
+        # determine num_cells and cell_options; update num_{tx,rx}_cells
+        if num_tx_cells > 0:
+            cell_options = self.TX_CELL_OPT
             if num_tx_cells < self.DEFAULT_CELL_LIST_LEN:
                 num_cells    = num_tx_cells
                 num_tx_cells = 0
@@ -631,7 +652,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_cells,
             cell_options,
             cell_list,
-            num_txrx_cells,
             num_tx_cells,
             num_rx_cells
         )
@@ -683,9 +703,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             def callback(event, packet):
                 if event == d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION:
                     # prepare cell options for this responder
-                    if   request['app']['cellOptions'] == self.TXRX_CELL_OPT:
-                        cell_options = self.TXRX_CELL_OPT
-                    elif request['app']['cellOptions'] == self.TX_CELL_OPT:
+                    if request['app']['cellOptions'] == self.TX_CELL_OPT:
                         # invert direction
                         cell_options = self.RX_CELL_OPT
                     elif request['app']['cellOptions'] == self.RX_CELL_OPT:
@@ -720,7 +738,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_cells,
             cell_options,
             cell_list,
-            num_txrx_cells,
             num_tx_cells,
             num_rx_cells
         ):
@@ -736,18 +753,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
 
                     # The received CellList could be smaller than the requested
-                    # NumCells; adjust num_{txrx,tx,rx}_cells
-                    _num_txrx_cells = num_txrx_cells
+                    # NumCells; adjust num_{tx,rx}_cells
                     _num_tx_cells   = num_tx_cells
                     _num_rx_cells   = num_rx_cells
                     remaining_cells = num_cells - len(packet['app']['cellList'])
                     if remaining_cells > 0:
-                        if   cell_options == self.TXRX_CELL_OPT:
-                            # One (TX=1,RX=1,SHARED=1) cell is requested;
-                            # RC_SUCCESS shouldn't be returned with an empty cell
-                            # list
-                            raise Exception()
-                        elif cell_options == self.TX_CELL_OPT:
+                        if cell_options == self.TX_CELL_OPT:
                             _num_tx_cells -= remaining_cells
                         elif cell_options == self.RX_CELL_OPT:
                             _num_rx_cells -= remaining_cells
@@ -756,9 +767,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                             raise Exception()
 
                     # start another transaction
+                    self.retry_count[neighbor] = 0
                     self._request_adding_cells(
                         neighbor       = neighbor,
-                        num_txrx_cells = _num_txrx_cells,
                         num_tx_cells   = _num_tx_cells,
                         num_rx_cells   = _num_rx_cells
                     )
@@ -766,18 +777,25 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # TODO: request doesn't succeed; how should we do?
                     pass
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
-                # If this transaction is for the very first cell allocation to
-                # the preferred parent, let's retry it. Otherwise, let
-                # adaptation to traffic trigger another transaction if
-                # necessary.
-                if cell_options == self.TXRX_CELL_OPT:
+                if self.retry_count[neighbor] == self.MAX_RETRY:
+                    # give up this neighbor
+                    if neighbor == self.mote.rpl.getPreferredParent():
+                        self.mote.rpl.of.poison_rpl_parent(neighbor)
+                    self.retry_count[neighbor] = 0 # done
+                else:
+                    # retry
+                    self.retry_count[neighbor] += 1
+                    if cell_options == self.TX_CELL_OPT:
+                        _num_tx_cells = num_cells + num_tx_cells
+                        _num_rx_cells = num_rx_cells
+                    else:
+                        _num_tx_cells = num_tx_cells
+                        _num_rx_cells = num_cells + num_rx_cells
                     self._request_adding_cells(
                         neighbor       = neighbor,
-                        num_txrx_cells = 1
+                        num_tx_cells   = _num_tx_cells,
+                        num_rx_cells   = _num_rx_cells
                     )
-                else:
-                    # do nothing as mentioned above
-                    pass
             else:
                 # ignore other events
                 pass
@@ -806,6 +824,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # prepare callback
         callback = self._create_delete_request_callback(
             neighbor,
+            num_cells,
             cell_options
         )
 
@@ -873,6 +892,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _create_delete_request_callback(
             self,
             neighbor,
+            num_cells,
             cell_options
         ):
         def callback(event, packet):
@@ -891,8 +911,19 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # TODO: request doesn't succeed; how should we do?
                     pass
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
-                # TODO: request doesn't succeed; how should we do?
-                pass
+                if self.retry_count[neighbor] == self.MAX_RETRY:
+                    # give it up
+                    self.retry_count[neighbor] = 0
+                    if neighbor == self.mote.rpl.getPreferredParent():
+                        self.mote.rpl.of.poison_rpl_parent(neighbor)
+                else:
+                    # retry
+                    self.retry_count[neighbor] += 1
+                    self._request_deleting_cells(
+                        neighbor,
+                        num_cells,
+                        cell_options
+                    )
             else:
                 # ignore other events
                 pass
@@ -969,6 +1000,22 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         num_relocating_cells = _num_relocating_cells,
                         cell_list            = _cell_list
                     )
+            elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
+                if self.retry_count[neighbor] == self.MAX_RETRY:
+                    # give up this neighbor
+                    if neighbor == self.mote.rpl.getPreferredParent():
+                        self.mote.rpl.of.poison_rpl_parent(neighbor)
+                    self.retry_count[neighbor] = 0 # done
+                else:
+                    # retry
+                    self.retry_count[neighbor] += 1
+                    self._request_relocating_cells(
+                        neighbor,
+                        cell_options,
+                        num_relocating_cells,
+                        cell_list
+                    )
+
             # unlock the slots used in this transaction
             self._unlock_cells(candidate_cell_list)
 
@@ -1091,7 +1138,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         return (slot_offset, channel_offset)
 
-    def _allocate_non_shared_autonomous_cell(self):
+    def _allocate_autonomous_non_shared_cell(self):
         mac_addr = self.mote.get_mac_addr()
         slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
         self.mote.tsch.addCell(
@@ -1105,7 +1152,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             slotframe_handle = self.SLOTFRAME_HANDLE
         )
 
-    def _allocate_shared_autonomous_cell(self, mac_addr):
+    def _allocate_autonomous_shared_cell(self, mac_addr):
         slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
         self.mote.tsch.addCell(
             slotOffset       = slot_offset,
