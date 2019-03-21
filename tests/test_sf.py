@@ -12,6 +12,7 @@ import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine import SimEngine
 from SimEngine.Mote.sf import SchedulingFunctionMSF
+from SimEngine.Mote.sf import SchedulingFunctionSFNone
 
 # =========================== helpers =========================================
 
@@ -647,3 +648,72 @@ class TestMSF(object):
         )
         assert len(cells) == 1
         assert cells[0] == root_autonomous_cell
+
+    def test_retry(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'           : 2,
+                'sf_class'                : 'MSF',
+                'conn_class'              : 'Linear',
+                'secjoin_enabled'         : False,
+                'app_pkPeriod'            : 0,
+                'rpl_daoPeriod'           : 0,
+                'rpl_extensions'          : [],
+                'tsch_keep_alive_interval': 0,
+                'tsch_probBcast_ebProb'   : 0
+            }
+        )
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        # make root not to respond to a 6P request
+        root.sf.recv_request = SchedulingFunctionSFNone(root).recv_request
+
+        # get the mote joined
+        eb = root.tsch._create_EB()
+        eb_dummy = {
+            'type':            d.PKT_TYPE_EB,
+            'mac': {
+                'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+                'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+                'join_metric': 1000
+            }
+        }
+        mote.tsch._action_receiveEB(eb)
+        mote.tsch._action_receiveEB(eb_dummy)
+
+        assert mote.tsch.isSync
+
+        dio = root.rpl._create_DIO()
+        dio['mac'] = {
+            'srcMac': root.get_mac_addr(),
+            'dstMac': d.BROADCAST_ADDRESS
+        }
+        # need to put the DIO to 6LoWPAN layer so that mote can learn
+        # root's MAC address and schedule the autonomous shared cell.
+        mote.sixlowpan.recvPacket(dio)
+
+        assert mote.rpl.dodagId is not None
+
+        # stop DIO timer to make this test simple
+        root.rpl.trickle_timer.stop()
+        mote.rpl.trickle_timer.stop()
+
+        u.run_until_end(sim_engine)
+
+        # we should see three 6P timeout logs
+        logs = u.read_log_file(
+            filter=[SimLog.LOG_SIXP_TRANSACTION_TIMEOUT['type']]
+        )
+        assert (
+            len([log for log in logs if log['_mote_id']==mote.id]) ==
+            SchedulingFunctionMSF.MAX_RETRY  + 1
+        )
+
+        # mote should lose its parent
+        logs = u.read_log_file(
+            filter=[SimLog.LOG_RPL_CHURN['type']]
+        )
+        assert len(logs) == 2
+        assert logs[0]['preferredParent'] == root.get_mac_addr()
+        assert logs[1]['preferredParent'] is None
