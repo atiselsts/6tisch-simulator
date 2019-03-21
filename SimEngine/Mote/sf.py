@@ -121,9 +121,7 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     SLOTFRAME_HANDLE = 1
-    INITIAL_NUM_TXRX_CELLS = 0
     DEFAULT_CELL_LIST_LEN = 5
-    TXRX_CELL_OPT = [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
 
@@ -234,7 +232,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
         self._request_adding_cells(
             neighbor       = new_parent,
-            num_txrx_cells = self.INITIAL_NUM_TXRX_CELLS,
             num_tx_cells   = num_tx_cells,
             num_rx_cells   = num_rx_cells
         )
@@ -580,18 +577,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _request_adding_cells(
             self,
             neighbor,
-            num_txrx_cells = 0,
             num_tx_cells   = 0,
             num_rx_cells   = 0
         ):
 
-        # determine num_cells and cell_options; update num_{txrx,tx,rx}_cells
-        if   num_txrx_cells > 0:
-            assert num_txrx_cells == 1
-            cell_options   = self.TXRX_CELL_OPT
-            num_cells      = num_txrx_cells
-            num_txrx_cells = 0
-        elif num_tx_cells > 0:
+        # determine num_cells and cell_options; update num_{tx,rx}_cells
+        if num_tx_cells > 0:
             cell_options   = self.TX_CELL_OPT
             if num_tx_cells < self.DEFAULT_CELL_LIST_LEN:
                 num_cells    = num_tx_cells
@@ -631,7 +622,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_cells,
             cell_options,
             cell_list,
-            num_txrx_cells,
             num_tx_cells,
             num_rx_cells
         )
@@ -683,9 +673,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             def callback(event, packet):
                 if event == d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION:
                     # prepare cell options for this responder
-                    if   request['app']['cellOptions'] == self.TXRX_CELL_OPT:
-                        cell_options = self.TXRX_CELL_OPT
-                    elif request['app']['cellOptions'] == self.TX_CELL_OPT:
+                    if request['app']['cellOptions'] == self.TX_CELL_OPT:
                         # invert direction
                         cell_options = self.RX_CELL_OPT
                     elif request['app']['cellOptions'] == self.RX_CELL_OPT:
@@ -720,7 +708,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             num_cells,
             cell_options,
             cell_list,
-            num_txrx_cells,
             num_tx_cells,
             num_rx_cells
         ):
@@ -736,18 +723,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
 
                     # The received CellList could be smaller than the requested
-                    # NumCells; adjust num_{txrx,tx,rx}_cells
-                    _num_txrx_cells = num_txrx_cells
+                    # NumCells; adjust num_{tx,rx}_cells
                     _num_tx_cells   = num_tx_cells
                     _num_rx_cells   = num_rx_cells
                     remaining_cells = num_cells - len(packet['app']['cellList'])
                     if remaining_cells > 0:
-                        if   cell_options == self.TXRX_CELL_OPT:
-                            # One (TX=1,RX=1,SHARED=1) cell is requested;
-                            # RC_SUCCESS shouldn't be returned with an empty cell
-                            # list
-                            raise Exception()
-                        elif cell_options == self.TX_CELL_OPT:
+                        if cell_options == self.TX_CELL_OPT:
                             _num_tx_cells -= remaining_cells
                         elif cell_options == self.RX_CELL_OPT:
                             _num_rx_cells -= remaining_cells
@@ -758,7 +739,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # start another transaction
                     self._request_adding_cells(
                         neighbor       = neighbor,
-                        num_txrx_cells = _num_txrx_cells,
                         num_tx_cells   = _num_tx_cells,
                         num_rx_cells   = _num_rx_cells
                     )
@@ -766,18 +746,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # TODO: request doesn't succeed; how should we do?
                     pass
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
-                # If this transaction is for the very first cell allocation to
-                # the preferred parent, let's retry it. Otherwise, let
-                # adaptation to traffic trigger another transaction if
-                # necessary.
-                if cell_options == self.TXRX_CELL_OPT:
-                    self._request_adding_cells(
-                        neighbor       = neighbor,
-                        num_txrx_cells = 1
-                    )
-                else:
-                    # do nothing as mentioned above
-                    pass
+                # FIXME: trigger a retry
+                pass
             else:
                 # ignore other events
                 pass
