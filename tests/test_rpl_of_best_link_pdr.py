@@ -2,6 +2,7 @@ import copy
 
 import SimEngine.Mote.MoteDefines as d
 import tests.test_utils as u
+from SimEngine.Mote.rpl import RplOFBestLinkPDR
 
 def create_dio(mote):
     dio = mote.rpl._create_DIO()
@@ -38,22 +39,25 @@ def test_parent_selection(sim_engine):
     channel = d.TSCH_HOPPING_SEQUENCE[0]
 
     # disable the link between mote 0 and mote 3
-    for src_id, dst_id in [
-            (mote_0.id, mote_3.id),
-            (mote_3.id, mote_0.id)
-        ]:
-        connectivity_matrix.set_pdr(src_id, dst_id, channel, 0.0)
+    connectivity_matrix.set_pdr_both_directions(
+        mote_0.id, mote_3.id, channel, 0.0
+    )
 
-    # degrade link PDRs to 30%:
+    # degrade link PDRs to ACCEPTABLE_LOWEST_PDR
     # - between mote 0 and mote 2
     # - between mote 3 and mote 1
-    for src_id, dst_id in [
-            (mote_0.id, mote_2.id),
-            (mote_2.id, mote_0.id),
-            (mote_1.id, mote_3.id),
-            (mote_3.id, mote_1.id),
-        ]:
-        connectivity_matrix.set_pdr(src_id, dst_id, channel, 0.3)
+    connectivity_matrix.set_pdr_both_directions(
+        mote_0.id,
+        mote_2.id,
+        channel,
+        RplOFBestLinkPDR.ACCEPTABLE_LOWEST_PDR
+    )
+    connectivity_matrix.set_pdr_both_directions(
+        mote_1.id,
+        mote_3.id,
+        channel,
+        RplOFBestLinkPDR.ACCEPTABLE_LOWEST_PDR
+    )
 
     # now we have links shown below, () denotes link PDR:
     #
@@ -178,7 +182,7 @@ def test_etx_limit(sim_engine):
         mote_0.id,
         mote_1.id,
         ch,
-        (mote_1.rpl.of.ACCEPTABLE_LOWEST_PDR * 0.99)
+        (RplOFBestLinkPDR.ACCEPTABLE_LOWEST_PDR * 0.99)
     )
     mote_1.rpl.of.update_etx(None, mote_0_mac_addr, False)
     # mote_1 should lose its preferred parent
