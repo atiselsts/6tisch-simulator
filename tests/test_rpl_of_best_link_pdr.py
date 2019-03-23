@@ -134,3 +134,58 @@ def test_parent_selection(sim_engine):
     dio['app']['rank'] = 0
     mote_2.sixlowpan.recvPacket(dio)
     assert mote_2.rpl.of.preferred_parent['mote_id'] == mote_1.id
+
+def test_etx_limit(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'  : 2,
+            'conn_class'     : 'FullyMeshed',
+            'phy_numChans'   : 1,
+            'rpl_of'         : 'OFBestLinkPDR',
+            'secjoin_enabled': False
+        }
+    )
+
+    # shorthands
+    connectivity_matrix = sim_engine.connectivity.matrix
+    mote_0 = sim_engine.motes[0]
+    mote_1 = sim_engine.motes[1]
+    mote_0_mac_addr = mote_0.get_mac_addr()
+    ch = d.TSCH_HOPPING_SEQUENCE[0]
+
+    # get mote_1 synchronized and joined the network
+    eb = mote_0.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
+    mote_1.tsch._action_receiveEB(eb)
+    mote_1.tsch._action_receiveEB(eb_dummy)
+    dio = mote_0.rpl._create_DIO()
+    dio['mac'] = {'srcMac': mote_0_mac_addr }
+    mote_1.rpl.action_receiveDIO(dio)
+
+    # now the preferred parent of mote_1 is mote_0
+    assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
+
+    # lower PDR value between mote_0 and mote_1 below the acceptable
+    # lowest PDR
+    connectivity_matrix.set_pdr_both_directions(
+        mote_0.id,
+        mote_1.id,
+        ch,
+        (mote_1.rpl.of.ACCEPTABLE_LOWEST_PDR * 0.99)
+    )
+    mote_1.rpl.of.update_etx(None, mote_0_mac_addr, False)
+    # mote_1 should lose its preferred parent
+    assert mote_1.rpl.of.preferred_parent['mac_addr'] is None
+
+    # if the link gets better, mote_0 is selected as the preferred
+    # parent again
+    connectivity_matrix.set_pdr_both_directions(mote_0.id, mote_1.id, ch, 1.0)
+    mote_1.rpl.of.update_etx(None, mote_0_mac_addr, False)
+    assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
