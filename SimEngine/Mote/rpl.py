@@ -835,6 +835,7 @@ class RplOF0(RplOFBase):
 
 
 class RplOFBestLinkPDR(RplOF0):
+    ACCEPTABLE_LOWEST_PDR  = 1.0 / RplOF0.UPPER_LIMIT_OF_ACCEPTABLE_ETX
     INVALID_RSSI_VALUE = -1000
     NONE_PREFERRED_PARENT = {
         'mac_addr': None,
@@ -861,6 +862,10 @@ class RplOFBestLinkPDR(RplOF0):
         # root
         ret_val = []
         for neighbor in self.neighbors:
+            # parent should have better PDR than ACCEPTABLE_LOWEST_PDR
+            if neighbor['mean_link_pdr'] < self.ACCEPTABLE_LOWEST_PDR:
+                # this neighbor is not eligible to be a parent
+                continue
             parent_mote = self.engine.motes[neighbor['mote_id']]
             while parent_mote.dagRoot is False:
                 assert parent_mote.rpl.of.preferred_parent
