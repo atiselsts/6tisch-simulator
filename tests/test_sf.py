@@ -721,3 +721,24 @@ class TestMSF(object):
         assert len(logs) == 2
         assert logs[0]['preferredParent'] == root.get_mac_addr()
         assert logs[1]['preferredParent'] is None
+
+    def test_create_available_cell_list(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'       : 1,
+                'sf_class'            : 'MSF',
+                'tsch_slotframeLength': 2
+            }
+        )
+        mote = sim_engine.motes[0]
+        # one of slots is supposed to be used for the autonomous cell;
+        # the other shouldn't selected by _crate_available_cell_list()
+        # because it's slot_offset is 0
+        cells = mote.tsch.get_cells(
+            mac_addr         = None,
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+        )
+        assert len(cells) == 1
+        assert cells[0].slot_offset != 0
+        cells =  mote.sf._create_available_cell_list(1)
+        assert len(cells) == 0
