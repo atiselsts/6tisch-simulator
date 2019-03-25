@@ -529,7 +529,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self.locked_slots
         )
 
-        if len(available_slots) <= cell_list_len:
+        if len(available_slots) < cell_list_len:
             # we don't have enough available cells; no cell is selected
             selected_slots = []
         else:
