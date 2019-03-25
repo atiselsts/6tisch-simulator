@@ -528,6 +528,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
             self.locked_slots
         )
+        # remove slot offset 0 that is reserved for the minimal shared
+        # cell
+        if 0 in available_slots:
+            available_slots.remove(0)
 
         if len(available_slots) < cell_list_len:
             # we don't have enough available cells; no cell is selected
