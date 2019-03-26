@@ -3,6 +3,7 @@ Tests for SimEngine.Mote.sf
 """
 
 from itertools import chain
+import random
 import types
 
 import pytest
@@ -742,3 +743,75 @@ class TestMSF(object):
         assert cells[0].slot_offset != 0
         cells =  mote.sf._create_available_cell_list(1)
         assert len(cells) == 0
+
+    def test_locked_slot_in_relocation_request(self, sim_engine):
+        # MSF shouldn't select a slot offset out of the candidate cell
+        # list which is in locked_slots
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'           : 2,
+                'sf_class'                : 'MSF',
+                'conn_class'              : 'Linear',
+                'secjoin_enabled'         : False,
+                'app_pkPeriod'            : 0,
+                'rpl_daoPeriod'           : 0,
+                'rpl_extensions'          : [],
+                'tsch_keep_alive_interval': 0,
+                'tsch_probBcast_ebProb'   : 0
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        u.get_join(root, mote)
+        # wait for a while
+        u.run_until_asn(
+            sim_engine,
+            2 * sim_engine.settings.tsch_slotframeLength
+        )
+
+        # mote should have one dedicated cell
+        cells = mote.tsch.get_cells(
+            root.get_mac_addr(),
+            mote.sf.SLOTFRAME_HANDLE
+        )
+        assert len(cells) == 1
+        assert cells[0].options == [d.CELLOPTION_TX]
+        cell = cells[0]
+
+        # send a RELOCATE request to mote, which has the used slot
+        # offset in both of the candidate cell list and the relocation
+        # cell list
+        target_slot_offset = cell.slot_offset + 1
+        if (cell.slot_offset + 1) == sim_engine.settings.tsch_slotframeLength:
+            target_slot_offset = 1
+        # put target_slot_offset into locked_slots. target_slot_offset
+        # is in the candidate cell list
+        mote.sf.locked_slots.add(target_slot_offset)
+        root.sixp.send_request(
+            dstMac             = mote.get_mac_addr(),
+            command            = d.SIXP_CMD_RELOCATE,
+            cellOptions        = [d.CELLOPTION_RX],
+            numCells           = 1,
+            relocationCellList = [{
+                'slotOffset'   : cell.slot_offset,
+                'channelOffset': cell.channel_offset
+            }],
+            candidateCellList  = [{
+                'slotOffset'   : target_slot_offset,
+                'channelOffset': 0
+            }],
+            callback           = None
+        )
+
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + 2 * sim_engine.settings.tsch_slotframeLength
+        )
+        logs = u.read_log_file(filter=[SimLog.LOG_SIXP_RX['type']])
+        assert len(logs) == 4 # including the first round-trip for ADD
+        response = logs[-1]['packet']
+        assert response['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
+        assert response['app']['code'] == d.SIXP_RC_SUCCESS
+        assert len(response['app']['cellList']) == 0
