@@ -6,6 +6,7 @@ import time
 import types
 
 import SimEngine
+import SimEngine.Mote.MoteDefines as d
 
 POLLING_INTERVAL = 0.100
 
@@ -132,3 +133,27 @@ def read_log_file(filter=[], after_asn=0):
                 logs.append(log)
 
     return logs
+
+def create_dio(mote):
+    dio = mote.rpl._create_DIO()
+    dio['mac'] = {
+        'srcMac': mote.get_mac_addr(),
+        'dstMac': d.BROADCAST_ADDRESS
+    }
+    return dio
+
+def get_join(parent, mote):
+    # get mote_1 synchronized and joined the network
+    eb = parent.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
+    mote.tsch._action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb_dummy)
+    dio = create_dio(parent)
+    mote.rpl.action_receiveDIO(dio)

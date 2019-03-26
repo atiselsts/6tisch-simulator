@@ -4,30 +4,6 @@ import SimEngine.Mote.MoteDefines as d
 import tests.test_utils as u
 from SimEngine.Mote.rpl import RplOFBestLinkPDR
 
-def create_dio(mote):
-    dio = mote.rpl._create_DIO()
-    dio['mac'] = {
-        'srcMac': mote.get_mac_addr(),
-        'dstMac': d.BROADCAST_ADDRESS
-    }
-    return dio
-
-def get_join(parent, mote):
-    # get mote_1 synchronized and joined the network
-    eb = parent.tsch._create_EB()
-    eb_dummy = {
-        'type':            d.PKT_TYPE_EB,
-        'mac': {
-            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
-            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-            'join_metric': 1000
-        }
-    }
-    mote.tsch._action_receiveEB(eb)
-    mote.tsch._action_receiveEB(eb_dummy)
-    dio = create_dio(parent)
-    mote.rpl.action_receiveDIO(dio)
-
 def test_free_run(sim_engine):
     sim_engine = sim_engine(
         diff_config = {'rpl_of': 'OFBestLinkPDR'}
@@ -110,7 +86,7 @@ def test_parent_selection(sim_engine):
 
     # test starts
     # step 1: make mote_1 and mote_2 connect to mote_0
-    dio = create_dio(mote_0)
+    dio = u.create_dio(mote_0)
     mote_1.sixlowpan.recvPacket(dio)
     mote_2.sixlowpan.recvPacket(dio)
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
@@ -118,39 +94,39 @@ def test_parent_selection(sim_engine):
 
     # step 2: give a DIO of mote_1 to mote_2; then mote_2 should
     # switch its parent to mote_0
-    dio = create_dio(mote_1)
+    dio = u.create_dio(mote_1)
     mote_2.sixlowpan.recvPacket(dio)
     assert mote_2.rpl.of.preferred_parent['mote_id'] == mote_1.id
 
     # step 3: give a DIO of mote_2 to mote_1; mote_1 should stay at
     # mote_0
-    dio = create_dio(mote_2)
+    dio = u.create_dio(mote_2)
     mote_1.sixlowpan.recvPacket(dio)
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
 
     # step 4: give a DIO of mote_1 to mote_3; mote_3 should connect to
     # mote_1
-    dio = create_dio(mote_1)
+    dio = u.create_dio(mote_1)
     mote_3.sixlowpan.recvPacket(dio)
     assert mote_3.rpl.of.preferred_parent['mote_id'] == mote_1.id
 
     # step 5: give a DIO of mote_2 to mote_3; mote_3 should switch to
     # mote_2
-    dio = create_dio(mote_2)
+    dio = u.create_dio(mote_2)
     mote_3.sixlowpan.recvPacket(dio)
     assert mote_3.rpl.of.preferred_parent['mote_id'] == mote_2.id
 
     # step 6: give a DIO of mote_0 to mote_3; mote_3 should stay at
     # mote_2
-    dio = create_dio(mote_0)
+    dio = u.create_dio(mote_0)
     mote_3.sixlowpan.recvPacket(dio)
-    assert dio['app']['rank'] < create_dio(mote_2)['app']['rank']
+    assert dio['app']['rank'] < u.create_dio(mote_2)['app']['rank']
     assert mote_3.rpl.of.preferred_parent['mote_id'] == mote_2.id
 
     # step 7: give a fake DIO to mote_2 which has a very low rank and
     # mote_3's MAC address as its source address. mote_2 should ignore
     # this DIO to prevent a routing loop and stay at mote_1
-    dio = create_dio(mote_3)
+    dio = u.create_dio(mote_3)
     dio['app']['rank'] = 0
     mote_2.sixlowpan.recvPacket(dio)
     assert mote_2.rpl.of.preferred_parent['mote_id'] == mote_1.id
@@ -173,7 +149,7 @@ def test_etx_limit(sim_engine):
     mote_0_mac_addr = mote_0.get_mac_addr()
     ch = d.TSCH_HOPPING_SEQUENCE[0]
 
-    get_join(mote_0, mote_1)
+    u.get_join(mote_0, mote_1)
 
     # now the preferred parent of mote_1 is mote_0
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
@@ -214,7 +190,7 @@ def test_rejoin(sim_engine):
     parent = root
     # make a linear topology
     for child in [mote_1, mote_2, mote_3]:
-        get_join(parent, child)
+        u.get_join(parent, child)
         assert child.rpl.getPreferredParent() == parent.get_mac_addr()
         parent = child
 
@@ -228,7 +204,7 @@ def test_rejoin(sim_engine):
     assert mote_3.rpl.getPreferredParent() is None
 
     # put mote_1 back to the dodag
-    mote_1.rpl.action_receiveDIO(create_dio(root))
+    mote_1.rpl.action_receiveDIO(u.create_dio(root))
     assert mote_1.rpl.getPreferredParent() == root.get_mac_addr()
 
     # update mote_3 again; its parent should be back, too
