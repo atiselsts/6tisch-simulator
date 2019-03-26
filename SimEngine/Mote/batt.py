@@ -31,7 +31,10 @@ class Batt(object):
         # local variables
         self.chargeConsumed  = 0 # charge consumed so far, in uC
 
-        self._schedule_log_charge()
+        if self.settings.charge_log_period_s > 0:
+            # schedule the event only when charge_log_period_s is
+            # larger than zero
+            self._schedule_log_charge()
 
     #======================== public ==========================================
 
