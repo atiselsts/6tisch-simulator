@@ -12,6 +12,22 @@ def create_dio(mote):
     }
     return dio
 
+def get_join(parent, mote):
+    # get mote_1 synchronized and joined the network
+    eb = parent.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
+    mote.tsch._action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb_dummy)
+    dio = create_dio(parent)
+    mote.rpl.action_receiveDIO(dio)
+
 def test_free_run(sim_engine):
     sim_engine = sim_engine(
         diff_config = {'rpl_of': 'OFBestLinkPDR'}
@@ -157,21 +173,7 @@ def test_etx_limit(sim_engine):
     mote_0_mac_addr = mote_0.get_mac_addr()
     ch = d.TSCH_HOPPING_SEQUENCE[0]
 
-    # get mote_1 synchronized and joined the network
-    eb = mote_0.tsch._create_EB()
-    eb_dummy = {
-        'type':            d.PKT_TYPE_EB,
-        'mac': {
-            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
-            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-            'join_metric': 1000
-        }
-    }
-    mote_1.tsch._action_receiveEB(eb)
-    mote_1.tsch._action_receiveEB(eb_dummy)
-    dio = mote_0.rpl._create_DIO()
-    dio['mac'] = {'srcMac': mote_0_mac_addr }
-    mote_1.rpl.action_receiveDIO(dio)
+    get_join(mote_0, mote_1)
 
     # now the preferred parent of mote_1 is mote_0
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
