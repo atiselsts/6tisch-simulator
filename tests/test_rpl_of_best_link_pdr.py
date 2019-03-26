@@ -12,6 +12,22 @@ def create_dio(mote):
     }
     return dio
 
+def get_join(parent, mote):
+    # get mote_1 synchronized and joined the network
+    eb = parent.tsch._create_EB()
+    eb_dummy = {
+        'type':            d.PKT_TYPE_EB,
+        'mac': {
+            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
+            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
+            'join_metric': 1000
+        }
+    }
+    mote.tsch._action_receiveEB(eb)
+    mote.tsch._action_receiveEB(eb_dummy)
+    dio = create_dio(parent)
+    mote.rpl.action_receiveDIO(dio)
+
 def test_free_run(sim_engine):
     sim_engine = sim_engine(
         diff_config = {'rpl_of': 'OFBestLinkPDR'}
@@ -157,21 +173,7 @@ def test_etx_limit(sim_engine):
     mote_0_mac_addr = mote_0.get_mac_addr()
     ch = d.TSCH_HOPPING_SEQUENCE[0]
 
-    # get mote_1 synchronized and joined the network
-    eb = mote_0.tsch._create_EB()
-    eb_dummy = {
-        'type':            d.PKT_TYPE_EB,
-        'mac': {
-            'srcMac':      '00-00-00-AA-AA-AA',     # dummy
-            'dstMac':      d.BROADCAST_ADDRESS,     # broadcast
-            'join_metric': 1000
-        }
-    }
-    mote_1.tsch._action_receiveEB(eb)
-    mote_1.tsch._action_receiveEB(eb_dummy)
-    dio = mote_0.rpl._create_DIO()
-    dio['mac'] = {'srcMac': mote_0_mac_addr }
-    mote_1.rpl.action_receiveDIO(dio)
+    get_join(mote_0, mote_1)
 
     # now the preferred parent of mote_1 is mote_0
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
@@ -193,3 +195,47 @@ def test_etx_limit(sim_engine):
     connectivity_matrix.set_pdr_both_directions(mote_0.id, mote_1.id, ch, 1.0)
     mote_1.rpl.of.update_etx(None, mote_0_mac_addr, False)
     assert mote_1.rpl.of.preferred_parent['mote_id'] == mote_0.id
+
+def test_rejoin(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'  : 4,
+            'conn_class'     : 'FullyMeshed',
+            'phy_numChans'   : 1,
+            'rpl_of'         : 'OFBestLinkPDR',
+            'secjoin_enabled': False
+        }
+    )
+    root = sim_engine.motes[0]
+    mote_1 = sim_engine.motes[1]
+    mote_2 = sim_engine.motes[2]
+    mote_3 = sim_engine.motes[3]
+
+    parent = root
+    # make a linear topology
+    for child in [mote_1, mote_2, mote_3]:
+        get_join(parent, child)
+        assert child.rpl.getPreferredParent() == parent.get_mac_addr()
+        parent = child
+
+    # trigger the local repair at mote_1
+    mote_1.rpl.local_repair()
+    assert mote_1.rpl.getPreferredParent() is None
+
+    # update mote_3's parent, which should be None since mote_1,
+    # mote_2's parent, is detached from the dodag
+    mote_3.rpl.of.update_etx(None, None, None)
+    assert mote_3.rpl.getPreferredParent() is None
+
+    # put mote_1 back to the dodag
+    mote_1.rpl.action_receiveDIO(create_dio(root))
+    assert mote_1.rpl.getPreferredParent() == root.get_mac_addr()
+
+    # update mote_3 again; its parent should be back, too
+    mote_3.rpl.of.update_etx(None, None, None)
+    assert mote_3.rpl.getPreferredParent() == mote_2.get_mac_addr()
+    # mote_3 should have DODAG ID, its trickle timer should be
+    # started, ...
+    assert mote_3.rpl.dodagId
+    assert mote_3.rpl.trickle_timer.is_running
+    assert not mote_3.rpl.dis_timer_is_running

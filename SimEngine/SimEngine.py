@@ -257,6 +257,13 @@ class DiscreteEventEngine(threading.Thread):
 
     # === misc
 
+    def is_scheduled(self, uniqueTag):
+        with self.dataLock:
+            for event in self.events:
+                if event[3] == uniqueTag:
+                    return True
+        return False
+
     def removeFutureEvent(self, uniqueTag):
         with self.dataLock:
             i = 0

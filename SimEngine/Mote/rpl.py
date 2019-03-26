@@ -208,6 +208,10 @@ class Rpl(object):
         else:
             return 'disabled'
 
+    @property
+    def dis_timer_is_running(self):
+        return self.engine.is_scheduled(str(self.mote.id) + 'dis')
+
     def start_dis_timer(self):
         self.engine.scheduleIn(
             delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
@@ -328,19 +332,20 @@ class Rpl(object):
         # feed our OF with the received DIO
         self.of.update(packet)
 
-        # record dodagId
-        if (
-                (self.dodagId is None)
-                and
-                (self.getPreferredParent() is not None)
-            ):
-            # join the RPL network
-            self.dodagId = packet['app']['dodagId']
-            self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
-            self.trickle_timer.start()
-            self.trickle_timer.reset()
-            self.stop_dis_timer()
+        if self.getPreferredParent() is not None:
+            # (re)join the RPL network
+            self.join_dodag(packet['app']['dodagId'])
 
+    def join_dodag(self, dodagId=None):
+        if dodagId is None:
+            # re-join the DODAG without receiving a DIO
+            assert self.dodagId is not None
+        else:
+            self.dodagId = dodagId
+        self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
+        self.trickle_timer.start()
+        self.trickle_timer.reset()
+        self.stop_dis_timer()
 
     # === DAO
 
@@ -941,7 +946,16 @@ class RplOFBestLinkPDR(RplOF0):
         self._update_link_quality_of_neighbors()
 
         # update the preferred parent if necessary
+        previous_parent = self.preferred_parent
         self._update_preferred_parent()
+
+        if (
+                (previous_parent == self.NONE_PREFERRED_PARENT)
+                and
+                (previous_parent != self.preferred_parent)
+            ):
+            # rejoin the DODAG
+            self.rpl.join_dodag()
 
     @staticmethod
     def _calculate_rank(neighbor):

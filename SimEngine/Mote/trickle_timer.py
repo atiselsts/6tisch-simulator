@@ -38,6 +38,10 @@ class TrickleTimer(object):
         self.user_callback = callback
         self.state = self.STATE_STOPPED
 
+    @property
+    def is_running(self):
+        return self.state == self.STATE_RUNNING
+
     def start(self):
         # Section 4.2:
         #   1.  When the algorithm starts execution, it sets I to a value in
