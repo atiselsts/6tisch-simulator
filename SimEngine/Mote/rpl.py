@@ -208,6 +208,10 @@ class Rpl(object):
         else:
             return 'disabled'
 
+    @property
+    def dis_timer_is_running(self):
+        return self.engine.is_scheduled(str(self.mote.id) + 'dis')
+
     def start_dis_timer(self):
         self.engine.scheduleIn(
             delay          = self.DEFAULT_DIS_INTERVAL_SECONDS,
