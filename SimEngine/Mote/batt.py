@@ -30,8 +30,11 @@ class Batt(object):
 
         # local variables
         self.chargeConsumed  = 0 # charge consumed so far, in uC
-        
-        self._schedule_log_charge()
+
+        if self.settings.charge_log_period_s > 0:
+            # schedule the event only when charge_log_period_s is
+            # larger than zero
+            self._schedule_log_charge()
 
     #======================== public ==========================================
 
@@ -40,7 +43,7 @@ class Batt(object):
         self.chargeConsumed += charge
 
     #======================== private =========================================
-    
+
     def _schedule_log_charge(self):
         # schedule at that ASN
         self.engine.scheduleAtAsn(
@@ -49,9 +52,9 @@ class Batt(object):
             uniqueTag        = (self.mote.id, '_action_log_charge'),
             intraSlotOrder   = d.INTRASLOTORDER_ADMINTASKS,
         )
-    
+
     def _action_log_charge(self):
-        
+
         # log
         self.log(
             SimEngine.SimLog.LOG_BATT_CHARGE,
@@ -60,6 +63,6 @@ class Batt(object):
                 "charge":     self.chargeConsumed,
             }
         )
-        
+
         # schedule next
         self._schedule_log_charge()
