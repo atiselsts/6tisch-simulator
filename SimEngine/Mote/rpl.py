@@ -332,19 +332,20 @@ class Rpl(object):
         # feed our OF with the received DIO
         self.of.update(packet)
 
-        # record dodagId
-        if (
-                (self.dodagId is None)
-                and
-                (self.getPreferredParent() is not None)
-            ):
-            # join the RPL network
-            self.dodagId = packet['app']['dodagId']
-            self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
-            self.trickle_timer.start()
-            self.trickle_timer.reset()
-            self.stop_dis_timer()
+        if self.getPreferredParent() is not None:
+            # (re)join the RPL network
+            self.join_dodag(packet['app']['dodagId'])
 
+    def join_dodag(self, dodagId=None):
+        if dodagId is None:
+            # re-join the DODAG without receiving a DIO
+            assert self.dodagId is not None
+        else:
+            self.dodagId = dodagId
+        self.mote.add_ipv6_prefix(d.IPV6_DEFAULT_PREFIX)
+        self.trickle_timer.start()
+        self.trickle_timer.reset()
+        self.stop_dis_timer()
 
     # === DAO
 
