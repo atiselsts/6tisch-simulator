@@ -523,11 +523,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self._add_cells(neighbor, dst_cell_list, cell_options)
         self._delete_cells(neighbor, src_cell_list, cell_options)
 
-    def _create_available_cell_list(self, cell_list_len):
-        available_slots = list(
+    def _get_available_slots(self):
+        return list(
             set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
             self.locked_slots
         )
+
+    def _create_available_cell_list(self, cell_list_len):
+        available_slots = self._get_available_slots()
         # remove slot offset 0 that is reserved for the minimal shared
         # cell
         if 0 in available_slots:
@@ -682,8 +685,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
         available_slots  = list(
             slots_in_cell_list.intersection(
-                set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
-                self.locked_slots
+                set(self._get_available_slots())
             )
         )
 
