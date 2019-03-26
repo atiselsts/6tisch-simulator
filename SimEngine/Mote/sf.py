@@ -1075,23 +1075,24 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
             available_slots    = list(
                 candidate_slots.intersection(
-                    set(
-                        self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)
-                    )
+                    set(self._get_available_slots())
                 )
             )
 
-            # FIXME: handle the case when available_slots is empty
+            code = d.SIXP_RC_SUCCESS
+            cell_list = []
+            if available_slots:
+                # prepare response
+                selected_slots = random.sample(available_slots, num_cells)
+                for cell in candidate_cells:
+                    if cell['slotOffset'] in selected_slots:
+                        cell_list.append(cell)
 
-            # prepare response
-            code           = d.SIXP_RC_SUCCESS
-            cell_list      = []
-            selected_slots = random.sample(available_slots, num_cells)
-            for cell in candidate_cells:
-                if cell['slotOffset'] in selected_slots:
-                    cell_list.append(cell)
+                self._lock_cells(cell_list)
+            else:
+                # we will return an empty cell list with RC_SUCCESS
+                pass
 
-            self._lock_cells(cell_list)
             # prepare callback
             def callback(event, packet):
                 if event == d.SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION:
