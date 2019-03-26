@@ -292,6 +292,17 @@ class Tsch(object):
 
     # tx queue interface with upper layers
 
+    @property
+    def droppable_normal_packet(self):
+        for packet in reversed(self.txQueue):
+            if (
+                    (packet['mac']['priority'] is False)
+                    and
+                    (self.pktToSend != packet)
+                ):
+                return packet
+        return None
+
     def enqueue(self, packet, priority=False):
 
         assert packet['type'] != d.PKT_TYPE_EB
@@ -301,15 +312,16 @@ class Tsch(object):
         goOn = True
 
         # check there is space in txQueue
+        assert len(self.txQueue) <= self.txQueueSize
         if (
                 goOn
                 and
-                (len(self.txQueue) >= self.txQueueSize)
+                (len(self.txQueue) == self.txQueueSize)
                 and
                 (
                     (priority is False)
                     or
-                    self.txQueue[-1]['mac']['priority']
+                    self.droppable_normal_packet is None
                 )
             ):
             # my TX queue is full
@@ -367,7 +379,7 @@ class Tsch(object):
                 if len(self.txQueue) == self.txQueueSize:
                     assert not self.txQueue[-1]['mac']['priority']
                     # drop the last one in the queue
-                    packet_to_drop = self.txQueue[-1]
+                    packet_to_drop = self.droppable_normal_packet
                     self.dequeue(packet_to_drop)
                     self.mote.drop_packet(
                         packet = packet_to_drop,
