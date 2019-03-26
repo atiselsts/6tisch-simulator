@@ -144,6 +144,23 @@ def test_enqueue_with_priority(sim_engine):
     # (sim_engine.settings.tsch_tx_queue_size - 1) for its seq
     priority_packet['seq'] = sim_engine.settings.tsch_tx_queue_size
 
+    # put the last normal packet in pktToSend, which should not be
+    # dropped by enqueuing a priority packet
+    normal_packet = mote.tsch.txQueue[-1]
+    assert normal_packet['mac']['priority'] is False
+    mote.tsch.pktToSend = normal_packet
+
+    priority_packet = copy.deepcopy(base_dummy_packet)
+    new_pkt_seq = sim_engine.settings.tsch_tx_queue_size + 1
+    priority_packet['seq'] = new_pkt_seq
+    mote.tsch.enqueue(priority_packet, priority=True)
+
+    assert priority_packet in mote.tsch.txQueue
+    assert normal_packet
+    assert normal_packet in mote.tsch.txQueue
+
+    mote.tsch.pktToSend = None
+
     # change all the packet in the TX queue to priority
     for packet in mote.tsch.txQueue:
         packet['mac']['priority'] = True
