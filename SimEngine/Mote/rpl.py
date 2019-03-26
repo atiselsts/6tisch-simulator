@@ -946,7 +946,16 @@ class RplOFBestLinkPDR(RplOF0):
         self._update_link_quality_of_neighbors()
 
         # update the preferred parent if necessary
+        previous_parent = self.preferred_parent
         self._update_preferred_parent()
+
+        if (
+                (previous_parent == self.NONE_PREFERRED_PARENT)
+                and
+                (previous_parent != self.preferred_parent)
+            ):
+            # rejoin the DODAG
+            self.rpl.join_dodag()
 
     @staticmethod
     def _calculate_rank(neighbor):
