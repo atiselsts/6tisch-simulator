@@ -751,7 +751,11 @@ class Tsch(object):
         self.schedule_next_listeningForEB_cell()
 
     def _perform_synchronization(self):
-        assert self.received_eb_list
+        if not self.received_eb_list:
+            # this method call should be in a timer task and we should
+            # have already been synchronized at the same ASN
+            assert self.isSync
+            return
 
         # [Section 6.3.6, IEEE802.15.4-2015]
         # The higher layer may wait for additional
