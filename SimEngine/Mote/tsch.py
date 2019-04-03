@@ -293,14 +293,15 @@ class Tsch(object):
     # tx queue interface with upper layers
 
     @property
-    def droppable_normal_packet(self):
-        for packet in reversed(self.txQueue):
+    def droppable_normal_packet_index(self):
+        for rindex, packet in enumerate(reversed(self.txQueue)):
             if (
                     (packet['mac']['priority'] is False)
                     and
                     (self.pktToSend != packet)
                 ):
-                return packet
+                # return index of the packet
+                return len(self.txQueue) - rindex - 1
         return None
 
     def enqueue(self, packet, priority=False):
@@ -321,7 +322,7 @@ class Tsch(object):
                 (
                     (priority is False)
                     or
-                    self.droppable_normal_packet is None
+                    self.droppable_normal_packet_index is None
                 )
             ):
             # my TX queue is full
@@ -379,8 +380,8 @@ class Tsch(object):
                 if len(self.txQueue) == self.txQueueSize:
                     assert not self.txQueue[-1]['mac']['priority']
                     # drop the last one in the queue
-                    packet_to_drop = self.droppable_normal_packet
-                    self.dequeue(packet_to_drop)
+                    packet_index_to_drop = self.droppable_normal_packet_index
+                    packet_to_drop = self.dequeue_by_index(packet_index_to_drop)
                     self.mote.drop_packet(
                         packet = packet_to_drop,
                         reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
@@ -404,6 +405,10 @@ class Tsch(object):
         else:
             # do nothing
             pass
+
+    def dequeue_by_index(self, index):
+        assert index < len(self.txQueue)
+        return self.txQueue.pop(index)
 
     def get_first_packet_to_send(self, dst_mac_addr=None):
         packet_to_send = None
