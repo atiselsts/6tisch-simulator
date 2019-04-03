@@ -517,8 +517,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             dst_cell_list,
             cell_options
         ):
-        assert len(src_cell_list) == len(dst_cell_list)
+        if not dst_cell_list:
+            return
 
+        assert len(src_cell_list) == len(dst_cell_list)
         # relocation
         self._add_cells(neighbor, dst_cell_list, cell_options)
         self._delete_cells(neighbor, src_cell_list, cell_options)
