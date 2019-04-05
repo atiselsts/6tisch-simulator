@@ -67,6 +67,7 @@ class SimSettings(object):
                     )
                 elif self.exec_minutesPerRun:
                     assert self.exec_numSlotframesPerRun is None
+                    # convert "minutes" to "slotframes"
                     self.exec_numSlotframesPerRun = int(
                         math.ceil(
                             self.exec_minutesPerRun *
@@ -75,6 +76,11 @@ class SimSettings(object):
                             self.tsch_slotframeLength
                         )
                     )
+                    # invdalite self.exec_minutesPerRun for the sake
+                    # of extract_config_json.py and the exception
+                    # handler who generates config.json for
+                    # reproduction
+                    self.exec_minutesPerRun = None
                 elif self.exec_numSlotframesPerRun:
                     assert self.exec_minutesPerRun is None
                     self.exec_numSlotframesPerRun = int(
