@@ -29,6 +29,13 @@ def parseCliParams():
     )
 
     parser.add_argument(
+        '-o', '--output-dir',
+        dest            = 'output_dir',
+        default         = None,
+        help            = 'Location of the output directory for merged log data.'
+    )
+
+    parser.add_argument(
         '-d', '--dry-run',
         dest            = 'dryRun',
         action          = 'store_true',
@@ -238,11 +245,20 @@ def main():
         print 'No log files to merge under {0}'.format(cliparams['logRootDir'])
         exit(0)
 
-    # create a new sub-directory where merged log files are stored.
-    logDir = os.path.join(
-        cliparams['logRootDir'],
-        time.strftime("%Y%m%d-%H%M%S")
-    )
+    if cliparams['output_dir']:
+        if os.path.exists(cliparams['output_dir']):
+            print '{0} exists already; specify a different one'.format(
+                cliparams['output_dir']
+            )
+            exit(1)
+        else:
+            logDir = os.path.abspath(cliparams['output_dir'])
+    else:
+        # create a new sub-directory where merged log files are stored.
+        logDir = os.path.join(
+            cliparams['logRootDir'],
+            time.strftime("%Y%m%d-%H%M%S")
+        )
 
     # get user's confirmation
     print 'Log files under the following directories will be merged:'
