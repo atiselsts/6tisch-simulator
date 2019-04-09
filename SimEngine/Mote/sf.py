@@ -142,9 +142,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === admin
 
     def start(self):
-        # enable the pending bit feature
-        self.mote.tsch.enable_pending_bit()
-
         # install SlotFrame 1 which has the same length as SlotFrame 0
         slotframe_0 = self.mote.tsch.get_slotframe(0)
         self.mote.tsch.add_slotframe(
