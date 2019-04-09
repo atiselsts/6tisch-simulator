@@ -300,11 +300,6 @@ class TestMSF(object):
         assert packet['app']['numCells'] == 1
         assert packet['app']['cellOptions'] == [d.CELLOPTION_TX]
 
-        # in order to test the traffic adaptation mechanism of MSF,
-        # disable the pending bit feature
-        assert mote.tsch.pending_bit_enabled is True
-        mote.tsch.pending_bit_enabled = False
-
         # wait until the managed cell is available
         u.run_until_asn(
             sim_engine,
