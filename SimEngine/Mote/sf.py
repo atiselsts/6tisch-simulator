@@ -400,12 +400,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             lambda cell: cell.options == [d.CELLOPTION_TX],
             self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE)
         )
+        # pick up TX cells whose NumTx is larger than
+        # MSF_MIN_NUM_TX. This is an implementation decision, which is
+        # easier to implement than what section 5.3 of
+        # draft-ietf-6tisch-msf-03.txt describes as the step-2 of the
+        # house-keeping process.
         tx_cell_list = {
             cell.slot_offset: cell for cell in tx_cell_list if (
                 d.MSF_MIN_NUM_TX < cell.num_tx
             )
         }
-
         # collect PDRs of the TX cells
         def pdr(cell):
             assert cell.num_tx > 0
@@ -415,8 +419,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         }
 
         if len(pdr_list) > 0:
-            # pick up TX cells whose PDRs are less than the higest PDR by
-            # MSF_MIN_NUM_TX
+            # find a cell to relocate using the highest PDR value
             highest_pdr = max(pdr_list.values())
             relocation_cell_list = [
                 {
