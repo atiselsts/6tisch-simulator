@@ -312,7 +312,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         else:
             tx_cells = [
                 cell for cell in slotframe.get_cells_by_mac_addr(parent_addr)
-                if d.CELLOPTION_TX in cell.options
+                if cell.options == [d.CELLOPTION_TX]
             ]
 
         if self.mote.dagRoot:
