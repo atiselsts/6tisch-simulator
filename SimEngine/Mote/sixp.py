@@ -156,11 +156,21 @@ class SixP(object):
                 self._reset_seqnum(dstMac)
 
             # enqueue
+            # the packet is saved for the callback, which is called
+            # when the packet fails to be enqueued
+            original_packet = copy.deepcopy(packet)
             self._tsch_enqueue(packet)
 
-            # update transaction using the packet that has a valid
-            # seqnum in the MAC header
-            transaction.request = copy.deepcopy(packet)
+            if packet:
+                # update transaction using the packet that has a valid
+                # seqnum in the MAC header
+                transaction.request = copy.deepcopy(packet)
+            elif callback:
+                # the packet could not be queued
+                callback(
+                    event  = d.SIXP_CALLBACK_EVENT_FAILURE,
+                    packet = original_packet
+                )
 
     def send_response(
             self,
