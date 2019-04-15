@@ -667,3 +667,17 @@ class TestSeqNum:
 
         assert result['is_schedule_inconsistency_detected'] is True
         assert result['is_rc_err_seqnum_received']          is True
+
+    def test_request_drop(self, sim_engine):
+        sim_engine = sim_engine(**COMMON_SIM_ENGINE_ARGS)
+        mote = sim_engine.motes[0]
+        peer = sim_engine.motes[1]
+        # make the mote not able to enqueue any packet
+        mote.tsch.txQueueSize = 0
+        mote.sixp.send_request(
+            dstMac          = peer.get_mac_addr(),
+            command         = d.SIXP_CMD_ADD,
+            cellList        = [],
+            timeout_seconds = 2
+        )
+        u.run_until_end(sim_engine)
