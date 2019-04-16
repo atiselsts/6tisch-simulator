@@ -70,15 +70,12 @@ class Radio(object):
 
         # log charge consumed
         if self.mote.tsch.getIsSync():
-            if   isACKed:
-                # ACK received
-                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
-            elif onGoingBroadcast:
+            if onGoingBroadcast:
                 # no ACK expected (link-layer bcast)
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
             else:
-                # ACK expected, but not received
-                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAckNone_uC)
+                # ACK expected; radio needs to be in RX mode
+                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
 
         # nothing ongoing anymore
         self.onGoingTransmission = None

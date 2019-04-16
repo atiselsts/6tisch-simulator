@@ -111,6 +111,5 @@ RADIO_STATE_OFF                             = 'off'
 CHARGE_IdleListen_uC                        = 6.4
 CHARGE_TxDataRxAck_uC                       = 54.5
 CHARGE_TxData_uC                            = 49.5
-CHARGE_TxDataRxAckNone_uC                   = 54.5
 CHARGE_RxDataTxAck_uC                       = 32.6
 CHARGE_RxData_uC                            = 22.6
