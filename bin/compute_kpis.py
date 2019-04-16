@@ -175,6 +175,24 @@ def kpis_all(inputfile):
             allstats[run_id][mote_id]['charge_asn'] = asn
             allstats[run_id][mote_id]['charge']     = charge
 
+        elif logline['_type'] == SimLog.LOG_RADIO_STATS['type']:
+            # shorthands
+            mote_id    = logline['_mote_id']
+
+            # only log non-dagRoot charge
+            if mote_id == DAGROOT_ID:
+                continue
+
+            charge =  logline['idle_listen'] * d.CHARGE_IdleListen_uC
+            charge += logline['tx_data_rx_ack'] * d.CHARGE_TxDataRxAck_uC
+            charge += logline['rx_data_tx_ack'] * d.CHARGE_RxDataTxAck_uC
+            charge += logline['tx_data'] * d.CHARGE_TxData_uC
+            charge += logline['rx_data'] * d.CHARGE_RxData_uC
+            charge += logline['sleep'] * d.CHARGE_Sleep_uC
+
+            allstats[run_id][mote_id]['charge_asn'] = asn
+            allstats[run_id][mote_id]['charge_r']     = charge
+
     # === compute advanced motestats
 
     for (run_id, per_mote_stats) in allstats.items():
@@ -190,7 +208,8 @@ def kpis_all(inputfile):
                         ):
                         motestats['lifetime_AA_years'] = 'N/A'
                     else:
-                        motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
+                        assert round(motestats['charge'], 1) == round(motestats['charge_r'], 1)
+                        motestats['avg_current_uA'] = motestats['charge_r']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
                         assert motestats['avg_current_uA'] > 0
                         motestats['lifetime_AA_years'] = (BATTERY_AA_CAPACITY_mAh*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if motestats['join_asn'] is not None:
