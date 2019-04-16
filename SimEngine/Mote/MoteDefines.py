@@ -108,7 +108,7 @@ RADIO_STATE_RX                              = 'rx'
 RADIO_STATE_OFF                             = 'off'
 
 # === battery
-CHARGE_Idle_uC                              = 6.4
+CHARGE_IdleListen_uC                        = 6.4
 CHARGE_TxDataRxAck_uC                       = 54.5
 CHARGE_TxData_uC                            = 49.5
 CHARGE_TxDataRxAckNone_uC                   = 54.5
