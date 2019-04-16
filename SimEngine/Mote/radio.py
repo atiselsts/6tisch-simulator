@@ -116,16 +116,20 @@ class Radio(object):
         self.state   = d.RADIO_STATE_OFF
 
         # log charge consumed
-        if self.mote.tsch.getIsSync():
-            if not packet:
-                # didn't receive any frame (idle listen)
-                self._update_stats('idle_listen')
-            elif packet['mac']['dstMac'] == self.mote.get_mac_addr():
-                # unicast frame for me, I sent an ACK
-                self._update_stats('rx_data_tx_ack')
-            else:
-                # either not for me, or broadcast. In any case, I didn't send an ACK
-                self._update_stats('rx_data')
+        if not packet:
+            # didn't receive any frame (idle listen)
+            self._update_stats('idle_listen')
+        elif (
+                self.mote.tsch.getIsSync()
+                and
+                packet['mac']['dstMac'] == self.mote.get_mac_addr()
+            ):
+            # unicast frame for me, I sent an ACK only when I'm
+            # synchronized with the network
+            self._update_stats('rx_data_tx_ack')
+        else:
+            # either not for me, or broadcast. In any case, I didn't send an ACK
+            self._update_stats('rx_data')
 
         # inform upper layer (TSCH)
         is_acked = self.mote.tsch.rxDone(packet, self.channel)
