@@ -39,6 +39,15 @@ class Radio(object):
         self.noisepower                     = -105    # dBm
         self.state                          = d.RADIO_STATE_OFF
         self.channel                        = None
+        self.stats = {
+            'last_updated'  : 0,
+            'idle_listen'   : 0,
+            'tx_data_rx_ack': 0,
+            'tx_data'       : 0,
+            'rx_data_tx_ack': 0,
+            'rx_data'       : 0,
+            'sleep'         : 0,
+        }
 
     # ======================= public ==========================================
 
@@ -73,9 +82,11 @@ class Radio(object):
             if onGoingBroadcast:
                 # no ACK expected (link-layer bcast)
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
+                self._update_stats('tx_data')
             else:
                 # ACK expected; radio needs to be in RX mode
                 self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
+                self._update_stats('tx_data_rx_ack')
 
         # nothing ongoing anymore
         self.onGoingTransmission = None
@@ -105,12 +116,15 @@ class Radio(object):
             if not packet:
                 # didn't receive any frame (idle listen)
                 self.mote.batt.logChargeConsumed(d.CHARGE_IdleListen_uC)
+                self._update_stats('idle_listen')
             elif packet['mac']['dstMac'] == self.mote.get_mac_addr():
                 # unicast frame for me, I sent an ACK
                 self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
+                self._update_stats('rx_data_tx_ack')
             else:
                 # either not for me, or broadcast. In any case, I didn't send an ACK
                 self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
+                self._update_stats('rx_data')
 
         # inform upper layer (TSCH)
         is_acked = self.mote.tsch.rxDone(packet, self.channel)
@@ -120,3 +134,10 @@ class Radio(object):
 
         # return whether the frame is acknowledged or not
         return is_acked
+
+    def _update_stats(self, stats_type):
+        self.stats['sleep'] += (
+            self.engine.getAsn() - self.stats['last_updated'] - 1
+        )
+        self.stats[stats_type] += 1
+        self.stats['last_updated'] = self.engine.getAsn()
