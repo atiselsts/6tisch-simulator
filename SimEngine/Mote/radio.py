@@ -48,6 +48,12 @@ class Radio(object):
             'rx_data'       : 0,
             'sleep'         : 0,
         }
+        self.log_stats_interval_asn = int(
+            float(self.settings.charge_log_period_s) /
+            self.settings.tsch_slotDuration
+        )
+        if self.log_stats_interval_asn > 0:
+            self._schedule_log_stats()
 
     # ======================= public ==========================================
 
@@ -141,3 +147,29 @@ class Radio(object):
         )
         self.stats[stats_type] += 1
         self.stats['last_updated'] = self.engine.getAsn()
+
+    def _schedule_log_stats(self):
+        next_log_asn = self.engine.getAsn() + self.log_stats_interval_asn
+        self.engine.scheduleAtAsn(
+            asn = next_log_asn,
+            cb = self._log_stats,
+            uniqueTag = (self.mote.id, 'log_radio_stats'),
+            intraSlotOrder = d.INTRASLOTORDER_ADMINTASKS,
+        )
+
+    def _log_stats(self):
+        self.log(
+            SimEngine.SimLog.LOG_RADIO_STATS,
+            {
+                '_mote_id'      : self.mote.id,
+                'idle_listen'   : self.stats['idle_listen'],
+                'tx_data_rx_ack': self.stats['tx_data_rx_ack'],
+                'tx_data'       : self.stats['tx_data'],
+                'rx_data_tx_ack': self.stats['rx_data_tx_ack'],
+                'rx_data'       : self.stats['rx_data'],
+                'sleep'         : self.stats['sleep']
+            }
+        )
+
+        # schedule next
+        self._schedule_log_stats()

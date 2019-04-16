@@ -89,6 +89,7 @@ LOG_TSCH_DELETE_SLOTFRAME         = {'type': 'tsch.delete_slotframe',     'keys'
 
 # === mote info
 LOG_BATT_CHARGE                   = {'type': 'batt.charge',               'keys': ['_mote_id','charge']}
+LOG_RADIO_STATS                   = {'type': 'radio.stats',               'keys': ['_mote_id', 'idle_listen', 'tx_data_rx_ack', 'tx_data', 'rx_data_tx_ack', 'rx_data', 'sleep']}
 LOG_MAC_ADD_ADDR                  = {'type': 'mac.add_addr',              'keys': ['_mote_id', 'type', 'addr']}
 LOG_IPV6_ADD_ADDR                 = {'type': 'ipv6.add_addr',             'keys': ['_mote_id', 'type', 'addr']}
 
