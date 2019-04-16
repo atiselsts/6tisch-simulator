@@ -1,3 +1,5 @@
+# coding: utf-8
+
 # === admin
 NUM_SUFFICIENT_TX                           = 10      # sufficient num. of tx to estimate pdr by ACK
 WAITING_FOR_TX                              = 'waiting_for_tx'
@@ -123,3 +125,5 @@ CHARGE_RxDataTxAck_uC                       = 32.6
 # RxData: Similar to the RxDataTxAck but no ACK is sent (for a
 # broadcast packet)
 CHARGE_RxData_uC                            = 22.6
+# Time slot during which the node’s radio stays off
+CHARGE_Sleep_uC                             = 0.0
