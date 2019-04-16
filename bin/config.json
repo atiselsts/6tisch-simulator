@@ -43,7 +43,7 @@
             "tsch_tx_queue_size":                          10,
 
 
-            "charge_log_period_s":                         10,
+            "radio_stats_log_period_s":                    10,
 
             "conn_class":                                  "Linear",
             "conn_trace":                                  null,

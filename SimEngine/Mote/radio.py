@@ -49,7 +49,7 @@ class Radio(object):
             'sleep'         : 0,
         }
         self.log_stats_interval_asn = int(
-            float(self.settings.charge_log_period_s) /
+            float(self.settings.radio_stats_log_period_s) /
             self.settings.tsch_slotDuration
         )
         if self.log_stats_interval_asn > 0:
