@@ -87,11 +87,9 @@ class Radio(object):
         if self.mote.tsch.getIsSync():
             if onGoingBroadcast:
                 # no ACK expected (link-layer bcast)
-                self.mote.batt.logChargeConsumed(d.CHARGE_TxData_uC)
                 self._update_stats('tx_data')
             else:
                 # ACK expected; radio needs to be in RX mode
-                self.mote.batt.logChargeConsumed(d.CHARGE_TxDataRxAck_uC)
                 self._update_stats('tx_data_rx_ack')
 
         # nothing ongoing anymore
@@ -121,15 +119,12 @@ class Radio(object):
         if self.mote.tsch.getIsSync():
             if not packet:
                 # didn't receive any frame (idle listen)
-                self.mote.batt.logChargeConsumed(d.CHARGE_IdleListen_uC)
                 self._update_stats('idle_listen')
             elif packet['mac']['dstMac'] == self.mote.get_mac_addr():
                 # unicast frame for me, I sent an ACK
-                self.mote.batt.logChargeConsumed(d.CHARGE_RxDataTxAck_uC)
                 self._update_stats('rx_data_tx_ack')
             else:
                 # either not for me, or broadcast. In any case, I didn't send an ACK
-                self.mote.batt.logChargeConsumed(d.CHARGE_RxData_uC)
                 self._update_stats('rx_data')
 
         # inform upper layer (TSCH)

@@ -157,24 +157,6 @@ def kpis_all(inputfile):
             )
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = asn
 
-        elif logline['_type'] == SimLog.LOG_BATT_CHARGE['type']:
-            # battery charge
-
-            # shorthands
-            mote_id    = logline['_mote_id']
-            charge     = logline['charge']
-
-            # only log non-dagRoot charge
-            if mote_id == DAGROOT_ID:
-                continue
-
-            # populate
-            if allstats[run_id][mote_id]['charge'] is not None:
-                assert charge >= allstats[run_id][mote_id]['charge']
-
-            allstats[run_id][mote_id]['charge_asn'] = asn
-            allstats[run_id][mote_id]['charge']     = charge
-
         elif logline['_type'] == SimLog.LOG_RADIO_STATS['type']:
             # shorthands
             mote_id    = logline['_mote_id']
@@ -191,7 +173,7 @@ def kpis_all(inputfile):
             charge += logline['sleep'] * d.CHARGE_Sleep_uC
 
             allstats[run_id][mote_id]['charge_asn'] = asn
-            allstats[run_id][mote_id]['charge_r']     = charge
+            allstats[run_id][mote_id]['charge']     = charge
 
     # === compute advanced motestats
 
@@ -208,8 +190,7 @@ def kpis_all(inputfile):
                         ):
                         motestats['lifetime_AA_years'] = 'N/A'
                     else:
-                        assert round(motestats['charge'], 1) == round(motestats['charge_r'], 1)
-                        motestats['avg_current_uA'] = motestats['charge_r']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
+                        motestats['avg_current_uA'] = motestats['charge']/float((motestats['charge_asn']-motestats['sync_asn']) * file_settings['tsch_slotDuration'])
                         assert motestats['avg_current_uA'] > 0
                         motestats['lifetime_AA_years'] = (BATTERY_AA_CAPACITY_mAh*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if motestats['join_asn'] is not None:
