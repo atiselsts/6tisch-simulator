@@ -393,6 +393,7 @@ def test_dis_config(sim_engine, fixture_dis_mode):
             'rpl_extensions'          : [fixture_dis_mode],
             'secjoin_enabled'         : False,
             'app_pkPeriod'            : 0,
+            'tsch_probBcast_ebProb'   : 0,
             'tsch_keep_alive_interval': 0
         }
     )
