@@ -17,7 +17,6 @@ import sf
 import sixp
 import tsch
 import radio
-import batt
 
 import MoteDefines as d
 
@@ -61,7 +60,6 @@ class Mote(object):
         self.sixp                      = sixp.SixP(self)
         self.tsch                      = tsch.Tsch(self)
         self.radio                     = radio.Radio(self)
-        self.batt                      = batt.Batt(self)
 
     # ======================= stack ===========================================
 
@@ -124,8 +122,6 @@ class Mote(object):
     def getLocation(self):
         with self.dataLock:
             return self.x, self.y
-
-    # ==== battery
 
     def boot(self):
 

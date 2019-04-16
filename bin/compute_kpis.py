@@ -157,20 +157,20 @@ def kpis_all(inputfile):
             )
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = asn
 
-        elif logline['_type'] == SimLog.LOG_BATT_CHARGE['type']:
-            # battery charge
-
+        elif logline['_type'] == SimLog.LOG_RADIO_STATS['type']:
             # shorthands
             mote_id    = logline['_mote_id']
-            charge     = logline['charge']
 
             # only log non-dagRoot charge
             if mote_id == DAGROOT_ID:
                 continue
 
-            # populate
-            if allstats[run_id][mote_id]['charge'] is not None:
-                assert charge >= allstats[run_id][mote_id]['charge']
+            charge =  logline['idle_listen'] * d.CHARGE_IdleListen_uC
+            charge += logline['tx_data_rx_ack'] * d.CHARGE_TxDataRxAck_uC
+            charge += logline['rx_data_tx_ack'] * d.CHARGE_RxDataTxAck_uC
+            charge += logline['tx_data'] * d.CHARGE_TxData_uC
+            charge += logline['rx_data'] * d.CHARGE_RxData_uC
+            charge += logline['sleep'] * d.CHARGE_Sleep_uC
 
             allstats[run_id][mote_id]['charge_asn'] = asn
             allstats[run_id][mote_id]['charge']     = charge
