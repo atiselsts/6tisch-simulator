@@ -141,6 +141,7 @@ class Connectivity(object):
                 lockon_transmission = None
                 lockon_random_value = None
                 interfering_transmissions = []
+                detected_transmissions = 0
 
                 # lock to the ealiest transmission and list the interferences
                 for t in alltransmissions:
@@ -158,6 +159,9 @@ class Connectivity(object):
                     if random_value > peamble_pdr:
                         # reception failed, continue to the next transmission
                         continue
+
+                    # update counter
+                    detected_transmissions += 1
 
                     # begin locking to the first heard transmission
                     if lockon_transmission is None:
@@ -189,7 +193,7 @@ class Connectivity(object):
                     # lockon transmission was selected earlier
                     # all other transmissions are now intereferers
                     assert (
-                            len(alltransmissions) ==
+                            detected_transmissions ==
                             (len(interfering_transmissions) + 1)
                     )
 
