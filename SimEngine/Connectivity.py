@@ -137,51 +137,60 @@ class Connectivity(object):
 
             for listener_id in self._get_listener_id_list(channel):
 
-                # random_value will be used for comparison against PDR
-                random_value = random.random()
+                # listener locks onto the earliest transmission
+                lockon_transmission = None
+                lockon_random_value = None
+                interfering_transmissions = []
 
-                # list the transmissions that listener can hear
-                transmissions = []
+                # lock to the ealiest transmission and list the interferences
                 for t in alltransmissions:
-                    pdr = self.get_pdr(
-                        src_id  = t['tx_mote_id'],
-                        dst_id  = listener_id,
-                        channel = channel,
+                    # random_value will be used for comparison against PDR
+                    random_value = random.random()
+
+                    peamble_pdr = self.get_pdr(
+                        src_id=t['tx_mote_id'],
+                        dst_id=listener_id,
+                        channel=channel,
                     )
 
                     # you can interpret the following line as decision for
                     # reception of the preamble of 't'
-                    if random_value < pdr:
-                        transmissions += [t]
+                    if random_value > peamble_pdr:
+                        # reception failed, continue to the next transmission
+                        continue
 
-                if transmissions == []:
+                    # begin locking to the first heard transmission
+                    if lockon_transmission is None:
+                        lockon_transmission = t
+                        lockon_random_value = random_value
+                        continue
+
+                    # then update the locked transmission if it's earlier than the previous earliest
+                    if t['txTime'] < lockon_transmission['txTime']:
+                        # add previous locked on tranmission to the interference list
+                        interfering_transmissions += [t]
+                        # and lock to the new earliest transmission
+                        lockon_transmission = t
+                        lockon_random_value = random_value
+                    else:
+                        interfering_transmissions += [t]
+
+                if lockon_transmission is None:
                     # no transmissions
 
                     # idle listen
                     sentAnAck = self.engine.motes[listener_id].radio.rxDone(
-                        packet = None,
+                        packet=None,
                     )
                     assert sentAnAck is False
                 else:
                     # there are transmissions
 
-                    # listener locks onto the earliest transmission
-                    lockon_transmission = None
-                    for t in transmissions:
-                        if (
-                                (lockon_transmission is None)
-                                or
-                                (t['txTime'] < lockon_transmission['txTime'])
-                            ):
-                            lockon_transmission = t
-
+                    # lockon transmission was selected earlier
                     # all other transmissions are now intereferers
-                    interfering_transmissions = [
-                        t for t in transmissions if t!=lockon_transmission
-                    ]
                     assert (
-                        len(transmissions) ==
-                        (len(interfering_transmissions) + 1)
+                            len(alltransmissions) ==
+                            (len(interfering_transmissions) + 1)
                     )
 
                     # log
@@ -204,7 +213,7 @@ class Connectivity(object):
                     if interfering_transmissions:
                         # calculate the resulting pdr when taking
                         # interferers into account
-                        pdr = self._compute_pdr_with_interference(
+                        packet_pdr = self._compute_pdr_with_interference(
                             listener_id               = listener_id,
                             lockon_transmission       = lockon_transmission,
                             interfering_transmissions = interfering_transmissions
@@ -213,7 +222,7 @@ class Connectivity(object):
                         # directly use the PDR value in the
                         # connectivity matrix if there is no
                         # interfering transmissions
-                        pdr = self.get_pdr(
+                        packet_pdr = self.get_pdr(
                             src_id  = t['tx_mote_id'],
                             dst_id  = listener_id,
                             channel = channel
@@ -221,7 +230,7 @@ class Connectivity(object):
 
                     # decide whether listener receives
                     # lockon_transmission or not
-                    if random_value < pdr:
+                    if lockon_random_value < packet_pdr:
                         # listener receives!
 
                         # lockon_transmission received correctly
