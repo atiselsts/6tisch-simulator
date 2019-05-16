@@ -1427,23 +1427,27 @@ class SlotFrame(object):
         self.mote_id = mote_id
         self.slotframe_handle = slotframe_handle
         self.length = num_slots
-        self.slots  = [[] for _ in range(self.length)]
+        self.slots  = {}
         # index by neighbor_mac_addr for quick access
         self.cells  = {}
 
     def __repr__(self):
         return 'slotframe(length: {0}, num_cells: {1})'.format(
             self.length,
-            len(list(chain.from_iterable(self.slots)))
+            len(list(chain.from_iterable(self.slots.values())))
         )
 
     def add(self, cell):
         assert cell.slot_offset < self.length
-        self.slots[cell.slot_offset].append(cell)
-        if cell.mac_addr not in self.cells.keys():
+        if cell.slot_offset not in self.slots:
+            self.slots[cell.slot_offset] = [cell]
+        else:
+            self.slots[cell.slot_offset] += [cell]
+
+        if cell.mac_addr not in self.cells:
             self.cells[cell.mac_addr] = [cell]
         else:
-            self.cells[cell.mac_addr].append(cell)
+            self.cells[cell.mac_addr] += [cell]
         cell.slotframe = self
 
         # log
@@ -1467,6 +1471,8 @@ class SlotFrame(object):
         self.cells[cell.mac_addr].remove(cell)
         if len(self.cells[cell.mac_addr]) == 0:
             del self.cells[cell.mac_addr]
+        if len(self.slots[cell.slot_offset]) == 0:
+            del self.slots[cell.slot_offset]
 
         # log
         self.log(
@@ -1483,30 +1489,32 @@ class SlotFrame(object):
 
     def get_cells_by_slot_offset(self, slot_offset):
         assert slot_offset < self.length
-        return self.slots[slot_offset]
+        if slot_offset in self.slots:
+            return self.slots[slot_offset]
+        return []
 
     def get_cells_at_asn(self, asn):
         slot_offset = asn % self.length
         return self.get_cells_by_slot_offset(slot_offset)
 
     def get_cells_by_mac_addr(self, mac_addr):
-        if mac_addr in self.cells.keys():
+        if mac_addr in self.cells.keys[mac_addr]:
             return self.cells[mac_addr][:]
         else:
             return []
 
     def get_busy_slots(self):
-        ret_val = []
-        for i in range(self.length):
-            if len(self.slots[i]) > 0:
-                ret_val.append(i)
-        return ret_val
+        busy_slots = self.slots.keys()
+        # busy_slots.sort()
+        return busy_slots
 
     def get_num_slots_to_next_active_cell(self, asn):
-        for diff in range(1, self.length + 1):
+        diff = 1
+        while diff <= self.length:
             slot_offset = (asn + diff) % self.length
-            if len(self.slots[slot_offset]) > 0:
+            if slot_offset in self.slots:
                 return diff
+            diff += 1
         return None
 
     def get_available_slots(self):
@@ -1515,7 +1523,8 @@ class SlotFrame(object):
         :return: a list of slot offsets (int)
         :rtype: list
         """
-        return [i for i, slot in enumerate(self.slots) if len(slot) == 0]
+        all_slots = set(range(self.length))
+        return list(all_slots - set(self.get_busy_slots()))
 
     def get_cells_filtered(self, mac_addr="", cell_options=None):
         """
@@ -1527,7 +1536,7 @@ class SlotFrame(object):
         """
 
         if mac_addr == "":
-            target_cells = chain.from_iterable(self.slots)
+            target_cells = chain.from_iterable(self.slots.values())
         elif mac_addr not in self.cells:
             target_cells = []
         else:
@@ -1545,16 +1554,13 @@ class SlotFrame(object):
         # delete extra cells and slots if reducing slotframe length
         if new_length < self.length:
             # delete cells
-            cells = [c for cells in self.cells.itervalues() for c in cells]
-            for cell in cells:
-                if cell.slot_offset > (new_length + 1):
-                    self.delete(cell)
-            # delete slots
-            self.slots = self.slots[:new_length]
-        # add slots if increasing slotframe length
-        elif new_length > self.length:
-            # add slots
-            self.slots += [[] for _ in range(self.length, new_length)]
+
+            slot_offset = new_length
+            while slot_offset < self.length:
+                if slot_offset in self.slots:
+                    for cell in self.slots[slot_offset]:
+                        self.delete(cell)
+                slot_offset += 1
 
         # apply the new length
         self.length = new_length

@@ -106,6 +106,16 @@ def test_add_cells_at_same_slot_offset(sim_engine):
     assert slotframe.get_cells_by_mac_addr('test_mac_addr_1') == [cell_1]
     assert slotframe.get_cells_by_mac_addr('test_mac_addr_2') == [cell_2]
 
+    slotframe.delete(cell_1)
+
+    assert slotframe.get_cells_by_mac_addr('test_mac_addr_1') == []
+    assert slotframe.get_cells_by_mac_addr('test_mac_addr_2') == [cell_2]
+
+    slotframe.delete(cell_2)
+
+    assert slotframe.get_cells_by_mac_addr('test_mac_addr_1') == []
+    assert slotframe.get_cells_by_mac_addr('test_mac_addr_2') == []
+
 def test_delete_slotframe(sim_engine):
     sim_engine = sim_engine(diff_config={'exec_numMotes': 1})
     mote = sim_engine.motes[0]
@@ -340,13 +350,13 @@ def test_slotframe_set_length_without_cells(sim_engine):
     new_length = 50
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe.slots) == new_length
+    assert len(slotframe) == new_length
 
     # increase the slotframe length
     new_length = 150
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe.slots) == new_length
+    assert len(slotframe) == new_length
 
 def test_slotframe_set_length_with_cells(sim_engine):
     """
@@ -372,7 +382,7 @@ def test_slotframe_set_length_with_cells(sim_engine):
     new_length = 50
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe.slots) == new_length
+    assert len(slotframe) == new_length
     assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure cell is delete
 
     # make sure we cannot add a cell after new length
@@ -383,5 +393,5 @@ def test_slotframe_set_length_with_cells(sim_engine):
     new_length = 150
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe.slots) == new_length
+    assert len(slotframe) == new_length
     assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure we have the right amount of cells
