@@ -184,7 +184,7 @@ class Connectivity(object):
 
                     # idle listen
                     sentAnAck = self.engine.motes[listener_id].radio.rxDone(
-                        packet=None,
+                        packet = None,
                     )
                     assert sentAnAck is False
                 else:
@@ -193,8 +193,8 @@ class Connectivity(object):
                     # lockon transmission was selected earlier
                     # all other transmissions are now intereferers
                     assert (
-                            detected_transmissions ==
-                            (len(interfering_transmissions) + 1)
+                        detected_transmissions ==
+                        (len(interfering_transmissions) + 1)
                     )
 
                     # log
