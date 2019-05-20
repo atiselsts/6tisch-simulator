@@ -1491,14 +1491,15 @@ class SlotFrame(object):
         assert slot_offset < self.length
         if slot_offset in self.slots:
             return self.slots[slot_offset]
-        return []
+        else:
+            return []
 
     def get_cells_at_asn(self, asn):
         slot_offset = asn % self.length
         return self.get_cells_by_slot_offset(slot_offset)
 
     def get_cells_by_mac_addr(self, mac_addr):
-        if mac_addr in self.cells.keys[mac_addr]:
+        if mac_addr in self.cells:
             return self.cells[mac_addr][:]
         else:
             return []
