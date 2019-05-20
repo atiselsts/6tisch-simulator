@@ -103,194 +103,219 @@ class Connectivity(object):
         asn        = self.engine.getAsn()
         slotOffset = asn % self.settings.tsch_slotframeLength
 
-        # repeat propagation for each channel
-        for channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]:
+        # get all motes TXing or RXing on this slot organized by channel
+        transmissions_by_channel = {}
+        receivers_by_channel = {}
 
-            # === accounting
+        # organize all transmissions and receptions by channel
+        for mote in self.engine.motes:
+            # get all transmissions
+            if mote.radio.state == d.RADIO_STATE_TX:
+                assert mote.radio.onGoingTransmission
+                thisTran = {
+                    # channel
+                    'channel': mote.radio.onGoingTransmission['channel'],
+                    # packet
+                    'tx_mote_id': mote.id,
+                    'packet': mote.radio.onGoingTransmission['packet'],
+                    # time at which the packet starts transmitting
+                    'txTime': mote.tsch.clock.get_drift(),
+                    # number of ACKs received by this packet
+                    'numACKs': 0,
+                }
 
-            # list all transmissions at that frequency
-            alltransmissions = []
-            for mote in self.engine.motes:
-                if mote.radio.onGoingTransmission:
-                    assert mote.radio.state == d.RADIO_STATE_TX
-                    if mote.radio.onGoingTransmission['channel'] == channel:
-                        thisTran = {}
+                if thisTran['channel'] not in transmissions_by_channel:
+                    transmissions_by_channel[thisTran['channel']] = []
 
-                        # channel
-                        thisTran['channel'] = channel
+                transmissions_by_channel[thisTran['channel']] += [thisTran]
 
-                        # packet
-                        thisTran['tx_mote_id'] = mote.id
-                        thisTran['packet'] = (
-                            mote.radio.onGoingTransmission['packet']
-                        )
+            # get all receivers
+            elif mote.radio.state == d.RADIO_STATE_RX:
+                if mote.radio.channel not in receivers_by_channel:
+                    receivers_by_channel[mote.radio.channel] = []
 
-                        # time at which the packet starts transmitting
-                        thisTran['txTime'] = mote.tsch.clock.get_drift()
+                receivers_by_channel[mote.radio.channel] += [mote.id]
 
-                        # number of ACKs received by this packet
-                        thisTran['numACKs'] = 0
+            else:
+                # mote is idle, do nothing
+                pass
 
-                        alltransmissions += [thisTran]
+        # remove all motes that are listening to channels without any transmission
+        for channel in set(receivers_by_channel.keys()) - set(transmissions_by_channel.keys()):
+            assert channel not in transmissions_by_channel
+            assert channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]
 
-            # === decide which listener gets which packet (rxDone)
+            for listener_id in receivers_by_channel[channel]:
+                sentAck = self.engine.motes[listener_id].radio.rxDone(
+                    packet = None,
+                )
+                assert sentAck is False
 
-            for listener_id in self._get_listener_id_list(channel):
+        # remove all transmissions that are sent on channels without any listeners
+        for channel in set(transmissions_by_channel.keys()) - set(receivers_by_channel.keys()):
+            assert channel not in receivers_by_channel
+            assert channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]
 
-                # listener locks onto the earliest transmission
+            for t in transmissions_by_channel[channel]:
+                self.engine.motes[t['tx_mote_id']].radio.txDone(False)
+
+        # prosses packets sent on channels with listeners
+        for channel in set(transmissions_by_channel.keys()) & set(receivers_by_channel.keys()):
+            assert channel in d.TSCH_HOPPING_SEQUENCE[:self.num_channels]
+
+            for listener_id in receivers_by_channel[channel]:
+                # list the transmissions that listener can hear and lock to the earliest one
                 lockon_transmission = None
                 lockon_random_value = None
                 interfering_transmissions = []
                 detected_transmissions = 0
 
-                # lock to the ealiest transmission and list the interferences
-                for t in alltransmissions:
-                    # random_value will be used for comparison against PDR
-                    random_value = random.random()
+                # deal with collisions
+                if len(transmissions_by_channel[channel]) > 1:
+                    for t in transmissions_by_channel[channel]:
+                        # random_value will be used for comparison against PDR
+                        random_value = random.random()
 
-                    peamble_pdr = self.get_pdr(
-                        src_id=t['tx_mote_id'],
-                        dst_id=listener_id,
-                        channel=channel,
-                    )
+                        peamble_pdr = self.get_pdr(
+                            src_id=t['tx_mote_id'],
+                            dst_id=listener_id,
+                            channel=channel,
+                        )
 
-                    # you can interpret the following line as decision for
-                    # reception of the preamble of 't'
-                    if random_value > peamble_pdr:
-                        # reception failed, continue to the next transmission
-                        continue
+                        # you can interpret the following line as decision for
+                        # reception of the preamble of 't'
+                        if random_value > peamble_pdr:
+                            # reception failed, continue to the next transmission
+                            continue
 
-                    # update counter
-                    detected_transmissions += 1
+                        # update counter
+                        detected_transmissions += 1
 
-                    # begin locking to the first heard transmission
+                        # begin locking to the first heard transmission
+                        if lockon_transmission is None:
+                            lockon_transmission = t
+                            lockon_random_value = random_value
+                            continue
+
+                        # then update the locked transmission if it's earlier than the previous earliest
+                        if t['txTime'] < lockon_transmission['txTime']:
+                            # add previous locked on tranmission to the interference list
+                            interfering_transmissions += [t]
+                            # and lock to the new earliest transmission
+                            lockon_transmission = t
+                            lockon_random_value = random_value
+                        else:
+                            interfering_transmissions += [t]
+
+                    # check if it received anything
                     if lockon_transmission is None:
-                        lockon_transmission = t
-                        lockon_random_value = random_value
+                        # nope, set the receiver to idle listen and cotinue to next one
+                        sentAck = self.engine.motes[listener_id].radio.rxDone(
+                            packet=None,
+                        )
                         continue
 
-                    # then update the locked transmission if it's earlier than the previous earliest
-                    if t['txTime'] < lockon_transmission['txTime']:
-                        # add previous locked on tranmission to the interference list
-                        interfering_transmissions += [t]
-                        # and lock to the new earliest transmission
-                        lockon_transmission = t
-                        lockon_random_value = random_value
-                    else:
-                        interfering_transmissions += [t]
-
-                if lockon_transmission is None:
-                    # no transmissions
-
-                    # idle listen
-                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
-                        packet = None,
+                    # something was received, continue execution
+                    self.log(
+                        SimEngine.SimLog.LOG_PROP_INTERFERENCE,
+                        {
+                            '_mote_id': listener_id,
+                            'channel': lockon_transmission['channel'],
+                            'lockon_transmission': (
+                                lockon_transmission['packet']
+                            ),
+                            'interfering_transmissions': [
+                                t['packet']
+                                for t in interfering_transmissions
+                            ]
+                        }
                     )
-                    assert sentAnAck is False
-                else:
-                    # there are transmissions
 
-                    # lockon transmission was selected earlier
-                    # all other transmissions are now intereferers
-                    assert (
+                    # calculate the resulting pdr when taking
+                    # interferers into account
+                    packet_pdr = self._compute_pdr_with_interference(
+                        listener_id=listener_id,
+                        lockon_transmission=lockon_transmission,
+                        interfering_transmissions=interfering_transmissions
+                    )
+
+                # no collision, easy peasy
+                elif len(transmissions_by_channel[channel]) == 1:
+                    # there's no point in testing the preamble here, so we'll skip it
+                    detected_transmissions = 1
+
+                    lockon_random_value = random.random()
+                    lockon_transmission = transmissions_by_channel[channel][0]
+                    packet_pdr = self.get_pdr(
+                        src_id  = lockon_transmission['tx_mote_id'],
+                        dst_id  = listener_id,
+                        channel = channel
+                    )
+
+                # this souldn't really happen
+                else:
+                    raise SystemError()
+
+                # lockon transmission selected
+                # all other transmissions are now intereferers
+                assert (
                         detected_transmissions ==
                         (len(interfering_transmissions) + 1)
+                )
+
+                # decide whether listener receives
+                # lockon_transmission or not
+                if lockon_random_value < packet_pdr:
+                    # listener receives!
+
+                    # lockon_transmission received correctly
+                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                        packet=lockon_transmission['packet'],
                     )
 
-                    # log
-                    if interfering_transmissions:
-                        self.log(
-                            SimEngine.SimLog.LOG_PROP_INTERFERENCE,
-                            {
-                                '_mote_id': listener_id,
-                                'channel': lockon_transmission['channel'],
-                                'lockon_transmission': (
-                                    lockon_transmission['packet']
-                                ),
-                                'interfering_transmissions': [
-                                    t['packet']
-                                    for t in interfering_transmissions
-                                ]
-                            }
-                        )
+                    # keep track of the number of ACKs received by
+                    # that transmission
+                    if sentAnAck:
+                        lockon_transmission['numACKs'] += 1
 
-                    if interfering_transmissions:
-                        # calculate the resulting pdr when taking
-                        # interferers into account
-                        packet_pdr = self._compute_pdr_with_interference(
-                            listener_id               = listener_id,
-                            lockon_transmission       = lockon_transmission,
-                            interfering_transmissions = interfering_transmissions
-                        )
-                    else:
-                        # directly use the PDR value in the
-                        # connectivity matrix if there is no
-                        # interfering transmissions
-                        packet_pdr = self.get_pdr(
-                            src_id  = t['tx_mote_id'],
-                            dst_id  = listener_id,
-                            channel = channel
-                        )
+                else:
+                    # lockon_transmission NOT received correctly
+                    # (interference)
+                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                        packet=None,
+                    )
+                    self.log(
+                        SimEngine.SimLog.LOG_PROP_DROP_LOCKON,
+                        {
+                            '_mote_id': listener_id,
+                            'channel': lockon_transmission['channel'],
+                            'lockon_transmission': (
+                                lockon_transmission['packet']
+                            )
+                        }
+                    )
+                    assert sentAnAck is False
 
-                    # decide whether listener receives
-                    # lockon_transmission or not
-                    if lockon_random_value < packet_pdr:
-                        # listener receives!
+                # done processing this listener
 
-                        # lockon_transmission received correctly
-                        sentAnAck = self.engine.motes[listener_id].radio.rxDone(
-                            packet = lockon_transmission['packet'],
-                        )
-
-                        # keep track of the number of ACKs received by
-                        # that transmission
-                        if sentAnAck:
-                            lockon_transmission['numACKs'] += 1
-
-                    else:
-                        # lockon_transmission NOT received correctly
-                        # (interference)
-                        sentAnAck = self.engine.motes[listener_id].radio.rxDone(
-                            packet = None,
-                        )
-                        self.log(
-                            SimEngine.SimLog.LOG_PROP_DROP_LOCKON,
-                            {
-                                '_mote_id': listener_id,
-                                'channel': lockon_transmission['channel'],
-                                'lockon_transmission': (
-                                    lockon_transmission['packet']
-                                )
-                            }
-                        )
-                        assert sentAnAck is False
-
-            # verify no more listener on this channel
-            assert self._get_listener_id_list(channel) == []
-
-            # === decide whether transmitters get an ACK (txDone)
-
-            for t in alltransmissions:
-
+            # after processing all listeners send back ACK to transmitter if possible
+            for t in transmissions_by_channel[channel]:
                 # decide whether transmitter received an ACK
-                if   t['numACKs'] == 0:
+                if t['numACKs'] == 0:
                     isACKed = False
                 elif t['numACKs'] == 1:
                     isACKed = True
                 else:
-                    # we do not expect multiple ACKs (would indicate
-                    # duplicate MAC addresses)
+                    # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
                     raise SystemError()
 
                 # indicate to source packet was sent
                 self.engine.motes[t['tx_mote_id']].radio.txDone(isACKed)
 
-            # verify no more radios active on this channel
-            for mote in self.engine.motes:
-                assert mote.radio.channel != channel
-
         # verify all radios off
         for mote in self.engine.motes:
+            if mote.radio.state != d.RADIO_STATE_OFF:
+                print(mote)
             assert mote.radio.state == d.RADIO_STATE_OFF
             assert mote.radio.channel is None
 
