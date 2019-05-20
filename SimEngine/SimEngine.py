@@ -58,7 +58,7 @@ class DiscreteEventEngine(threading.Thread):
             self.asn                            = 0
             self.exc                            = None
             self.events                         = {}
-            self.uniqueTagInfos                 = {}
+            self.uniqueTagSchedule              = {}
             self.random_seed                    = None
             self._init_additional_local_variables()
 
@@ -110,25 +110,20 @@ class DiscreteEventEngine(threading.Thread):
                     if not self.events:
                         break
 
-                    # TODO: make sure we are in the future
-                    # (a, b, cb, c) = self.events[0]
-                    # if c[1] != '_actionPauseSim':
-                    #     assert self.events[0][0] >= self.asn
-
                     # update the current ASN
                     self.asn += 1
 
                     if self.asn not in self.events:
                         continue
 
-                    intraSlotKeys = self.events[self.asn].keys()
-                    intraSlotKeys.sort()
+                    intraSlotOrderKeys = self.events[self.asn].keys()
+                    intraSlotOrderKeys.sort()
 
                     cbs = []
-                    for intraSlotkey in intraSlotKeys:
-                        for uniqueKey, cb in self.events[self.asn][intraSlotkey].items():
+                    for intraSlotOrder in intraSlotOrderKeys:
+                        for uniqueTag, cb in self.events[self.asn][intraSlotOrder].items():
                             cbs += [cb]
-                            del self.uniqueTagInfos[uniqueKey]
+                            del self.uniqueTagSchedule[uniqueTag]
                     del self.events[self.asn]
 
                 # call the callbacks (outside the dataLock)
@@ -240,7 +235,7 @@ class DiscreteEventEngine(threading.Thread):
             else:
                 self.events[asn][intraSlotOrder][uniqueTag] = cb
 
-            self.uniqueTagInfos[uniqueTag] = (asn, intraSlotOrder)
+            self.uniqueTagSchedule[uniqueTag] = (asn, intraSlotOrder)
 
     def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder):
         """
@@ -270,22 +265,22 @@ class DiscreteEventEngine(threading.Thread):
 
     def is_scheduled(self, uniqueTag):
         with self.dataLock:
-            return uniqueTag in self.uniqueTagInfos
+            return uniqueTag in self.uniqueTagSchedule
 
     def removeFutureEvent(self, uniqueTag):
         with self.dataLock:
-            if uniqueTag not in self.uniqueTagInfos:
+            if uniqueTag not in self.uniqueTagSchedule:
                 # new event, not need to delete old instances
                 return
 
             # get old instances occurences
-            (asn, intraSlotOrder) = self.uniqueTagInfos[uniqueTag]
+            (asn, intraSlotOrder) = self.uniqueTagSchedule[uniqueTag]
 
             # make sure it's in the future
             assert asn >= self.asn
 
             # delete it
-            del self.uniqueTagInfos[uniqueTag]
+            del self.uniqueTagSchedule[uniqueTag]
             del self.events[asn][intraSlotOrder][uniqueTag]
 
             # and cleanup event structure if it's empty
