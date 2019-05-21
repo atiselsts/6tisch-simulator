@@ -350,13 +350,11 @@ def test_slotframe_set_length_without_cells(sim_engine):
     new_length = 50
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe) == new_length
 
     # increase the slotframe length
     new_length = 150
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe) == new_length
 
 def test_slotframe_set_length_with_cells(sim_engine):
     """
@@ -382,7 +380,6 @@ def test_slotframe_set_length_with_cells(sim_engine):
     new_length = 50
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe) == new_length
     assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure cell is delete
 
     # make sure we cannot add a cell after new length
@@ -393,5 +390,4 @@ def test_slotframe_set_length_with_cells(sim_engine):
     new_length = 150
     slotframe.set_length(new_length)
     assert slotframe.length == new_length
-    assert len(slotframe) == new_length
     assert len(slotframe.get_busy_slots()) == len(cells) - 1  # make sure we have the right amount of cells
