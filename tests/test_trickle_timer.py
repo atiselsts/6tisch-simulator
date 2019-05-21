@@ -109,13 +109,8 @@ def test_reset(sim_engine):
     trickle_timer.start()
 
     # get ASN of 't' and one of the end of the interval
-    original_event_at_t = None
-    original_event_at_end_of_interval = None
-    for event in sim_engine.events:
-        if event[3] == trickle_timer.unique_tag_base + '_at_t':
-            original_event_at_t = event
-        elif event[3] == trickle_timer.unique_tag_base + '_at_i':
-            original_event_at_end_of_interval = event
+    original_event_at_t = sim_engine.uniqueTagSchedule[trickle_timer.unique_tag_base + '_at_t']
+    original_event_at_end_of_interval = sim_engine.uniqueTagSchedule[trickle_timer.unique_tag_base + '_at_i']
 
     u.run_until_asn(sim_engine, sim_engine.getAsn() + 1)
 
@@ -125,11 +120,9 @@ def test_reset(sim_engine):
     # interval should be the minimum value by reset()
     assert trickle_timer.interval == Imin
     # events should be re-scheduled accordingly
-    for event in sim_engine.events:
-        if event[3] == trickle_timer.unique_tag_base + '_at_t':
-            assert original_event_at_t is not event
-        elif event[3] == trickle_timer.unique_tag_base + '_at_i':
-            assert original_event_at_end_of_interval is not event
+
+    assert original_event_at_t is not sim_engine.uniqueTagSchedule[trickle_timer.unique_tag_base + '_at_t']
+    assert original_event_at_end_of_interval is not sim_engine.uniqueTagSchedule[trickle_timer.unique_tag_base + '_at_i']
 
 
 def test_stop(sim_engine):
@@ -143,9 +136,9 @@ def test_stop(sim_engine):
         pass
 
     # remove all the scheduled events
-    sim_engine.events = []
+    sim_engine.events = {}
     trickle_timer = TrickleTimer(Imin, Imax, K, _callback)
     trickle_timer.start()
-    assert len(sim_engine.events) == 2
+    assert len(sim_engine.events.keys()) == 2
     trickle_timer.stop()
-    assert len(sim_engine.events) == 0
+    assert len(sim_engine.events.keys()) == 0

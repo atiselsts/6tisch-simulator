@@ -580,7 +580,7 @@ def test_dodag_parent(sim_engine, fixture_rank_value):
         raise NotImplementedError()
 
     # process the global clock
-    sim_engine.asn += 10
+    u.run_until_asn(sim_engine, 10)
 
     # give the dio to 'child'
     child.rpl.action_receiveDIO(dio)

@@ -24,7 +24,7 @@ import SimConfig
 # =========================== body ============================================
 
 class DiscreteEventEngine(threading.Thread):
-    
+
     #===== start singleton
     _instance      = None
     _init          = False
@@ -43,7 +43,7 @@ class DiscreteEventEngine(threading.Thread):
             return
         cls._init = True
         #===== singleton
-        
+
         try:
             # store params
             self.cpuID                          = cpuID
@@ -57,7 +57,8 @@ class DiscreteEventEngine(threading.Thread):
             self.goOn                           = True
             self.asn                            = 0
             self.exc                            = None
-            self.events                         = []
+            self.events                         = {}
+            self.uniqueTagSchedule              = {}
             self.random_seed                    = None
             self._init_additional_local_variables()
 
@@ -66,7 +67,7 @@ class DiscreteEventEngine(threading.Thread):
             self.name                           = 'DiscreteEventEngine'
         except:
             # an exception happened when initializing the instance
-            
+
             # destroy the singleton
             cls._instance         = None
             cls._init             = False
@@ -75,7 +76,7 @@ class DiscreteEventEngine(threading.Thread):
     def destroy(self):
         if self._Thread__initialized:
             # initialization finished without exception
-            
+
             if self.is_alive():
                 # thread is start'ed
                 self.play()           # cause one more loop in thread
@@ -83,7 +84,7 @@ class DiscreteEventEngine(threading.Thread):
                 self.join()           # wait until thread is dead
             else:
                 # thread NOT start'ed yet, or crashed
-                
+
                 # destroy the singleton
                 cls = type(self)
                 cls._instance         = None
@@ -104,41 +105,40 @@ class DiscreteEventEngine(threading.Thread):
             while self.goOn:
 
                 with self.dataLock:
-                    
+
                     # abort simulation when no more events
                     if not self.events:
                         break
-                    
-                    # make sure we are in the future
-                    (a, b, cb, c) = self.events[0]
-                    if c[1] != '_actionPauseSim':
-                        assert self.events[0][0] >= self.asn
-                    
+
                     # update the current ASN
-                    self.asn = self.events[0][0]
-                    
-                    # find callbacks for this ASN
+                    self.asn += 1
+
+                    if self.asn not in self.events:
+                        continue
+
+                    intraSlotOrderKeys = self.events[self.asn].keys()
+                    intraSlotOrderKeys.sort()
+
                     cbs = []
-                    while True:
-                        if (not self.events) or (self.events[0][0] != self.asn):
-                            break
-                        (_, _, cb, _) = self.events.pop(0)
-                        cbs += [cb]
-                        
+                    for intraSlotOrder in intraSlotOrderKeys:
+                        for uniqueTag, cb in self.events[self.asn][intraSlotOrder].items():
+                            cbs += [cb]
+                            del self.uniqueTagSchedule[uniqueTag]
+                    del self.events[self.asn]
+
                 # call the callbacks (outside the dataLock)
-                
                 for cb in cbs:
                     cb()
 
         except Exception as e:
             # thread crashed
-            
+
             # record the exception
             self.exc = e
-            
+
             # additional routine
             self._routine_thread_crashed()
-            
+
             # print
             output  = []
             output += ['']
@@ -175,15 +175,15 @@ class DiscreteEventEngine(threading.Thread):
 
         else:
             # thread ended (gracefully)
-            
+
             # no exception
             self.exc = None
-            
+
             # additional routine
             self._routine_thread_ended()
-            
+
         finally:
-            
+
             # destroy this singleton
             cls = type(self)
             cls._instance                      = None
@@ -195,7 +195,7 @@ class DiscreteEventEngine(threading.Thread):
             raise self.exc
 
     #======================== public ==========================================
-    
+
     # === getters/setters
 
     def getAsn(self):
@@ -206,9 +206,9 @@ class DiscreteEventEngine(threading.Thread):
             if mote.is_my_mac_addr(mac_addr):
                 return mote
         return None
-    
+
     #=== scheduling
-    
+
     def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder):
         """
         Schedule an event at a particular ASN in the future.
@@ -223,14 +223,20 @@ class DiscreteEventEngine(threading.Thread):
 
         with self.dataLock:
 
-            # find correct index in schedule
-            i = 0
-            while i<len(self.events) and (self.events[i][0] < asn or (self.events[i][0] == asn and self.events[i][1] <= intraSlotOrder)):
-                i +=1
+            if asn not in self.events:
+                self.events[asn] = {intraSlotOrder: {uniqueTag: cb}}
 
-            # add to schedule
-            self.events.insert(i, (asn, intraSlotOrder, cb, uniqueTag))
-    
+            elif intraSlotOrder not in self.events[asn]:
+                self.events[asn][intraSlotOrder] = {uniqueTag: cb}
+
+            elif uniqueTag not in self.events[asn][intraSlotOrder]:
+                self.events[asn][intraSlotOrder][uniqueTag] = cb
+
+            else:
+                self.events[asn][intraSlotOrder][uniqueTag] = cb
+
+            self.uniqueTagSchedule[uniqueTag] = (asn, intraSlotOrder)
+
     def scheduleIn(self, delay, cb, uniqueTag, intraSlotOrder):
         """
         Schedule an event 'delay' seconds into the future.
@@ -259,19 +265,30 @@ class DiscreteEventEngine(threading.Thread):
 
     def is_scheduled(self, uniqueTag):
         with self.dataLock:
-            for event in self.events:
-                if event[3] == uniqueTag:
-                    return True
-        return False
+            return uniqueTag in self.uniqueTagSchedule
 
     def removeFutureEvent(self, uniqueTag):
         with self.dataLock:
-            i = 0
-            while i<len(self.events):
-                if (self.events[i][3]==uniqueTag) and (self.events[i][0]!=self.asn):
-                    self.events.pop(i)
-                else:
-                    i += 1
+            if uniqueTag not in self.uniqueTagSchedule:
+                # new event, not need to delete old instances
+                return
+
+            # get old instances occurences
+            (asn, intraSlotOrder) = self.uniqueTagSchedule[uniqueTag]
+
+            # make sure it's in the future
+            assert asn >= self.asn
+
+            # delete it
+            del self.uniqueTagSchedule[uniqueTag]
+            del self.events[asn][intraSlotOrder][uniqueTag]
+
+            # and cleanup event structure if it's empty
+            if not self.events[asn][intraSlotOrder]:
+                del self.events[asn][intraSlotOrder]
+
+            if not self.events[asn]:
+                del self.events[asn]
 
     def terminateSimulation(self,delay):
         with self.dataLock:
@@ -315,26 +332,26 @@ class DiscreteEventEngine(threading.Thread):
             uniqueTag        = ('DiscreteEventEngine', '_actionEndSlotframe'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
-    
+
     # ======================== abstract =======================================
-    
+
     def _init_additional_local_variables(self):
         pass
-    
+
     def _routine_thread_started(self):
         pass
-    
+
     def _routine_thread_crashed(self):
         pass
-    
+
     def _routine_thread_ended(self):
         pass
 
 
 class SimEngine(DiscreteEventEngine):
-    
+
     DAGROOT_ID = 0
-    
+
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
 
@@ -374,7 +391,7 @@ class SimEngine(DiscreteEventEngine):
         # simulation is stuck by an infinite loop without writing these
         # 'config' and 'random_seed' to a log file.
         SimLog.SimLog().flush()
-        
+
         # select dagRoot
         self.motes[self.DAGROOT_ID].setDagRoot()
 
