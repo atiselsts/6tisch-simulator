@@ -254,7 +254,7 @@ class Connectivity(object):
 
                 # this souldn't really happen
                 else:
-                    raise SystemError()
+                    assert False
 
                 # lockon transmission selected
                 # all other transmissions are now intereferers
@@ -306,7 +306,8 @@ class Connectivity(object):
                 elif t['numACKs'] == 1:
                     isACKed = True
                 else:
-                    # we do not expect multiple ACKs (would indicate duplicate MAC addresses)
+                    # we do not expect multiple ACKs (would indicate
+                    # duplicate MAC addresses)
                     raise SystemError()
 
                 # indicate to source packet was sent
@@ -314,8 +315,6 @@ class Connectivity(object):
 
         # verify all radios off
         for mote in self.engine.motes:
-            if mote.radio.state != d.RADIO_STATE_OFF:
-                print(mote)
             assert mote.radio.state == d.RADIO_STATE_OFF
             assert mote.radio.channel is None
 
