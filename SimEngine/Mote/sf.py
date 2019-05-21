@@ -473,6 +473,18 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # to avoid such a situation.
             raise
 
+        if self.settings.msf_limit_autonomous_cell_use:
+            autonomous_cell = self._get_autonomous_shared_cell(neighbor)
+            if (
+                    autonomous_cell
+                    and
+                    (d.CELLOPTION_RX in autonomous_cell.options)
+                    and
+                    (cell_options == [d.CELLOPTION_TX])
+                ):
+                # we have at least one dedicated cell to the neighbor;
+                # unset RX bit of the autonomous cell
+                autonomous_cell.options.remove(d.CELLOPTION_RX)
     def _delete_cells(self, neighbor, cell_list, cell_options):
         for cell in cell_list:
             if self.mote.tsch.get_cell(
@@ -490,6 +502,24 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 cellOptions      = cell_options,
                 slotframe_handle = self.SLOTFRAME_HANDLE
             )
+        if (
+                self.settings.msf_limit_autonomous_cell_use
+                and
+                cell_options == [d.CELLOPTION_TX]
+            ):
+            # when removing TX cells, we may need to change the
+            # options of the autonomous cell
+            slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+            cells = slotframe.get_cells_by_mac_addr(neighbor)
+            autonomous_cell = self._get_autonomous_shared_cell(neighbor)
+            if (
+                    (cells == [autonomous_cell])
+                    and
+                    (d.CELLOPTION_RX not in autonomous_cell.options)
+                ):
+                # we don't have any dedicated cell to the neighbor;
+                # set back RX bit to the autonomous cell
+                autonomous_cell.options.append(d.CELLOPTION_RX)
 
     def _clear_cells(self, neighbor):
         cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
@@ -500,7 +530,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 # neighbor, which must not be deleted by CLEAR. Skip
                 # this cell:
                 # https://tools.ietf.org/html/draft-ietf-6tisch-msf-01#section-3
-                pass
+                assert cell == self._get_autonomous_shared_cell(neighbor)
+                if (
+                        self.settings.msf_limit_autonomous_cell_use
+                        and
+                        (d.CELLOPTION_RX not in cell.options)
+                    ):
+                    # set back RX bit to the autonomous cell
+                    cell.options.append(d.CELLOPTION_RX)
             else:
                 self.mote.tsch.deleteCell(
                     slotOffset       = cell.slot_offset,
@@ -1174,6 +1211,24 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ],
             slotframe_handle = self.SLOTFRAME_HANDLE
         )
+
+    def _get_autonomous_shared_cell(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        cells = slotframe.get_cells_by_mac_addr(mac_addr)
+        autonomous_cells = [
+            cell for cell in cells
+            if (
+                    (d.CELLOPTION_TX in cell.options)
+                    and
+                    (d.CELLOPTION_SHARED in cell.options)
+            )
+        ]
+        if autonomous_cells:
+            assert len(autonomous_cells) == 1
+            ret = autonomous_cells[0]
+        else:
+            ret = None
+        return ret
 
     # SAX
     def _sax(self, mac_addr):
