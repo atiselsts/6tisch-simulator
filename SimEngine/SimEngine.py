@@ -24,7 +24,7 @@ import SimConfig
 # =========================== body ============================================
 
 class DiscreteEventEngine(threading.Thread):
-    
+
     #===== start singleton
     _instance      = None
     _init          = False
@@ -43,7 +43,7 @@ class DiscreteEventEngine(threading.Thread):
             return
         cls._init = True
         #===== singleton
-        
+
         try:
             # store params
             self.cpuID                          = cpuID
@@ -67,7 +67,7 @@ class DiscreteEventEngine(threading.Thread):
             self.name                           = 'DiscreteEventEngine'
         except:
             # an exception happened when initializing the instance
-            
+
             # destroy the singleton
             cls._instance         = None
             cls._init             = False
@@ -76,7 +76,7 @@ class DiscreteEventEngine(threading.Thread):
     def destroy(self):
         if self._Thread__initialized:
             # initialization finished without exception
-            
+
             if self.is_alive():
                 # thread is start'ed
                 self.play()           # cause one more loop in thread
@@ -84,7 +84,7 @@ class DiscreteEventEngine(threading.Thread):
                 self.join()           # wait until thread is dead
             else:
                 # thread NOT start'ed yet, or crashed
-                
+
                 # destroy the singleton
                 cls = type(self)
                 cls._instance         = None
@@ -105,7 +105,7 @@ class DiscreteEventEngine(threading.Thread):
             while self.goOn:
 
                 with self.dataLock:
-                    
+
                     # abort simulation when no more events
                     if not self.events:
                         break
@@ -137,13 +137,13 @@ class DiscreteEventEngine(threading.Thread):
 
         except Exception as e:
             # thread crashed
-            
+
             # record the exception
             self.exc = e
-            
+
             # additional routine
             self._routine_thread_crashed()
-            
+
             # print
             output  = []
             output += ['']
@@ -180,15 +180,15 @@ class DiscreteEventEngine(threading.Thread):
 
         else:
             # thread ended (gracefully)
-            
+
             # no exception
             self.exc = None
-            
+
             # additional routine
             self._routine_thread_ended()
-            
+
         finally:
-            
+
             # destroy this singleton
             cls = type(self)
             cls._instance                      = None
@@ -200,7 +200,7 @@ class DiscreteEventEngine(threading.Thread):
             raise self.exc
 
     #======================== public ==========================================
-    
+
     # === getters/setters
 
     def getAsn(self):
@@ -211,9 +211,9 @@ class DiscreteEventEngine(threading.Thread):
             if mote.is_my_mac_addr(mac_addr):
                 return mote
         return None
-    
+
     #=== scheduling
-    
+
     def scheduleAtAsn(self, asn, cb, uniqueTag, intraSlotOrder):
         """
         Schedule an event at a particular ASN in the future.
@@ -337,26 +337,26 @@ class DiscreteEventEngine(threading.Thread):
             uniqueTag        = ('DiscreteEventEngine', '_actionEndSlotframe'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
-    
+
     # ======================== abstract =======================================
-    
+
     def _init_additional_local_variables(self):
         pass
-    
+
     def _routine_thread_started(self):
         pass
-    
+
     def _routine_thread_crashed(self):
         pass
-    
+
     def _routine_thread_ended(self):
         pass
 
 
 class SimEngine(DiscreteEventEngine):
-    
+
     DAGROOT_ID = 0
-    
+
     def _init_additional_local_variables(self):
         self.settings                   = SimSettings.SimSettings()
 
@@ -396,7 +396,7 @@ class SimEngine(DiscreteEventEngine):
         # simulation is stuck by an infinite loop without writing these
         # 'config' and 'random_seed' to a log file.
         SimLog.SimLog().flush()
-        
+
         # select dagRoot
         self.motes[self.DAGROOT_ID].setDagRoot()
 
