@@ -484,7 +484,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 ):
                 # we have at least one dedicated cell to the neighbor;
                 # unset RX bit of the autonomous cell
-                autonomous_cell.options.remove(d.CELLOPTION_RX)
+                autonomous_cell.options.remove(d.CELLOPTION_TX)
     def _delete_cells(self, neighbor, cell_list, cell_options):
         for cell in cell_list:
             if self.mote.tsch.get_cell(
@@ -515,11 +515,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             if (
                     (cells == [autonomous_cell])
                     and
-                    (d.CELLOPTION_RX not in autonomous_cell.options)
+                    (d.CELLOPTION_TX not in autonomous_cell.options)
                 ):
                 # we don't have any dedicated cell to the neighbor;
                 # set back RX bit to the autonomous cell
-                autonomous_cell.options.append(d.CELLOPTION_RX)
+                autonomous_cell.options.append(d.CELLOPTION_TX)
 
     def _clear_cells(self, neighbor):
         cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
@@ -534,10 +534,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 if (
                         self.settings.msf_limit_autonomous_cell_use
                         and
-                        (d.CELLOPTION_RX not in cell.options)
+                        (d.CELLOPTION_TX not in cell.options)
                     ):
                     # set back RX bit to the autonomous cell
-                    cell.options.append(d.CELLOPTION_RX)
+                    cell.options.append(d.CELLOPTION_TX)
             else:
                 self.mote.tsch.deleteCell(
                     slotOffset       = cell.slot_offset,
@@ -1218,7 +1218,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         autonomous_cells = [
             cell for cell in cells
             if (
-                    (d.CELLOPTION_TX in cell.options)
+                    (d.CELLOPTION_RX in cell.options)
                     and
                     (d.CELLOPTION_SHARED in cell.options)
             )

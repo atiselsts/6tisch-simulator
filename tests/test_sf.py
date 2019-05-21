@@ -847,7 +847,7 @@ class TestMSF(object):
         cells = mote_slotframe.get_cells_by_mac_addr(root_mac_addr)
         assert len(cells) == 1
         autonomous_cell = cells[0]
-        assert d.CELLOPTION_RX in autonomous_cell.options
+        assert d.CELLOPTION_TX in autonomous_cell.options
 
         # add an dedicated cell to the root
         dedicated_cell = {'slotOffset': 1, 'channelOffset': 1}
@@ -858,11 +858,11 @@ class TestMSF(object):
         )
         assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 2
 
-        # check whether RX bit gets off or not
+        # check whether TX bit gets off or not
         if limit_autonomous_cell_use:
-            assert d.CELLOPTION_RX not in autonomous_cell.options
+            assert d.CELLOPTION_TX not in autonomous_cell.options
         else:
-            assert d.CELLOPTION_RX in autonomous_cell.options
+            assert d.CELLOPTION_TX in autonomous_cell.options
 
         # delete the dedicated cell
         mote.sf._delete_cells(
@@ -871,7 +871,7 @@ class TestMSF(object):
             cell_options = [d.CELLOPTION_TX]
         )
         assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 1
-        assert d.CELLOPTION_RX in autonomous_cell.options
+        assert d.CELLOPTION_TX in autonomous_cell.options
 
         # test "clear"
         # add the dedicated cell again
@@ -883,11 +883,11 @@ class TestMSF(object):
         )
         assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 2
 
-        # check whether RX bit gets off or not
+        # check whether TX bit gets off or not
         if limit_autonomous_cell_use:
-            assert d.CELLOPTION_RX not in autonomous_cell.options
+            assert d.CELLOPTION_TX not in autonomous_cell.options
         else:
-            assert d.CELLOPTION_RX in autonomous_cell.options
+            assert d.CELLOPTION_TX in autonomous_cell.options
 
         # exec "clear""
         mote.sf._clear_cells(root_mac_addr)
@@ -896,5 +896,5 @@ class TestMSF(object):
             mote_slotframe.get_cells_by_mac_addr(root_mac_addr) ==
             [autonomous_cell]
         )
-        # and of course, RX bit should be set
-        assert d.CELLOPTION_RX in autonomous_cell.options
+        # and of course, TX bit should be set
+        assert d.CELLOPTION_TX in autonomous_cell.options
