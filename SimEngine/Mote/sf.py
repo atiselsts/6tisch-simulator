@@ -482,9 +482,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     and
                     (cell_options == [d.CELLOPTION_TX])
                 ):
-                # we have at least one dedicated cell to the neighbor;
-                # unset RX bit of the autonomous cell
-                autonomous_cell.options.remove(d.CELLOPTION_RX)
+                self._unset_tx_bit(autonomous_cell)
     def _delete_cells(self, neighbor, cell_list, cell_options):
         for cell in cell_list:
             if self.mote.tsch.get_cell(
@@ -515,11 +513,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             if (
                     (cells == [autonomous_cell])
                     and
-                    (d.CELLOPTION_RX not in autonomous_cell.options)
+                    (d.CELLOPTION_TX not in autonomous_cell.options)
                 ):
-                # we don't have any dedicated cell to the neighbor;
-                # set back RX bit to the autonomous cell
-                autonomous_cell.options.append(d.CELLOPTION_RX)
+                self._set_tx_bit(autonomous_cell)
 
     def _clear_cells(self, neighbor):
         cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
@@ -534,10 +530,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 if (
                         self.settings.msf_limit_autonomous_cell_use
                         and
-                        (d.CELLOPTION_RX not in cell.options)
+                        (d.CELLOPTION_TX not in cell.options)
                     ):
-                    # set back RX bit to the autonomous cell
-                    cell.options.append(d.CELLOPTION_RX)
+                    self._set_tx_bit(cell)
             else:
                 self.mote.tsch.deleteCell(
                     slotOffset       = cell.slot_offset,
@@ -1218,7 +1213,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         autonomous_cells = [
             cell for cell in cells
             if (
-                    (d.CELLOPTION_TX in cell.options)
+                    (d.CELLOPTION_RX in cell.options)
                     and
                     (d.CELLOPTION_SHARED in cell.options)
             )
@@ -1229,6 +1224,27 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         else:
             ret = None
         return ret
+
+    def _set_tx_bit(self, autonomous_cell):
+        # we don't have any dedicated cell to the neighbor; set back
+        # RX bit to the autonomous cell. for the same reason as
+        # _unset_tx_bit, use SlotFrame.delete/SlotFrame.add
+        assert d.CELLOPTION_TX not in autonomous_cell.options
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        slotframe.delete(autonomous_cell)
+        autonomous_cell.options.append(d.CELLOPTION_TX)
+        slotframe.add(autonomous_cell)
+
+    def _unset_tx_bit(self, autonomous_cell):
+        # we have at least one dedicated cell to the neighbor; unset
+        # RX bit of the autonomous cell; to record this change in the
+        # log file, use SlotFrame.delete/SlotFrame.add instead of
+        # changing cell.options directly
+        assert d.CELLOPTION_TX in autonomous_cell.options
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        slotframe.delete(autonomous_cell)
+        autonomous_cell.options.remove(d.CELLOPTION_TX)
+        slotframe.add(autonomous_cell)
 
     # SAX
     def _sax(self, mac_addr):

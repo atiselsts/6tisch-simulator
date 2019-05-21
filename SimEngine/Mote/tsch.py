@@ -1491,7 +1491,7 @@ class SlotFrame(object):
 
     def get_cells_by_mac_addr(self, mac_addr):
         if mac_addr in self.cells.keys():
-            return self.cells[mac_addr]
+            return self.cells[mac_addr][:]
         else:
             return []
 
