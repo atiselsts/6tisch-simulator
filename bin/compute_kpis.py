@@ -186,7 +186,7 @@ def kpis_all(inputfile):
                     if (
                             (motestats['charge'] <= 0)
                             or
-                            (motestats['charge_asn'] == motestats['sync_asn'])
+                            (motestats['charge_asn'] <= motestats['sync_asn'])
                         ):
                         motestats['lifetime_AA_years'] = 'N/A'
                     else:

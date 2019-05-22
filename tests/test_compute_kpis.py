@@ -26,6 +26,20 @@ def app_pkLength(request):
 def pkt_loss_mode(request):
     return request.param
 
+def run_compute_kpis_py():
+    compute_kpis_path = os.path.join(
+        os.path.dirname(__file__),
+        '../bin',
+        'compute_kpis.py'
+    )
+    return subprocess.check_output(
+        '{0} \'{1}\''.format(
+            'python',
+            compute_kpis_path
+        ),
+        shell=True
+    ).split('\n')
+
 
 def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     sim_engine = sim_engine(
@@ -102,19 +116,7 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
         assert logs[i]['packet']['type'] == d.PKT_TYPE_DATA
 
     # run compute_kpis.py against the log file
-    compute_kpis_path = os.path.join(
-        os.path.dirname(__file__),
-        '../bin',
-        'compute_kpis.py'
-    )
-    output = subprocess.check_output(
-        '{0} \'{1}\''.format(
-            'python',
-            compute_kpis_path
-        ),
-        shell=True
-    ).split('\n')
-
+    output = run_compute_kpis_py()
     # remove blank lines
     output = [line for line in output if not re.match(r'^\s*$', line)]
 
@@ -134,3 +136,55 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     # the avg_hops should be the same number as leaf.id since we use a linear
     # topology here.
     assert kpis['null'][str(leaf.id)]['avg_hops'] == leaf.id
+
+def test_compute_battery_lifetime(sim_engine):
+    # reproduce Issue #360
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numSlotframesPerRun' : 1,
+            'exec_numMotes'            : 2,
+            'phy_numChans'             : 1,
+            'radio_stats_log_period_s' : 60
+        }
+    )
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+
+    # set 0% of PDR to their links
+    channel = d.TSCH_HOPPING_SEQUENCE[0]
+    sim_engine.connectivity.matrix.set_pdr_both_directions(
+        mote_id_1 = root.id,
+        mote_id_2 = mote.id,
+        channel   = channel,
+        pdr       = 0
+    )
+
+    # make up a radio activity of mote, which is supposed to consume
+    # energy
+    mote.radio.stats['tx_data'] = 100
+
+    # force mote to log radio stats (at ASN 0)
+    mote.radio._log_stats()
+
+    # stop the simulator at the last ASN
+    u.run_until_asn(sim_engine, 101)
+
+    # make mote synched
+    mote.tsch.setIsSync(True)
+
+    # confirm we have relevant logs
+    logs = u.read_log_file(['radio.stats', 'tsch.synced'])
+    logs = [log for log in logs if log['_mote_id'] == mote.id]
+    assert len(logs) == 2
+
+    logs[0]['_type'] == 'radio.status'
+    logs[0]['_asn'] == 0
+
+    logs[1]['_type'] == 'tsch.synced'
+    logs[1]['_asn'] == 101
+
+    # run compute_kpis, which should end without raising an exception
+    output = run_compute_kpis_py()
+
+    # test done
+    assert True
