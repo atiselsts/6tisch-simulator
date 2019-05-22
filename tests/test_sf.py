@@ -885,6 +885,15 @@ class TestMSF(object):
         )
         assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 2
 
+        # add another dedicated cell
+        dedicated_cell = {'slotOffset': 2, 'channelOffset': 2}
+        mote.sf._add_cells(
+            neighbor     = root_mac_addr,
+            cell_list    = [dedicated_cell],
+            cell_options = [d.CELLOPTION_TX]
+        )
+        assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 3
+
         # check whether TX bit gets off or not
         autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
         if limit_autonomous_cell_use:
