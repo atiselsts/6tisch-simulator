@@ -4,6 +4,7 @@
 
 # ========================== imports =========================================
 
+from collections import OrderedDict
 import hashlib
 import platform
 import random
@@ -224,10 +225,14 @@ class DiscreteEventEngine(threading.Thread):
         with self.dataLock:
 
             if asn not in self.events:
-                self.events[asn] = {intraSlotOrder: {uniqueTag: cb}}
+                self.events[asn] = {
+                    intraSlotOrder: OrderedDict([(uniqueTag, cb)])
+                }
 
             elif intraSlotOrder not in self.events[asn]:
-                self.events[asn][intraSlotOrder] = {uniqueTag: cb}
+                self.events[asn][intraSlotOrder] = (
+                    OrderedDict([(uniqueTag, cb)])
+                )
 
             elif uniqueTag not in self.events[asn][intraSlotOrder]:
                 self.events[asn][intraSlotOrder][uniqueTag] = cb
