@@ -478,7 +478,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             if (
                     autonomous_cell
                     and
-                    (d.CELLOPTION_RX in autonomous_cell.options)
+                    (d.CELLOPTION_TX in autonomous_cell.options)
                     and
                     (cell_options == [d.CELLOPTION_TX])
                 ):
