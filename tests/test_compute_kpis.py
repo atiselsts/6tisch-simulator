@@ -26,6 +26,20 @@ def app_pkLength(request):
 def pkt_loss_mode(request):
     return request.param
 
+def run_compute_kpis_py():
+    compute_kpis_path = os.path.join(
+        os.path.dirname(__file__),
+        '../bin',
+        'compute_kpis.py'
+    )
+    return subprocess.check_output(
+        '{0} \'{1}\''.format(
+            'python',
+            compute_kpis_path
+        ),
+        shell=True
+    ).split('\n')
+
 
 def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     sim_engine = sim_engine(
@@ -102,19 +116,7 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
         assert logs[i]['packet']['type'] == d.PKT_TYPE_DATA
 
     # run compute_kpis.py against the log file
-    compute_kpis_path = os.path.join(
-        os.path.dirname(__file__),
-        '../bin',
-        'compute_kpis.py'
-    )
-    output = subprocess.check_output(
-        '{0} \'{1}\''.format(
-            'python',
-            compute_kpis_path
-        ),
-        shell=True
-    ).split('\n')
-
+    output = run_compute_kpis_py()
     # remove blank lines
     output = [line for line in output if not re.match(r'^\s*$', line)]
 
