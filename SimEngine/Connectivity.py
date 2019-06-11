@@ -623,11 +623,11 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
             self.csv_header = tracefile.readline().strip().split(',')
             self.start_date = dt.datetime.strptime(
                 self.trace_header['start_date'],
-                "%Y-%m-%d %H:%M:%S"
+                '%Y-%m-%dT%H:%M:%S.%f'
             )
             stop_date = dt.datetime.strptime(
                 self.trace_header['stop_date'],
-                "%Y-%m-%d %H:%M:%S"
+                '%Y-%m-%dT%H:%M:%S.%f'
             )
 
             # check if the simulation settings match the trace file
@@ -786,12 +786,12 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
         del row['dst']
         row['channel'] = int(row['channel']) if row['channel'] else None
         row['datetime'] = dt.datetime.strptime(
-            row['datetime'], "%Y-%m-%d %H:%M:%S"
+            row['datetime'], '%Y-%m-%dT%H:%M:%S.%f'
         )
 
         # rssi
 
-        if row['mean_rssi'] == '':
+        if row['mean_rssi'] == '' or (row['mean_rssi'] == 'None'):
             row['mean_rssi'] = self.LINK_NONE['rssi']
         else:
             row['mean_rssi'] = float(row['mean_rssi'])
