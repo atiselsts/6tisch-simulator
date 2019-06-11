@@ -250,7 +250,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     initiator_mac_addr=packet['mac']['srcMac'],
                     responder_mac_addr=packet['mac']['dstMac']
                 )
-            self._clear_cells(old_parent)
+            self._clear_cells(old_parent) # including the autonomous shared cell
 
         if old_parent:
             cells = self.mote.tsch.get_cells(
@@ -274,6 +274,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         d.CELLOPTION_SHARED
                     ])
                 )
+                # remove the autonomous cell
+                self._deallocate_autonomous_shared_cell(old_parent)
 
     def detect_schedule_inconsistency(self, peerMac):
         # send a CLEAR request to the peer
