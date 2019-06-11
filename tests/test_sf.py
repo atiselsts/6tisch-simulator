@@ -771,8 +771,9 @@ class TestMSF(object):
             root.get_mac_addr(),
             mote.sf.SLOTFRAME_HANDLE
         )
+        assert len(cells) == 2
+        cells = [cell for cell in cells if cell.options == [d.CELLOPTION_TX]]
         assert len(cells) == 1
-        assert cells[0].options == [d.CELLOPTION_TX]
         cell = cells[0]
 
         # send a RELOCATE request to mote, which has the used slot
