@@ -190,10 +190,7 @@ class TestMSF(object):
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
 
         cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
-        assert len(cells) == 1
-        assert cells[0].is_tx_on() is True
-        assert cells[0].is_rx_on() is True
-        assert cells[0].is_shared_on() is True
+        assert len(cells) == 0
 
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
