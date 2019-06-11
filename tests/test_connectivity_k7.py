@@ -40,11 +40,11 @@ def get_trace_duration():
     header = get_trace_header()
     start_time = dt.datetime.strptime(
         header['start_date'],
-        "%Y-%m-%d %H:%M:%S"
+        "%Y-%m-%dT%H:%M:%S.%f"
     )
     stop_time = dt.datetime.strptime(
         header['stop_date'],
-        "%Y-%m-%d %H:%M:%S"
+        "%Y-%m-%dT%H:%M:%S.%f"
     )
     return (stop_time - start_time).total_seconds()
 
