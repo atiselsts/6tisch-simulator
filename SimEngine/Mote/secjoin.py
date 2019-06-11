@@ -12,6 +12,7 @@ import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
+from SimEngine.Mote.sf import SchedulingFunctionMSF
 
 # =========================== defines =========================================
 
@@ -46,9 +47,7 @@ class SecJoin(object):
 
     # getters/setters
 
-    def setIsJoined(self, newState):
-        assert newState in [True, False]
-
+    def setIsJoined(self):
         # log
         self.log(
             SimEngine.SimLog.LOG_SECJOIN_JOINED,
@@ -58,7 +57,14 @@ class SecJoin(object):
         )
 
         # record
-        self._isJoined = newState
+        self._isJoined = True
+
+        if isinstance(self.mote.sf, SchedulingFunctionMSF):
+            # delete the autonomous cell to the join proxy if we
+            # have. draft-ietf-6tisch-msf-03 draft says, 'The
+            # AutoUpCell to the JP is removed at the same time by the
+            # "joined node".'
+            self.mote.sf.delete_autonomous_cell_to_join_proxy()
 
         # start RPL
         self.mote.rpl.start()
@@ -82,10 +88,13 @@ class SecJoin(object):
             # TIMEOUT_BASE and (TIMEOUT_BASE * TIMEOUT_RANDOM_FACTOR)
             self._request_timeout  = self.TIMEOUT_BASE * random.uniform(1, self.TIMEOUT_RANDOM_FACTOR)
 
+            if isinstance(self.mote.sf, SchedulingFunctionMSF):
+                self.mote.sf.add_autonomous_cell_to_join_proxy()
+
             self._send_join_request()
         else:
             # consider I'm already joined
-            self.setIsJoined(True) # forced (secjoin_enabled==False)
+            self.setIsJoined()  # forced (secjoin_enabled==False)
 
     # from lower stack
 
@@ -186,7 +195,7 @@ class SecJoin(object):
                 self.engine.removeFutureEvent(self._retransmission_tag)
 
                 # I'm now joined!
-                self.setIsJoined(True) # mote
+                self.setIsJoined()  # mote
         else:
             raise SystemError()
 

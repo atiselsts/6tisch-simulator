@@ -119,27 +119,37 @@ class Tsch(object):
             self.schedule_next_listeningForEB_cell()
 
     def get_busy_slots(self, slotframe_handle=0):
-        return self.slotframes[slotframe_handle].get_busy_slots()
+        if slotframe_handle in self.slotframes:
+            return self.slotframes[slotframe_handle].get_busy_slots()
+        else:
+            return 0
 
     def get_available_slots(self, slotframe_handle=0):
-        return self.slotframes[slotframe_handle].get_available_slots()
+        if slotframe_handle in self.slotframes:
+            return self.slotframes[slotframe_handle].get_available_slots()
+        else:
+            return 0
 
     def get_cell(self, slot_offset, channel_offset, mac_addr, slotframe_handle=0):
-        slotframe = self.slotframes[slotframe_handle]
-        cells = slotframe.get_cells_by_slot_offset(slot_offset)
-        for cell in cells:
-            if (
-                    (cell.channel_offset == channel_offset)
-                    and
-                    (cell.mac_addr == mac_addr)
-                ):
-                return cell
+        if slotframe_handle in self.slotframes:
+            slotframe = self.slotframes[slotframe_handle]
+            cells = slotframe.get_cells_by_slot_offset(slot_offset)
+            for cell in cells:
+                if (
+                        (cell.channel_offset == channel_offset)
+                        and
+                        (cell.mac_addr == mac_addr)
+                    ):
+                    return cell
         return None
 
     def get_cells(self, mac_addr=None, slotframe_handle=None):
         if slotframe_handle:
-            slotframe = self.slotframes[slotframe_handle]
-            ret_val = slotframe.get_cells_by_mac_addr(mac_addr)
+            if slotframe_handle in self.slotframes:
+                slotframe = self.slotframes[slotframe_handle]
+                ret_val = slotframe.get_cells_by_mac_addr(mac_addr)
+            else:
+                ret_val = []
         else:
             ret_val = []
             for slotframe_handle in self.slotframes:
