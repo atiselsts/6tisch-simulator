@@ -322,6 +322,40 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         return ret_val
 
+    def add_autonomous_cell_to_join_proxy(self):
+        assert self.mote.tsch.join_proxy
+        join_proxy_mac_addr = str(self.mote.tsch.join_proxy)
+        if self.mote.tsch.get_cells(join_proxy_mac_addr, self.SLOTFRAME_HANDLE):
+            raise RuntimeError('AutoUpCell to the join proxy is already there')
+        else:
+            self._allocate_autonomous_shared_cell(join_proxy_mac_addr)
+
+    def delete_autonomous_cell_to_join_proxy(self):
+        if self.mote.tsch.join_proxy:
+            join_proxy_mac_addr = str(self.mote.tsch.join_proxy)
+        else:
+            join_proxy_mac_addr = None
+        if (
+                join_proxy_mac_addr
+                and
+                self.mote.tsch.get_cells(
+                    join_proxy_mac_addr,
+                    self.SLOTFRAME_HANDLE
+                )
+            ):
+            self._deallocate_autonomous_shared_cell(join_proxy_mac_addr)
+        else:
+            assert (
+                self.mote.dagRoot
+                or
+                (not self.settings.secjoin_enabled)
+            )
+            # we ignore this case; this method can be called even when
+            # the autonomous cell is not installed, for instance,
+            # secjoin is disabled or it's the dagroot
+            pass
+
+
     # ======================= private ==========================================
 
     def _reset_cell_counters(self):
@@ -1196,6 +1230,20 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _allocate_autonomous_shared_cell(self, mac_addr):
         slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
         self.mote.tsch.addCell(
+            slotOffset       = slot_offset,
+            channelOffset    = channel_offset,
+            neighbor         = mac_addr,
+            cellOptions      = [
+                d.CELLOPTION_TX,
+                d.CELLOPTION_RX,
+                d.CELLOPTION_SHARED
+            ],
+            slotframe_handle = self.SLOTFRAME_HANDLE
+        )
+
+    def _deallocate_autonomous_shared_cell(self, mac_addr):
+        slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
+        self.mote.tsch.deleteCell(
             slotOffset       = slot_offset,
             channelOffset    = channel_offset,
             neighbor         = mac_addr,
