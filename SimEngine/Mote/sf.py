@@ -236,6 +236,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
             )
         if new_parent:
+            # add the autonomous cell to the parent
+            if not self.mote.tsch.get_cells(
+                mac_addr         = new_parent,
+                slotframe_handle = self.SLOTFRAME_HANDLE
+                ):
+                self._allocate_autonomous_shared_cell(new_parent)
             # reset the retry counter
             # we may better to make sure there is no outstanding
             # transaction with the same peer
