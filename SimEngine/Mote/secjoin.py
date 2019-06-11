@@ -46,9 +46,7 @@ class SecJoin(object):
 
     # getters/setters
 
-    def setIsJoined(self, newState):
-        assert newState in [True, False]
-
+    def setIsJoined(self):
         # log
         self.log(
             SimEngine.SimLog.LOG_SECJOIN_JOINED,
@@ -58,7 +56,7 @@ class SecJoin(object):
         )
 
         # record
-        self._isJoined = newState
+        self._isJoined = True
 
         # start RPL
         self.mote.rpl.start()
@@ -85,7 +83,7 @@ class SecJoin(object):
             self._send_join_request()
         else:
             # consider I'm already joined
-            self.setIsJoined(True) # forced (secjoin_enabled==False)
+            self.setIsJoined()  # forced (secjoin_enabled==False)
 
     # from lower stack
 
@@ -186,7 +184,7 @@ class SecJoin(object):
                 self.engine.removeFutureEvent(self._retransmission_tag)
 
                 # I'm now joined!
-                self.setIsJoined(True) # mote
+                self.setIsJoined()  # mote
         else:
             raise SystemError()
 

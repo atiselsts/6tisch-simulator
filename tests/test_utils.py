@@ -66,17 +66,9 @@ def run_until_everyone_joined(sim_engine):
         ]
     )
 
-    def new_setIsJoined(self, newState):
-        self.original_setIsJoined(newState)
-        # update joined_node_set
-        if newState is True:
-            joined_node_set.add(self.mote.id)
-        elif self.mote_id in joined_node_set:
-            joined_node_set.remove(self.mote_id)
-        else:
-            # newState == False and self.mote_id not in joined_node_set
-            # do nothing
-            pass
+    def new_setIsJoined(self):
+        self.original_setIsJoined()
+        joined_node_set.add(self.mote.id)
 
         # stop the simulator if it's time to do
         if len(joined_node_set) == len(sim_engine.motes):

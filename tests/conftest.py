@@ -96,7 +96,7 @@ def set_initial_routing_and_scheduling_state(engine):
         m.rpl.dis_mode = 'disabled'   # forced
         m.rpl.dodagId = root.get_ipv6_global_addr() # forced
         m.tsch.setIsSync(True)        # forced
-        m.secjoin.setIsJoined(True)   # forced (fixture)
+        m.secjoin.setIsJoined()   # forced (fixture)
         m.tsch.startSendingEBs()      # forced
         m.sf.start()        # forced
         if m.dagRoot==False:

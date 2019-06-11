@@ -131,7 +131,7 @@ class Mote(object):
             # app
             self.app.startSendingData()     # dagRoot
             # secjoin
-            self.secjoin.setIsJoined(True)  # dagRoot
+            self.secjoin.setIsJoined()      # dagRoot
             # rpl
             self.rpl.start()
             # tsch
