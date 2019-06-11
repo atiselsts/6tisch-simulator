@@ -791,7 +791,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
 
         # rssi
 
-        if row['mean_rssi'] == '':
+        if row['mean_rssi'] == '' or (row['mean_rssi'] == 'None'):
             row['mean_rssi'] = self.LINK_NONE['rssi']
         else:
             row['mean_rssi'] = float(row['mean_rssi'])
