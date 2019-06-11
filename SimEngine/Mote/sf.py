@@ -178,6 +178,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         if self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE) is None:
             # it's not ready to add cells
             pass
+        elif self.mote.tsch.get_cells(
+                mac_addr         = neighbor_mac_addr,
+                slotframe_handle = self.SLOTFRAME_HANDLE
+            ):
+            # we've already had the autonomous cell
+            pass
         else:
             self._allocate_autonomous_shared_cell(neighbor_mac_addr)
 
