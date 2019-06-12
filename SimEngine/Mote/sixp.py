@@ -44,6 +44,11 @@ class SixP(object):
 
     # ======================= public ==========================================
 
+    def clear_transaction_table(self):
+        for transaction in [self.transaction_table[key]
+                            for key in self.transaction_table]:
+            transaction.invalidate()
+
     def recv_packet(self, packet):
 
         # log
