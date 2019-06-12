@@ -315,8 +315,8 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
         def _additional_initialization(self):
             # set up the connectivity matrix
             channel = d.TSCH_HOPPING_SEQUENCE[0]
-            self.set_pdr(src.id, dst.id, channel, PERFECT_PDR)
-            self.set_rssi(
+            self.set_pdr_both_directions(src.id, dst.id, channel, PERFECT_PDR)
+            self.set_rssi_both_directions(
                 src.id,
                 dst.id,
                 channel,
