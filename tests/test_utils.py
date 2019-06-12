@@ -66,8 +66,8 @@ def run_until_everyone_joined(sim_engine):
         ]
     )
 
-    def new_setIsJoined(self):
-        self.original_setIsJoined()
+    def new_setIsJoined(self, value):
+        self.original_setIsJoined(value)
         joined_node_set.add(self.mote.id)
 
         # stop the simulator if it's time to do

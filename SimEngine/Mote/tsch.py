@@ -107,7 +107,7 @@ class Tsch(object):
             self.stopSendingEBs()
             self.delete_minimal_cell()
             self.mote.sf.stop()
-            self.join_proxy = None
+            self.mote.secjoin.setIsJoined(False)
             self.asnLastSync = None
             self.clock.desync()
             self._stop_keep_alive_timer()
