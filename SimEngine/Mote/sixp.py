@@ -275,7 +275,7 @@ class SixP(object):
             packet = transaction.last_packet
         )
 
-        transaction._invalidate()
+        transaction.invalidate()
         if transaction.isInitiator:
             if transaction.confirmation is not None:
                 packet_in_tx_queue = transaction.confirmation
@@ -731,7 +731,7 @@ class SixPTransaction(object):
         )
 
         # invalidate itself
-        self._invalidate()
+        self.invalidate()
 
     def invoke_callback(self, event, packet):
         assert packet is not None
@@ -761,7 +761,7 @@ class SixPTransaction(object):
                 }
             )
 
-            self._invalidate()
+            self.invalidate()
 
             # remove a pending frame in TX queue if necessary
             self.mote.tsch.remove_packets_in_tx_queue(
@@ -782,7 +782,7 @@ class SixPTransaction(object):
 
     # ======================= private ==========================================
 
-    def _invalidate(self):
+    def invalidate(self):
         # remove its timeout event if it exists
         self.engine.removeFutureEvent(self.event_unique_tag)
 
