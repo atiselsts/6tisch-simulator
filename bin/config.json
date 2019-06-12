@@ -53,7 +53,9 @@
             "conn_random_init_min_pdr":                    0.5,
             "conn_random_init_min_neighbors":              3,
 
-            "phy_numChans":                                16
+            "phy_numChans":                                16,
+
+            "motes_eui64":                                 []
         }
     },
     "logging":                                             "all",

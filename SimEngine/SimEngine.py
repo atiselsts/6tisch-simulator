@@ -379,7 +379,28 @@ class SimEngine(DiscreteEventEngine):
         # apply the random seed; log the seed after self.log is initialized
         random.seed(a=self.random_seed)
 
-        self.motes                      = [Mote.Mote.Mote(m) for m in range(self.settings.exec_numMotes)]
+        if self.settings.motes_eui64:
+            eui64_table = self.settings.motes_eui64[:]
+            if len(eui64_table) < self.settings.exec_numMotes:
+                eui64_table.extend(
+                    [None] * (self.settings.exec_numMotes - len(eui64_table))
+                )
+        else:
+            eui64_table = [None] * self.settings.exec_numMotes
+
+        self.motes = [
+            Mote.Mote.Mote(id, eui64)
+            for id, eui64 in zip(
+                    range(self.settings.exec_numMotes),
+                    eui64_table
+            )
+        ]
+
+        eui64_list = set([mote.get_mac_addr() for mote in self.motes])
+        if len(eui64_list) != len(self.motes):
+            assert len(eui64_list) < len(self.motes)
+            raise ValueError('given motes_eui64 causes dulicates')
+
         self.connectivity               = Connectivity.Connectivity()
         self.log                        = SimLog.SimLog().log
         SimLog.SimLog().set_simengine(self)
@@ -403,7 +424,7 @@ class SimEngine(DiscreteEventEngine):
         # boot all motes
         for i in range(len(self.motes)):
             self.motes[i].boot()
-    
+
     def _routine_thread_started(self):
         # log
         self.log(
@@ -413,7 +434,7 @@ class SimEngine(DiscreteEventEngine):
                 "state":  "started"
             }
         )
-        
+
         # schedule end of simulation
         self.scheduleAtAsn(
             asn              = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
