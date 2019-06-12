@@ -196,7 +196,8 @@ def test_run_until_everyone_joined(
             'secjoin_enabled'         : secjoin_enabled,
             'exec_numSlotframesPerRun': 10000,
             'app_pkPeriod'            :  0,
-            'conn_class'              : 'Linear'
+            'conn_class'              : 'Linear',
+            'tsch_keep_alive_interval': 0
         }
     )
 
