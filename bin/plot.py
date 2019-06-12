@@ -84,6 +84,7 @@ def plot_cdf(data, key, subfolder):
         if type(values[0]) == list:
             values = sum(values, [])
 
+        values = [None if value == 'N/A' else value for value in values]
         # compute CDF
         sorted_data = np.sort(values)
         yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
