@@ -47,27 +47,37 @@ class SecJoin(object):
 
     # getters/setters
 
-    def setIsJoined(self):
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_SECJOIN_JOINED,
-            {
-                '_mote_id': self.mote.id,
-            }
-        )
-
+    def setIsJoined(self, value):
         # record
-        self._isJoined = True
+        self._isJoined = value
 
-        if isinstance(self.mote.sf, SchedulingFunctionMSF):
+        if (
+                isinstance(self.mote.sf, SchedulingFunctionMSF)
+                and
+                self.mote.tsch.join_proxy
+            ):
             # delete the autonomous cell to the join proxy if we
             # have. draft-ietf-6tisch-msf-03 draft says, 'The
             # AutoUpCell to the JP is removed at the same time by the
             # "joined node".'
             self.mote.sf.delete_autonomous_cell_to_join_proxy()
 
-        # start RPL
-        self.mote.rpl.start()
+        if value:
+            self.log(
+                SimEngine.SimLog.LOG_SECJOIN_JOINED,
+                {
+                    '_mote_id': self.mote.id,
+                }
+            )
+            self.mote.rpl.start()
+        else:
+            self.log(
+                SimEngine.SimLog.LOG_SECJOIN_UNJOINED,
+                {
+                    '_mote_id': self.mote.id,
+                }
+            )
+            self.mote.rpl.stop()
 
     def getIsJoined(self):
         return self._isJoined
@@ -94,7 +104,7 @@ class SecJoin(object):
             self._send_join_request()
         else:
             # consider I'm already joined
-            self.setIsJoined()  # forced (secjoin_enabled==False)
+            self.setIsJoined(True)  # forced (secjoin_enabled==False)
 
     # from lower stack
 
@@ -195,7 +205,7 @@ class SecJoin(object):
                 self.engine.removeFutureEvent(self._retransmission_tag)
 
                 # I'm now joined!
-                self.setIsJoined()  # mote
+                self.setIsJoined(True)  # mote
         else:
             raise SystemError()
 

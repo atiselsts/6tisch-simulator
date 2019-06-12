@@ -45,7 +45,7 @@ def test_secjoin_msf(sim_engine, fixture_secjoin_enabled):
 
         # on completing the join process, the autonomous cell should be
         # removed
-        mote.secjoin.setIsJoined()
+        mote.secjoin.setIsJoined(True)
         assert mote.secjoin.getIsJoined()
         cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
         assert len(cells) == 0
