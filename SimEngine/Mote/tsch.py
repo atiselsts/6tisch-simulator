@@ -114,6 +114,7 @@ class Tsch(object):
             self.stopSendingEBs()
             self.delete_minimal_cell()
             self.mote.sf.stop()
+            self.mote.sixp.clear_transaction_table()
             self.mote.secjoin.setIsJoined(False)
             self.asnLastSync = None
             self.clock.desync()
