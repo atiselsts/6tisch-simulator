@@ -114,6 +114,12 @@ class Rpl(object):
                 self.send_DIS(dstIp)
                 self.start_dis_timer()
 
+    def stop(self):
+        assert not self.mote.dagRoot
+        self.dodagId = None
+        self.trickle_timer.stop()
+        self.stop_dis_timer()
+
     def indicate_tx(self, cell, dstMac, isACKed):
         self.of.update_etx(cell, dstMac, isACKed)
 
