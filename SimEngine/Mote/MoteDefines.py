@@ -94,6 +94,7 @@ TSCH_MAX_BACKOFF_EXPONENT                   = 7
 TSCH_HOPPING_SEQUENCE                       = [16, 17, 23, 18, 26, 15, 25, 22, 19, 11, 12, 13, 24, 14, 20, 21]
 TSCH_MAX_EB_DELAY                           = 180
 TSCH_NUM_NEIGHBORS_TO_WAIT                  = 2
+TSCH_DESYNCHRONIZED_TIMEOUT_SLOTS           = 1750
 CELLOPTION_TX                               = 'TX'
 CELLOPTION_RX                               = 'RX'
 CELLOPTION_SHARED                           = 'SHARED'

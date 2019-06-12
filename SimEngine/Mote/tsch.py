@@ -86,7 +86,12 @@ class Tsch(object):
             )
 
             self.asnLastSync = self.engine.getAsn()
-            self._start_keep_alive_timer()
+            if self.mote.dagRoot:
+                # we don't need the timers
+                pass
+            else:
+                self._start_keep_alive_timer()
+                self._start_synchronization_timer()
 
             # start SF
             self.mote.sf.start()
@@ -103,6 +108,8 @@ class Tsch(object):
                     "_mote_id":   self.mote.id,
                 }
             )
+            # DAGRoot gets never desynchronized
+            assert not self.mote.dagRoot
 
             self.stopSendingEBs()
             self.delete_minimal_cell()
@@ -111,6 +118,9 @@ class Tsch(object):
             self.asnLastSync = None
             self.clock.desync()
             self._stop_keep_alive_timer()
+            self._stop_synchronization_timer()
+            self.txQueue = []
+            self.received_eb_list = {}
 
             # transition: active->listeningForEB
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
@@ -573,6 +583,7 @@ class Tsch(object):
                     self.asnLastSync = asn # ACK-based sync
                     self.clock.sync()
                     self._reset_keep_alive_timer()
+                    self._reset_synchronization_timer()
 
                 # remove packet from queue
                 self.dequeue(self.pktToSend)
@@ -682,6 +693,7 @@ class Tsch(object):
             self.asnLastSync = asn # packet-based sync
             self.clock.sync()
             self._reset_keep_alive_timer()
+            self._reset_synchronization_timer()
 
         # update schedule stats
         if (
@@ -785,17 +797,23 @@ class Tsch(object):
             self.received_eb_list,
             key=lambda x: self.received_eb_list[x]['mac']['join_metric']
         )
-        self.clock.sync(clock_source_mac_addr)
-        self.setIsSync(True) # mote
+        clock_source = self.engine.get_mote_by_mac_addr(clock_source_mac_addr)
+        if clock_source.dagRoot or clock_source.tsch.getIsSync():
+            self.clock.sync(clock_source_mac_addr)
+            self.setIsSync(True) # mote
 
-        # the mote that sent the EB is now by join proxy
-        self.join_proxy = netaddr.EUI(clock_source_mac_addr)
+            # the mote that sent the EB is now by join proxy
+            self.join_proxy = netaddr.EUI(clock_source_mac_addr)
 
-        # add the minimal cell to the schedule (read from EB)
-        self.add_minimal_cell() # mote
+            # add the minimal cell to the schedule (read from EB)
+            self.add_minimal_cell() # mote
 
-        # trigger join process
-        self.mote.secjoin.startJoinProcess()
+            # trigger join process
+            self.mote.secjoin.startJoinProcess()
+        else:
+            # our clock source is desynchronized; we cannot get
+            # synchronized with the network using the source
+            pass
 
         # clear the EB list
         self.received_eb_list = {}
@@ -1249,21 +1267,53 @@ class Tsch(object):
             self.engine.scheduleIn(
                 delay          = self.settings.tsch_keep_alive_interval,
                 cb             = self._send_keep_alive_message,
-                uniqueTag      = self._get_keep_alive_event_tag(),
+                uniqueTag      = self._get_event_tag('tsch.keep_alive_event'),
                 intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
             )
 
     def _stop_keep_alive_timer(self):
         self.engine.removeFutureEvent(
-            uniqueTag = self._get_keep_alive_event_tag()
+            uniqueTag = self._get_event_tag('tsch.keep_alive_event')
         )
 
     def _reset_keep_alive_timer(self):
         self._stop_keep_alive_timer()
         self._start_keep_alive_timer()
 
-    def _get_keep_alive_event_tag(self):
-        return '{0}-{1}'.format(self.mote.id, 'tsch.keep_alive_event')
+    def _start_synchronization_timer(self):
+        self._reset_synchronization_timer()
+
+    def _stop_synchronization_timer(self):
+        self.engine.removeFutureEvent(
+            uniqueTag = self._get_event_tag('tsch.synchronization_timer')
+        )
+
+    def _reset_synchronization_timer(self):
+        if (
+                (self.settings.tsch_keep_alive_interval == 0)
+                or
+                (self.mote.dagRoot is True)
+            ):
+            # do nothing
+            pass
+        else:
+            target_asn = self.engine.getAsn() + d.TSCH_DESYNCHRONIZED_TIMEOUT_SLOTS
+
+            def _desync():
+                self.setIsSync(False)
+
+            self.engine.scheduleAtAsn(
+                asn            = target_asn,
+                cb             = _desync,
+                uniqueTag      = self._get_event_tag('tsch.synchronization_timer'),
+                intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
+            )
+
+    def _get_event_tag(self, event_name):
+        return '{0}-{1}'.format(self.mote.id, event_name)
+
+    def _get_synchronization_event_tag(self):
+        return '{0}-{1}.format()'
 
     # Pending bit
     def _schedule_next_tx_for_pending_bit(self, dstMac, channel):
