@@ -98,3 +98,45 @@ def test_is_my_ipv6_addr(sim_engine):
 
     assert root.is_my_ipv6_addr('fe80::1') is False
     assert root.is_my_ipv6_addr('fd00::1') is False
+
+
+
+@pytest.fixture(
+    params =[
+        ['02-00-00-00-00-02-00-01', '02-00-00-00-00-02-00-02'],
+        ['02-00-00-00-00-01-00-00', '02-00-00-00-00-02-00-02'],
+        ['02-00-00-00-00-00-00-10', '02-00-00-00-00-00-00-02']
+    ]
+)
+def fixture_motes_eui64(request):
+    return request.param
+
+@pytest.fixture(params=[1, 2, 3])
+def fixture_exec_num_motes(request):
+    return request.param
+
+def test_motes_eui64(sim_engine, fixture_motes_eui64, fixture_exec_num_motes):
+    diff_config = {
+        'exec_numMotes': fixture_exec_num_motes,
+        'motes_eui64'  : fixture_motes_eui64
+    }
+    if (
+            ('02-00-00-00-00-00-00-02' in fixture_motes_eui64)
+            and
+            len(fixture_motes_eui64) == 2
+            and
+            fixture_exec_num_motes == 3
+        ):
+        # we will have two motes having the same EUI64 address
+        with pytest.raises(ValueError):
+            sim_engine = sim_engine(diff_config=diff_config)
+    else:
+        sim_engine = sim_engine(diff_config=diff_config)
+        for index, mote in enumerate(sim_engine.motes):
+            print index, len(fixture_motes_eui64), fixture_motes_eui64
+            if index < len(fixture_motes_eui64):
+                assert mote.get_mac_addr() == fixture_motes_eui64[index]
+            else:
+                base_eui64 = netaddr.EUI('02-00-00-00-00-00-00-00')
+                auto_eui64 = netaddr.EUI(base_eui64.value + mote.id)
+                assert mote.get_mac_addr() == str(auto_eui64)
