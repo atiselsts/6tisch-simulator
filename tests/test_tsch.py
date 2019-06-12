@@ -909,3 +909,79 @@ def test_eb_wait_timer(sim_engine, fixture_clock_source):
         assert mote_2.tsch.clock.source == root.get_mac_addr()
     else:
         assert mote_2.tsch.clock.source == mote_1.get_mac_addr()
+
+@pytest.fixture(params=[True, False])
+def fixture_frame_from_root(request):
+    return request.param
+
+@pytest.fixture(params=[-1, 10])
+def fixture_keep_alive_interval(request):
+    return request.param
+
+def test_desync(
+        sim_engine,
+        fixture_frame_from_root,
+        fixture_keep_alive_interval
+):
+    tsch_slotDuration = 0.01
+    tsch_slotframeLength = 101
+    exec_numSlotframesPerRun = 1000
+    if fixture_keep_alive_interval < 0:
+        # no keep-alive message, but synchronization timer is active
+        fixture_keep_alive_interval = (
+            tsch_slotDuration *
+            tsch_slotframeLength *
+            (exec_numSlotframesPerRun + 1)
+        )
+
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'           : 2,
+            'exec_numSlotframesPerRun': exec_numSlotframesPerRun,
+            'tsch_keep_alive_interval': fixture_keep_alive_interval,
+            'app_pkPeriod'            : 0,
+            'tsch_probBcast_ebProb'   : 0,
+            'tsch_slotDuration'       : tsch_slotDuration,
+            'tsch_slotframeLength'     : tsch_slotframeLength,
+            'secjoin_enabled'         : False,
+            'rpl_extensions'          : []
+        }
+    )
+
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+
+    # disable DIO transmission
+    root.rpl.trickle_timer.stop()
+
+    # get mote synchronized
+    eb = root.tsch._create_EB()
+    mote.tsch._action_receiveEB(eb)
+    mote.engine.removeFutureEvent((mote.id, 'tsch', 'wait_eb'))
+    mote.tsch._perform_synchronization()
+    assert mote.tsch.isSync
+
+    if fixture_frame_from_root:
+        def _decided_to_send_eb(self):
+            return True
+        root.tsch._decided_to_send_eb = types.MethodType(
+            _decided_to_send_eb,
+            root.tsch
+        )
+    else:
+        # do nothing; root won't send any packet
+        pass
+
+    # run until the end
+    u.run_until_end(sim_engine)
+
+    logs = u.read_log_file(filter=['tsch.desynced'])
+    if fixture_frame_from_root or (fixture_keep_alive_interval == 10):
+        # if mote receives something from the root, either a frame or
+        # an ACK to a keep-alive frame, it can keep synchronized
+        assert len(logs) == 0
+    else:
+        assert len(logs) == 1
+        log = logs[0]
+        assert log['_mote_id'] == mote.id
+        assert log['_asn'] == d.TSCH_DESYNCHRONIZED_TIMEOUT_SLOTS
