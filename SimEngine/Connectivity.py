@@ -273,11 +273,22 @@ class Connectivity(object):
                         packet=lockon_transmission['packet'],
                     )
 
-                    # keep track of the number of ACKs received by
-                    # that transmission
-                    if sentAnAck:
+                    pdr_of_return_link = self.get_pdr(
+                        src_id=listener_id,
+                        dst_id=lockon_transmission['tx_mote_id'],
+                        channel=channel
+                    )
+                    if (
+                            sentAnAck
+                            and
+                            (random.random() < pdr_of_return_link)
+                        ):
+                        # keep track of the number of ACKs received by
+                        # that transmission
                         lockon_transmission['numACKs'] += 1
-
+                    else:
+                        # ACK is lost in the air
+                        pass
                 else:
                     # lockon_transmission NOT received correctly
                     # (interference)

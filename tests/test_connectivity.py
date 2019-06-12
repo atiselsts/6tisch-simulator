@@ -315,8 +315,8 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
         def _additional_initialization(self):
             # set up the connectivity matrix
             channel = d.TSCH_HOPPING_SEQUENCE[0]
-            self.set_pdr(src.id, dst.id, channel, PERFECT_PDR)
-            self.set_rssi(
+            self.set_pdr_both_directions(src.id, dst.id, channel, PERFECT_PDR)
+            self.set_rssi_both_directions(
                 src.id,
                 dst.id,
                 channel,
@@ -404,3 +404,78 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
         # any. in other words, num_transmissions should be equal to
         # num_frames when no frame is dropped
         assert num_transmissions == num_frames
+
+@pytest.fixture(params=[1.0, 0.0])
+def fixture_pdr(request):
+    return request.param
+
+def test_drop_ack(sim_engine, fixture_pdr):
+    PERFECT_PDR = 1.0
+    GOOD_RSSI = -10
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'           : 2,
+            'secjoin_enabled'         : False,
+            'app_pkPeriod'            : 0,
+            'conn_class'              : 'Linear',
+            'rpl_daoPeriod'           : 0,
+            'rpl_extensions'          : [],
+            'tsch_probBcast_ebProb'   : 0,
+            'tsch_keep_alive_interval': 10,
+            'phy_numChans'            : 1
+        }
+    )
+
+    root = sim_engine.motes[0]
+    mote = sim_engine.motes[1]
+
+    eb = root.tsch._create_EB()
+    mote.tsch._action_receiveEB(eb)
+    mote.tsch._perform_synchronization()
+    mote.engine.removeFutureEvent((mote.id, 'tsch', 'wait_eb'))
+
+    root.rpl.trickle_timer.stop()
+    mote.rpl.trickle_timer.stop()
+
+    class TestConnectivityMatrixK7(ConnectivityMatrixK7):
+        def _additional_initialization(self):
+            # set up the connectivity matrix
+            channel = d.TSCH_HOPPING_SEQUENCE[0]
+            self.set_pdr(mote.id, root.id, channel, PERFECT_PDR)
+            self.set_pdr(root.id, mote.id, channel, fixture_pdr)
+            self.set_rssi_both_directions(
+                root.id,
+                mote.id,
+                channel,
+                GOOD_RSSI
+            )
+            # dump the connectivity matrix
+            print 'The Connectivity Matrix ("1.0" means PDR of 100%):'
+            self.dump()
+
+    sim_engine.connectivity.matrix = TestConnectivityMatrixK7(
+        sim_engine.connectivity
+    )
+
+    u.run_until_end(sim_engine)
+
+    logs = u.read_log_file(['tsch.txdone'])
+    # all txdone logs is of KEEP_ALIVE
+    assert (
+        len(logs) ==
+        len([log for log in logs if log['packet']['type'] == 'KEEP_ALIVE'])
+    )
+    num_acked = [log for log in logs if log['isACKed']]
+    if fixture_pdr == 0.0:
+        # none of them gets ACK
+        assert len(num_acked) == 0
+        # mote gets desynchronized because it doesn't receive any ACK
+        assert u.read_log_file(['tsch.desynced'])
+    elif fixture_pdr == 1.0:
+        # all get ACK
+        assert len(num_acked) == len(logs)
+        assert not u.read_log_file(['tsch.desynced'])
+    else:
+        raise ValueError('invalid value ({0}) for fixture_pdr'.format(
+            fixture_pdr)
+        )
