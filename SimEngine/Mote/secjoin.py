@@ -87,9 +87,15 @@ class SecJoin(object):
     def startJoinProcess(self):
 
         assert self.mote.dagRoot==False
-        assert self.mote.tsch.getIsSync()==True
+
+        if not self.mote.tsch.getIsSync():
+            return
+
+        if self.getIsJoined():
+            # we've already joined
+            return
+
         assert self.mote.tsch.join_proxy!=None
-        assert self.getIsJoined()==False
 
         if self.settings.secjoin_enabled:
             self._retransmission_count = 0
