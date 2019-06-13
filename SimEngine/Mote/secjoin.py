@@ -212,7 +212,10 @@ class SecJoin(object):
     #======================== private ==========================================
 
     def _retransmit_join_request(self):
-        if  self.getIsJoined() is True:
+        if not self.mote.tsch.getIsSync():
+            # we are desynchronized; give it up
+            return
+        elif  self.getIsJoined() is True:
             # do nothing; this could happen when it received a response at the
             # same slot
             pass
