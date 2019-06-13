@@ -122,6 +122,10 @@ class Tsch(object):
             self._stop_synchronization_timer()
             self.txQueue = []
             self.received_eb_list = {}
+            # we may have this timer task
+            self.engine.removeFutureEvent(
+                uniqueTag=(self.mote.id, 'tsch', 'wait_secjoin')
+            )
 
             # transition: active->listeningForEB
             self.engine.removeFutureEvent(      # remove previously scheduled listeningForEB cells
