@@ -25,14 +25,14 @@ def test_secjoin_msf(sim_engine, fixture_secjoin_enabled):
     eb = root.tsch._create_EB()
     mote.tsch._action_receiveEB(eb)
 
-    cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+    cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
     assert not cells
 
     mote.tsch._perform_synchronization()
 
     if fixture_secjoin_enabled:
         # mote should have an autonomous cell to root
-        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         assert len(cells) == 1
         autonomous_up_cell = cells[0]
         assert autonomous_up_cell.mac_addr == root_mac_addr
@@ -47,9 +47,9 @@ def test_secjoin_msf(sim_engine, fixture_secjoin_enabled):
         # removed
         mote.secjoin.setIsJoined(True)
         assert mote.secjoin.getIsJoined()
-        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         assert len(cells) == 0
     else:
         assert mote.secjoin.getIsJoined()
-        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         assert len(cells) == 0

@@ -133,14 +133,14 @@ class TestMSF(object):
 
         # root should have one autonomous RX cell just after its initialization
         cells = [
-            cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
             if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
 
         # non_root should not have one autonomous RX cell until it gets
         # synchronized (it should not have even SlotFrame 1)
-        assert non_root.tsch.get_slotframe(non_root.sf.SLOTFRAME_HANDLE) is None
+        assert non_root.tsch.get_slotframe(non_root.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS) is None
 
         # make non_root synchronized
         eb = root.tsch._create_EB()
@@ -155,7 +155,7 @@ class TestMSF(object):
         non_root.tsch._action_receiveEB(eb)
         non_root.tsch._action_receiveEB(eb_dummy)
         cells = [
-            cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
+            cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
             if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
         assert len(cells) == 1
@@ -189,7 +189,7 @@ class TestMSF(object):
             mote.sf.start()
             mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
 
-        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
+        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         assert len(cells) == 0
 
     def test_msf(self, sim_engine):
@@ -256,7 +256,7 @@ class TestMSF(object):
         cells = [
             cell for cell in mote.tsch.get_cells(
                 mac_addr         = None,
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
             )
             if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
         ]
@@ -265,7 +265,7 @@ class TestMSF(object):
         cells = [
             cell for cell in mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
             )
             if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
         ]
@@ -280,7 +280,7 @@ class TestMSF(object):
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
@@ -307,7 +307,7 @@ class TestMSF(object):
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
@@ -338,7 +338,7 @@ class TestMSF(object):
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
@@ -520,7 +520,7 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)
+        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
@@ -530,10 +530,10 @@ class TestMSF(object):
                     channelOffset    = channel_offset,
                     neighbor         = root.get_mac_addr(),
                     cellOptions      = cell_options,
-                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE
+                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
         assert (
-            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)) ==
+            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)) ==
             sim_engine.settings.tsch_slotframeLength
         )
 
@@ -549,7 +549,7 @@ class TestMSF(object):
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
-                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
+                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor             = root_mac_addr,
@@ -623,7 +623,7 @@ class TestMSF(object):
 
         cells = mote.tsch.get_cells(
             mac_addr         = root_mac_addr,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
         # mote should have a SHARED autonomous cell of the root
@@ -641,7 +641,7 @@ class TestMSF(object):
         # get the autonomous cell again
         cells = mote.tsch.get_cells(
             mac_addr         = root_mac_addr,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
         assert cells[0] == root_autonomous_cell
@@ -729,7 +729,7 @@ class TestMSF(object):
         # because it's slot_offset is 0
         cells = mote.tsch.get_cells(
             mac_addr         = None,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
         assert cells[0].slot_offset != 0
@@ -766,7 +766,7 @@ class TestMSF(object):
         # mote should have one dedicated cell
         cells = mote.tsch.get_cells(
             root.get_mac_addr(),
-            mote.sf.SLOTFRAME_HANDLE
+            mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
         )
         assert len(cells) == 2
         cells = [cell for cell in cells if cell.options == [d.CELLOPTION_TX]]

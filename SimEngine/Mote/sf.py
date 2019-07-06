@@ -120,7 +120,8 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
 
 class SchedulingFunctionMSF(SchedulingFunctionBase):
 
-    SLOTFRAME_HANDLE = 1
+    SLOTFRAME_HANDLE_AUTONOMOUS_CELLS = 1
+    SLOTFRAME_HANDLE_NEGOTIATED_CELLS = 2
     DEFAULT_CELL_LIST_LEN = 5
     MAX_RETRY = 3
     TX_CELL_OPT   = [d.CELLOPTION_TX]
@@ -142,10 +143,15 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # === admin
 
     def start(self):
-        # install SlotFrame 1 which has the same length as SlotFrame 0
+        # install slotframes for MSF, which have the same length as
+        # Slotframe 0
         slotframe_0 = self.mote.tsch.get_slotframe(0)
         self.mote.tsch.add_slotframe(
-            slotframe_handle = self.SLOTFRAME_HANDLE,
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS,
+            length           = slotframe_0.length
+        )
+        self.mote.tsch.add_slotframe(
+            slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS,
             length           = slotframe_0.length
         )
 
@@ -160,7 +166,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def stop(self):
         # uninstall SlotFrame 1 instead of removing all the cells there
-        self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE)
+        self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
+        self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
 
         if self.mote.dagRoot:
             # do nothing
@@ -207,7 +214,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         else:
             dedicated_cells = self.mote.tsch.get_cells(
                 mac_addr         = old_parent,
-                slotframe_handle = self.SLOTFRAME_HANDLE
+                slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             num_tx_cells = len(
                 filter(
@@ -225,7 +232,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # add the autonomous cell to the parent
             if not self.mote.tsch.get_cells(
                 mac_addr         = new_parent,
-                slotframe_handle = self.SLOTFRAME_HANDLE
+                slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
                 ):
                 self._allocate_autonomous_shared_cell(new_parent)
             # reset the retry counter
@@ -255,7 +262,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         if old_parent:
             cells = self.mote.tsch.get_cells(
                 mac_addr         = old_parent,
-                slotframe_handle = self.SLOTFRAME_HANDLE
+                slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if len(cells) > 1:
                 self.mote.sixp.send_request(
@@ -301,7 +308,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def clear_to_send_EBs_DATA(self):
         # True if we have a TX cell to the current parent
-        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         parent_addr = self.mote.rpl.getPreferredParent()
         if (
                 (slotframe is None)
@@ -325,7 +332,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def add_autonomous_cell_to_join_proxy(self):
         assert self.mote.tsch.join_proxy
         join_proxy_mac_addr = str(self.mote.tsch.join_proxy)
-        if self.mote.tsch.get_cells(join_proxy_mac_addr, self.SLOTFRAME_HANDLE):
+        if self.mote.tsch.get_cells(join_proxy_mac_addr, self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS):
             raise RuntimeError('AutoUpCell to the join proxy is already there')
         else:
             self._allocate_autonomous_shared_cell(join_proxy_mac_addr)
@@ -340,7 +347,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 and
                 self.mote.tsch.get_cells(
                     join_proxy_mac_addr,
-                    self.SLOTFRAME_HANDLE
+                    self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
                 )
             ):
             self._deallocate_autonomous_shared_cell(join_proxy_mac_addr)
@@ -398,7 +405,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
             tx_cells = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
-                self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
+                self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )
             # delete one *TX* cell but we need to keep one dedicated
             # cell to our parent at least
@@ -420,7 +427,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         :return:
         """
 
-        if self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE) is None:
+        if self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS) is None:
             return
 
         # for quick access; get preferred parent
@@ -429,7 +436,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # collect TX cells which has enough numTX
         tx_cell_list = filter(
             lambda cell: cell.options == [d.CELLOPTION_TX],
-            self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE)
+            self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         )
         # pick up TX cells whose NumTx is larger than
         # MSF_MIN_NUM_TX. This is an implementation decision, which is
@@ -499,7 +506,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     channelOffset      = cell['channelOffset'],
                     neighbor           = neighbor,
                     cellOptions        = cell_options,
-                    slotframe_handle   = self.SLOTFRAME_HANDLE
+                    slotframe_handle   = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
         except Exception:
             # We may fail in adding cells since they could be allocated for
@@ -513,7 +520,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     slot_offset      = cell['slotOffset'],
                     channel_offset   = cell['channelOffset'],
                     mac_addr         = neighbor,
-                    slotframe_handle = self.SLOTFRAME_HANDLE
+                    slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                ) is None:
                 # the cell may have been deleted for some reason
                 continue
@@ -522,11 +529,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 channelOffset    = cell['channelOffset'],
                 neighbor         = neighbor,
                 cellOptions      = cell_options,
-                slotframe_handle = self.SLOTFRAME_HANDLE
+                slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
 
     def _clear_cells(self, neighbor):
-        cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
+        cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         for cell in cells:
             assert neighbor == cell.mac_addr
             if d.CELLOPTION_SHARED in cell.options:
@@ -541,7 +548,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     channelOffset    = cell.channel_offset,
                     neighbor         = cell.mac_addr,
                     cellOptions      = cell.options,
-                    slotframe_handle = self.SLOTFRAME_HANDLE
+                    slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
 
     def _relocate_cells(
@@ -561,7 +568,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def _get_available_slots(self):
         return list(
-            set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE)) -
+            set(self.mote.tsch.get_available_slots(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)) -
             self.locked_slots
         )
 
@@ -599,7 +606,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         occupied_cells = filter(
             lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE)
+            self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         )
 
         cell_list = [
@@ -625,7 +632,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell_options in [self.TX_CELL_OPT, self.RX_CELL_OPT]
         allocated_cells = filter(
             lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(peerMac, self.SLOTFRAME_HANDLE)
+            self.mote.tsch.get_cells(peerMac, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         )
 
         # test all the cells in the cell list against the allocated cells
@@ -637,7 +644,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 slot_offset      = slotOffset,
                 channel_offset   = channelOffset,
                 mac_addr         = peerMac,
-                slotframe_handle = self.SLOTFRAME_HANDLE
+                slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
 
             if cell is None:
@@ -1104,7 +1111,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # find available cells in the received candidate cell list
             slots_in_slotframe = set(range(0, self.settings.tsch_slotframeLength))
             slots_in_use       = set(
-                self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE)
+                self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )
             candidate_slots    = set(
                 map(lambda c: c['slotOffset'], candidate_cells)
@@ -1173,7 +1180,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     # autonomous cell
     def _get_autonomous_cell(self, mac_addr):
-        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         hash_value = self._sax(mac_addr)
 
         slot_offset = int(1 + (hash_value % (slotframe.length - 1)))
@@ -1192,7 +1199,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 d.CELLOPTION_TX,
                 d.CELLOPTION_RX
             ],
-            slotframe_handle = self.SLOTFRAME_HANDLE
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
 
     def _allocate_autonomous_shared_cell(self, mac_addr):
@@ -1206,7 +1213,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 d.CELLOPTION_RX,
                 d.CELLOPTION_SHARED
             ],
-            slotframe_handle = self.SLOTFRAME_HANDLE
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
 
     def _deallocate_autonomous_shared_cell(self, mac_addr):
@@ -1220,11 +1227,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 d.CELLOPTION_RX,
                 d.CELLOPTION_SHARED
             ],
-            slotframe_handle = self.SLOTFRAME_HANDLE
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
 
     def _get_autonomous_shared_cell(self, mac_addr):
-        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE)
+        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         cells = slotframe.get_cells_by_mac_addr(mac_addr)
         autonomous_cells = [
             cell for cell in cells

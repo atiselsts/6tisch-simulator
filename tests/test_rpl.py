@@ -189,7 +189,7 @@ class TestOF0(object):
             preferred_parent = mote.rpl.of.preferred_parent
             autonomous_cell = mote.tsch.get_cells(
                 mac_addr         = preferred_parent['mac_addr'],
-                slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
             )[0]
             preferred_parent['numTx'] = 99
             preferred_parent['numTxAck'] = 74
