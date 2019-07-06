@@ -33,7 +33,6 @@
             "tsch_max_payload_len":                        90,
 
             "sf_class":                                    "SFNone",
-            "msf_limit_autonomous_cell_use":               false,
 
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
