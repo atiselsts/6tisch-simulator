@@ -80,10 +80,7 @@ class Rpl(object):
         self.parentChildfromDAOs[child_addr] = parent_addr
 
     def getPreferredParent(self):
-        # FIXME: when we implement IPv6 address or MAC address, we should
-        # define the return type of this method. Currently, this method can
-        # return a node ID, a MAC address, or an IPv6 address since they are
-        # all the same value for a certain mote.
+        # return the MAC address of the current preferred parent
         return self.of.get_preferred_parent()
 
     # admin
