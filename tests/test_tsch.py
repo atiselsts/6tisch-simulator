@@ -985,3 +985,26 @@ def test_desync(
         log = logs[0]
         assert log['_mote_id'] == mote.id
         assert log['_asn'] == d.TSCH_DESYNCHRONIZED_TIMEOUT_SLOTS
+
+def test_tx_queue_of_infinite_size(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'     : 1,
+            'tsch_tx_queue_size': -1
+        }
+    )
+    mote = sim_engine.motes[0]
+
+    # put 100 packets to tx queue
+    num_packets = 100
+    for _ in range(num_packets):
+        packet = {
+            'type': d.PKT_TYPE_DATA,
+            'mac' : {
+                'srcMac': mote.get_mac_addr(),
+                'dstMac': mote.get_mac_addr()
+            }
+        }
+        mote.tsch.enqueue(packet)
+
+    assert len(mote.tsch.txQueue) == num_packets
