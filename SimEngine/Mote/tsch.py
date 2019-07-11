@@ -36,7 +36,14 @@ class Tsch(object):
         # local variables
         self.slotframes       = {}
         self.txQueue          = []
-        self.txQueueSize      = self.settings.tsch_tx_queue_size
+        if self.settings.tsch_tx_queue_size >= 0:
+            self.txQueueSize  = self.settings.tsch_tx_queue_size
+        elif self.settings.tsch_tx_queue_size == -1:
+            self.txQueueSize  = float('inf')
+        else:
+            raise ValueError('unsupported tx_queue_size: {0}'.format(
+                self.settings.tsch_tx_queue_size)
+            )
         self.neighbor_table   = []
         self.pktToSend        = None
         self.waitingFor       = None
