@@ -835,7 +835,8 @@ class SixPTransaction(object):
         # at this moment. It may be better to do so.
         be = d.TSCH_MIN_BACKOFF_EXPONENT
         be_list = []
-        for i in range(self.settings.tsch_max_tx_retries):
+        assert self.mote.tsch.max_tx_retries != float('inf')
+        for i in range(self.mote.tsch.max_tx_retries):
             be_list.append(be)
             be += 1
             if d.TSCH_MAX_BACKOFF_EXPONENT < be:
@@ -843,7 +844,7 @@ class SixPTransaction(object):
         one_way_delay = (
             self.settings.tsch_slotframeLength *
             self.settings.tsch_slotDuration *
-            self.settings.tsch_max_tx_retries *
+            self.mote.tsch.max_tx_retries *
             sum(be_list)
         )
 

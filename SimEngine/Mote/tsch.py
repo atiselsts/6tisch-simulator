@@ -41,8 +41,20 @@ class Tsch(object):
         elif self.settings.tsch_tx_queue_size == -1:
             self.txQueueSize  = float('inf')
         else:
-            raise ValueError('unsupported tx_queue_size: {0}'.format(
-                self.settings.tsch_tx_queue_size)
+            raise ValueError(
+                'unsupported tx_queue_size: {0}'.format(
+                    self.settings.tsch_tx_queue_size
+                )
+            )
+        if self.settings.tsch_max_tx_retries >= 0:
+            self.max_tx_retries = self.settings.tsch_max_tx_retries
+        elif self.settings.tsch_max_tx_retries == -1:
+            self.max_tx_retries = float('inf')
+        else:
+            raise ValueError(
+                'unsupported tsch_max_tx_retries: {0}'.format(
+                    self.settings.tsch_max_tx_retries
+                )
             )
         self.neighbor_table   = []
         self.pktToSend        = None
@@ -397,7 +409,7 @@ class Tsch(object):
         # if I get here, everyting is OK, I can enqueue
         if goOn:
             # set retriesLeft which should be renewed at every hop
-            packet['mac']['retriesLeft'] = self.settings.tsch_max_tx_retries
+            packet['mac']['retriesLeft'] = self.max_tx_retries
             # put the seqnum
             packet['mac']['seqnum'] = self.next_seqnum
             self.next_seqnum += 1
@@ -1139,7 +1151,7 @@ class Tsch(object):
             return False
         else:
             return (
-                packet['mac']['retriesLeft'] < self.settings.tsch_max_tx_retries
+                packet['mac']['retriesLeft'] < self.max_tx_retries
             )
 
     def _decide_backoff_delay(self):
