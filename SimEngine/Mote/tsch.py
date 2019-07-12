@@ -397,7 +397,7 @@ class Tsch(object):
         # if I get here, everyting is OK, I can enqueue
         if goOn:
             # set retriesLeft which should be renewed at every hop
-            packet['mac']['retriesLeft'] = d.TSCH_MAXTXRETRIES
+            packet['mac']['retriesLeft'] = self.settings.tsch_max_tx_retries
             # put the seqnum
             packet['mac']['seqnum'] = self.next_seqnum
             self.next_seqnum += 1
@@ -1138,7 +1138,9 @@ class Tsch(object):
             assert packet['mac']['dstMac'] == d.BROADCAST_ADDRESS
             return False
         else:
-            return packet['mac']['retriesLeft'] < d.TSCH_MAXTXRETRIES
+            return (
+                packet['mac']['retriesLeft'] < self.settings.tsch_max_tx_retries
+            )
 
     def _decide_backoff_delay(self):
         # Section 6.2.5.3 of IEEE 802.15.4-2015: "The MAC sublayer shall delay
