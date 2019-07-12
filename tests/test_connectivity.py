@@ -287,9 +287,10 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
 
     num_motes = 2
     num_frames = 1000
+    max_tx_retries = 5
     sim_engine = sim_engine(
         diff_config = {
-            'exec_numSlotframesPerRun': num_frames * (d.TSCH_MAXTXRETRIES + 1),
+            'exec_numSlotframesPerRun': num_frames * (max_tx_retries + 1),
             'exec_numMotes'           : num_motes,
             'secjoin_enabled'         : False,
             'app_pkPeriod'            : 0,
@@ -300,6 +301,7 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
             'tsch_slotframeLength'    : 2,
             'tsch_probBcast_ebProb'   : 0,
             'tsch_keep_alive_interval': 0,
+            'tsch_max_tx_retries'     : max_tx_retries,
             'tsch_tx_queue_size'      : num_frames,
             'conn_class'              : 'Linear', # this is intentional
             'phy_numChans'            : 1

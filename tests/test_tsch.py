@@ -317,6 +317,7 @@ def cell_type(request):
     return request.param
 
 def test_retransmission_count(sim_engine):
+    max_tx_retries = 5
     sim_engine = sim_engine(
         diff_config = {
             'exec_numSlotframesPerRun': 10,
@@ -326,6 +327,7 @@ def test_retransmission_count(sim_engine):
             'tsch_probBcast_ebProb'   : 0,
             'secjoin_enabled'         : False,
             'tsch_keep_alive_interval': 0,
+            'tsch_max_tx_retries'     : max_tx_retries,
             'conn_class'              : 'Linear'
         },
         force_initial_routing_and_scheduling_state = True
@@ -360,20 +362,22 @@ def test_retransmission_count(sim_engine):
 
     # hop1 should send out the frame six times: 1 for the initial transmission
     # and 5 for retransmissions
-    assert len(tx_logs) == 1 + d.TSCH_MAXTXRETRIES
+    assert len(tx_logs) == 1 + max_tx_retries
     for tx_log in tx_logs:
         assert tx_log['packet']['type'] == d.PKT_TYPE_DATA
         assert hop1.is_my_ipv6_addr(tx_log['packet']['net']['srcIp'])
         assert tx_log['packet']['app']['appcounter'] == 0
 
 def test_retransmission_backoff_algorithm(sim_engine, cell_type):
+    max_tx_retries = 100
     sim_engine = sim_engine(
         diff_config = {
             'exec_numSlotframesPerRun': 10000,
             'exec_numMotes'           : 2,
             'app_pkPeriod'            : 0,
             'secjoin_enabled'         : False,
-            'tsch_keep_alive_interval': 0
+            'tsch_keep_alive_interval': 0,
+            'tsch_max_tx_retries'     : max_tx_retries
         }
     )
     sim_log = SimLog.SimLog()
@@ -385,10 +389,6 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     root  = sim_engine.motes[0]
     hop_1 = sim_engine.motes[1]
     slotframe_length = sim_engine.settings.tsch_slotframeLength
-
-    # increase TSCH_MAXTXRETRIES so that we can have enough retransmission
-    # samples to validate
-    d.TSCH_MAXTXRETRIES = 100
 
     #== test setup ==
 
@@ -453,7 +453,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
             ):
             app_data_tx_logs.append(log)
 
-    assert len(app_data_tx_logs) == 1 + d.TSCH_MAXTXRETRIES
+    assert len(app_data_tx_logs) == 1 + max_tx_retries
 
     # all transmission should have happened only on the dedicated cell if it's
     # available (it shouldn't transmit a unicast frame to the root on the
@@ -498,7 +498,13 @@ def test_select_active_tx_cell(sim_engine):
     # this test is for a particular case; it's not a general test for
     # Tsch._select_active_cell()
 
-    sim_engine = sim_engine(diff_config={'exec_numMotes': 3})
+    max_tx_retries = 5
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'         : 3,
+            'tsch_max_tx_retries': max_tx_retries
+        }
+    )
     mote = sim_engine.motes[0]
     neighbor_mac_addr_1 = sim_engine.motes[1].get_mac_addr()
     neighbor_mac_addr_2 = sim_engine.motes[2].get_mac_addr()
@@ -514,7 +520,7 @@ def test_select_active_tx_cell(sim_engine):
         'type': d.PKT_TYPE_DATA,
         'mac': {
             'dstMac': neighbor_mac_addr_1,
-            'retriesLeft': d.TSCH_MAXTXRETRIES
+            'retriesLeft': max_tx_retries
         }
     }
     mote.tsch.txQueue.append(frame_1)
@@ -525,14 +531,14 @@ def test_select_active_tx_cell(sim_engine):
         'type': d.PKT_TYPE_DATA,
         'mac': {
             'dstMac': neighbor_mac_addr_2,
-            'retriesLeft': d.TSCH_MAXTXRETRIES
+            'retriesLeft': max_tx_retries
         }
     }
     frame_3 = {
         'type': d.PKT_TYPE_DATA,
         'mac': {
             'dstMac': neighbor_mac_addr_2,
-            'retriesLeft': d.TSCH_MAXTXRETRIES
+            'retriesLeft': max_tx_retries
         }
     }
     frame_2['mac']['retriesLeft'] -= 1

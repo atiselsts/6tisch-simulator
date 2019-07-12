@@ -42,6 +42,7 @@
             "tsch_clock_frequency":                        32768,
             "tsch_keep_alive_interval":                    10,
             "tsch_tx_queue_size":                          10,
+            "tsch_max_tx_retries":                         5,
 
 
             "radio_stats_log_period_s":                    60,

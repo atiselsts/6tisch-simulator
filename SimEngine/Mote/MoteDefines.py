@@ -87,7 +87,6 @@ MSF_RELOCATE_PDRTHRES                       = 0.5  # in [0-1]
 MSF_MIN_NUM_TX                              = 100  # min number for PDR to be significant
 
 # === tsch
-TSCH_MAXTXRETRIES                           = 5
 TSCH_MIN_BACKOFF_EXPONENT                   = 1
 TSCH_MAX_BACKOFF_EXPONENT                   = 7
 # https://gist.github.com/twatteyne/2e22ee3c1a802b685695#file-4e_tsch_default_ch-py
