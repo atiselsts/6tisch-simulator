@@ -1527,19 +1527,27 @@ class Clock(object):
             # taken into accout by motes who use our clock as their reference
             # clock.
             error = 0
-        else:
+        elif self._last_clock_access:
             assert self._last_clock_access <= self.engine.getAsn()
             slot_duration = self.engine.settings.tsch_slotDuration
             elapsed_slots = self.engine.getAsn() - self._last_clock_access
             elapsed_time  = elapsed_slots * slot_duration
             error = elapsed_time * self._error_rate
+        else:
+            # self._last_clock_access is None; we're desynchronized.
+            # in this case, we will return 0 as drift, although there
+            # should be a better thing to do.
+            error = None
 
-        # update the variables
-        self._accumulated_error += error
-        self._last_clock_access = self.engine.getAsn()
+        if error:
+            # update the variables
+            self._accumulated_error += error
+            self._last_clock_access = self.engine.getAsn()
 
-        # return the result
-        return self._clock_off_on_sync + self._accumulated_error
+            # return the result
+            return self._clock_off_on_sync + self._accumulated_error
+        else:
+            return 0
 
     def _initialize_error_rate(self):
         # private variables:
