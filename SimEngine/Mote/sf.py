@@ -133,6 +133,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     MAX_RETRY = 3
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
+    NUM_INITIAL_NEGOTIATED_TX_CELLS = 1
+    NUM_INITIAL_NEGOTIATED_RX_CELLS = 1
 
     def __init__(self, mote):
         # initialize parent class
@@ -266,8 +268,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # old parent; note that there could be three types of cells:
         # (TX=1,RX=1,SHARED=1), (TX=1), and (RX=1)
         if old_parent is None:
-            num_tx_cells = 1
-            num_rx_cells = 1
+            num_tx_cells = self.NUM_INITIAL_NEGOTIATED_TX_CELLS
+            num_rx_cells = self.NUM_INITIAL_NEGOTIATED_RX_CELLS
         else:
             dedicated_cells = self.mote.tsch.get_cells(
                 mac_addr         = old_parent,
@@ -279,12 +281,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     dedicated_cells
                 )
             )
+            if num_tx_cells < self.NUM_INITIAL_NEGOTIATED_TX_CELLS:
+                num_tx_cells = self.NUM_INITIAL_NEGOTIATED_TX_CELLS
             num_rx_cells = len(
                 filter(
                     lambda cell: cell.options == [d.CELLOPTION_RX],
                     dedicated_cells
                 )
             )
+            if num_rx_cells < self.NUM_INITIAL_NEGOTIATED_RX_CELLS:
+                num_rx_cells = self.NUM_INITIAL_NEGOTIATED_RX_CELLS
         if new_parent:
             # reset the retry counter
             # we may better to make sure there is no outstanding
