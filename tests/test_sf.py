@@ -17,73 +17,6 @@ from SimEngine.Mote.sf import SchedulingFunctionSFNone
 
 # =========================== helpers =========================================
 
-def set_app_traffic_rate(sim_engine, app_pkPeriod):
-    sim_engine.settings.app_pkPeriod = app_pkPeriod
-
-def start_app_traffic(mote):
-    mote.app.startSendingData()
-
-def stop_app_traffic(sim_engine):
-    set_app_traffic_rate(sim_engine, 0)
-
-def run_until_cell_allocation(sim_engine, mote, _cell_options):
-
-    mote.tsch.original_addCell = mote.tsch.addCell
-    def new_addCell(
-            self,
-            slotOffset,
-            channelOffset,
-            neighbor,
-            cellOptions,
-            slotframe_handle=0
-        ):
-        mote.tsch.original_addCell(
-            slotOffset,
-            channelOffset,
-            neighbor,
-            cellOptions,
-            slotframe_handle
-        )
-
-        if (
-                (self.mote.id == mote.id)
-                and
-                (neighbor is not None)
-                and
-                (neighbor == mote.rpl.getPreferredParent())
-                and
-                (cellOptions == _cell_options)
-            ):
-            # pause the simulator
-            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
-            # revert addCell
-            mote.tsch.addCell = mote.tsch.original_addCell
-    mote.tsch.addCell = types.MethodType(new_addCell, mote.tsch)
-
-    u.run_until_end(sim_engine)
-
-def run_until_dedicated_tx_cell_is_allocated(sim_engine, mote):
-    run_until_cell_allocation(
-        sim_engine,
-        mote,
-        [d.CELLOPTION_TX]
-    )
-
-def run_until_sixp_cmd_is_seen(sim_engine, mote, cmd):
-    mote.sixp.original_tsch_enqueue = mote.sixp._tsch_enqueue
-    def new_tsch_enqueue(self, packet):
-        mote.sixp.original_tsch_enqueue(packet)
-        if (
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
-                and
-                (packet['app']['code'] == cmd)
-            ):
-            sim_engine.pauseAtAsn(sim_engine.getAsn() + 1)
-            # revert _tsch_enqueue
-            mote.sixp._tsch_enqueue = mote.sixp.original_tsch_enqueue
-    mote.sixp._tsch_enqueue = types.MethodType(new_tsch_enqueue, mote.sixp)
-    u.run_until_end(sim_engine)
-
 # =========================== fixtures =========================================
 
 @pytest.fixture(params=['add', 'delete', 'relocate'])
@@ -94,7 +27,7 @@ def test_case(request):
 
 class TestMSF(object):
 
-    def test_initial_dedicated_cell_allocation_to_parent(self, sim_engine):
+    def test_initial_negotiated_cell_allocation_to_parent(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
@@ -116,11 +49,11 @@ class TestMSF(object):
             )
         ]
 
-        # mote_1 should schedule one dedicated cell to its parent
+        # mote_1 should schedule one negotiated TX cell to its parent
         # (mote_0)
         assert len(logs) == 1
 
-    def test_autonomous_non_shared_cell_allocation(self, sim_engine):
+    def test_autonomous_rx_cell_allocation(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
                 'exec_numMotes': 2,
@@ -132,15 +65,11 @@ class TestMSF(object):
         non_root = sim_engine.motes[1]
 
         # root should have one autonomous RX cell just after its initialization
-        cells = [
-            cell for cell in root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
-            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
-        ]
-        assert len(cells) == 1
+        assert root.sf.get_autonomous_rx_cell()
 
         # non_root should not have one autonomous RX cell until it gets
         # synchronized (it should not have even SlotFrame 1)
-        assert non_root.tsch.get_slotframe(non_root.sf.SLOTFRAME_HANDLE) is None
+        assert not non_root.sf.get_autonomous_rx_cell()
 
         # make non_root synchronized
         eb = root.tsch._create_EB()
@@ -154,20 +83,11 @@ class TestMSF(object):
         }
         non_root.tsch._action_receiveEB(eb)
         non_root.tsch._action_receiveEB(eb_dummy)
-        cells = [
-            cell for cell in non_root.tsch.get_cells(None, root.sf.SLOTFRAME_HANDLE)
-            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
-        ]
-        assert len(cells) == 1
+        assert non_root.sf.get_autonomous_rx_cell()
 
-    @pytest.fixture(params=['start-up', 'neighbor-add'])
-    def fixture_autonomous_shared_cell_mode(self, request):
-        return request.param
-
-    def test_autonomous_shared_cell_allocation(
+    def test_autonomous_tx_cell_allocation(
             self,
-            sim_engine,
-            fixture_autonomous_shared_cell_mode
+            sim_engine
         ):
         sim_engine = sim_engine(
             diff_config = {
@@ -179,18 +99,32 @@ class TestMSF(object):
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
 
-        # add root to mote's neighbor table
         root_mac_addr = root.get_mac_addr()
+        mote_mac_addr = root.get_mac_addr()
 
-        if fixture_autonomous_shared_cell_mode == 'start-up':
-            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
-            mote.sf.start()
-        elif fixture_autonomous_shared_cell_mode == 'neighbor-add':
-            mote.sf.start()
-            mote.sixlowpan._add_on_link_neighbor(root_mac_addr)
+        # they shouldn't have any (autonomous TX) cell to each other
+        assert not root.sf.get_tx_cells(mote_mac_addr)
+        assert not mote.sf.get_tx_cells(root_mac_addr)
 
-        cells = mote.tsch.get_cells(root_mac_addr, mote.sf.SLOTFRAME_HANDLE)
-        assert len(cells) == 0
+        dummy_packet = {
+            'type': 'DATA',
+            'mac' : {
+                'srcMac': root_mac_addr,
+                'dstMac': mote_mac_addr
+            }
+        }
+
+        # once root has a packet in its queue, it should have an
+        # autonomous TX cell to the mote
+        root.tsch.enqueue(dummy_packet)
+        cells = root.sf.get_tx_cells(mote_mac_addr)
+        assert len(cells) == 1
+        assert d.CELLOPTION_SHARED in cells[0].options
+
+        # when the packet is dequeued, the autonomous cell should be
+        # removed.
+        root.tsch.dequeue(dummy_packet)
+        assert not root.sf.get_tx_cells(mote_mac_addr)
 
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
@@ -227,6 +161,9 @@ class TestMSF(object):
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
 
+        root_mac_addr = root.get_mac_addr()
+        mote_mac_addr = mote.get_mac_addr()
+
         # disable DIO
         def do_nothing(self):
             pass
@@ -246,48 +183,35 @@ class TestMSF(object):
         mote.tsch._action_receiveEB(eb_dummy)
         dio = root.rpl._create_DIO()
         dio['mac'] = {
-            'srcMac': root.get_mac_addr(),
+            'srcMac': root_mac_addr,
             'dstMac': d.BROADCAST_ADDRESS
         }
         mote.sixlowpan.recvPacket(dio)
 
         # 1. test autonomous cell installation
-        # 1.1 test Non-SHARED autonomous cell
-        cells = [
-            cell for cell in mote.tsch.get_cells(
-                mac_addr         = None,
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
-            )
-            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX]
-        ]
-        assert len(cells) == 1
-        # 1.2 test SHARED autonomous cell to root
-        cells = [
-            cell for cell in mote.tsch.get_cells(
-                mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
-            )
-            if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]
-        ]
-        assert len(cells) == 1
+        # 1.1 test autonomous RX cell
+        assert mote.sf.get_autonomous_rx_cell()
 
-        # 2. test dedicated cell allocation
+        # 1.2 test autonomous TX cell to root
+        assert mote.sf.get_autonomous_tx_cell(root_mac_addr)
+
+        # 2. test negotiated cell allocation
         # 2.1 decrease MSF_MIN_NUM_TX and MSF_MAX_NUMCELLS to speed up this test
         d.MSF_MIN_NUM_TX   = 10
         d.MSF_MAX_NUMCELLS = 10
 
-        # 2.2 confirm the mote doesn't have any dedicated cell to its parent
+        # 2.2 confirm the mote doesn't have any negotiated cell to its parent
         cells = [
             cell for cell in  mote.tsch.get_cells(
-                mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                mac_addr         = root_mac_addr,
+                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
         assert len(cells) == 0
 
         # 2.3 the mote should have triggered a 6P to allocate one
-        # dedicated cell
+        # negotiated TX  cell
         logs = u.read_log_file(filter=[SimLog.LOG_SIXP_TX['type']])
         assert len(logs) == 1
         packet = logs[0]['packet']
@@ -297,7 +221,7 @@ class TestMSF(object):
         assert packet['app']['numCells'] == 1
         assert packet['app']['cellOptions'] == [d.CELLOPTION_TX]
 
-        # wait until the managed cell is available
+        # wait until the negotiated TX cell is available
         u.run_until_asn(
             sim_engine,
             sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
@@ -307,30 +231,14 @@ class TestMSF(object):
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
         assert len(cells) == 1
 
-        # 2.4 send an application packet per slotframe
-        mote.settings.app_pkPeriod = (
-            mote.settings.tsch_slotframeLength / 2 *
-            mote.settings.tsch_slotDuration
-        )
-        mote.app.startSendingData()
-
-        # 2.5 run for 10 slotframes
-        assert mote.sf.cell_utilization == 0.0
-        u.run_until_asn(
-            sim_engine,
-            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
-        )
-
-        # 2.6 confirm the cell usage reaches 100%
-        assert mote.sf.cell_utilization == 1.0
-
-        # 2.7 one dedicated cell should be allocated in the next 2 slotframes
+        # we expect we will have a negotiated RX cell in the next two
+        # slotframes
         u.run_until_asn(
             sim_engine,
             sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
@@ -338,7 +246,38 @@ class TestMSF(object):
         cells = [
             cell for cell in  mote.tsch.get_cells(
                 mac_addr         = root.get_mac_addr(),
-                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE
+                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(cells) == 1
+
+        # 2.4 send an application packet per slotframe
+        mote.settings.app_pkPeriod = (
+            mote.settings.tsch_slotframeLength *
+            mote.settings.tsch_slotDuration
+        )
+        mote.app.startSendingData()
+
+        # 2.5 run for 10 slotframes
+        assert mote.sf.tx_cell_utilization == 0.0
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
+        )
+
+        # 2.6 confirm the cell usage reaches 100%
+        assert mote.sf.tx_cell_utilization == 1.0
+
+        # 2.7 one negotiated TX cell should be allocated in the next 2 slotframes
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
+        )
+        cells = [
+            cell for cell in  mote.tsch.get_cells(
+                mac_addr         = root.get_mac_addr(),
+                slotframe_handle = SchedulingFunctionMSF.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             if cell.options == [d.CELLOPTION_TX]
         ]
@@ -358,7 +297,8 @@ class TestMSF(object):
         mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX = 100
         mote.rpl.of.MAXIMUM_STEP_OF_RANK = 100
 
-        # 3.2 deny input frames over the dedicated cell on the side of the root
+        # 3.2 deny input frames over the negotiated cell on the side
+        # of the root
         def rxDone_wrapper(self, packet, channel):
             if (
                     (packet is not None)
@@ -397,8 +337,8 @@ class TestMSF(object):
         ]
         assert len(logs) == 1
 
-        # 4. test dedicated cell deallocation
-        # 4.1 stop application packet transmission
+        # 4. test negotiated cell deallocation 4.1 stop application
+        # packet transmission
         mote.settings.app_pkPeriod = 0
 
         # 4.2 run for a while
@@ -520,7 +460,7 @@ class TestMSF(object):
         # fill up the hop_1's schedule
         channel_offset = 0
         cell_options = [d.CELLOPTION_TX]
-        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)
+        used_slots = hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
         for _slot in range(sim_engine.settings.tsch_slotframeLength):
             if _slot in used_slots:
                 continue
@@ -530,26 +470,24 @@ class TestMSF(object):
                     channelOffset    = channel_offset,
                     neighbor         = root.get_mac_addr(),
                     cellOptions      = cell_options,
-                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE
+                    slotframe_handle = hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
         assert (
-            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE)) ==
+            len(hop_1.tsch.get_busy_slots(hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)) ==
             sim_engine.settings.tsch_slotframeLength
         )
-
-        # put dummy stats so that scheduling adaptation can be triggered
-        hop_1.sf.num_cells_elapsed = 100
-        hop_1.sf.num_cells_used   = hop_1.sf.num_cells_elapsed
 
         # trigger scheduling adaptation
         root_mac_addr = root.get_mac_addr()
         hop_1.sf.retry_count[root_mac_addr] = 0
-        if   function_under_test == 'adapt_to_traffic':
-            hop_1.sf._adapt_to_traffic(root_mac_addr)
+        # put dummy stats so that scheduling adaptation can be triggered
+        hop_1.sf.tx_cell_utilization = 100
+        if function_under_test == 'adapt_to_traffic':
+            hop_1.sf._adapt_to_traffic(root_mac_addr, hop_1.sf.TX_CELL_OPT)
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
-                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE)
+                hop_1.tsch.get_cells(root.get_mac_addr(), hop_1.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )[0]
             hop_1.sf._request_relocating_cells(
                 neighbor             = root_mac_addr,
@@ -601,7 +539,7 @@ class TestMSF(object):
         mac_addr = '00-00-00-00-00-00-00-00'
 
         # hash_value should be zero
-        slot_offset, channel_offset = mote.sf._get_autonomous_cell(mac_addr)
+        slot_offset, channel_offset = mote.sf._compute_autonomous_cell(mac_addr)
         assert slot_offset == 1
         assert channel_offset == 0
 
@@ -623,15 +561,14 @@ class TestMSF(object):
 
         cells = mote.tsch.get_cells(
             mac_addr         = root_mac_addr,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
-        # mote should have a SHARED autonomous cell of the root
+        # mote should have a autonomous TX cell to the root
         assert cells[0].mac_addr == root_mac_addr
         assert d.CELLOPTION_TX in cells[0].options
-        assert d.CELLOPTION_RX in cells[0].options
         assert d.CELLOPTION_SHARED in cells[0].options
-        # keep the reference to the SHARED autonomous cell
+        # keep the reference to the autonomous TX cell
         root_autonomous_cell = cells[0]
 
         # execute CLEAR (call the equivalent internal method of the
@@ -641,7 +578,7 @@ class TestMSF(object):
         # get the autonomous cell again
         cells = mote.tsch.get_cells(
             mac_addr         = root_mac_addr,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
         assert cells[0] == root_autonomous_cell
@@ -724,16 +661,16 @@ class TestMSF(object):
             }
         )
         mote = sim_engine.motes[0]
-        # one of slots is supposed to be used for the autonomous cell;
-        # the other shouldn't selected by _crate_available_cell_list()
-        # because it's slot_offset is 0
+        # one of slots is supposed to be used for the autonomous RX
+        # cell; the other shouldn't selected by
+        # _crate_available_cell_list() because it's slot_offset is 0
         cells = mote.tsch.get_cells(
             mac_addr         = None,
-            slotframe_handle = mote.sf.SLOTFRAME_HANDLE
+            slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 1
         assert cells[0].slot_offset != 0
-        cells =  mote.sf._create_available_cell_list(1)
+        cells =  mote.sf._create_available_cell_list(2)
         assert len(cells) == 0
 
     def test_locked_slot_in_relocation_request(self, sim_engine):
@@ -760,15 +697,15 @@ class TestMSF(object):
         # wait for a while
         u.run_until_asn(
             sim_engine,
-            2 * sim_engine.settings.tsch_slotframeLength
+            4 * sim_engine.settings.tsch_slotframeLength
         )
+        test_start_asn = sim_engine.getAsn()
 
-        # mote should have one dedicated cell
+        # mote should have one negotiated TX cell
         cells = mote.tsch.get_cells(
             root.get_mac_addr(),
-            mote.sf.SLOTFRAME_HANDLE
+            mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
         )
-        assert len(cells) == 2
         cells = [cell for cell in cells if cell.options == [d.CELLOPTION_TX]]
         assert len(cells) == 1
         cell = cells[0]
@@ -800,109 +737,91 @@ class TestMSF(object):
 
         u.run_until_asn(
             sim_engine,
-            sim_engine.getAsn() + 2 * sim_engine.settings.tsch_slotframeLength
+            sim_engine.getAsn() + 4 * sim_engine.settings.tsch_slotframeLength
         )
-        logs = u.read_log_file(filter=[SimLog.LOG_SIXP_RX['type']])
-        assert len(logs) == 4 # including the first round-trip for ADD
+        logs = u.read_log_file(
+            filter    = [SimLog.LOG_SIXP_RX['type']],
+            after_asn = test_start_asn
+        )
+        # one round-trip for RELOCATE
+        assert len(logs) == 2
         response = logs[-1]['packet']
         assert response['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
         assert response['app']['code'] == d.SIXP_RC_SUCCESS
         assert len(response['app']['cellList']) == 0
 
-    @pytest.fixture(params=[True, False])
-    def limit_autonomous_cell_use(self, request):
-        return request.param
-
-    def test_limit_autonomous_cell_use(
-            self,
-            sim_engine,
-            limit_autonomous_cell_use
-        ):
+    def test_increase_negotiated_rx_cells(self, sim_engine):
+        slotframe_length = 101
         sim_engine = sim_engine(
             diff_config = {
-                'exec_numMotes'                : 2,
-                'sf_class'                     : 'MSF',
-                'conn_class'                   : 'Linear',
-                'secjoin_enabled'              : False,
-                'app_pkPeriod'                 : 0,
-                'rpl_daoPeriod'                : 0,
-                'rpl_extensions'               : [],
-                'tsch_keep_alive_interval'     : 0,
-                'tsch_probBcast_ebProb'        : 0,
-                'msf_limit_autonomous_cell_use': limit_autonomous_cell_use
+                'exec_numMotes'       : 2,
+                'sf_class'            : 'MSF',
+                'conn_class'          : 'Linear',
+                'app_pkPeriod'        : 0,
+                'tsch_slotframeLength': slotframe_length
             }
         )
 
         root = sim_engine.motes[0]
-        root_mac_addr = root.get_mac_addr()
         mote = sim_engine.motes[1]
-        mote.sf.start()
-        mote_slotframe = mote.tsch.get_slotframe(mote.sf.SLOTFRAME_HANDLE)
 
-        # install the autonomous cell to the root
-        assert not mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        mote.sf._allocate_autonomous_shared_cell(root_mac_addr)
-        cells = mote_slotframe.get_cells_by_mac_addr(root_mac_addr)
-        autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        assert autonomous_cell
-        assert d.CELLOPTION_TX in autonomous_cell.options
-
-        # add an dedicated cell to the root
-        dedicated_cell = {'slotOffset': 1, 'channelOffset': 1}
-        mote.sf._add_cells(
-            neighbor     = root_mac_addr,
-            cell_list    = [dedicated_cell],
-            cell_options = [d.CELLOPTION_TX]
+        u.run_until_mote_is_ready_for_app(sim_engine, mote)
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + slotframe_length * 2
         )
-        assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 2
 
-        # check whether TX bit gets off or not
-        autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        if limit_autonomous_cell_use:
-            assert d.CELLOPTION_TX not in autonomous_cell.options
-        else:
-            assert d.CELLOPTION_TX in autonomous_cell.options
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 1
 
-        # delete the dedicated cell
-        mote.sf._delete_cells(
-            neighbor     = root_mac_addr,
-            cell_list    = [dedicated_cell],
-            cell_options = [d.CELLOPTION_TX]
+        # make root send a packet at every slotframe
+        for _ in range(d.MSF_MAX_NUMCELLS):
+            packet = {
+                'type': 'DATA',
+                'mac': {
+                    'srcMac': root.get_mac_addr(),
+                    'dstMac': mote.get_mac_addr()
+                },
+                'net': {
+                    'srcIp': root.get_ipv6_link_local_addr(),
+                    'dstIp': mote.get_ipv6_link_local_addr(),
+                    'packet_length': sim_engine.settings.app_pkLength
+                }
+            }
+            root.tsch.enqueue(packet)
+            u.run_until_asn(
+                sim_engine,
+                sim_engine.getAsn() + slotframe_length
+            )
+
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + slotframe_length * 2
         )
-        assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 1
-        autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        assert d.CELLOPTION_TX in autonomous_cell.options
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 2
 
-        # test "clear"
-        # add the dedicated cell again
-        dedicated_cell = {'slotOffset': 1, 'channelOffset': 1}
-        mote.sf._add_cells(
-            neighbor     = root_mac_addr,
-            cell_list    = [dedicated_cell],
-            cell_options = [d.CELLOPTION_TX]
-        )
-        assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 2
+        # run until the end
+        u.run_until_end(sim_engine)
 
-        # add another dedicated cell
-        dedicated_cell = {'slotOffset': 2, 'channelOffset': 2}
-        mote.sf._add_cells(
-            neighbor     = root_mac_addr,
-            cell_list    = [dedicated_cell],
-            cell_options = [d.CELLOPTION_TX]
-        )
-        assert len(mote_slotframe.get_cells_by_mac_addr(root_mac_addr)) == 3
-
-        # check whether TX bit gets off or not
-        autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        if limit_autonomous_cell_use:
-            assert d.CELLOPTION_TX not in autonomous_cell.options
-        else:
-            assert d.CELLOPTION_TX in autonomous_cell.options
-
-        # exec "clear""
-        mote.sf._clear_cells(root_mac_addr)
-        # the autonomous cell should be kept
-        autonomous_cell = mote.sf._get_autonomous_shared_cell(root_mac_addr)
-        assert autonomous_cell
-        # and of course, TX bit should be set
-        assert d.CELLOPTION_TX in autonomous_cell.options
+        # mote should remove one RX cell
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 1

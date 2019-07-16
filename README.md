@@ -40,7 +40,7 @@ Simulated protocol stack
 | [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                        |
 | [draft-ietf-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-01)         | 6LoWPAN Fragment Forwarding              |
 | [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                    |
-| [draft-ietf-6tisch-msf-03](https://tools.ietf.org/html/draft-ietf-6tisch-msf-03)                             | 6TiSCH Minimal Scheduling Function (MSF) |
+| [draft-ietf-6tisch-msf-05](https://tools.ietf.org/html/draft-ietf-6tisch-msf-05)                             | 6TiSCH Minimal Scheduling Function (MSF) |
 | [draft-ietf-6tisch-minimal-security-09](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-09)   | 6TiSCH Minimal Security (join process)   |
 | [RFC8480](https://tools.ietf.org/html/rfc8480)                                                               | 6TiSCH 6top Protocol (6P)                |
 | [RFC8180](https://tools.ietf.org/html/rfc8180)                                                               | Minimal 6TiSCH Configuration             |

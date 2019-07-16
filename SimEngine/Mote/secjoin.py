@@ -51,17 +51,6 @@ class SecJoin(object):
         # record
         self._isJoined = value
 
-        if (
-                isinstance(self.mote.sf, SchedulingFunctionMSF)
-                and
-                self.mote.tsch.join_proxy
-            ):
-            # delete the autonomous cell to the join proxy if we
-            # have. draft-ietf-6tisch-msf-03 draft says, 'The
-            # AutoUpCell to the JP is removed at the same time by the
-            # "joined node".'
-            self.mote.sf.delete_autonomous_cell_to_join_proxy()
-
         if value:
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_JOINED,
@@ -103,9 +92,6 @@ class SecJoin(object):
             # initialize request timeout; pick a number randomly between
             # TIMEOUT_BASE and (TIMEOUT_BASE * TIMEOUT_RANDOM_FACTOR)
             self._request_timeout  = self.TIMEOUT_BASE * random.uniform(1, self.TIMEOUT_RANDOM_FACTOR)
-
-            if isinstance(self.mote.sf, SchedulingFunctionMSF):
-                self.mote.sf.add_autonomous_cell_to_join_proxy()
 
             self._send_join_request()
         else:

@@ -50,6 +50,9 @@ class SchedulingFunctionTest(SchedulingFunctionBase):
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
         pass
 
+    def indication_dedicated_rx_cell_elapsed(self,cell,used):
+        pass
+
     def indication_parent_change(self, old_parent, new_parent):
         pass
 
