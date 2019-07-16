@@ -187,15 +187,14 @@ class TestOF0(object):
 
             # set numTx and numTxAck
             preferred_parent = mote.rpl.of.preferred_parent
-            autonomous_cell = mote.tsch.get_cells(
-                mac_addr         = preferred_parent['mac_addr'],
-                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+            negotiated_tx_cell = mote.sf.get_tx_cells(
+                preferred_parent['mac_addr']
             )[0]
             preferred_parent['numTx'] = 99
             preferred_parent['numTxAck'] = 74
             # inform RPL of the 100th transmission that is success
             mote.rpl.of.update_etx(
-                cell     = autonomous_cell,
+                cell     = negotiated_tx_cell,
                 mac_addr = preferred_parent['mac_addr'],
                 isACKed  = True
             )
