@@ -723,6 +723,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         if 0 in available_slots:
             available_slots.remove(0)
 
+        # remove the slot offset used for the autonomous RX cell
+        autonomous_rx_cell = self.get_autonomous_rx_cell()
+        assert autonomous_rx_cell
+        if autonomous_rx_cell.slot_offset in available_slots:
+            available_slots.remove(autonomous_rx_cell.slot_offset)
+
         if len(available_slots) < cell_list_len:
             # we don't have enough available cells; no cell is selected
             selected_slots = []
