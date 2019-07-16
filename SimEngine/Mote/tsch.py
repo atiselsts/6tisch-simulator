@@ -11,6 +11,7 @@ import netaddr
 
 # Mote sub-modules
 import MoteDefines as d
+from SimEngine.Mote.sf import SchedulingFunctionMSF
 
 # Simulator-wide modules
 import SimEngine
@@ -441,6 +442,20 @@ class Tsch(object):
                 # add to txQueue
                 self.txQueue    += [packet]
 
+        if (
+                goOn
+                and
+                packet['mac']['dstMac'] != d.BROADCAST_ADDRESS
+                and
+                isinstance(self.mote.sf, SchedulingFunctionMSF)
+                and
+                not self.mote.sf.get_tx_cells(packet['mac']['dstMac'])
+            ):
+            # on-demand allocation of autonomous TX cell
+            self.mote.sf.allocate_autonomous_tx_cell(
+                packet['mac']['dstMac']
+            )
+
         return goOn
 
     def dequeue(self, packet):
@@ -449,6 +464,23 @@ class Tsch(object):
         else:
             # do nothing
             pass
+
+        if (
+                packet['mac']['dstMac'] != d.BROADCAST_ADDRESS
+                and
+                isinstance(self.mote.sf, SchedulingFunctionMSF)
+                and
+                not [
+                    _pkt for _pkt in self.txQueue
+                    if _pkt['mac']['dstMac'] == packet['mac']['dstMac']
+                ]
+                and
+                self.mote.sf.get_autonomous_tx_cell(packet['mac']['dstMac'])
+            ):
+            # on-demand deallocation of autonomous TX cell
+            self.mote.sf.deallocate_autonomous_tx_cell(
+                packet['mac']['dstMac']
+            )
 
     def dequeue_by_index(self, index):
         assert index < len(self.txQueue)

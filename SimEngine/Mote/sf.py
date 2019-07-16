@@ -155,8 +155,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             length           = slotframe_0.length
         )
 
-        # install a Non-SHARED autonomous cell
-        self._allocate_autonomous_non_shared_cell()
+        # install our autonomous RX cell
+        self.allocate_autonomous_rx_cell()
 
         if self.mote.dagRoot:
             # do nothing
@@ -165,7 +165,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self._housekeeping_collision()
 
     def stop(self):
-        # uninstall SlotFrame 1 instead of removing all the cells there
+        # uninstall the slotframes entirely instead of removing the
+        # cells there one by one
         self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
         self.mote.tsch.delete_slotframe(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
 
@@ -173,7 +174,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # do nothing
             pass
         else:
-            self.engine.removeFutureEvent((self.mote.id, '_housekeeping_collision'))
+            self.engine.removeFutureEvent(
+                (self.mote.id, '_housekeeping_collision')
+            )
 
     # === indications from other layers
 
@@ -229,12 +232,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
             )
         if new_parent:
-            # add the autonomous cell to the parent
-            if not self.mote.tsch.get_cells(
-                mac_addr         = new_parent,
-                slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
-                ):
-                self._allocate_autonomous_shared_cell(new_parent)
             # reset the retry counter
             # we may better to make sure there is no outstanding
             # transaction with the same peer
@@ -257,7 +254,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     initiator_mac_addr=packet['mac']['srcMac'],
                     responder_mac_addr=packet['mac']['dstMac']
                 )
-            self._clear_cells(old_parent) # including the autonomous shared cell
+            self._clear_cells(old_parent)
 
         if old_parent:
             cells = self.mote.tsch.get_cells(
@@ -270,19 +267,20 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     command  = d.SIXP_CMD_CLEAR,
                     callback = _callback
                 )
-            else:
-                assert len(cells) == 1
-                # this should be the autonomous cell
+            elif len(cells) == 1:
+                # this should be an autonomous TX cell
                 assert (
                     sorted(cells[0].options) ==
                     sorted([
                         d.CELLOPTION_TX,
-                        d.CELLOPTION_RX,
                         d.CELLOPTION_SHARED
                     ])
                 )
-                # remove the autonomous cell
-                self._deallocate_autonomous_shared_cell(old_parent)
+                # the autonomous TX cell should be removed
+                # automatically
+            else:
+                # do nothing
+                pass
 
     def detect_schedule_inconsistency(self, peerMac):
         # send a CLEAR request to the peer
@@ -329,39 +327,103 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         return ret_val
 
-    def add_autonomous_cell_to_join_proxy(self):
-        assert self.mote.tsch.join_proxy
-        join_proxy_mac_addr = str(self.mote.tsch.join_proxy)
-        if self.mote.tsch.get_cells(join_proxy_mac_addr, self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS):
-            raise RuntimeError('AutoUpCell to the join proxy is already there')
+    def get_tx_cells(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(
+            self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+        )
+        if slotframe:
+            cells = slotframe.get_cells_by_mac_addr(mac_addr)
+            negotiated_tx_cells = [cell for cell in cells
+                                   if cell.options == [d.CELLOPTION_TX]]
+            autonomous_tx_cell = self.get_autonomous_tx_cell(mac_addr)
+            if negotiated_tx_cells:
+                assert not autonomous_tx_cell
+                ret = negotiated_tx_cells
+            elif autonomous_tx_cell:
+                ret = [autonomous_tx_cell]
+            else:
+                ret = []
         else:
-            self._allocate_autonomous_shared_cell(join_proxy_mac_addr)
+            ret = []
+        return ret
 
-    def delete_autonomous_cell_to_join_proxy(self):
-        if self.mote.tsch.join_proxy:
-            join_proxy_mac_addr = str(self.mote.tsch.join_proxy)
+    def get_autonomous_rx_cell(self):
+        slotframe = self.mote.tsch.get_slotframe(
+            self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
+        if slotframe:
+            cells = slotframe.get_cells_by_mac_addr(None)
+            if cells:
+                assert len(cells) == 1
+                assert cells[0].options == [d.CELLOPTION_RX]
+                ret = cells[0]
+            else:
+                ret = None
         else:
-            join_proxy_mac_addr = None
-        if (
-                join_proxy_mac_addr
-                and
-                self.mote.tsch.get_cells(
-                    join_proxy_mac_addr,
-                    self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+            ret = None
+        return ret
+
+    def allocate_autonomous_rx_cell(self):
+        mac_addr = self.mote.get_mac_addr()
+        slot_offset, channel_offset = self._compute_autonomous_cell(mac_addr)
+        self.mote.tsch.addCell(
+            slotOffset       = slot_offset,
+            channelOffset    = channel_offset,
+            neighbor         = None,
+            cellOptions      = [
+                d.CELLOPTION_RX
+            ],
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
+
+    def get_autonomous_tx_cell(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(
+            self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
+        if slotframe:
+            cells = slotframe.get_cells_by_mac_addr(mac_addr)
+            autonomous_cells = [
+                cell for cell in cells
+                if (
+                        (d.CELLOPTION_TX in cell.options)
+                        and
+                        (d.CELLOPTION_SHARED in cell.options)
                 )
-            ):
-            self._deallocate_autonomous_shared_cell(join_proxy_mac_addr)
+            ]
+            if autonomous_cells:
+                assert len(autonomous_cells) == 1
+                ret = autonomous_cells[0]
+            else:
+                ret = None
         else:
-            assert (
-                self.mote.dagRoot
-                or
-                (not self.settings.secjoin_enabled)
-            )
-            # we ignore this case; this method can be called even when
-            # the autonomous cell is not installed, for instance,
-            # secjoin is disabled or it's the dagroot
-            pass
+            ret = None
+        return ret
 
+    def allocate_autonomous_tx_cell(self, mac_addr):
+        slot_offset, channel_offset = self._compute_autonomous_cell(mac_addr)
+        self.mote.tsch.addCell(
+            slotOffset       = slot_offset,
+            channelOffset    = channel_offset,
+            neighbor         = mac_addr,
+            cellOptions      = [
+                d.CELLOPTION_TX,
+                d.CELLOPTION_SHARED
+            ],
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
+
+    def deallocate_autonomous_tx_cell(self, mac_addr):
+        slot_offset, channel_offset = self._compute_autonomous_cell(mac_addr)
+        self.mote.tsch.deleteCell(
+            slotOffset       = slot_offset,
+            channelOffset    = channel_offset,
+            neighbor         = mac_addr,
+            cellOptions      = [
+                d.CELLOPTION_TX,
+                d.CELLOPTION_SHARED
+            ],
+            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
 
     # ======================= private ==========================================
 
@@ -533,14 +595,17 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             )
 
     def _clear_cells(self, neighbor):
-        cells = self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
+        cells = self.mote.tsch.get_cells(
+            neighbor,
+            self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+        )
         for cell in cells:
             assert neighbor == cell.mac_addr
+            assert d.CELLOPTION_SHARED not in cell.options
             if d.CELLOPTION_SHARED in cell.options:
-                # we consider this cell as the autonomous one of the
-                # neighbor, which must not be deleted by CLEAR. Skip
-                # this cell:
-                # https://tools.ietf.org/html/draft-ietf-6tisch-msf-01#section-3
+                # we consider this cell as the autonomous TX cell of
+                # the neighbor, which must not be deleted by
+                # CLEAR. Skip this cell
                 assert cell == self._get_autonomous_shared_cell(neighbor)
             else:
                 self.mote.tsch.deleteCell(
@@ -1179,74 +1244,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         )
 
     # autonomous cell
-    def _get_autonomous_cell(self, mac_addr):
-        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
+    def _compute_autonomous_cell(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(
+            self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+        )
         hash_value = self._sax(mac_addr)
 
         slot_offset = int(1 + (hash_value % (slotframe.length - 1)))
-        channel_offset = int(hash_value % 16)
+        channel_offset = int(hash_value % self.settings.phy_numChans)
 
         return (slot_offset, channel_offset)
-
-    def _allocate_autonomous_non_shared_cell(self):
-        mac_addr = self.mote.get_mac_addr()
-        slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
-        self.mote.tsch.addCell(
-            slotOffset       = slot_offset,
-            channelOffset    = channel_offset,
-            neighbor         = None,
-            cellOptions      = [
-                d.CELLOPTION_TX,
-                d.CELLOPTION_RX
-            ],
-            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
-        )
-
-    def _allocate_autonomous_shared_cell(self, mac_addr):
-        slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
-        self.mote.tsch.addCell(
-            slotOffset       = slot_offset,
-            channelOffset    = channel_offset,
-            neighbor         = mac_addr,
-            cellOptions      = [
-                d.CELLOPTION_TX,
-                d.CELLOPTION_RX,
-                d.CELLOPTION_SHARED
-            ],
-            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
-        )
-
-    def _deallocate_autonomous_shared_cell(self, mac_addr):
-        slot_offset, channel_offset = self._get_autonomous_cell(mac_addr)
-        self.mote.tsch.deleteCell(
-            slotOffset       = slot_offset,
-            channelOffset    = channel_offset,
-            neighbor         = mac_addr,
-            cellOptions      = [
-                d.CELLOPTION_TX,
-                d.CELLOPTION_RX,
-                d.CELLOPTION_SHARED
-            ],
-            slotframe_handle = self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
-        )
-
-    def _get_autonomous_shared_cell(self, mac_addr):
-        slotframe = self.mote.tsch.get_slotframe(self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS)
-        cells = slotframe.get_cells_by_mac_addr(mac_addr)
-        autonomous_cells = [
-            cell for cell in cells
-            if (
-                    (d.CELLOPTION_RX in cell.options)
-                    and
-                    (d.CELLOPTION_SHARED in cell.options)
-            )
-        ]
-        if autonomous_cells:
-            assert len(autonomous_cells) == 1
-            ret = autonomous_cells[0]
-        else:
-            ret = None
-        return ret
 
     # SAX
     def _sax(self, mac_addr):
