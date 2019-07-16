@@ -197,6 +197,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
+                preferred_parent
+                and
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_TX])
@@ -228,6 +230,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
+                preferred_parent
+                and
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_RX])
