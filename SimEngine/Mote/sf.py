@@ -133,6 +133,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     MAX_RETRY = 3
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
+    NUM_INITIAL_NEGOTIATED_TX_CELLS = 1
+    NUM_INITIAL_NEGOTIATED_RX_CELLS = 1
 
     def __init__(self, mote):
         # initialize parent class
@@ -197,6 +199,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
+                preferred_parent
+                and
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_TX])
@@ -228,6 +232,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
+                preferred_parent
+                and
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_RX])
@@ -262,8 +268,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # old parent; note that there could be three types of cells:
         # (TX=1,RX=1,SHARED=1), (TX=1), and (RX=1)
         if old_parent is None:
-            num_tx_cells = 1
-            num_rx_cells = 1
+            num_tx_cells = self.NUM_INITIAL_NEGOTIATED_TX_CELLS
+            num_rx_cells = self.NUM_INITIAL_NEGOTIATED_RX_CELLS
         else:
             dedicated_cells = self.mote.tsch.get_cells(
                 mac_addr         = old_parent,
@@ -275,12 +281,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     dedicated_cells
                 )
             )
+            if num_tx_cells < self.NUM_INITIAL_NEGOTIATED_TX_CELLS:
+                num_tx_cells = self.NUM_INITIAL_NEGOTIATED_TX_CELLS
             num_rx_cells = len(
                 filter(
                     lambda cell: cell.options == [d.CELLOPTION_RX],
                     dedicated_cells
                 )
             )
+            if num_rx_cells < self.NUM_INITIAL_NEGOTIATED_RX_CELLS:
+                num_rx_cells = self.NUM_INITIAL_NEGOTIATED_RX_CELLS
         if new_parent:
             # reset the retry counter
             # we may better to make sure there is no outstanding
@@ -712,6 +722,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # cell
         if 0 in available_slots:
             available_slots.remove(0)
+
+        # remove the slot offset used for the autonomous RX cell
+        autonomous_rx_cell = self.get_autonomous_rx_cell()
+        assert autonomous_rx_cell
+        if autonomous_rx_cell.slot_offset in available_slots:
+            available_slots.remove(autonomous_rx_cell.slot_offset)
 
         if len(available_slots) < cell_list_len:
             # we don't have enough available cells; no cell is selected

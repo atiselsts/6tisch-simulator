@@ -737,15 +737,15 @@ class TestMSF(object):
 
         u.run_until_asn(
             sim_engine,
-            sim_engine.getAsn() + 4 * sim_engine.settings.tsch_slotframeLength
+            sim_engine.getAsn() + 2 * sim_engine.settings.tsch_slotframeLength
         )
         logs = u.read_log_file(
-            filter    = [SimLog.LOG_SIXP_RX['type']],
+            filter    = [SimLog.LOG_SIXP_TX['type']],
             after_asn = test_start_asn
         )
-        # one round-trip for RELOCATE
-        assert len(logs) == 2
-        response = logs[-1]['packet']
+        logs = [log for log in logs if log['_mote_id'] == 1]
+        assert len(logs) == 1
+        response = logs[0]['packet']
         assert response['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
         assert response['app']['code'] == d.SIXP_RC_SUCCESS
         assert len(response['app']['cellList']) == 0
