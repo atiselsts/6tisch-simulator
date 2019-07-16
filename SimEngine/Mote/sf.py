@@ -68,6 +68,10 @@ class SchedulingFunctionBase(object):
         raise NotImplementedError() # abstractmethod
 
     @abstractmethod
+    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+        raise NotImplementedError() # abstractmethod
+
+    @abstractmethod
     def indication_parent_change(self, old_parent, new_parent):
         """
         [from RPL] decided to change parents.
@@ -104,6 +108,9 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
     def indication_dedicated_tx_cell_elapsed(self,cell,used):
         pass # do nothing
 
+    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+        pass # do nothing
+
     def indication_parent_change(self, old_parent, new_parent):
         pass # do nothing
 
@@ -132,11 +139,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         super(SchedulingFunctionMSF, self).__init__(mote)
 
         # (additional) local variables
-        self.num_cells_elapsed = 0       # number of dedicated cells passed
-        self.num_cells_used    = 0       # number of dedicated cells used
-        self.cell_utilization  = 0
-        self.locked_slots      = set([]) # slots in on-going ADD transactions
-        self.retry_count       = {}      # indexed by MAC address
+        self.num_tx_cells_elapsed = 0
+        self.num_tx_cells_used    = 0
+        self.tx_cell_utilization  = 0
+        self.num_rx_cells_elapsed = 0
+        self.num_rx_cells_used    = 0
+        self.rx_cell_utilization  = 0
+        self.locked_slots         = set([]) # slots in on-going ADD transactions
+        self.retry_count          = {}      # indexed by MAC address
 
     # ======================= public ==========================================
 
@@ -185,25 +195,65 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def indication_dedicated_tx_cell_elapsed(self, cell, used):
         assert cell.mac_addr is not None
-
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_TX])
             ):
-
-            # increment cell passed counter
-            self.num_cells_elapsed += 1
-
-            # increment cell used counter
-            if used:
-                self.num_cells_used += 1
-
+            self._update_cell_counters(self.TX_CELL_OPT, used)
             # adapt number of cells if necessary
-            if d.MSF_MAX_NUMCELLS <= self.num_cells_elapsed:
-                self._adapt_to_traffic(preferred_parent)
-                self._reset_cell_counters()
+            if d.MSF_MAX_NUMCELLS <= self.num_tx_cells_elapsed:
+                tx_cell_utilization = (
+                    self.num_tx_cells_used /
+                    float(self.num_tx_cells_elapsed)
+                )
+                if tx_cell_utilization != self.tx_cell_utilization:
+                    self.log(
+                        SimEngine.SimLog.LOG_MSF_TX_CELL_UTILIZATION,
+                        {
+                            '_mote_id'    : self.mote.id,
+                            'neighbor'    : preferred_parent,
+                            'value'       : '{0}% -> {1}%'.format(
+                                int(self.tx_cell_utilization * 100),
+                                int(tx_cell_utilization * 100)
+                            )
+                        }
+                    )
+                    self.tx_cell_utilization = tx_cell_utilization
+                self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
+                self._reset_cell_counters(self.TX_CELL_OPT)
+
+    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+        assert cell.mac_addr is not None
+        preferred_parent = self.mote.rpl.getPreferredParent()
+        if (
+                (cell.mac_addr == preferred_parent)
+                and
+                (cell.options == [d.CELLOPTION_RX])
+            ):
+            self._update_cell_counters(self.RX_CELL_OPT, used)
+            # adapt number of cells if necessary
+            rx_cell_utilization = (
+                self.num_rx_cells_used /
+                float(self.num_rx_cells_elapsed)
+            )
+            if d.MSF_MAX_NUMCELLS <= self.num_rx_cells_elapsed:
+                if rx_cell_utilization != self.rx_cell_utilization:
+                    self.log(
+                        SimEngine.SimLog.LOG_MSF_RX_CELL_UTILIZATION,
+                        {
+                            '_mote_id'    : self.mote.id,
+                            'neighbor'    : preferred_parent,
+                            'value'       : '{0}% -> {1}%'.format(
+                                int(self.rx_cell_utilization * 100),
+                                int(rx_cell_utilization * 100)
+                            )
+                        }
+                    )
+                    self.rx_cell_utilization = rx_cell_utilization
+                self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
+                self._reset_cell_counters(self.RX_CELL_OPT)
 
     def indication_parent_change(self, old_parent, new_parent):
         assert old_parent != new_parent
@@ -416,57 +466,80 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     # ======================= private ==========================================
 
-    def _reset_cell_counters(self):
-        self.num_cells_elapsed = 0
-        self.num_cells_used   = 0
+    def _reset_cell_counters(self, cell_opt):
+        if cell_opt == self.TX_CELL_OPT:
+            self.num_tx_cells_elapsed = 0
+            self.num_tx_cells_used = 0
+        else:
+            assert cell_opt == self.RX_CELL_OPT
+            self.num_rx_cells_elapsed = 0
+            self.num_rx_cells_used = 0
 
-    def _adapt_to_traffic(self, neighbor):
-        """
-        Check the cells counters and trigger 6P commands if cells need to be
-        added or removed.
+    def _update_cell_counters(self, cell_opt, used):
+        if cell_opt == self.TX_CELL_OPT:
+            self.num_tx_cells_elapsed += 1
+            if used:
+                self.num_tx_cells_used += 1
+        else:
+            assert cell_opt == self.RX_CELL_OPT
+            self.num_rx_cells_elapsed += 1
+            if used:
+                self.num_rx_cells_used += 1
 
-        :param int neighbor:
-        :return:
-        """
-        cell_utilization = self.num_cells_used / float(self.num_cells_elapsed)
-        if cell_utilization != self.cell_utilization:
-            self.log(
-                SimEngine.SimLog.LOG_MSF_CELL_UTILIZATION,
-                {
-                    '_mote_id'    : self.mote.id,
-                    'neighbor'    : neighbor,
-                    'value'       : '{0}% -> {1}%'.format(
-                        int(self.cell_utilization * 100),
-                        int(cell_utilization * 100)
-                    )
-                }
-            )
-            self.cell_utilization = cell_utilization
-
+    def _adapt_to_traffic(self, neighbor, cell_opt):
         # reset retry counter
         assert neighbor in self.retry_count
         self.retry_count[neighbor] = 0
-        if d.MSF_LIM_NUMCELLSUSED_HIGH < cell_utilization:
-            # add one TX cell
-            self._request_adding_cells(
-                neighbor     = neighbor,
-                num_tx_cells = 1
-            )
-
-        elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
-            tx_cells = filter(
-                lambda cell: cell.options == [d.CELLOPTION_TX],
-                self.mote.tsch.get_cells(neighbor,
-                                         self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
-            )
-            # delete one *TX* cell but we need to keep one dedicated
-            # cell to our parent at least
-            if len(tx_cells) > 1:
-                self._request_deleting_cells(
+        if cell_opt == self.TX_CELL_OPT:
+            if d.MSF_LIM_NUMCELLSUSED_HIGH < self.tx_cell_utilization:
+                # add one TX cell
+                self._request_adding_cells(
                     neighbor     = neighbor,
-                    num_cells    = 1,
-                    cell_options = self.TX_CELL_OPT
+                    num_tx_cells = 1
                 )
+
+            elif self.tx_cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
+                tx_cells = filter(
+                    lambda cell: cell.options == [d.CELLOPTION_TX],
+                    self.mote.tsch.get_cells(
+                        neighbor,
+                        self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+                    )
+                )
+                # delete one *TX* cell but we need to keep one dedicated
+                # cell to our parent at least
+                if len(tx_cells) > 1:
+                    self._request_deleting_cells(
+                        neighbor     = neighbor,
+                        num_cells    = 1,
+                        cell_options = self.TX_CELL_OPT
+                    )
+        else:
+            assert cell_opt == self.RX_CELL_OPT
+            if d.MSF_LIM_NUMCELLSUSED_HIGH < self.rx_cell_utilization:
+                self._request_adding_cells(
+                    neighbor     = neighbor,
+                    num_tx_cells = 0,
+                    num_rx_cells = 1,
+                )
+
+            elif self.rx_cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
+                rx_cells = filter(
+                    lambda cell: cell.options == [d.CELLOPTION_RX],
+                    self.mote.tsch.get_cells(
+                        neighbor,
+                        self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+                    )
+                )
+                # delete one *TX* cell but we need to keep one dedicated
+                # cell to our parent at least
+                if len(rx_cells) > 1:
+                    self._request_deleting_cells(
+                        neighbor     = neighbor,
+                        num_cells    = 1,
+                        cell_options = self.RX_CELL_OPT
+                    )
+
 
     def _housekeeping_collision(self):
         """

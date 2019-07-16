@@ -676,6 +676,14 @@ class Tsch(object):
                         reason = SimEngine.SimLog.DROPREASON_MAX_RETRIES,
                     )
 
+        # notify upper layers
+        if active_cell and active_cell.mac_addr:
+            assert active_cell.is_tx_on()
+            self.mote.sf.indication_dedicated_tx_cell_elapsed(
+                cell = active_cell,
+                used = self.pktToSend is not None
+            )
+
         # end of radio activity, not waiting for anything
         self.waitingFor = None
         self.pktToSend  = None
@@ -700,113 +708,121 @@ class Tsch(object):
         # not waiting for anything anymore
         self.waitingFor = None
 
-        # abort if received nothing (idle listen)
-        if packet == None:
-            return False # isACKed
+        if packet:
+            # add the source mote to the neighbor list if it's not listed yet
+            if packet['mac']['srcMac'] not in self.neighbor_table:
+                self.neighbor_table.append(packet['mac']['srcMac'])
 
-        # add the source mote to the neighbor list if it's not listed yet
-        if packet['mac']['srcMac'] not in self.neighbor_table:
-            self.neighbor_table.append(packet['mac']['srcMac'])
+            # accept only EBs while we're not syncrhonized
+            if (
+                    (self.getIsSync() is False)
+                    and
+                    (packet['type'] != d.PKT_TYPE_EB)
+                ):
+                return False # isACKed
 
-        # accept only EBs while we're not syncrhonized
-        if (
-                (self.getIsSync() is False)
-                and
-                (packet['type'] != d.PKT_TYPE_EB)
-            ):
-            return False # isACKed
+            # abort if I received a frame for someone else
+            if (
+                    (packet['mac']['dstMac'] != d.BROADCAST_ADDRESS)
+                    and
+                    (self.mote.is_my_mac_addr(packet['mac']['dstMac']) is False)
+                ):
+                return False # isACKed
 
-        # abort if I received a frame for someone else
-        if (
-                (packet['mac']['dstMac'] != d.BROADCAST_ADDRESS)
-                and
-                (self.mote.is_my_mac_addr(packet['mac']['dstMac']) is False)
-            ):
-            return False # isACKed
+            # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
 
-        # if I get here, I received a frame at the link layer (either unicast for me, or broadcast)
+            # log
+            self.log(
+                SimEngine.SimLog.LOG_TSCH_RXDONE,
+                {
+                    '_mote_id':       self.mote.id,
+                    'channel':        channel,
+                    'slot_offset':    (
+                        active_cell.slot_offset
+                        if active_cell else None
+                    ),
+                    'channel_offset': (
+                        active_cell.channel_offset
+                        if active_cell else None
+                    ),
+                    'packet':         packet,
+                }
+            )
 
-        # log
-        self.log(
-            SimEngine.SimLog.LOG_TSCH_RXDONE,
-            {
-                '_mote_id':       self.mote.id,
-                'channel':        channel,
-                'slot_offset':    (
-                    active_cell.slot_offset
-                    if active_cell else None
-                ),
-                'channel_offset': (
-                    active_cell.channel_offset
-                    if active_cell else None
-                ),
-                'packet':         packet,
-            }
-        )
+            # time correction
+            if self.clock.source == packet['mac']['srcMac']:
+                self.asnLastSync = asn # packet-based sync
+                self.clock.sync()
+                self._reset_keep_alive_timer()
+                self._reset_synchronization_timer()
 
-        # time correction
-        if self.clock.source == packet['mac']['srcMac']:
-            self.asnLastSync = asn # packet-based sync
-            self.clock.sync()
-            self._reset_keep_alive_timer()
-            self._reset_synchronization_timer()
+            # update schedule stats
+            if (
+                    self.getIsSync()
+                    and
+                    active_cell
+                ):
+                    active_cell.increment_num_rx()
 
-        # update schedule stats
-        if (
-                self.getIsSync()
-                and
-                active_cell
-            ):
-                active_cell.increment_num_rx()
+            if   self.mote.is_my_mac_addr(packet['mac']['dstMac']):
+                # link-layer unicast to me
 
-        if   self.mote.is_my_mac_addr(packet['mac']['dstMac']):
-            # link-layer unicast to me
+                # ACK frame
+                isACKed = True
 
-            # ACK frame
-            isACKed = True
+                # save the pending bit here since the packet instance may be made
+                # empty by an upper layer process
+                is_pending_bit_on = packet['mac']['pending_bit']
 
-            # save the pending bit here since the packet instance may be made
-            # empty by an upper layer process
-            is_pending_bit_on = packet['mac']['pending_bit']
+                # dispatch to the right upper layer
+                if   packet['type'] == d.PKT_TYPE_SIXP:
+                    self.mote.sixp.recv_packet(packet)
+                elif packet['type'] == d.PKT_TYPE_KEEP_ALIVE:
+                    # do nothing but send back an ACK
+                    pass
+                elif 'net' in packet:
+                    self.mote.sixlowpan.recvPacket(packet)
+                else:
+                    raise SystemError()
 
-            # dispatch to the right upper layer
-            if   packet['type'] == d.PKT_TYPE_SIXP:
-                self.mote.sixp.recv_packet(packet)
-            elif packet['type'] == d.PKT_TYPE_KEEP_ALIVE:
-                # do nothing but send back an ACK
-                pass
-            elif 'net' in packet:
-                self.mote.sixlowpan.recvPacket(packet)
+                if (
+                        is_pending_bit_on
+                        and
+                        self._is_next_slot_unused()
+                    ):
+                    self._schedule_next_rx_by_pending_bit(channel)
+
+            elif packet['mac']['dstMac'] == d.BROADCAST_ADDRESS:
+                # link-layer broadcast
+
+                # do NOT ACK frame (broadcast)
+                isACKed = False
+
+                # dispatch to the right upper layer
+                if   packet['type'] == d.PKT_TYPE_EB:
+                    self._action_receiveEB(packet)
+                elif 'net' in packet:
+                    assert packet['type'] in [
+                        d.PKT_TYPE_DIO,
+                        d.PKT_TYPE_DIS
+                    ]
+                    self.mote.sixlowpan.recvPacket(packet)
+                else:
+                    raise SystemError()
+
             else:
                 raise SystemError()
-
-            if (
-                    is_pending_bit_on
-                    and
-                    self._is_next_slot_unused()
-                ):
-                self._schedule_next_rx_by_pending_bit(channel)
-
-        elif packet['mac']['dstMac'] == d.BROADCAST_ADDRESS:
-            # link-layer broadcast
-
-            # do NOT ACK frame (broadcast)
+        else:
+            # received nothing (idle listen)
             isACKed = False
 
-            # dispatch to the right upper layer
-            if   packet['type'] == d.PKT_TYPE_EB:
-                self._action_receiveEB(packet)
-            elif 'net' in packet:
-                assert packet['type'] in [
-                    d.PKT_TYPE_DIO,
-                    d.PKT_TYPE_DIS
-                ]
-                self.mote.sixlowpan.recvPacket(packet)
-            else:
-                raise SystemError()
-
-        else:
-            raise SystemError()
+        # notify upper layers
+        if active_cell and active_cell.mac_addr:
+            assert active_cell.is_rx_on()
+            self.mote.sf.indication_dedicated_rx_cell_elapsed(
+                cell = active_cell,
+                used = packet is not None
+            )
 
         return isACKed
 
@@ -1032,17 +1048,19 @@ class Tsch(object):
 
         # notify upper layers
         for cell in candidate_cells:
-            if cell.is_tx_on():
-                if cell.mac_addr is not None:
+            # call methods against unselected (non-active) cells
+            if cell.mac_addr and cell != self.active_cell:
+                if cell.is_tx_on():
                     self.mote.sf.indication_dedicated_tx_cell_elapsed(
                         cell = cell,
-                        used = (
-                            (self.active_cell == cell)
-                            and
-                            (self.pktToSend is not None)
-                        )
+                        used = False
                     )
+                if cell.is_rx_on():
+                    self.mote.sf.indication_dedicated_rx_cell_elapsed(
+                        cell = cell,
+                        used = False
 
+                    )
         # schedule the next active slot
         self._schedule_next_active_slot()
 

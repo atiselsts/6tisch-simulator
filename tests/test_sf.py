@@ -260,14 +260,14 @@ class TestMSF(object):
         mote.app.startSendingData()
 
         # 2.5 run for 10 slotframes
-        assert mote.sf.cell_utilization == 0.0
+        assert mote.sf.tx_cell_utilization == 0.0
         u.run_until_asn(
             sim_engine,
             sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
         )
 
         # 2.6 confirm the cell usage reaches 100%
-        assert mote.sf.cell_utilization == 1.0
+        assert mote.sf.tx_cell_utilization == 1.0
 
         # 2.7 one negotiated TX cell should be allocated in the next 2 slotframes
         u.run_until_asn(
@@ -477,15 +477,13 @@ class TestMSF(object):
             sim_engine.settings.tsch_slotframeLength
         )
 
-        # put dummy stats so that scheduling adaptation can be triggered
-        hop_1.sf.num_cells_elapsed = 100
-        hop_1.sf.num_cells_used   = hop_1.sf.num_cells_elapsed
-
         # trigger scheduling adaptation
         root_mac_addr = root.get_mac_addr()
         hop_1.sf.retry_count[root_mac_addr] = 0
-        if   function_under_test == 'adapt_to_traffic':
-            hop_1.sf._adapt_to_traffic(root_mac_addr)
+        # put dummy stats so that scheduling adaptation can be triggered
+        hop_1.sf.tx_cell_utilization = 100
+        if function_under_test == 'adapt_to_traffic':
+            hop_1.sf._adapt_to_traffic(root_mac_addr, hop_1.sf.TX_CELL_OPT)
         elif function_under_test == 'relocate':
             relocating_cell = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
@@ -739,7 +737,7 @@ class TestMSF(object):
 
         u.run_until_asn(
             sim_engine,
-            sim_engine.getAsn() + 2 * sim_engine.settings.tsch_slotframeLength
+            sim_engine.getAsn() + 4 * sim_engine.settings.tsch_slotframeLength
         )
         logs = u.read_log_file(
             filter    = [SimLog.LOG_SIXP_RX['type']],
@@ -751,3 +749,79 @@ class TestMSF(object):
         assert response['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE
         assert response['app']['code'] == d.SIXP_RC_SUCCESS
         assert len(response['app']['cellList']) == 0
+
+    def test_increase_negotiated_rx_cells(self, sim_engine):
+        slotframe_length = 101
+        sim_engine = sim_engine(
+            diff_config = {
+                'exec_numMotes'       : 2,
+                'sf_class'            : 'MSF',
+                'conn_class'          : 'Linear',
+                'app_pkPeriod'        : 0,
+                'tsch_slotframeLength': slotframe_length
+            }
+        )
+
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+
+        u.run_until_mote_is_ready_for_app(sim_engine, mote)
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + slotframe_length * 2
+        )
+
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 1
+
+        # make root send a packet at every slotframe
+        for _ in range(d.MSF_MAX_NUMCELLS):
+            packet = {
+                'type': 'DATA',
+                'mac': {
+                    'srcMac': root.get_mac_addr(),
+                    'dstMac': mote.get_mac_addr()
+                },
+                'net': {
+                    'srcIp': root.get_ipv6_link_local_addr(),
+                    'dstIp': mote.get_ipv6_link_local_addr(),
+                    'packet_length': sim_engine.settings.app_pkLength
+                }
+            }
+            root.tsch.enqueue(packet)
+            u.run_until_asn(
+                sim_engine,
+                sim_engine.getAsn() + slotframe_length
+            )
+
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + slotframe_length * 2
+        )
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 2
+
+        # run until the end
+        u.run_until_end(sim_engine)
+
+        # mote should remove one RX cell
+        rx_cells = [
+            cell for cell in mote.tsch.get_cells(
+                root.get_mac_addr(),
+                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
+            if cell.options == [d.CELLOPTION_RX]
+        ]
+        assert len(rx_cells) == 1
