@@ -213,7 +213,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # (TX=1,RX=1,SHARED=1), (TX=1), and (RX=1)
         if old_parent is None:
             num_tx_cells = 1
-            num_rx_cells = 0
+            num_rx_cells = 1
         else:
             dedicated_cells = self.mote.tsch.get_cells(
                 mac_addr         = old_parent,
@@ -261,23 +261,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 mac_addr         = old_parent,
                 slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
-            if len(cells) > 1:
+            if len(cells) >= 1:
                 self.mote.sixp.send_request(
                     dstMac   = old_parent,
                     command  = d.SIXP_CMD_CLEAR,
                     callback = _callback
                 )
-            elif len(cells) == 1:
-                # this should be an autonomous TX cell
-                assert (
-                    sorted(cells[0].options) ==
-                    sorted([
-                        d.CELLOPTION_TX,
-                        d.CELLOPTION_SHARED
-                    ])
-                )
-                # the autonomous TX cell should be removed
-                # automatically
             else:
                 # do nothing
                 pass
@@ -467,7 +456,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         elif cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
             tx_cells = filter(
                 lambda cell: cell.options == [d.CELLOPTION_TX],
-                self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
+                self.mote.tsch.get_cells(neighbor,
+                                         self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )
             # delete one *TX* cell but we need to keep one dedicated
             # cell to our parent at least
@@ -570,6 +560,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     cellOptions        = cell_options,
                     slotframe_handle   = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
+            if (
+                    cell_options == [d.CELLOPTION_TX]
+                    and
+                    self.get_autonomous_tx_cell(neighbor)
+                ):
+                self.deallocate_autonomous_tx_cell(neighbor)
         except Exception:
             # We may fail in adding cells since they could be allocated for
             # another peer. We need to have a locking or reservation mechanism
