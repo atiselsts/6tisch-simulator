@@ -680,8 +680,8 @@ class Tsch(object):
         if active_cell:
             assert active_cell.is_tx_on()
             self.mote.sf.indication_tx_cell_elapsed(
-                cell = active_cell,
-                used = self.pktToSend is not None
+                cell        = active_cell,
+                sent_packet = self.pktToSend
             )
 
         # end of radio activity, not waiting for anything
@@ -820,8 +820,8 @@ class Tsch(object):
         if active_cell:
             assert active_cell.is_rx_on()
             self.mote.sf.indication_rx_cell_elapsed(
-                cell = active_cell,
-                used = packet is not None
+                cell            = active_cell,
+                received_packet = packet
             )
 
         return isACKed
@@ -1052,14 +1052,13 @@ class Tsch(object):
             if cell != self.active_cell:
                 if cell.is_tx_on():
                     self.mote.sf.indication_tx_cell_elapsed(
-                        cell = cell,
-                        used = False
+                        cell        = cell,
+                        sent_packet = None
                     )
                 if cell.is_rx_on():
                     self.mote.sf.indication_rx_cell_elapsed(
-                        cell = cell,
-                        used = False
-
+                        cell            = cell,
+                        received_packet = None
                     )
         # schedule the next active slot
         self._schedule_next_active_slot()
