@@ -258,6 +258,27 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     self.rx_cell_utilization = rx_cell_utilization
                 self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
                 self._reset_cell_counters(self.RX_CELL_OPT)
+        elif (
+                (cell.mac_addr == None)
+                and
+                (
+                    cell.slotframe.slotframe_handle ==
+                    self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
+                )
+                and
+                received_packet
+                and
+                (received_packet['mac']['srcMac'] != preferred_parent )
+                and
+                self.get_negotiated_rx_cells(received_packet['mac']['srcMac'])
+            ):
+            assert cell.options == [d.CELLOPTION_RX]
+            # we received a packet on our autonomous RX cell, with the
+            # source mote of which we have negotiated RX cells. The
+            # source mote must have lost the negotaited RX cells, TX
+            # on its viewpoint. Remove them now.
+            self._clear_cells(received_packet['mac']['srcMac'])
+
 
     def indication_parent_change(self, old_parent, new_parent):
         assert old_parent != new_parent
@@ -390,6 +411,20 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 ret = [autonomous_tx_cell]
             else:
                 ret = []
+        else:
+            ret = []
+        return ret
+
+    def get_negotiated_rx_cells(self, mac_addr):
+        slotframe = self.mote.tsch.get_slotframe(
+            self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+        )
+        if slotframe:
+            cells = slotframe.get_cells_by_mac_addr(mac_addr)
+            ret = [
+                cell for cell in cells
+                if cell.options == [d.CELLOPTION_RX]
+            ]
         else:
             ret = []
         return ret
