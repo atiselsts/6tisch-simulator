@@ -61,14 +61,14 @@ class SchedulingFunctionBase(object):
         pass
 
     @abstractmethod
-    def indication_dedicated_tx_cell_elapsed(self,cell,used):
+    def indication_tx_cell_elapsed(self,cell,used):
         """[from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
 
         """
         raise NotImplementedError() # abstractmethod
 
     @abstractmethod
-    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, used):
         raise NotImplementedError() # abstractmethod
 
     @abstractmethod
@@ -105,10 +105,10 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass # do nothing
 
-    def indication_dedicated_tx_cell_elapsed(self,cell,used):
+    def indication_tx_cell_elapsed(self,cell,used):
         pass # do nothing
 
-    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, used):
         pass # do nothing
 
     def indication_parent_change(self, old_parent, new_parent):
@@ -195,7 +195,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass
 
-    def indication_dedicated_tx_cell_elapsed(self, cell, used):
+    def indication_tx_cell_elapsed(self, cell, used):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
@@ -228,7 +228,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
                 self._reset_cell_counters(self.TX_CELL_OPT)
 
-    def indication_dedicated_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, used):
         assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
