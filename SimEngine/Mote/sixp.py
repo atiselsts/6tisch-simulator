@@ -158,7 +158,7 @@ class SixP(object):
             # reset the next sequence number for the peer to 0 when the request
             # is CLEAR
             if command == d.SIXP_CMD_CLEAR:
-                self._reset_seqnum(dstMac)
+                self.reset_seqnum(dstMac)
 
             # enqueue
             # the packet is saved for the callback, which is called
@@ -366,7 +366,7 @@ class SixP(object):
                 else:
                     if request['app']['code'] == d.SIXP_CMD_CLEAR:
                         # reset SeqNum when it's a CLEAR request
-                        self._reset_seqnum(request['mac']['srcMac'])
+                        self.reset_seqnum(request['mac']['srcMac'])
                     else:
                         # increment SeqNum managed internally; this could be
                         # seen not aligned with the text of Section 3.4.6,
@@ -564,12 +564,12 @@ class SixP(object):
     def _get_seqnum(self, peerMac):
         if peerMac not in self.seqnum_table.keys():
             # the initial value of SeqNum is 0
-            self._reset_seqnum(peerMac)
+            self.reset_seqnum(peerMac)
             return 0
         else:
             return self.seqnum_table[peerMac]
 
-    def _reset_seqnum(self, peerMac):
+    def reset_seqnum(self, peerMac):
         self.seqnum_table[peerMac] = 0
 
     def _find_transaction(self, packet):
