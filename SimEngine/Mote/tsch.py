@@ -677,7 +677,7 @@ class Tsch(object):
                     )
 
         # notify upper layers
-        if active_cell and active_cell.mac_addr:
+        if active_cell:
             assert active_cell.is_tx_on()
             self.mote.sf.indication_tx_cell_elapsed(
                 cell = active_cell,
@@ -817,7 +817,7 @@ class Tsch(object):
             isACKed = False
 
         # notify upper layers
-        if active_cell and active_cell.mac_addr:
+        if active_cell:
             assert active_cell.is_rx_on()
             self.mote.sf.indication_rx_cell_elapsed(
                 cell = active_cell,
@@ -1049,7 +1049,7 @@ class Tsch(object):
         # notify upper layers
         for cell in candidate_cells:
             # call methods against unselected (non-active) cells
-            if cell.mac_addr and cell != self.active_cell:
+            if cell != self.active_cell:
                 if cell.is_tx_on():
                     self.mote.sf.indication_tx_cell_elapsed(
                         cell = cell,

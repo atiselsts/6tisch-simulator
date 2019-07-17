@@ -196,7 +196,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         pass
 
     def indication_tx_cell_elapsed(self, cell, used):
-        assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
                 preferred_parent
@@ -229,7 +228,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 self._reset_cell_counters(self.TX_CELL_OPT)
 
     def indication_rx_cell_elapsed(self, cell, used):
-        assert cell.mac_addr is not None
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
                 preferred_parent
