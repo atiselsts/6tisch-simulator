@@ -727,6 +727,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     cellOptions      = cell.options,
                     slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
                 )
+        self.mote.sixp.reset_seqnum(neighbor)
 
     def _relocate_cells(
             self,
