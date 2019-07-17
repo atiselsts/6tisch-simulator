@@ -714,19 +714,13 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         for cell in cells:
             assert neighbor == cell.mac_addr
             assert d.CELLOPTION_SHARED not in cell.options
-            if d.CELLOPTION_SHARED in cell.options:
-                # we consider this cell as the autonomous TX cell of
-                # the neighbor, which must not be deleted by
-                # CLEAR. Skip this cell
-                assert cell == self._get_autonomous_shared_cell(neighbor)
-            else:
-                self.mote.tsch.deleteCell(
-                    slotOffset       = cell.slot_offset,
-                    channelOffset    = cell.channel_offset,
-                    neighbor         = cell.mac_addr,
-                    cellOptions      = cell.options,
-                    slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-                )
+            self.mote.tsch.deleteCell(
+                slotOffset       = cell.slot_offset,
+                channelOffset    = cell.channel_offset,
+                neighbor         = cell.mac_addr,
+                cellOptions      = cell.options,
+                slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            )
         self.mote.sixp.reset_seqnum(neighbor)
 
     def _relocate_cells(
