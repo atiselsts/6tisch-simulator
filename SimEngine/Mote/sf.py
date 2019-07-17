@@ -61,14 +61,14 @@ class SchedulingFunctionBase(object):
         pass
 
     @abstractmethod
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_tx_cell_elapsed(self, cell, sent_packet):
         """[from TSCH] just passed a dedicated TX cell. used=False means we didn't use it.
 
         """
         raise NotImplementedError() # abstractmethod
 
     @abstractmethod
-    def indication_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, received_packet):
         raise NotImplementedError() # abstractmethod
 
     @abstractmethod
@@ -105,10 +105,10 @@ class SchedulingFunctionSFNone(SchedulingFunctionBase):
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass # do nothing
 
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_tx_cell_elapsed(self, cell, sent_packet):
         pass # do nothing
 
-    def indication_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, received_packet):
         pass # do nothing
 
     def indication_parent_change(self, old_parent, new_parent):
@@ -195,7 +195,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass
 
-    def indication_tx_cell_elapsed(self, cell, used):
+    def indication_tx_cell_elapsed(self, cell, sent_packet):
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
                 preferred_parent
@@ -204,7 +204,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 and
                 (cell.options == [d.CELLOPTION_TX])
             ):
-            self._update_cell_counters(self.TX_CELL_OPT, used)
+            self._update_cell_counters(self.TX_CELL_OPT, bool(sent_packet))
             # adapt number of cells if necessary
             if d.MSF_MAX_NUMCELLS <= self.num_tx_cells_elapsed:
                 tx_cell_utilization = (
@@ -227,7 +227,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
                 self._reset_cell_counters(self.TX_CELL_OPT)
 
-    def indication_rx_cell_elapsed(self, cell, used):
+    def indication_rx_cell_elapsed(self, cell, received_packet):
         preferred_parent = self.mote.rpl.getPreferredParent()
         if (
                 preferred_parent
@@ -236,7 +236,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 and
                 (cell.options == [d.CELLOPTION_RX])
             ):
-            self._update_cell_counters(self.RX_CELL_OPT, used)
+            self._update_cell_counters(self.RX_CELL_OPT, bool(received_packet))
             # adapt number of cells if necessary
             rx_cell_utilization = (
                 self.num_rx_cells_used /

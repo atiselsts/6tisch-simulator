@@ -47,10 +47,10 @@ class SchedulingFunctionTest(SchedulingFunctionBase):
     def indication_neighbor_deleted(self,neighbor):
         pass
 
-    def indication_tx_cell_elapsed(self,cell,used):
+    def indication_tx_cell_elapsed(self, cell, sent_packet):
         pass
 
-    def indication_rx_cell_elapsed(self,cell,used):
+    def indication_rx_cell_elapsed(self, cell, received_packet):
         pass
 
     def indication_parent_change(self, old_parent, new_parent):
