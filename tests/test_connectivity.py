@@ -416,6 +416,7 @@ def test_drop_ack(sim_engine, fixture_pdr):
     GOOD_RSSI = -10
     sim_engine = sim_engine(
         diff_config = {
+            'conn_simulate_ack_drop'  : True,
             'exec_numMotes'           : 2,
             'secjoin_enabled'         : False,
             'app_pkPeriod'            : 0,

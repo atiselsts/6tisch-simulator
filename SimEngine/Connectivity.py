@@ -269,20 +269,19 @@ class Connectivity(object):
                     # listener receives!
 
                     # lockon_transmission received correctly
-                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                    receivedAck = self.engine.motes[listener_id].radio.rxDone(
                         packet=lockon_transmission['packet'],
                     )
 
-                    pdr_of_return_link = self.get_pdr(
-                        src_id=listener_id,
-                        dst_id=lockon_transmission['tx_mote_id'],
-                        channel=channel
-                    )
-                    if (
-                            sentAnAck
-                            and
-                            (random.random() < pdr_of_return_link)
-                        ):
+                    if receivedAck and self.settings.conn_simulate_ack_drop:
+                        pdr_of_return_link = self.get_pdr(
+                            src_id=listener_id,
+                            dst_id=lockon_transmission['tx_mote_id'],
+                            channel=channel
+                        )
+                        receivedAck = random.random() < pdr_of_return_link
+
+                    if receivedAck:
                         # keep track of the number of ACKs received by
                         # that transmission
                         lockon_transmission['numACKs'] += 1
@@ -292,7 +291,7 @@ class Connectivity(object):
                 else:
                     # lockon_transmission NOT received correctly
                     # (interference)
-                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                    receivedAck = self.engine.motes[listener_id].radio.rxDone(
                         packet=None,
                     )
                     self.log(
@@ -305,7 +304,7 @@ class Connectivity(object):
                             )
                         }
                     )
-                    assert sentAnAck is False
+                    assert receivedAck is False
 
                 # done processing this listener
 
