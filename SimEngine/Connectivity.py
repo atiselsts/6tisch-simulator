@@ -269,7 +269,7 @@ class Connectivity(object):
                     # listener receives!
 
                     # lockon_transmission received correctly
-                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                    receivedAck = self.engine.motes[listener_id].radio.rxDone(
                         packet=lockon_transmission['packet'],
                     )
 
@@ -279,7 +279,7 @@ class Connectivity(object):
                         channel=channel
                     )
                     if (
-                            sentAnAck
+                            receivedAck
                             and
                             (random.random() < pdr_of_return_link)
                         ):
@@ -292,7 +292,7 @@ class Connectivity(object):
                 else:
                     # lockon_transmission NOT received correctly
                     # (interference)
-                    sentAnAck = self.engine.motes[listener_id].radio.rxDone(
+                    receivedAck = self.engine.motes[listener_id].radio.rxDone(
                         packet=None,
                     )
                     self.log(
@@ -305,7 +305,7 @@ class Connectivity(object):
                             )
                         }
                     )
-                    assert sentAnAck is False
+                    assert receivedAck is False
 
                 # done processing this listener
 
