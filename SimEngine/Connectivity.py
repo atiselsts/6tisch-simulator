@@ -273,16 +273,15 @@ class Connectivity(object):
                         packet=lockon_transmission['packet'],
                     )
 
-                    pdr_of_return_link = self.get_pdr(
-                        src_id=listener_id,
-                        dst_id=lockon_transmission['tx_mote_id'],
-                        channel=channel
-                    )
-                    if (
-                            receivedAck
-                            and
-                            (random.random() < pdr_of_return_link)
-                        ):
+                    if receivedAck and self.settings.conn_simulate_ack_drop:
+                        pdr_of_return_link = self.get_pdr(
+                            src_id=listener_id,
+                            dst_id=lockon_transmission['tx_mote_id'],
+                            channel=channel
+                        )
+                        receivedAck = random.random() < pdr_of_return_link
+
+                    if receivedAck:
                         # keep track of the number of ACKs received by
                         # that transmission
                         lockon_transmission['numACKs'] += 1
