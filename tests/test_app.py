@@ -47,3 +47,25 @@ def test_app_upstream(
 
     # five packets should be generated per application
     assert len(logs) > 0
+
+def test_app_burst(sim_engine):
+    num_burst_packets = 2
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'           : 2,
+            'app'                     : 'AppBurst',
+            'app_burstTimestamp'      : 1,
+            'app_burstNumPackets'     : num_burst_packets,
+            'rpl_daoPeriod'           : 1,
+            'conn_class'              : 'Linear',
+            'tsch_keep_alive_interval': False,
+        }
+    )
+
+    u.run_until_end(sim_engine)
+
+    # we should see only two app.tx (as many as num_burst_packets) by
+    # mote_1
+    logs = u.read_log_file(filter=['app.tx'])
+    logs = [log for log in logs if log['_mote_id']==1]
+    assert len(logs) == num_burst_packets
