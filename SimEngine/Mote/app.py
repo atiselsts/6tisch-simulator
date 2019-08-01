@@ -232,18 +232,23 @@ class AppBurst(AppBase):
     """
 
     #======================== public ==========================================
+    def __init__(self, mote, **kwargs):
+        super(AppBurst, self).__init__(mote, **kwargs)
+        self.done = False
 
     def startSendingData(self):
-        # schedule app_burstNumPackets packets in app_burstTimestamp
-        self.engine.scheduleIn(
-            delay           = self.settings.app_burstTimestamp,
-            cb              = self._send_burst_packets,
-            uniqueTag       = (
-                'AppBurst',
-                'scheduled_by_{0}'.format(self.mote.id)
-            ),
-            intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
-        )
+        if not self.done:
+            # schedule app_burstNumPackets packets in app_burstTimestamp
+            self.engine.scheduleIn(
+                delay           = self.settings.app_burstTimestamp,
+                cb              = self._send_burst_packets,
+                uniqueTag       = (
+                    'AppBurst',
+                    'scheduled_by_{0}'.format(self.mote.id)
+                ),
+                intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
+            )
+            self.done = True
 
     #======================== private ==========================================
 
