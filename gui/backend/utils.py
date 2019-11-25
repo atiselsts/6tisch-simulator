@@ -67,11 +67,9 @@ def _start(dev_mode):
     sys.stdout.flush()
     eel.start(
         backend.START_URL,
-        options = {
-            'host': config['host'],
-            'port': listen_port,
-            'mode': None
-        },
+        host     = config['host'],
+        port     = listen_port,
+        mode     = None,
         callback = on_close_callback
     )
 
