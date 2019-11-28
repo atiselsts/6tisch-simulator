@@ -1,1 +1,1 @@
-https://github.com/yatch/6tisch-simulator-webapp/commit/18f01dff0eaf1d91a9bd864a5bb84c6f2c20a259
+https://github.com/yatch/6tisch-simulator-webapp/commit/96953e7d71d8644e350ec9d7068dd65689cc75d4
