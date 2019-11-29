@@ -730,7 +730,7 @@ def test_cell_comparison(fixture_cell_comparison_test_type):
         'channel_offset': 2,
         'options'       : [d.CELLOPTION_TX],
         'mac_addr'      : None,
-        'is_advertising': False
+        'link_type'     : d.LINKTYPE_NORMAL
     }
     cell_1 = tsch.Cell(**cell_attributes)
 
@@ -746,7 +746,7 @@ def test_cell_comparison(fixture_cell_comparison_test_type):
     elif fixture_cell_comparison_test_type == 'mac_addr':
         cell_attributes['mac_addr'] = 'dummy_mac_addr'
     elif fixture_cell_comparison_test_type == 'link_type':
-        cell_attributes['is_advertising'] = True
+        cell_attributes['link_type'] = d.LINKTYPE_ADVERTISING
     else:
         raise NotImplementedError()
 
@@ -799,7 +799,7 @@ def test_advertising_link(sim_engine):
         channel_offset = 1,
         options        = minimal_cell.options,
         mac_addr       = None,
-        is_advertising = False
+        link_type      = d.LINKTYPE_NORMAL
     )
     assert normal_cell.link_type == d.LINKTYPE_NORMAL
     slotframe.add(normal_cell)
