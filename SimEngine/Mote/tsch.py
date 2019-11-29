@@ -266,7 +266,7 @@ class Tsch(object):
                 d.CELLOPTION_SHARED
             ],
             slotframe_handle = 0,
-            isAdvertising    = True
+            link_type        = d.LINKTYPE_ADVERTISING
         )
 
     def delete_minimal_cell(self):
@@ -292,12 +292,13 @@ class Tsch(object):
             neighbor,
             cellOptions,
             slotframe_handle=0,
-            isAdvertising=False
+            link_type = d.LINKTYPE_NORMAL
         ):
 
         assert isinstance(slotOffset, int)
         assert isinstance(channelOffset, int)
         assert isinstance(cellOptions, list)
+        assert link_type not in [True, False]
 
         slotframe = self.slotframes[slotframe_handle]
 
@@ -307,7 +308,7 @@ class Tsch(object):
             channelOffset,
             cellOptions,
             neighbor,
-            isAdvertising
+            link_type
         )
         slotframe.add(cell)
 
@@ -486,10 +487,19 @@ class Tsch(object):
         assert index < len(self.txQueue)
         return self.txQueue.pop(index)
 
-    def get_first_packet_to_send(self, dst_mac_addr=None):
+    def get_first_packet_to_send(self, cell):
+        assert cell
+        dst_mac_addr = cell.mac_addr
         packet_to_send = None
         if dst_mac_addr is None:
-            if len(self.txQueue) == 0:
+            if (
+                    len(self.txQueue) == 0
+                    and
+                    cell.link_type in [
+                        d.LINKTYPE_ADVERTISING,
+                        d.LINKTYPE_ADVERTISING_ONLY
+                    ]
+                ):
                 # txQueue is empty; we may return an EB
                 if (
                         self.mote.clear_to_send_EBs_DATA()
@@ -908,7 +918,7 @@ class Tsch(object):
                         )
                     ):
                     # try to find a packet to send
-                    _packet_to_send = self.get_first_packet_to_send(cell.mac_addr)
+                    _packet_to_send = self.get_first_packet_to_send(cell)
 
                     # take care of the retransmission backoff algorithm
                     if _packet_to_send is not None:
@@ -920,7 +930,13 @@ class Tsch(object):
                                         (cell.mac_addr == d.BROADCAST_ADDRESS)
                                     )
                                     and
-                                    (cell.link_type == d.LINKTYPE_ADVERTISING)
+                                    (
+                                        cell.link_type in
+                                        [
+                                            d.LINKTYPE_ADVERTISING,
+                                            d.LINKTYPE_ADVERTISING_ONLY
+                                        ]
+                                    )
                                 ):
                                 # we can send the EB on this link (cell)
                                 packet_to_send = _packet_to_send
@@ -1716,7 +1732,7 @@ class Cell(object):
             channel_offset,
             options,
             mac_addr=None,
-            is_advertising=False
+            link_type=d.LINKTYPE_NORMAL
         ):
 
         # FIXME: is_advertising is not used effectively now
@@ -1729,11 +1745,7 @@ class Cell(object):
         self.channel_offset = channel_offset
         self.options        = options
         self.mac_addr       = mac_addr
-
-        if is_advertising:
-            self.link_type = d.LINKTYPE_ADVERTISING
-        else:
-            self.link_type = d.LINKTYPE_NORMAL
+        self.link_type      = link_type
 
         # back reference to slotframe; this will be set in SlotFrame.add()
         self.slotframe = None

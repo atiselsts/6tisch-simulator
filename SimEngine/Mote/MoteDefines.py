@@ -98,6 +98,7 @@ CELLOPTION_TX                               = 'TX'
 CELLOPTION_RX                               = 'RX'
 CELLOPTION_SHARED                           = 'SHARED'
 LINKTYPE_ADVERTISING                        = 'ADVERTISING'
+LINKTYPE_ADVERTISING_ONLY                   = 'ADVERTISING_ONLY'
 LINKTYPE_NORMAL                             = 'NORMAL'
 INTRASLOTORDER_STARTSLOT                    = 0
 INTRASLOTORDER_PROPAGATE                    = 1
