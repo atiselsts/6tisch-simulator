@@ -48,9 +48,6 @@ class SecJoin(object):
     # getters/setters
 
     def setIsJoined(self, value):
-        # record
-        self._isJoined = value
-
         if value:
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_JOINED,
@@ -59,7 +56,7 @@ class SecJoin(object):
                 }
             )
             self.mote.rpl.start()
-        else:
+        elif self._isJoined:
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_UNJOINED,
                 {
@@ -67,6 +64,14 @@ class SecJoin(object):
                 }
             )
             self.mote.rpl.stop()
+        else:
+            self.log(
+                SimEngine.SimLog.LOG_SECJOIN_FAILED,
+                {
+                    '_mote_id': self.mote.id,
+                }
+            )
+        self._isJoined = value
 
     def getIsJoined(self):
         return self._isJoined
