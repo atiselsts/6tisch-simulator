@@ -56,3 +56,53 @@ def test_secjoin_msf(sim_engine, fixture_secjoin_enabled):
             mote.sf.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
         )
         assert len(cells) == 0
+
+def test_unjoin_event(sim_engine):
+    sim_engine = sim_engine(
+        diff_config = {
+            'exec_numMotes'  : 2,
+            'secjoin_enabled': True,
+            'rpl_extensions' : []
+        }
+    )
+
+    mote = sim_engine.motes[1]
+    u.run_until_asn(sim_engine, 1)
+
+    assert not u.read_log_file(filter=['secjoin.joined'], after_asn=1)
+    assert not u.read_log_file(filter=['secjoin.unjoined'], after_asn=1)
+    assert not u.read_log_file(filter=['secjoin.failed'], after_asn=1)
+
+    # the mote has never completed the joining process, the the
+    # following call should cause 'secjoin.failed' instead of
+    # 'secjoin.unjoin'
+    mote.secjoin.setIsJoined(False)
+    assert not u.read_log_file(filter=['secjoin.joined'], after_asn=1)
+    assert not u.read_log_file(filter=['secjoin.unjoined'], after_asn=1)
+    assert u.read_log_file(filter=['secjoin.failed'], after_asn=1)
+
+    u.run_until_asn(sim_engine, 2)
+
+    assert not u.read_log_file(filter=['secjoin.joined'], after_asn=2)
+    assert not u.read_log_file(filter=['secjoin.unjoined'], after_asn=2)
+    assert not u.read_log_file(filter=['secjoin.failed'], after_asn=2)
+
+    # now make the mote joined
+    mote.secjoin.setIsJoined(True)
+    assert u.read_log_file(filter=['secjoin.joined'], after_asn=2)
+    assert not u.read_log_file(filter=['secjoin.unjoined'], after_asn=2)
+    assert not u.read_log_file(filter=['secjoin.failed'], after_asn=2)
+
+    u.run_until_asn(sim_engine, 3)
+
+    assert not u.read_log_file(filter=['secjoin.joined'], after_asn=3)
+    assert not u.read_log_file(filter=['secjoin.unjoined'], after_asn=3)
+    assert not u.read_log_file(filter=['secjoin.failed'], after_asn=3)
+
+    # while the mote is joined, the following call should cause
+    # 'secjoin.unjoin'
+    mote.secjoin.setIsJoined(False)
+
+    assert not u.read_log_file(filter=['secjoin.joined'], after_asn=3)
+    assert u.read_log_file(filter=['secjoin.unjoined'], after_asn=3)
+    assert not u.read_log_file(filter=['secjoin.failed'], after_asn=3)
