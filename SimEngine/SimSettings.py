@@ -7,9 +7,12 @@
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import object
+from past.utils import old_div
 import math
 import os
 import re
@@ -70,10 +73,10 @@ class SimSettings(object):
                     # convert "minutes" to "slotframes"
                     self.exec_numSlotframesPerRun = int(
                         math.ceil(
-                            self.exec_minutesPerRun *
-                            60 /
+                            old_div(self.exec_minutesPerRun *
+                            60,
                             self.tsch_slotDuration /
-                            self.tsch_slotframeLength
+                            self.tsch_slotframeLength)
                         )
                     )
                     # invdalite self.exec_minutesPerRun for the sake

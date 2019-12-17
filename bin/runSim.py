@@ -8,6 +8,8 @@ from __future__ import print_function
 
 # =========================== adjust path =====================================
 
+from builtins import zip
+from builtins import range
 import os
 import platform
 import sys
@@ -83,13 +85,13 @@ def runSimCombinations(params):
     simStartTime        = time.time()
 
     # compute all the simulation parameter combinations
-    combinationKeys     = simconfig.settings.combination.keys()
+    combinationKeys     = list(simconfig.settings.combination.keys())
     simParams           = []
     for p in itertools.product(*[simconfig.settings.combination[k] for k in combinationKeys]):
         simParam = {}
         for (k, v) in zip(combinationKeys, p):
             simParam[k] = v
-        for (k, v) in simconfig.settings.regular.items():
+        for (k, v) in list(simconfig.settings.regular.items()):
             if k not in simParam:
                 simParam[k] = v
         simParams      += [simParam]
@@ -98,7 +100,7 @@ def runSimCombinations(params):
     for (simParamNum, simParam) in enumerate(simParams):
 
         # run the simulation runs
-        for run_id in xrange(first_run, first_run+numRuns):
+        for run_id in range(first_run, first_run+numRuns):
 
             # printOrLog
             output  = 'parameters {0}/{1}, run {2}/{3}'.format(

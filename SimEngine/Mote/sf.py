@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 # =========================== imports =========================================
 
+from builtins import range
+from builtins import object
 import random
 import sys
 from abc import abstractmethod
@@ -296,18 +298,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 slotframe_handle = self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
             )
             num_tx_cells = len(
-                filter(
-                    lambda cell: cell.options == [d.CELLOPTION_TX],
-                    dedicated_cells
-                )
+                [cell for cell in dedicated_cells if cell.options == [d.CELLOPTION_TX]]
             )
             if num_tx_cells < self.NUM_INITIAL_NEGOTIATED_TX_CELLS:
                 num_tx_cells = self.NUM_INITIAL_NEGOTIATED_TX_CELLS
             num_rx_cells = len(
-                filter(
-                    lambda cell: cell.options == [d.CELLOPTION_RX],
-                    dedicated_cells
-                )
+                [cell for cell in dedicated_cells if cell.options == [d.CELLOPTION_RX]]
             )
             if num_rx_cells < self.NUM_INITIAL_NEGOTIATED_RX_CELLS:
                 num_rx_cells = self.NUM_INITIAL_NEGOTIATED_RX_CELLS
@@ -543,13 +539,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
 
             elif self.tx_cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
-                tx_cells = filter(
-                    lambda cell: cell.options == [d.CELLOPTION_TX],
-                    self.mote.tsch.get_cells(
+                tx_cells = [cell for cell in self.mote.tsch.get_cells(
                         neighbor,
                         self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-                    )
-                )
+                    ) if cell.options == [d.CELLOPTION_TX]]
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
                 if len(tx_cells) > 1:
@@ -568,13 +561,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
 
             elif self.rx_cell_utilization < d.MSF_LIM_NUMCELLSUSED_LOW:
-                rx_cells = filter(
-                    lambda cell: cell.options == [d.CELLOPTION_RX],
-                    self.mote.tsch.get_cells(
+                rx_cells = [cell for cell in self.mote.tsch.get_cells(
                         neighbor,
                         self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-                    )
-                )
+                    ) if cell.options == [d.CELLOPTION_RX]]
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
                 if len(rx_cells) > 1:
@@ -603,10 +593,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
 
         # collect TX cells which has enough numTX
-        tx_cell_list = filter(
-            lambda cell: cell.options == [d.CELLOPTION_TX],
-            self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
-        )
+        tx_cell_list = [cell for cell in self.mote.tsch.get_cells(preferred_parent, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS) if cell.options == [d.CELLOPTION_TX]]
         # pick up TX cells whose NumTx is larger than
         # MSF_MIN_NUM_TX. This is an implementation decision, which is
         # easier to implement than what section 5.3 of
@@ -622,7 +609,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             assert cell.num_tx > 0
             return cell.num_tx_ack / float(cell.num_tx)
         pdr_list = {
-            slotOffset: pdr(cell) for slotOffset, cell in tx_cell_list.items()
+            slotOffset: pdr(cell) for slotOffset, cell in list(tx_cell_list.items())
         }
 
         if len(pdr_list) > 0:
@@ -632,7 +619,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 {
                     'slotOffset'   : slotOffset,
                     'channelOffset': tx_cell_list[slotOffset].channel_offset
-                } for slotOffset, pdr in pdr_list.items() if (
+                } for slotOffset, pdr in list(pdr_list.items()) if (
                     d.MSF_RELOCATE_PDRTHRES < (highest_pdr - pdr)
                 )
             ]
@@ -783,10 +770,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             cell_list_len
         ):
 
-        occupied_cells = filter(
-            lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
-        )
+        occupied_cells = [cell for cell in self.mote.tsch.get_cells(neighbor, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS) if cell.options == cell_options]
 
         cell_list = [
             {
@@ -809,10 +793,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # collect allocated cells
         assert cell_options in [self.TX_CELL_OPT, self.RX_CELL_OPT]
-        allocated_cells = filter(
-            lambda cell: cell.options == cell_options,
-            self.mote.tsch.get_cells(peerMac, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
-        )
+        allocated_cells = [cell for cell in self.mote.tsch.get_cells(peerMac, self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS) if cell.options == cell_options]
 
         # test all the cells in the cell list against the allocated cells
         ret_val = True
@@ -903,7 +884,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # find available cells in the received CellList
         slots_in_cell_list = set(
-            map(lambda c: c[u'slotOffset'], proposed_cells)
+            [c[u'slotOffset'] for c in proposed_cells]
         )
         available_slots  = list(
             slots_in_cell_list.intersection(
@@ -1293,7 +1274,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 self.mote.tsch.get_busy_slots(self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
             )
             candidate_slots    = set(
-                map(lambda c: c[u'slotOffset'], candidate_cells)
+                [c[u'slotOffset'] for c in candidate_cells]
             )
             available_slots    = list(
                 candidate_slots.intersection(

@@ -3,7 +3,12 @@ Tests for SimEngine.Mote.sf
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
+from builtins import filter
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from itertools import chain
 import random
 import types
@@ -288,8 +293,8 @@ class TestMSF(object):
 
         # adjust the packet interval
         mote.settings.app_pkPeriod = (
-            mote.settings.tsch_slotframeLength / 3 *
-            mote.settings.tsch_slotDuration
+            old_div(mote.settings.tsch_slotframeLength, 3 *
+            mote.settings.tsch_slotDuration)
         )
 
         # 3. test cell relocation

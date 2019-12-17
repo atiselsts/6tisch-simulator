@@ -3,9 +3,14 @@
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
 # ========================== imports =========================================
 
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
 from collections import OrderedDict
 import hashlib
 import platform
@@ -119,12 +124,12 @@ class DiscreteEventEngine(threading.Thread):
                     if self.asn not in self.events:
                         continue
 
-                    intraSlotOrderKeys = self.events[self.asn].keys()
+                    intraSlotOrderKeys = list(self.events[self.asn].keys())
                     intraSlotOrderKeys.sort()
 
                     cbs = []
                     for intraSlotOrder in intraSlotOrderKeys:
-                        for uniqueTag, cb in self.events[self.asn][intraSlotOrder].items():
+                        for uniqueTag, cb in list(self.events[self.asn][intraSlotOrder].items()):
                             cbs += [cb]
                             del self.uniqueTagSchedule[uniqueTag]
                     del self.events[self.asn]
@@ -326,7 +331,7 @@ class DiscreteEventEngine(threading.Thread):
     def _actionEndSlotframe(self):
         """Called at each end of slotframe_iteration."""
 
-        slotframe_iteration = int(self.asn / self.settings.tsch_slotframeLength)
+        slotframe_iteration = int(old_div(self.asn, self.settings.tsch_slotframeLength))
 
         # print
         if self.verbose:
@@ -393,7 +398,7 @@ class SimEngine(DiscreteEventEngine):
         self.motes = [
             Mote.Mote.Mote(id, eui64)
             for id, eui64 in zip(
-                    range(self.settings.exec_numMotes),
+                    list(range(self.settings.exec_numMotes)),
                     eui64_table
             )
         ]

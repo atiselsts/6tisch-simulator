@@ -2,9 +2,13 @@
 Secure joining layer of a mote.
 """
 from __future__ import absolute_import
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import str
+from builtins import object
+from past.utils import old_div
 import copy
 import random
 
@@ -270,7 +274,7 @@ class SecJoin(object):
         # convert seconds to slots
         target_asn = (
             self.engine.getAsn() +
-            int(self._request_timeout / self.settings.tsch_slotDuration)
+            int(old_div(self._request_timeout, self.settings.tsch_slotDuration))
         )
         self.engine.scheduleAtAsn(
             asn              = target_asn,

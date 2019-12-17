@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from builtins import range
 import pytest
 
 from SimEngine import SimLog
@@ -151,10 +152,7 @@ def tsch_all_nodes_check_dedicated_cell(motes):
 
         # at least one dedicated cell to its preferred parent, which has the TX
         # bit on
-        tx_cells = filter(
-            lambda cell: d.CELLOPTION_TX in cell.options,
-            mote.tsch.get_cells(parent, mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS)
-        )
+        tx_cells = [cell for cell in mote.tsch.get_cells(parent, mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS) if d.CELLOPTION_TX in cell.options]
 
         assert len(tx_cells) > 0
 

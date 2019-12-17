@@ -1,9 +1,15 @@
 """
 """
 from __future__ import absolute_import
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import str
+from builtins import filter
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import copy
 from itertools import chain
 import random
@@ -385,14 +391,8 @@ class Tsch(object):
 
         # check that I have cell to transmit on
         if goOn:
-            shared_tx_cells = filter(
-                lambda cell: d.CELLOPTION_TX in cell.options,
-                self.mote.tsch.get_cells(None)
-            )
-            dedicated_tx_cells = filter(
-                lambda cell: d.CELLOPTION_TX in cell.options,
-                self.mote.tsch.get_cells(packet[u'mac'][u'dstMac'])
-            )
+            shared_tx_cells = [cell for cell in self.mote.tsch.get_cells(None) if d.CELLOPTION_TX in cell.options]
+            dedicated_tx_cells = [cell for cell in self.mote.tsch.get_cells(packet[u'mac'][u'dstMac']) if d.CELLOPTION_TX in cell.options]
             if (
                     (len(shared_tx_cells) == 0)
                     and
@@ -515,11 +515,8 @@ class Tsch(object):
                 # is not associated with any of allocated (dedicated) TX cells
                 for packet in self.txQueue:
                     packet_to_send = packet # tentatively
-                    for _, slotframe in self.slotframes.items():
-                        dedicated_tx_cells = filter(
-                            lambda cell: d.CELLOPTION_TX in cell.options,
-                            slotframe.get_cells_by_mac_addr(packet[u'mac'][u'dstMac'])
-                        )
+                    for _, slotframe in list(self.slotframes.items()):
+                        dedicated_tx_cells = [cell for cell in slotframe.get_cells_by_mac_addr(packet[u'mac'][u'dstMac']) if d.CELLOPTION_TX in cell.options]
                         if len(dedicated_tx_cells) > 0:
                             packet_to_send = None
                             break # try the next packet in TX queue
@@ -993,7 +990,7 @@ class Tsch(object):
             tsDiffMin = min(
                 [
                     slotframe.get_num_slots_to_next_active_cell(asn)
-                    for _, slotframe in self.slotframes.items() if (
+                    for _, slotframe in list(self.slotframes.items()) if (
                         len(slotframe.get_busy_slots()) > 0
                     )
                 ]
@@ -1030,7 +1027,7 @@ class Tsch(object):
         # macSlotframeHandle slotframes."
 
         candidate_cells = []
-        for _, slotframe in self.slotframes.items():
+        for _, slotframe in list(self.slotframes.items()):
             candidate_cells = slotframe.get_cells_at_asn(asn)
             if len(candidate_cells) > 0:
                 break
@@ -1139,7 +1136,7 @@ class Tsch(object):
 
         # following the Bayesian broadcasting algorithm
         return (
-            (random.random() < (prob / n))
+            (random.random() < (old_div(prob, n)))
             and
             self.iAmSendingEBs
         )
@@ -1474,7 +1471,7 @@ class Tsch(object):
 
     def _is_next_slot_unused(self):
         ret_val = True
-        for slotframe in self.slotframes.values():
+        for slotframe in list(self.slotframes.values()):
             next_slot = (self.engine.getAsn() + 1) % slotframe.length
             cells_on_next_slot = slotframe.get_cells_by_slot_offset(next_slot)
             if len(cells_on_next_slot) > 0:
@@ -1594,7 +1591,7 @@ class SlotFrame(object):
     def __repr__(self):
         return u'slotframe(length: {0}, num_cells: {1})'.format(
             self.length,
-            len(list(chain.from_iterable(self.slots.values())))
+            len(list(chain.from_iterable(list(self.slots.values()))))
         )
 
     def add(self, cell):
@@ -1665,7 +1662,7 @@ class SlotFrame(object):
             return []
 
     def get_busy_slots(self):
-        busy_slots = self.slots.keys()
+        busy_slots = list(self.slots.keys())
         # busy_slots.sort()
         return busy_slots
 
@@ -1697,7 +1694,7 @@ class SlotFrame(object):
         """
 
         if mac_addr == "":
-            target_cells = chain.from_iterable(self.slots.values())
+            target_cells = chain.from_iterable(list(self.slots.values()))
         elif mac_addr not in self.cells:
             target_cells = []
         else:
@@ -1709,7 +1706,7 @@ class SlotFrame(object):
             condition = lambda c: sorted(c.options) == sorted(cell_options)
 
         # apply filter
-        return filter(condition, target_cells)
+        return list(filter(condition, target_cells))
 
     def set_length(self, new_length):
         # delete extra cells and slots if reducing slotframe length

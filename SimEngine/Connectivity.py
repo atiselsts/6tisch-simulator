@@ -15,9 +15,14 @@ succeeds.
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import zip
+from builtins import str
+from builtins import object
+from past.utils import old_div
 import copy
 import sys
 import random
@@ -402,7 +407,7 @@ class Connectivity(object):
                 interference_mW = 0.0
             totalInterference_mW += interference_mW
 
-        sinr_dB = self._mW_to_dBm(signal_mW / (totalInterference_mW + noise_mW))
+        sinr_dB = self._mW_to_dBm(old_div(signal_mW, (totalInterference_mW + noise_mW)))
 
         # === compute the interference PDR
 
@@ -678,8 +683,8 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
                 )
 
             numSlotframes = (
-                (stop_date - self.start_date).total_seconds() /
-                self.settings.tsch_slotDuration
+                old_div((stop_date - self.start_date).total_seconds(),
+                self.settings.tsch_slotDuration)
             )
             if self.settings.exec_numSlotframesPerRun > numSlotframes:
                 raise ValueError(u'exec_numSlotframesPerRun is too long')
@@ -789,7 +794,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
         # === read and parse line
 
         vals = line.strip().split(u',')
-        row = dict(zip(self.csv_header, vals))
+        row = dict(list(zip(self.csv_header, vals)))
 
         # === change row format
 
@@ -927,7 +932,7 @@ class ConnectivityMatrixRandom(ConnectivityMatrixBase):
                     # fix the coordinate of the mote
                     self.coordinates[target_mote_id] = coordinate
                     # copy the rssi and pdr values to other channels
-                    for deployed_mote_id in self.coordinates.keys():
+                    for deployed_mote_id in list(self.coordinates.keys()):
                         rssi = self.get_rssi(
                             target_mote_id,
                             deployed_mote_id,
@@ -1045,8 +1050,8 @@ class PisterHackModel(object):
 
         # sqrt and inverse of the free space path loss (fspl)
         free_space_path_loss = (
-            self.SPEED_OF_LIGHT /
-            (4 * math.pi * distance * self.TWO_DOT_FOUR_GHZ)
+            old_div(self.SPEED_OF_LIGHT,
+            (4 * math.pi * distance * self.TWO_DOT_FOUR_GHZ))
         )
 
         # simple friis equation in Pr = Pt + Gt + Gr + 20log10(fspl)
@@ -1060,7 +1065,7 @@ class PisterHackModel(object):
         # according to the receiver power (RSSI) we can apply the Pister hack
         # model.
         # choosing the "mean" value
-        return pr - self.PISTER_HACK_LOWER_SHIFT / 2
+        return pr - old_div(self.PISTER_HACK_LOWER_SHIFT, 2)
 
     def compute_rssi(self, src, dst):
         """Compute RSSI between the points of a and b using Pister Hack"""
@@ -1076,8 +1081,8 @@ class PisterHackModel(object):
         rssi = (
             mu +
             random.uniform(
-                -self.PISTER_HACK_LOWER_SHIFT/2,
-                +self.PISTER_HACK_LOWER_SHIFT/2
+                old_div(-self.PISTER_HACK_LOWER_SHIFT,2),
+                old_div(+self.PISTER_HACK_LOWER_SHIFT,2)
             )
         )
 

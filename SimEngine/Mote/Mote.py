@@ -5,6 +5,8 @@ from __future__ import absolute_import
 
 # =========================== imports =========================================
 
+from builtins import str
+from builtins import object
 import threading
 
 import netaddr
@@ -193,7 +195,7 @@ class Mote(object):
 
         # remove all the element of packet so it cannot be processed further
         # Note: this is useless, but allows us to catch bugs in case packet is further processed
-        for k in packet.keys():
+        for k in list(packet.keys()):
             del packet[k]
 
     #======================== private =========================================

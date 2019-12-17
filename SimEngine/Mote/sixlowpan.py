@@ -2,9 +2,14 @@
 6LoWPAN layer including reassembly/fragmentation
 """
 from __future__ import absolute_import
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 from abc import abstractmethod
 import copy
 import math
@@ -481,7 +486,7 @@ class Fragmentation(object):
                     # first fragment
 
                     # copy 'net' header
-                    for key, value in packet[u'net'].items():
+                    for key, value in list(packet[u'net'].items()):
                         fragment[u'net'][key] = value
                     if u'sourceRoute' in packet[u'net']:
                         fragment[u'net'][u'sourceRoute']      = copy.deepcopy(packet[u'net'][u'sourceRoute'])
@@ -539,7 +544,7 @@ class Fragmentation(object):
         datagram_size             = fragment[u'net'][u'datagram_size']
         datagram_offset           = fragment[u'net'][u'datagram_offset']
         incoming_datagram_tag     = fragment[u'net'][u'datagram_tag']
-        buffer_lifetime           = d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME / self.settings.tsch_slotDuration
+        buffer_lifetime           = old_div(d.SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME, self.settings.tsch_slotDuration)
 
         self._delete_expired_reassembly_buffer()
 
@@ -567,7 +572,7 @@ class Fragmentation(object):
                     u'fragments': []
                 }
 
-        if datagram_offset not in map(lambda x: x[u'datagram_offset'], self.reassembly_buffers[srcMac][incoming_datagram_tag][u'fragments']):
+        if datagram_offset not in [x[u'datagram_offset'] for x in self.reassembly_buffers[srcMac][incoming_datagram_tag][u'fragments']]:
 
             if fragment[u'net'][u'datagram_offset'] == 0:
                 # store srcIp and dstIp which only the first fragment has
@@ -615,8 +620,8 @@ class Fragmentation(object):
         if len(self.reassembly_buffers) == 0:
             return
 
-        for srcMac in self.reassembly_buffers.keys():
-            for incoming_datagram_tag in self.reassembly_buffers[srcMac].keys():
+        for srcMac in list(self.reassembly_buffers.keys()):
+            for incoming_datagram_tag in list(self.reassembly_buffers[srcMac].keys()):
                 # delete expired reassembly buffer
                 if self.reassembly_buffers[srcMac][incoming_datagram_tag][u'expiration'] < self.engine.getAsn():
                     del self.reassembly_buffers[srcMac][incoming_datagram_tag]
@@ -655,7 +660,7 @@ class FragmentForwarding(Fragmentation):
         datagram_offset       = fragment[u'net'][u'datagram_offset']
         incoming_datagram_tag = fragment[u'net'][u'datagram_tag']
         packet_length         = fragment[u'net'][u'packet_length']
-        entry_lifetime        = d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME / self.settings.tsch_slotDuration
+        entry_lifetime        = old_div(d.SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME, self.settings.tsch_slotDuration)
 
         self._delete_expired_vrb_table_entry()
 
@@ -674,7 +679,7 @@ class FragmentForwarding(Fragmentation):
                 # dagRoot has no memory limitation for VRB Table
                 pass
             else:
-                total_vrb_table_entry_num = sum([len(e) for _, e in self.vrb_table.items()])
+                total_vrb_table_entry_num = sum([len(e) for _, e in list(self.vrb_table.items())])
                 assert total_vrb_table_entry_num <= self.settings.fragmentation_ff_vrb_table_size
                 if total_vrb_table_entry_num == self.settings.fragmentation_ff_vrb_table_size:
                     # no room for a new entry
@@ -785,8 +790,8 @@ class FragmentForwarding(Fragmentation):
         if len(self.vrb_table) == 0:
             return
 
-        for srcMac in self.vrb_table.keys():
-            for incoming_datagram_tag in self.vrb_table[srcMac].keys():
+        for srcMac in list(self.vrb_table.keys()):
+            for incoming_datagram_tag in list(self.vrb_table[srcMac].keys()):
                 # too old
                 if self.vrb_table[srcMac][incoming_datagram_tag][u'expiration'] < self.engine.getAsn():
                     del self.vrb_table[srcMac][incoming_datagram_tag]

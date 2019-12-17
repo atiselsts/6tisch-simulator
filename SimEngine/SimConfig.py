@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 # =========================== imports =========================================
 
+from builtins import str
 import json
 import glob
 import os
@@ -37,7 +38,7 @@ class DotableDict(dict):
 
     def __init__(self, d):
         self.update(**dict((k, self.parse(v))
-                           for k, v in d.iteritems()))
+                           for k, v in d.items()))
 
     @classmethod
     def parse(cls, v):

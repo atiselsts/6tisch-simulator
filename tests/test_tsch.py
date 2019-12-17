@@ -2,7 +2,11 @@
 Test for TSCH layer
 """
 from __future__ import absolute_import
+from __future__ import division
 
+from builtins import zip
+from builtins import range
+from past.utils import old_div
 import copy
 import pytest
 import types
@@ -89,7 +93,7 @@ def test_enqueue_with_priority(sim_engine):
     mote.tsch.enqueue(priority_packet, priority=True)
     # now we have the priority packet first in the TX queue
     assert (
-        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [x['seq'] for x in mote.tsch.txQueue] ==
         [2, 1]
     )
 
@@ -99,7 +103,7 @@ def test_enqueue_with_priority(sim_engine):
     normal_packet['seq'] = 3
     mote.tsch.enqueue(normal_packet, priority=False)
     assert (
-        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [x['seq'] for x in mote.tsch.txQueue] ==
         [2, 1, 3]
     )
 
@@ -110,7 +114,7 @@ def test_enqueue_with_priority(sim_engine):
     mote.tsch.enqueue(priority_packet, priority=True)
     # now we have the priority packet first in the TX queue
     assert (
-        map(lambda x: x['seq'], mote.tsch.txQueue) ==
+        [x['seq'] for x in mote.tsch.txQueue] ==
         [2, 4, 1, 3]
     )
 
@@ -136,7 +140,7 @@ def test_enqueue_with_priority(sim_engine):
 
     # the first three packets should be priority
     assert (
-        map(lambda x: x['seq'], mote.tsch.txQueue[0:3]) ==
+        [x['seq'] for x in mote.tsch.txQueue[0:3]] ==
         [2, 4, new_pkt_seq]
     )
     # the TX queue length shouldn't exceed the queue size
@@ -476,7 +480,7 @@ def test_retransmission_backoff_algorithm(sim_engine, cell_type):
     # is, one slotframe, this means there was no backoff wait between
     # transmissions.
     timestamps = [log['_asn'] for log in app_data_tx_logs]
-    diffs = map(lambda x: x[1] - x[0], zip(timestamps[:-1], timestamps[1:]))
+    diffs = [x[1] - x[0] for x in zip(timestamps[:-1], timestamps[1:])]
     assert len([diff for diff in diffs if diff != slotframe_length]) > 0
 
 def test_eb_by_root(sim_engine):
@@ -874,7 +878,7 @@ def test_eb_wait_timer(sim_engine, fixture_clock_source):
         sim_engine,
         (
             sim_engine.getAsn() +
-            d.TSCH_MAX_EB_DELAY / sim_engine.settings.tsch_slotDuration - 1
+            old_div(d.TSCH_MAX_EB_DELAY, sim_engine.settings.tsch_slotDuration) - 1
         )
     )
     assert mote_1.tsch.isSync is False

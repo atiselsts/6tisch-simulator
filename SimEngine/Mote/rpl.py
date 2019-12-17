@@ -9,9 +9,13 @@ note:
 - global repair is not supported
 """
 from __future__ import absolute_import
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import str
+from builtins import object
+from past.utils import old_div
 import random
 import math
 import sys
@@ -75,7 +79,7 @@ class Rpl(object):
         if self.of.rank is None:
             return None
         else:
-            return int(self.of.rank / d.RPL_MINHOPRANKINCREASE)
+            return int(old_div(self.of.rank, d.RPL_MINHOPRANKINCREASE))
 
     def addParentChildfromDAOs(self, parent_addr, child_addr):
         self.parentChildfromDAOs[child_addr] = parent_addr
@@ -377,10 +381,10 @@ class Rpl(object):
             asnDiff = 1
         else:
             asnDiff = int(math.ceil(
-                random.uniform(
+                old_div(random.uniform(
                     0.8 * self.settings.rpl_daoPeriod,
                     1.2 * self.settings.rpl_daoPeriod
-                ) / self.settings.tsch_slotDuration)
+                ), self.settings.tsch_slotDuration))
             )
 
         # schedule sending a DAO
@@ -972,7 +976,7 @@ class RplOFBestLinkPDR(RplOF0):
             ):
             rank = d.RPL_INFINITE_RANK
         else:
-            etx = 1 / neighbor[u'mean_link_pdr']
+            etx = old_div(1, neighbor[u'mean_link_pdr'])
             step_of_rank = int(3 * etx - 2)
             rank_increase = step_of_rank * d.RPL_MINHOPRANKINCREASE
             rank = neighbor[u'rank'] + rank_increase

@@ -4,6 +4,8 @@ Test for TSCH Slotframe and Cell manipulation
 from __future__ import print_function
 from __future__ import absolute_import
 
+from builtins import str
+from builtins import range
 import random
 
 import pytest
@@ -41,10 +43,7 @@ def test_add(sim_engine, fixture_neighbor_mac_addr):
     assert slotframe.get_cells_by_mac_addr('dummy_mac_addr') == []
 
     assert (
-        filter(
-            lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
-            slotframe.get_cells_by_mac_addr(fixture_neighbor_mac_addr)
-        ) == [cell]
+        [cell for cell in slotframe.get_cells_by_mac_addr(fixture_neighbor_mac_addr) if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]] == [cell]
     )
 
 

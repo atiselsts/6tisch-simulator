@@ -9,6 +9,8 @@ from __future__ import absolute_import
 
 # =========================== imports =========================================
 
+from builtins import range
+from builtins import object
 import copy
 import random
 
@@ -305,7 +307,7 @@ class SixP(object):
         self.increment_seqnum(transaction.peerMac)
 
     def increment_seqnum(self, peerMac):
-        assert peerMac in self.seqnum_table.keys()
+        assert peerMac in list(self.seqnum_table.keys())
         self.seqnum_table[peerMac] += 1
         if self.seqnum_table[peerMac] == 0x100:
             # SeqNum is two-octet long and the value of 0 is treated specially
@@ -563,7 +565,7 @@ class SixP(object):
         return packet
 
     def _get_seqnum(self, peerMac):
-        if peerMac not in self.seqnum_table.keys():
+        if peerMac not in list(self.seqnum_table.keys()):
             # the initial value of SeqNum is 0
             self.reset_seqnum(peerMac)
             return 0

@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from builtins import object
 import copy
 import types
 
@@ -278,7 +279,7 @@ def scheduling_function(request):
 # =========================== tests ===========================================
 
 
-class TestTransaction:
+class TestTransaction(object):
 
     def test_transaciton_type(self, sim_engine, scheduling_function):
 
@@ -597,7 +598,7 @@ class TestTransaction:
         assert len(mote.sixp.transaction_table) == 0
         assert len(mote.tsch.txQueue) == 0
 
-class TestSeqNum:
+class TestSeqNum(object):
 
     @pytest.fixture(params=[0, 1, 2, 100, 200, 254, 255])
     def initial_seqnum(self, request):

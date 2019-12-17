@@ -5,6 +5,9 @@ This script merges log files under 'hostname' based log directory
 from __future__ import print_function
 
 # =========================== imports =========================================
+from builtins import zip
+from builtins import input
+from builtins import range
 import argparse
 import filecmp
 import json
@@ -85,8 +88,8 @@ def getTargetSubDirs(logRootDir):
 
     # sanity check: make sure all the sub-directories have the same file
     # entries and the same config.json
-    i_list = range(0, len(targetSubDirs) - 1)
-    j_list = range(1, len(targetSubDirs))
+    i_list = list(range(0, len(targetSubDirs) - 1))
+    j_list = list(range(1, len(targetSubDirs)))
     for (i, j) in zip(i_list, j_list):
         cmp = filecmp.dircmp(targetSubDirs[i], targetSubDirs[j])
 
@@ -273,7 +276,7 @@ def main():
 
     if cliparams['noPrompt'] is False:
         print('Hit "return" to proceed')
-        raw_input()
+        input()
 
     # create new log files under logDir which have all the log data under the
     # target sub-directories.

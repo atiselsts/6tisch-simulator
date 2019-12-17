@@ -2,7 +2,12 @@
 Tests for 6LoWPAN fragmentation
 """
 from __future__ import absolute_import
+from __future__ import division
 
+from builtins import zip
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import copy
 import math
 
@@ -20,7 +25,7 @@ def get_memory_usage(mote, fragmentation):
     elif fragmentation == 'FragmentForwarding':
         memory_structure = mote.sixlowpan.fragmentation.vrb_table
 
-    return sum([len(e) for _, e in memory_structure.items()])
+    return sum([len(e) for _, e in list(memory_structure.items())])
 
 # =========================== fixtures ========================================
 
@@ -44,7 +49,7 @@ def fragmentation_ff_discard_vrb_entry_policy(request):
 
 # =========================== tests ===========================================
 
-class TestFreeRun:
+class TestFreeRun(object):
     @pytest.fixture(params=[0, 1])
     def sixlowpan_reassembly_buffers_num(self, request):
         return request.param
@@ -101,7 +106,7 @@ class TestFreeRun:
 
         u.run_until_asn(sim_engine, 10100)
 
-class TestPacketDelivery:
+class TestPacketDelivery(object):
     """ Behavioral Testing for Fragmentation
     """
 
@@ -351,7 +356,7 @@ class TestFragmentationAndReassembly(object):
     TSCH_TX_QUEUE_SIZE  = 10
     MAX_APP_PAYLOAD_LEN = TSCH_MAX_PAYLOAD  * TSCH_TX_QUEUE_SIZE
 
-    APP_PKLENGTH = range(TSCH_MAX_PAYLOAD+1, MAX_APP_PAYLOAD_LEN, TSCH_MAX_PAYLOAD)
+    APP_PKLENGTH = list(range(TSCH_MAX_PAYLOAD+1, MAX_APP_PAYLOAD_LEN, TSCH_MAX_PAYLOAD))
     @pytest.fixture(params=APP_PKLENGTH)
     def app_pkLength(self, request):
         return request.param
@@ -403,11 +408,11 @@ class TestFragmentationAndReassembly(object):
             math.ceil(float(app_pkLength) / self.TSCH_MAX_PAYLOAD)
         )
 
-class TestMemoryManagement:
+class TestMemoryManagement(object):
     """Test memory management for reassembly buffer and VRB table
     """
 
-    MEMORY_LIMIT = range(1, 10, 1)
+    MEMORY_LIMIT = list(range(1, 10, 1))
     @pytest.fixture(params=MEMORY_LIMIT)
     def memory_limit(self, request):
         return request.param
@@ -547,7 +552,7 @@ class TestMemoryManagement:
         assert get_memory_usage(hop1, fragmentation) == 1
 
         # run the simulation until 50% of the lifetime
-        u.run_until_asn(sim_engine, expiration_time / 2)
+        u.run_until_asn(sim_engine, old_div(expiration_time, 2))
 
         # inject another fragment (the first fragment of a packet). hop1
         # creates a new entry for this fragment (packet)
@@ -653,7 +658,7 @@ class TestDatagramTagManagement(object):
                 outgoing_fragment['net']['datagram_tag']
             )
 
-class TestFragmentForwarding:
+class TestFragmentForwarding(object):
 
     # index of the fragment that is the actual test input. A packet is divided
     # into four fragments, which are stored in a list. index-0 is the first

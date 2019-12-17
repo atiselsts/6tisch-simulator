@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from builtins import range
 import pytest
 
 from . import test_utils as u
@@ -27,7 +28,7 @@ def test_initial_state(sim_engine):
     assert trickle_timer.user_callback == _callback
 
 
-@pytest.fixture(params=range(15))
+@pytest.fixture(params=list(range(15)))
 def num_consistency(request):
     return request.param
 
@@ -140,6 +141,6 @@ def test_stop(sim_engine):
     sim_engine.events = {}
     trickle_timer = TrickleTimer(Imin, Imax, K, _callback)
     trickle_timer.start()
-    assert len(sim_engine.events.keys()) == 2
+    assert len(list(sim_engine.events.keys())) == 2
     trickle_timer.stop()
-    assert len(sim_engine.events.keys()) == 0
+    assert len(list(sim_engine.events.keys())) == 0

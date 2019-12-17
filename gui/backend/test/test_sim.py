@@ -73,7 +73,7 @@ def default_config():
 @pytest.fixture
 def default_settings(default_config):
     settings = default_config['settings']['regular']
-    for key in default_config['settings']['combination'].keys():
+    for key in list(default_config['settings']['combination'].keys()):
         settings[key] = default_config['settings']['combination'][key][0]
     return settings
 

@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+from __future__ import division
+from builtins import range
+from past.utils import old_div
 import datetime as dt
 import gzip
 import json
@@ -76,8 +79,8 @@ def test_free_run(sim_engine):
             for channel in d.TSCH_HOPPING_SEQUENCE:
                 pdr = matrix.get_pdr(src, dst, channel)
                 rssi = matrix.get_rssi(src, dst, channel)
-                assert isinstance(pdr, (int, long, float))
-                assert isinstance(rssi, (int, long, float))
+                assert isinstance(pdr, (int, int, float))
+                assert isinstance(rssi, (int, int, float))
                 assert 0 <= pdr <= 1
                 assert ConnectivityMatrixBase.LINK_NONE['rssi'] <= rssi <= 0
 
@@ -88,7 +91,7 @@ def fixture_test_type(request):
 
 def test_simulation_time(sim_engine, fixture_test_type):
     tsch_slotDuration = 0.010
-    numSlotframes = get_trace_duration() / tsch_slotDuration
+    numSlotframes = old_div(get_trace_duration(), tsch_slotDuration)
     num_motes = get_num_motes()
 
     if fixture_test_type == 'short':
@@ -149,7 +152,7 @@ def test_check_channels_in_header(
     elif fixture_channels_coverage_type == 'not_covered':
         # put different channels to the hopping sequence from the ones
         # listed in the header
-        d.TSCH_HOPPING_SEQUENCE = map(lambda x: x + 10, channels_in_header)
+        d.TSCH_HOPPING_SEQUENCE = [x + 10 for x in channels_in_header]
     else:
         raise NotImplementedError()
 

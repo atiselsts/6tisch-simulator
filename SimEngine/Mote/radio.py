@@ -8,6 +8,7 @@ from __future__ import absolute_import
 # =========================== imports =========================================
 
 # Mote sub-modules
+from builtins import object
 from . import MoteDefines as d
 
 # Simulator-wide modules
