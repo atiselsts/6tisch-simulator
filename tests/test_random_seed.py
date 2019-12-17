@@ -71,7 +71,7 @@ def test_random_seed(sim_engine, fixture_random_seed):
             # certain integer is specified for 'exec_randSeed'
             f.readline()
 
-            sha2.update(f.read())
+            sha2.update(f.read().encode('utf-8'))
             results.append(
                 {
                     'log_file_name': log_file_name,

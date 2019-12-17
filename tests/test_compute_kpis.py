@@ -39,7 +39,7 @@ def run_compute_kpis_py():
             compute_kpis_path
         ),
         shell=True
-    ).split('\n')
+    ).decode('utf-8').split('\n')
 
 
 def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):

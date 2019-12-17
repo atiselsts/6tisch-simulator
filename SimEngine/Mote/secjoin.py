@@ -42,7 +42,7 @@ class SecJoin(object):
         self._isJoined                      = False
         self._request_timeout               = None
         self._retransmission_count          = None
-        self._retransmission_tag            = (self.mote.id, '_retransmit_join_request')
+        self._retransmission_tag            = (self.mote.id, u'_retransmit_join_request')
 
     #======================== public ==========================================
 
@@ -53,7 +53,7 @@ class SecJoin(object):
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_JOINED,
                 {
-                    '_mote_id': self.mote.id,
+                    u'_mote_id': self.mote.id,
                 }
             )
             self.mote.rpl.start()
@@ -61,7 +61,7 @@ class SecJoin(object):
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_UNJOINED,
                 {
-                    '_mote_id': self.mote.id,
+                    u'_mote_id': self.mote.id,
                 }
             )
             self.mote.rpl.stop()
@@ -69,7 +69,7 @@ class SecJoin(object):
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_FAILED,
                 {
-                    '_mote_id': self.mote.id,
+                    u'_mote_id': self.mote.id,
                 }
             )
         self._isJoined = value
@@ -108,7 +108,7 @@ class SecJoin(object):
 
     def receive(self, packet):
 
-        if   packet['type'] == d.PKT_TYPE_JOIN_REQUEST:
+        if   packet[u'type'] == d.PKT_TYPE_JOIN_REQUEST:
 
             if self.mote.dagRoot is False:
                 # I'm the join proxy
@@ -120,16 +120,16 @@ class SecJoin(object):
 
                 # proxy join request to dagRoot
                 proxiedJoinRequest = {
-                    'type':                 d.PKT_TYPE_JOIN_REQUEST,
-                    'app': {
-                        'stateless_proxy': {
-                            'pledge_addr':  packet['net']['srcIp']
+                    u'type':                 d.PKT_TYPE_JOIN_REQUEST,
+                    u'app': {
+                        u'stateless_proxy': {
+                            u'pledge_addr':  packet[u'net'][u'srcIp']
                         }
                     },
-                    'net': {
-                        'srcIp':            self.mote.get_ipv6_global_addr(),
-                        'dstIp':            self.mote.rpl.dodagId,
-                        'packet_length':    packet['net']['packet_length'],
+                    u'net': {
+                        u'srcIp':            self.mote.get_ipv6_global_addr(),
+                        u'dstIp':            self.mote.rpl.dodagId,
+                        u'packet_length':    packet[u'net'][u'packet_length'],
                     },
                 }
 
@@ -141,49 +141,49 @@ class SecJoin(object):
 
                 # echo back 'stateless_proxy' element in the join response, if present in the join request
                 app = {}
-                if 'stateless_proxy' in packet['app']:
-                    app['stateless_proxy'] = copy.deepcopy(packet['app']['stateless_proxy'])
+                if u'stateless_proxy' in packet[u'app']:
+                    app[u'stateless_proxy'] = copy.deepcopy(packet[u'app'][u'stateless_proxy'])
                     src_ip = self.mote.get_ipv6_global_addr()
                 else:
                     src_ip = self.mote.get_ipv6_link_local_addr()
 
                 # format join response
                 joinResponse = {
-                    'type':                 d.PKT_TYPE_JOIN_RESPONSE,
-                    'app':                  app,
-                    'net': {
-                        'srcIp':            src_ip,
-                        'dstIp':            packet['net']['srcIp'],            # to join proxy
-                        'packet_length':    d.PKT_LEN_JOIN_RESPONSE,
+                    u'type':                 d.PKT_TYPE_JOIN_RESPONSE,
+                    u'app':                  app,
+                    u'net': {
+                        u'srcIp':            src_ip,
+                        u'dstIp':            packet[u'net'][u'srcIp'],            # to join proxy
+                        u'packet_length':    d.PKT_LEN_JOIN_RESPONSE,
                     },
                 }
 
                 # send join response
                 self.mote.sixlowpan.sendPacket(joinResponse)
 
-        elif packet['type']== d.PKT_TYPE_JOIN_RESPONSE:
+        elif packet[u'type']== d.PKT_TYPE_JOIN_RESPONSE:
             assert self.mote.dagRoot==False
 
             if self.getIsJoined()==True:
                 # I'm the join proxy
 
-                if 'stateless_proxy' not in packet['app']:
+                if u'stateless_proxy' not in packet[u'app']:
                     # this must be a duplicate response; ignore it
                     pass
                 else:
                     # remove the 'stateless_proxy' element from the app payload
-                    app         = copy.deepcopy(packet['app'])
-                    pledge_addr = app['stateless_proxy']['pledge_addr']
-                    del app['stateless_proxy']
+                    app         = copy.deepcopy(packet[u'app'])
+                    pledge_addr = app[u'stateless_proxy'][u'pledge_addr']
+                    del app[u'stateless_proxy']
 
                     # proxy join response to pledge
                     proxiedJoinResponse = {
-                        'type':                 d.PKT_TYPE_JOIN_RESPONSE,
-                        'app':                  app,
-                        'net': {
-                            'srcIp':            self.mote.get_ipv6_link_local_addr(),
-                            'dstIp':            pledge_addr,
-                            'packet_length':    packet['net']['packet_length'],
+                        u'type':                 d.PKT_TYPE_JOIN_RESPONSE,
+                        u'app':                  app,
+                        u'net': {
+                            u'srcIp':            self.mote.get_ipv6_link_local_addr(),
+                            u'dstIp':            pledge_addr,
+                            u'packet_length':    packet[u'net'][u'packet_length'],
                         },
                     }
 
@@ -222,7 +222,7 @@ class SecJoin(object):
             self.log(
                 SimEngine.SimLog.LOG_SECJOIN_FAILED,
                 {
-                    '_mote_id': self.mote.id,
+                    u'_mote_id': self.mote.id,
                 }
             )
 
@@ -248,19 +248,19 @@ class SecJoin(object):
         self.log(
             SimEngine.SimLog.LOG_SECJOIN_TX,
             {
-                '_mote_id': self.mote.id,
+                u'_mote_id': self.mote.id,
             }
         )
 
         # create join request
         joinRequest = {
-            'type':                     d.PKT_TYPE_JOIN_REQUEST,
-            'app': {
+            u'type':                     d.PKT_TYPE_JOIN_REQUEST,
+            u'app': {
             },
-            'net': {
-                'srcIp':                self.mote.get_ipv6_link_local_addr(),
-                'dstIp':                str(self.mote.tsch.join_proxy.ipv6_link_local()),
-                'packet_length':        d.PKT_LEN_JOIN_REQUEST,
+            u'net': {
+                u'srcIp':                self.mote.get_ipv6_link_local_addr(),
+                u'dstIp':                str(self.mote.tsch.join_proxy.ipv6_link_local()),
+                u'packet_length':        d.PKT_LEN_JOIN_REQUEST,
             },
         }
 

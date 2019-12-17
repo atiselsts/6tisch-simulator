@@ -11,8 +11,8 @@ from . import MoteDefines as d
 
 
 class TrickleTimer(object):
-    STATE_STOPPED = 'stopped'
-    STATE_RUNNING = 'running'
+    STATE_STOPPED = u'stopped'
+    STATE_RUNNING = u'running'
 
     def __init__(self, i_min, i_max, k, callback):
         assert isinstance(i_min, (int, long))
@@ -54,8 +54,8 @@ class TrickleTimer(object):
         self._start_next_interval()
 
     def stop(self):
-        self.engine.removeFutureEvent(self.unique_tag_base + '_at_i')
-        self.engine.removeFutureEvent(self.unique_tag_base + '_at_t')
+        self.engine.removeFutureEvent(self.unique_tag_base + u'_at_i')
+        self.engine.removeFutureEvent(self.unique_tag_base + u'_at_t')
         self.state = self.STATE_STOPPED
 
     def reset(self):
@@ -126,7 +126,7 @@ class TrickleTimer(object):
         self.engine.scheduleAtAsn(
             asn            = asn,
             cb             = _callback,
-            uniqueTag      = self.unique_tag_base + '_at_t',
+            uniqueTag      = self.unique_tag_base + u'_at_t',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS)
 
     def _schedule_event_at_end_of_interval(self):
@@ -149,5 +149,5 @@ class TrickleTimer(object):
         self.engine.scheduleAtAsn(
             asn            = asn,
             cb             = _callback,
-            uniqueTag      = self.unique_tag_base + '_at_i',
+            uniqueTag      = self.unique_tag_base + u'_at_i',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS)

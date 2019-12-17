@@ -1,4 +1,4 @@
-"""
+''"""
 Model of a 6TiSCH mote.
 """
 from __future__ import absolute_import
@@ -30,9 +30,9 @@ import SimEngine
 
 class Mote(object):
 
-    MAC_ADDR_TYPE_EUI64       = 'eui64'
-    IPV6_ADDR_TYPE_LINK_LOCAL = 'link-local'
-    IPV6_ADDR_TYPE_GLOBAL     = 'global'
+    MAC_ADDR_TYPE_EUI64       = u'eui64'
+    IPV6_ADDR_TYPE_LINK_LOCAL = u'link-local'
+    IPV6_ADDR_TYPE_GLOBAL     = u'global'
 
     def __init__(self, id, eui64=None):
 
@@ -90,9 +90,9 @@ class Mote(object):
         self.log(
             SimEngine.SimLog.LOG_IPV6_ADD_ADDR,
             {
-                '_mote_id': self.id,
-                'type'    : self.IPV6_ADDR_TYPE_GLOBAL,
-                'addr'    : self.get_ipv6_global_addr()
+                u'_mote_id': self.id,
+                u'type'    : self.IPV6_ADDR_TYPE_GLOBAL,
+                u'addr'    : self.get_ipv6_global_addr()
             }
         )
 
@@ -185,9 +185,9 @@ class Mote(object):
         self.log(
             SimEngine.SimLog.LOG_PACKET_DROPPED,
             {
-                "_mote_id":  self.id,
-                "packet":    packet,
-                "reason":    reason,
+                u'_mote_id':  self.id,
+                u'packet':    packet,
+                u'reason':    reason,
             }
         )
 
@@ -202,7 +202,7 @@ class Mote(object):
         if eui64 is None:
             # generate an EUI-64 based on mote id. The resulting EUI-64 should
             # have U/L bit on
-            local_eui64 = netaddr.EUI('02-00-00-00-00-00-00-00')
+            local_eui64 = netaddr.EUI(u'02-00-00-00-00-00-00-00')
             if self.id == 0:
                 # we use a special 40-bit host (extension) value for mote id 0
                 # to avoid having all zeros in its IPv6 interface ID
@@ -214,16 +214,16 @@ class Mote(object):
         self.log(
             SimEngine.SimLog.LOG_MAC_ADD_ADDR,
             {
-                '_mote_id': self.id,
-                'type'    : self.MAC_ADDR_TYPE_EUI64,
-                'addr'    : str(self.eui64)
+                u'_mote_id': self.id,
+                u'type'    : self.MAC_ADDR_TYPE_EUI64,
+                u'addr'    : str(self.eui64)
             }
         )
         self.log(
             SimEngine.SimLog.LOG_IPV6_ADD_ADDR,
             {
-                '_mote_id': self.id,
-                'type'    : self.IPV6_ADDR_TYPE_LINK_LOCAL,
-                'addr'    : self.get_ipv6_link_local_addr()
+                u'_mote_id': self.id,
+                u'type'    : self.IPV6_ADDR_TYPE_LINK_LOCAL,
+                u'addr'    : self.get_ipv6_link_local_addr()
             }
         )

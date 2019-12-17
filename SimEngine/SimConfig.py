@@ -65,11 +65,11 @@ class SimConfig(dict):
             self.configfile = configfile
 
             # read config file
-            if configfile == '-':
+            if configfile == u'-':
                 # read config.json from stdin
                 self._raw_data = sys.stdin.read()
             else:
-                with open(self.configfile, 'r') as file:
+                with open(self.configfile, u'r') as file:
                     self._raw_data = file.read()
         elif configdata is not None:
             self._raw_data = configdata
@@ -101,18 +101,18 @@ class SimConfig(dict):
         regular_field = settings_dict
         # remove cpuID, run_id, log_directory, and combinationKeys, which
         # shouldn't be in the regular field
-        del regular_field['cpuID']
-        del regular_field['run_id']
-        del regular_field['logRootDirectoryPath']
-        del regular_field['logDirectory']
-        del regular_field['combinationKeys']
+        del regular_field[u'cpuID']
+        del regular_field[u'run_id']
+        del regular_field[u'logRootDirectoryPath']
+        del regular_field[u'logDirectory']
+        del regular_field[u'combinationKeys']
         # put random seed
-        regular_field['exec_randomSeed'] = random_seed
+        regular_field[u'exec_randomSeed'] = random_seed
 
         # save exec_numMotes value and remove 'exec_numMotes' from
         # regular_field
-        exec_numMote = regular_field['exec_numMotes']
-        del regular_field['exec_numMotes']
+        exec_numMote = regular_field[u'exec_numMotes']
+        del regular_field[u'exec_numMotes']
 
         config_json = {
             'settings': {
@@ -120,13 +120,13 @@ class SimConfig(dict):
                 'regular': regular_field
             }
         }
-        config_json['version'] = 0
-        config_json['post'] = []
-        config_json['log_directory_name'] = 'startTime'
-        config_json['logging'] = 'all'
-        config_json['execution'] = {
-            'numCPUs': 1,
-            'numRuns': 1
+        config_json[u'version'] = 0
+        config_json[u'post'] = []
+        config_json[u'log_directory_name'] = u'startTime'
+        config_json[u'logging'] = u'all'
+        config_json[u'execution'] = {
+            u'numCPUs': 1,
+            u'numRuns': 1
         }
         return config_json
 
@@ -135,15 +135,15 @@ class SimConfig(dict):
         assert SimConfig._log_directory_name is None
 
         # determine log_directory_name
-        if   self.log_directory_name == 'startTime':
-            log_directory_name = '{0}-{1:03d}'.format(
+        if   self.log_directory_name == u'startTime':
+            log_directory_name = u'{0}-{1:03d}'.format(
                 time.strftime(
                     "%Y%m%d-%H%M%S",
                     time.localtime(int(SimConfig._startTime))
                 ),
                 int(round(SimConfig._startTime * 1000)) % 1000
             )
-        elif self.log_directory_name == 'hostname':
+        elif self.log_directory_name == u'hostname':
             # hostname is stored in platform.uname()[1]
             hostname = platform.uname()[1]
             log_directory_path = os.path.join(
@@ -152,13 +152,13 @@ class SimConfig(dict):
             )
             # add suffix if there is a directory having the same hostname
             if os.path.exists(log_directory_path):
-                index = len(glob.glob(log_directory_path + '*'))
-                log_directory_name = '_'.join((hostname, str(index)))
+                index = len(glob.glob(log_directory_path + u'*'))
+                log_directory_name = u'_'.join((hostname, str(index)))
             else:
                 log_directory_name = hostname
         else:
             raise NotImplementedError(
-                'log_directory_name "{0}" is not supported'.format(
+                u'log_directory_name "{0}" is not supported'.format(
                     self.log_directory_name
                 )
             )

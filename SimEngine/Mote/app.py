@@ -68,8 +68,8 @@ class AppBase(object):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                '_mote_id': self.mote.id,
-                'packet'  : packet
+                u'_mote_id': self.mote.id,
+                u'packet'  : packet
             }
         )
 
@@ -84,15 +84,15 @@ class AppBase(object):
 
         # create data packet
         dataPacket = {
-            'type':              packet_type,
-            'net': {
-                'srcIp':         self.mote.get_ipv6_global_addr(),
-                'dstIp':         dstIp,
-                'packet_length': packet_length
+            u'type':              packet_type,
+            u'net': {
+                u'srcIp':         self.mote.get_ipv6_global_addr(),
+                u'dstIp':         dstIp,
+                u'packet_length': packet_length
             },
-            'app': {
-                'appcounter':    self.appcounter,
-                'timestamp':     self.engine.getAsn()
+            u'app': {
+                u'appcounter':    self.appcounter,
+                u'timestamp':     self.engine.getAsn()
             }
 
         }
@@ -119,8 +119,8 @@ class AppBase(object):
         self.log(
             SimEngine.SimLog.LOG_APP_TX,
             {
-                '_mote_id':       self.mote.id,
-                'packet':         packet,
+                u'_mote_id':       self.mote.id,
+                u'packet':         packet,
             }
         )
 
@@ -150,8 +150,8 @@ class AppRoot(AppBase):
         self.log(
             SimEngine.SimLog.LOG_APP_RX,
             {
-                '_mote_id': self.mote.id,
-                'packet'  : packet
+                u'_mote_id': self.mote.id,
+                u'packet'  : packet
             }
         )
 
@@ -209,8 +209,8 @@ class AppPeriodic(AppBase):
             delay           = delay,
             cb              = self._send_a_single_packet,
             uniqueTag       = (
-                'AppPeriodic',
-                'scheduled_by_{0}'.format(self.mote.id)
+                u'AppPeriodic',
+                u'scheduled_by_{0}'.format(self.mote.id)
             ),
             intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
         )
@@ -244,8 +244,8 @@ class AppBurst(AppBase):
                 delay           = self.settings.app_burstTimestamp,
                 cb              = self._send_burst_packets,
                 uniqueTag       = (
-                    'AppBurst',
-                    'scheduled_by_{0}'.format(self.mote.id)
+                    u'AppBurst',
+                    u'scheduled_by_{0}'.format(self.mote.id)
                 ),
                 intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
             )

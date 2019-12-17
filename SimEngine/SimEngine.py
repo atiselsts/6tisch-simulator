@@ -67,7 +67,7 @@ class DiscreteEventEngine(threading.Thread):
 
             # initialize parent class
             threading.Thread.__init__(self)
-            self.name                           = 'DiscreteEventEngine'
+            self.name                           = u'DiscreteEventEngine'
         except:
             # an exception happened when initializing the instance
 
@@ -144,24 +144,24 @@ class DiscreteEventEngine(threading.Thread):
 
             # print
             output  = []
-            output += ['']
-            output += ['==============================']
-            output += ['']
-            output += ['CRASH in {0}!'.format(self.name)]
-            output += ['']
+            output += [u'']
+            output += [u'==============================']
+            output += [u'']
+            output += [u'CRASH in {0}!'.format(self.name)]
+            output += [u'']
             output += [traceback.format_exc()]
-            output += ['==============================']
-            output += ['']
-            output += ['The current ASN is {0}'.format(self.asn)]
-            output += ['The log file is {0}'.format(
+            output += [u'==============================']
+            output += [u'']
+            output += [u'The current ASN is {0}'.format(self.asn)]
+            output += [u'The log file is {0}'.format(
                 self.settings.getOutputFile()
             )]
-            output += ['']
-            output += ['==============================']
-            output += ['config.json to reproduce:']
-            output += ['']
-            output += ['']
-            output  = '\n'.join(output)
+            output += [u'']
+            output += [u'==============================']
+            output += [u'config.json to reproduce:']
+            output += [u'']
+            output += [u'']
+            output  = u'\n'.join(output)
             output += json.dumps(
                 SimConfig.SimConfig.generate_config(
                     settings_dict = self.settings.__dict__,
@@ -169,7 +169,7 @@ class DiscreteEventEngine(threading.Thread):
                 ),
                 indent = 4
             )
-            output += '\n\n==============================\n'
+            output += u'\n\n==============================\n'
 
             sys.stderr.write(output)
 
@@ -264,7 +264,7 @@ class DiscreteEventEngine(threading.Thread):
         self.scheduleAtAsn(
             asn              = asn,
             cb               = self._actionPauseSim,
-            uniqueTag        = ('DiscreteEventEngine', '_actionPauseSim'),
+            uniqueTag        = (u'DiscreteEventEngine', u'_actionPauseSim'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
@@ -303,7 +303,7 @@ class DiscreteEventEngine(threading.Thread):
             self.scheduleAtAsn(
                     asn                = self.asn+delay,
                     cb                 = self._actionEndSim,
-                    uniqueTag          = ('DiscreteEventEngine', '_actionEndSim'),
+                    uniqueTag          = (u'DiscreteEventEngine', u'_actionEndSim'),
                     intraSlotOrder     = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
             )
 
@@ -330,13 +330,13 @@ class DiscreteEventEngine(threading.Thread):
 
         # print
         if self.verbose:
-            print('   slotframe_iteration: {0}/{1}'.format(slotframe_iteration, self.settings.exec_numSlotframesPerRun-1))
+            print(u'   slotframe_iteration: {0}/{1}'.format(slotframe_iteration, self.settings.exec_numSlotframesPerRun-1))
 
         # schedule next statistics collection
         self.scheduleAtAsn(
             asn              = self.asn + self.settings.tsch_slotframeLength,
             cb               = self._actionEndSlotframe,
-            uniqueTag        = ('DiscreteEventEngine', '_actionEndSlotframe'),
+            uniqueTag        = (u'DiscreteEventEngine', u'_actionEndSlotframe'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
@@ -363,9 +363,9 @@ class SimEngine(DiscreteEventEngine):
         self.settings                   = SimSettings.SimSettings()
 
         # set random seed
-        if   self.settings.exec_randomSeed == 'random':
+        if   self.settings.exec_randomSeed == u'random':
             self.random_seed = random.randint(0, sys.maxsize)
-        elif self.settings.exec_randomSeed == 'context':
+        elif self.settings.exec_randomSeed == u'context':
             # with context for exec_randomSeed, an MD5 value of
             # 'startTime-hostname-run_id' is used for a random seed
             startTime = SimConfig.SimConfig.get_startTime()
@@ -373,7 +373,7 @@ class SimEngine(DiscreteEventEngine):
                 startTime = time.time()
             context = (platform.uname()[1], str(startTime), str(self.run_id))
             md5 = hashlib.md5()
-            md5.update('-'.join(context))
+            md5.update(u'-'.join(context).encode('utf-8'))
             self.random_seed = int(md5.hexdigest(), 16) % sys.maxsize
         else:
             assert isinstance(self.settings.exec_randomSeed, int)
@@ -401,7 +401,7 @@ class SimEngine(DiscreteEventEngine):
         eui64_list = set([mote.get_mac_addr() for mote in self.motes])
         if len(eui64_list) != len(self.motes):
             assert len(eui64_list) < len(self.motes)
-            raise ValueError('given motes_eui64 causes dulicates')
+            raise ValueError(u'given motes_eui64 causes dulicates')
 
         self.connectivity               = Connectivity.Connectivity(self)
         self.log                        = SimLog.SimLog().log
@@ -411,7 +411,7 @@ class SimEngine(DiscreteEventEngine):
         self.log(
             SimLog.LOG_SIMULATOR_RANDOM_SEED,
             {
-                'value': self.random_seed
+                u'value': self.random_seed
             }
         )
         # flush buffered logs, which are supposed to be 'config' and
@@ -432,8 +432,8 @@ class SimEngine(DiscreteEventEngine):
         self.log(
             SimLog.LOG_SIMULATOR_STATE,
             {
-                "name":   self.name,
-                "state":  "started"
+                u'name':   self.name,
+                u'state':  u'started'
             }
         )
 
@@ -441,7 +441,7 @@ class SimEngine(DiscreteEventEngine):
         self.scheduleAtAsn(
             asn              = self.settings.tsch_slotframeLength*self.settings.exec_numSlotframesPerRun,
             cb               = self._actionEndSim,
-            uniqueTag        = ('SimEngine','_actionEndSim'),
+            uniqueTag        = (u'SimEngine',u'_actionEndSim'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
@@ -449,7 +449,7 @@ class SimEngine(DiscreteEventEngine):
         self.scheduleAtAsn(
             asn              = self.asn + self.settings.tsch_slotframeLength - 1,
             cb               = self._actionEndSlotframe,
-            uniqueTag        = ('SimEngine', '_actionEndSlotframe'),
+            uniqueTag        = (u'SimEngine', u'_actionEndSlotframe'),
             intraSlotOrder   = Mote.MoteDefines.INTRASLOTORDER_ADMINTASKS,
         )
 
