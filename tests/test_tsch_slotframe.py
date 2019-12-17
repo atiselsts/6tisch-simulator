@@ -1,12 +1,14 @@
 """
 Test for TSCH Slotframe and Cell manipulation
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 import random
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine.Mote.tsch import SlotFrame, Cell
 from SimEngine import SimLog
 from SimEngine.Mote import Mote
@@ -239,7 +241,7 @@ def test_print_slotframe(sim_engine, fixture_num_cells):
         channel_offset = random.randint(0, 65535)
         slotframe.add(Cell(slot_offset, channel_offset, []))
 
-    print slotframe
+    print(slotframe)
     str_slotframe = str(slotframe)
     assert 'length: 101' in str_slotframe
     assert 'num_cells: {0}'.format(fixture_num_cells) in str_slotframe
@@ -269,7 +271,7 @@ def test_print_cell(sim_engine, fixture_cell_options, fixture_mac_addr):
 
     cell = Cell(slot_offset, channel_offset, fixture_cell_options, mac_addr)
 
-    print cell
+    print(cell)
     str_cell = str(cell)
     assert 'slot_offset: {0}'.format(slot_offset) in str_cell
     assert 'channel_offset: {0}'.format(channel_offset) in str_cell

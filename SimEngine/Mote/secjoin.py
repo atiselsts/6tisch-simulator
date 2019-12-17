@@ -1,6 +1,7 @@
 """
 Secure joining layer of a mote.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -8,7 +9,7 @@ import copy
 import random
 
 # Mote sub-modules
-import MoteDefines as d
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine

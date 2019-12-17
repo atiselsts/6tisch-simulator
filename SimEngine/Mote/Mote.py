@@ -1,6 +1,7 @@
 """
 Model of a 6TiSCH mote.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -9,16 +10,16 @@ import threading
 import netaddr
 
 # Mote sub-modules
-import app
-import secjoin
-import rpl
-import sixlowpan
-import sf
-import sixp
-import tsch
-import radio
+from . import app
+from . import secjoin
+from . import rpl
+from . import sixlowpan
+from . import sf
+from . import sixp
+from . import tsch
+from . import radio
 
-import MoteDefines as d
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine

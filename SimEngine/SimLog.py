@@ -10,6 +10,8 @@ Usage:
         }
     )
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 # ========================== imports =========================================
 
@@ -17,8 +19,8 @@ import copy
 import json
 import traceback
 
-import SimSettings
-import SimEngine
+from . import SimSettings
+from . import SimEngine
 
 # =========================== defines =========================================
 
@@ -208,7 +210,7 @@ class SimLog(object):
             output += ['']
             output += ['----------------------']
             output  = '\n'.join(output)
-            print output
+            print(output)
             raise
 
     def flush(self):

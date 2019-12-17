@@ -4,6 +4,7 @@ Plot a stat over another stat.
 Example:
     python plot.py --inputfolder simData/numMotes_50/ -x chargeConsumed --y aveLatency
 """
+from __future__ import print_function
 
 # =========================== imports =========================================
 
@@ -73,8 +74,8 @@ def main(options):
                 plot_box(data, key, subfolder)
 
         except TypeError as e:
-            print "Cannot create a plot for {0}: {1}.".format(key, e)
-    print "Plots are saved in the {0} folder.".format(subfolder)
+            print("Cannot create a plot for {0}: {1}.".format(key, e))
+    print("Plots are saved in the {0} folder.".format(subfolder))
 
 # =========================== helpers =========================================
 

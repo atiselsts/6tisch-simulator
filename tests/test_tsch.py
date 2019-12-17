@@ -1,12 +1,13 @@
 """
 Test for TSCH layer
 """
+from __future__ import absolute_import
 
 import copy
 import pytest
 import types
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine.Mote import tsch

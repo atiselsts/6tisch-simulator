@@ -1,12 +1,13 @@
 """
 Trickle Timer: IETF RFC 6206 (https://tools.ietf.org/html/rfc6206)
 """
+from __future__ import absolute_import
 
 import math
 import random
 
 import SimEngine
-import MoteDefines as d
+from . import MoteDefines as d
 
 
 class TrickleTimer(object):

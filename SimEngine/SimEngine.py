@@ -1,6 +1,8 @@
 """
 \brief Discrete-event simulation engine.
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 # ========================== imports =========================================
 
@@ -14,11 +16,11 @@ import time
 import traceback
 import json
 
-import Mote
-import SimSettings
-import SimLog
-import Connectivity
-import SimConfig
+from . import Mote
+from . import SimSettings
+from . import SimLog
+from . import Connectivity
+from . import SimConfig
 
 # =========================== defines =========================================
 
@@ -362,7 +364,7 @@ class SimEngine(DiscreteEventEngine):
 
         # set random seed
         if   self.settings.exec_randomSeed == 'random':
-            self.random_seed = random.randint(0, sys.maxint)
+            self.random_seed = random.randint(0, sys.maxsize)
         elif self.settings.exec_randomSeed == 'context':
             # with context for exec_randomSeed, an MD5 value of
             # 'startTime-hostname-run_id' is used for a random seed
@@ -372,7 +374,7 @@ class SimEngine(DiscreteEventEngine):
             context = (platform.uname()[1], str(startTime), str(self.run_id))
             md5 = hashlib.md5()
             md5.update('-'.join(context))
-            self.random_seed = int(md5.hexdigest(), 16) % sys.maxint
+            self.random_seed = int(md5.hexdigest(), 16) % sys.maxsize
         else:
             assert isinstance(self.settings.exec_randomSeed, int)
             self.random_seed = self.settings.exec_randomSeed

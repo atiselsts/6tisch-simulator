@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import argparse
 import json
 import os
@@ -77,10 +78,10 @@ def main():
     del config_line['_run_id']
 
     # then, dump a generated config object nicely
-    print json.dumps(
+    print(json.dumps(
         SimConfig.generate_config(config_line, random_seed),
         indent = 4
-    )
+    ))
 
 
 if __name__ == '__main__':

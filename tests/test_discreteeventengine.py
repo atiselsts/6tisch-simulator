@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 from SimEngine import SimEngine
 import SimEngine.Mote.MoteDefines as d
-import test_utils as u
+from . import test_utils as u
 
 '''
 def test_create_destroy_engine(repeat4times):

@@ -14,6 +14,7 @@ of settings.
 
 \author Thomas Watteyne <thomas.watteyne@inria.fr>
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -24,7 +25,7 @@ import platform
 import sys
 import time
 
-import SimSettings
+from . import SimSettings
 
 # =========================== defines =========================================
 

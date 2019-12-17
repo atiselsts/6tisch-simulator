@@ -1,5 +1,6 @@
 """
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -10,7 +11,7 @@ import random
 import netaddr
 
 # Mote sub-modules
-import MoteDefines as d
+from . import MoteDefines as d
 from SimEngine.Mote.sf import SchedulingFunctionMSF
 
 # Simulator-wide modules

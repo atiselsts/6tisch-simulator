@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import copy
 import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine.Mote.sf import SchedulingFunctionBase
 from SimEngine         import SimLog

@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import json
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine.SimConfig import SimConfig
 from SimEngine.SimLog import SimLog
 

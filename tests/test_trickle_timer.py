@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine.Mote.trickle_timer import TrickleTimer
 
 # use the default values defined in RFC 6550

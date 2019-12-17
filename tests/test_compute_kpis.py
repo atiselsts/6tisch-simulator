@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import json
 import os
 import re
@@ -6,7 +7,7 @@ import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine import SimLog
 from SimEngine import SimSettings
 import SimEngine.Mote.MoteDefines as d

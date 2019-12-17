@@ -119,7 +119,7 @@ class SimSettings(object):
         if not os.path.exists(dirname):
             try:
                 os.makedirs(dirname)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == os.errno.EEXIST:
                     # FIXME: handle this race condition properly
                     # Another core/CPU has already made this directory

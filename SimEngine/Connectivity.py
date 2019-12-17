@@ -13,6 +13,8 @@ The propagate() method is called at every slot. It loops through the
 transmissions occurring during that slot and checks if the transmission fails or
 succeeds.
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -25,10 +27,10 @@ import datetime as dt
 import json
 import itertools
 
-import SimSettings
-import SimEngine
-from Mote.Mote import Mote
-from Mote import MoteDefines as d
+from . import SimSettings
+from . import SimEngine
+from .Mote.Mote import Mote
+from .Mote import MoteDefines as d
 
 # =========================== defines =========================================
 
@@ -561,7 +563,7 @@ class ConnectivityMatrixBase(object):
             output += [line]
 
         output = '\n'.join(output)
-        print output
+        print(output)
 
 class ConnectivityMatrixFullyMeshed(ConnectivityMatrixBase):
     """

@@ -3,11 +3,12 @@ Called by TSCH, links with propagation model.
 
 Also accounts for charge consumed.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
 # Mote sub-modules
-import MoteDefines as d
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine

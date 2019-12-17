@@ -1,6 +1,7 @@
 """
 An application lives on each node
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -11,7 +12,7 @@ import random
 
 # Simulator-wide modules
 import SimEngine
-import MoteDefines as d
+from . import MoteDefines as d
 
 # =========================== defines =========================================
 

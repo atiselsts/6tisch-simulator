@@ -1,4 +1,5 @@
 from __future__ import division
+from __future__ import print_function
 
 # =========================== adjust path =====================================
 
@@ -416,19 +417,19 @@ def main():
     )
     subfolder = max(subfolders, key=os.path.getmtime)
     for infile in glob.glob(os.path.join(subfolder, '*.dat')):
-        print 'generating KPIs for {0}'.format(infile)
+        print('generating KPIs for {0}'.format(infile))
 
         # gather the kpis
         kpis = kpis_all(infile)
 
         # print on the terminal
-        print json.dumps(kpis, indent=4)
+        print(json.dumps(kpis, indent=4))
 
         # add to the data folder
         outfile = '{0}.kpi'.format(infile)
         with open(outfile, 'w') as f:
             f.write(json.dumps(kpis, indent=4))
-        print 'KPIs saved in {0}'.format(outfile)
+        print('KPIs saved in {0}'.format(outfile))
 
 if __name__ == '__main__':
     main()

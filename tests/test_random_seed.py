@@ -1,12 +1,14 @@
 """
 Tests for random_seed setting
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 import hashlib
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine import SimLog
 from SimEngine import SimSettings
 from SimEngine import SimConfig
@@ -86,7 +88,7 @@ def test_random_seed(sim_engine, fixture_random_seed):
         hash_list.append(entry['sha256'])
 
         # print hash values, which will be printed out when this test fails
-        print '{0} {1}'.format(entry['sha256'], entry['log_file_name'])
+        print('{0} {1}'.format(entry['sha256'], entry['log_file_name']))
 
     # compare hash values and random seeds
     if fixture_random_seed in ['random', 'range', 'context']:

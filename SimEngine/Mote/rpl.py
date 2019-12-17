@@ -8,6 +8,7 @@ references:
 note:
 - global repair is not supported
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -22,8 +23,8 @@ import numpy
 
 # Simulator-wide modules
 import SimEngine
-import MoteDefines as d
-from trickle_timer import TrickleTimer
+from . import MoteDefines as d
+from .trickle_timer import TrickleTimer
 
 # =========================== defines =========================================
 

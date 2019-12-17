@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # =========================== imports =========================================
 
 import random
@@ -7,8 +8,8 @@ from abc import abstractmethod
 import netaddr
 
 import SimEngine
-import MoteDefines as d
-import sixp
+from . import MoteDefines as d
+from . import sixp
 
 # =========================== defines =========================================
 

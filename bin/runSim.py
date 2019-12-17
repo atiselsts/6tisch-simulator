@@ -4,6 +4,7 @@
 \author Thomas Watteyne <watteyne@eecs.berkeley.edu>
 \author Malisa Vucinic <malishav@gmail.com>
 """
+from __future__ import print_function
 
 # =========================== adjust path =====================================
 
@@ -61,7 +62,7 @@ def printOrLog(cpuID, pid, output, verbose):
         with open(getTemplogFileName(cpuID, pid), 'w') as f:
             f.write(output)
     else:
-        print output
+        print(output)
 
 def runSimCombinations(params):
     """
@@ -154,7 +155,7 @@ def printProgressPerCpu(cpuIDs, pid, clear_console=True):
         output = '\n'.join(output)
         if clear_console:
             os.system('cls' if os.name == 'nt' else 'clear')
-        print output
+        print(output)
         if allDone:
             break
 
@@ -313,7 +314,7 @@ def main():
         pass
     else:
         for c in simconfig.post:
-            print 'calling "{0}"'.format(c)
+            print('calling "{0}"'.format(c))
             rc = subprocess.call(c, shell=True)
             assert rc==0
 

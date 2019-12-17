@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import pytest
 import time
 
@@ -8,7 +9,7 @@ from SimEngine import SimConfig,   \
                       Connectivity
 from SimEngine.Mote.rpl import RplOFNone
 import SimEngine.Mote.MoteDefines as d
-import test_utils                 as u
+from . import test_utils                 as u
 
 def pdr_not_null(c,p,engine):
     returnVal = False

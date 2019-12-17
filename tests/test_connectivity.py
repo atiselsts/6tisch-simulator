@@ -1,6 +1,8 @@
 """
 Tests for SimEngine.Connectivity
 """
+from __future__ import print_function
+from __future__ import absolute_import
 import itertools
 import json
 import gzip
@@ -10,7 +12,7 @@ import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine.Connectivity import ConnectivityMatrixK7
@@ -325,7 +327,7 @@ def test_propagation(sim_engine, fixture_propagation_test_type):
                 RSSI_VALUES[fixture_propagation_test_type]
             )
             # dump the connectivity matrix
-            print 'The Connectivity Matrix ("1.0" means PDR of 100%):'
+            print('The Connectivity Matrix ("1.0" means PDR of 100%):')
             self.dump()
 
     # replace the 'Linear' conn_class with the test purpose
@@ -453,7 +455,7 @@ def test_drop_ack(sim_engine, fixture_pdr):
                 GOOD_RSSI
             )
             # dump the connectivity matrix
-            print 'The Connectivity Matrix ("1.0" means PDR of 100%):'
+            print('The Connectivity Matrix ("1.0" means PDR of 100%):')
             self.dump()
 
     sim_engine.connectivity.matrix = TestConnectivityMatrixK7(

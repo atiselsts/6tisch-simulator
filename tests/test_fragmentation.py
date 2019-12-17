@@ -1,13 +1,14 @@
 """
 Tests for 6LoWPAN fragmentation
 """
+from __future__ import absolute_import
 
 import copy
 import math
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine
 import SimEngine.Mote.MoteDefines as d
 

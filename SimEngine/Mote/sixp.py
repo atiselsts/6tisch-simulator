@@ -5,6 +5,7 @@ are implemented in test/test_sixp.py to get an insight of how to implement a
 scheduling function with the SixP APIs defined here. SchedulingFunctionMSF
 implemented in sf.py is another example to see.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -12,7 +13,7 @@ import copy
 import random
 
 # Mote sub-modules
-import MoteDefines as d
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine

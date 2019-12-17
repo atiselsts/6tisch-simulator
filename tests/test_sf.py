@@ -1,6 +1,8 @@
 """
 Tests for SimEngine.Mote.sf
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 from itertools import chain
 import random
@@ -8,7 +10,7 @@ import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 from SimEngine import SimEngine
@@ -525,7 +527,7 @@ class TestMSF(object):
         sax = sim_engine.motes[0].sf._sax
 
         for mote in sim_engine.motes:
-            print sax(mote.get_mac_addr())
+            print(sax(mote.get_mac_addr()))
 
     def test_get_autonomous_cell(self, sim_engine):
         sim_engine = sim_engine(

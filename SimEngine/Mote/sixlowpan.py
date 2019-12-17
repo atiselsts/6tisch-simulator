@@ -1,6 +1,7 @@
 """
 6LoWPAN layer including reassembly/fragmentation
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
@@ -13,7 +14,7 @@ import netaddr
 
 # Simulator-wide modules
 import SimEngine
-import MoteDefines as d
+from . import MoteDefines as d
 
 # =========================== defines =========================================
 
