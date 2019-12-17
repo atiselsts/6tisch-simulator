@@ -76,7 +76,8 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     u.run_until_asn(sim_engine, 2020)
 
     # make sure SimEngine datalock is disengaged
-    assert sim_engine.dataLock._RLock__count == 0
+    with pytest.raises(RuntimeError):
+        assert sim_engine.dataLock.release()
 
     # the root should receive the first application packet
     logs = u.read_log_file([SimLog.LOG_APP_RX['type']])
