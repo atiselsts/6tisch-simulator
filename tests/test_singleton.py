@@ -22,8 +22,14 @@ def test_instantiate(sim_engine, singleton_class):
 
 def test_destroy(sim_engine, singleton_class):
     sim_engine = sim_engine()
-    instance_1 = singleton_class()
+    if singleton_class == Connectivity:
+        instance_1 = singleton_class(sim_engine)
+    else:
+        instance_1 = singleton_class()
     instance_1_id = id(instance_1)
     instance_1.destroy()
-    instance_2 = singleton_class()
+    if singleton_class == Connectivity:
+        instance_2 = singleton_class(sim_engine)
+    else:
+        instance_2 = singleton_class()
     assert instance_1_id != id(instance_2)

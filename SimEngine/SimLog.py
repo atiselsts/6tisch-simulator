@@ -20,7 +20,6 @@ import json
 import traceback
 
 from . import SimSettings
-from . import SimEngine
 
 # =========================== defines =========================================
 

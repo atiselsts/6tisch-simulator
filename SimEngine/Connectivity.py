@@ -28,7 +28,7 @@ import json
 import itertools
 
 from . import SimSettings
-from . import SimEngine
+from . import SimLog
 from .Mote.Mote import Mote
 from .Mote import MoteDefines as d
 
@@ -51,7 +51,7 @@ class Connectivity(object):
         return cls._instance
     # ===== end singleton
 
-    def __init__(self):
+    def __init__(self, sim_engine=None):
 
         # ==== start singleton
         cls = type(self)
@@ -63,9 +63,10 @@ class Connectivity(object):
         # store params
 
         # singletons (quicker access, instead of recreating every time)
+        assert sim_engine
         self.settings = SimSettings.SimSettings()
-        self.engine   = SimEngine.SimEngine()
-        self.log      = SimEngine.SimLog.SimLog().log
+        self.engine   = sim_engine
+        self.log      = SimLog.SimLog().log
 
         # short-hands and local variables
         self.num_channels = self.settings.phy_numChans
@@ -219,7 +220,7 @@ class Connectivity(object):
 
                     # something was received, continue execution
                     self.log(
-                        SimEngine.SimLog.LOG_PROP_INTERFERENCE,
+                        SimLog.LOG_PROP_INTERFERENCE,
                         {
                             '_mote_id': listener_id,
                             'channel': lockon_transmission['channel'],
@@ -297,7 +298,7 @@ class Connectivity(object):
                         packet=None,
                     )
                     self.log(
-                        SimEngine.SimLog.LOG_PROP_DROP_LOCKON,
+                        SimLog.LOG_PROP_DROP_LOCKON,
                         {
                             '_mote_id': listener_id,
                             'channel': lockon_transmission['channel'],
@@ -744,7 +745,7 @@ class ConnectivityMatrixK7(ConnectivityMatrixBase):
         # None
         self.asn_of_next_update = asn_of_next_update
         self.log(
-            SimEngine.SimLog.LOG_CONN_MATRIX_K7_UPDATE,
+            SimLog.LOG_CONN_MATRIX_K7_UPDATE,
             {
                 'start_trace_position': start_trace_position,
                 'end_trace_position': self.trace_position,
@@ -833,7 +834,7 @@ class ConnectivityMatrixRandom(ConnectivityMatrixBase):
     def _additional_initialization(self):
         # additional local variables
         self.coordinates = {}  # (x, y) indexed by mote_id
-        self.pister_hack = PisterHackModel()
+        self.pister_hack = PisterHackModel(self.engine)
 
         # ConnectivityRandom doesn't need the connectivity matrix. Instead, it
         # initializes coordinates of the motes. Its algorithm is:
@@ -1026,10 +1027,10 @@ class PisterHackModel(object):
         -79:    1.0000,  # this value is not from experiment
     }
 
-    def __init__(self):
+    def __init__(self, sim_engine):
 
         # singleton
-        self.engine   = SimEngine.SimEngine()
+        self.engine   = sim_engine
 
         # remember what RSSI value is computed for a mote at an ASN; the same
         # RSSI value will be returned for the same motes and the ASN.

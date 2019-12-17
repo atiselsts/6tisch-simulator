@@ -403,7 +403,7 @@ class SimEngine(DiscreteEventEngine):
             assert len(eui64_list) < len(self.motes)
             raise ValueError('given motes_eui64 causes dulicates')
 
-        self.connectivity               = Connectivity.Connectivity()
+        self.connectivity               = Connectivity.Connectivity(self)
         self.log                        = SimLog.SimLog().log
         SimLog.SimLog().set_simengine(self)
 
