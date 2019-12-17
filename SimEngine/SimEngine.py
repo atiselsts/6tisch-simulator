@@ -82,7 +82,8 @@ class DiscreteEventEngine(threading.Thread):
             raise
 
     def destroy(self):
-        if self._Thread__initialized:
+        cls = type(self)
+        if cls._init:
             # initialization finished without exception
 
             if self.is_alive():
@@ -94,7 +95,6 @@ class DiscreteEventEngine(threading.Thread):
                 # thread NOT start'ed yet, or crashed
 
                 # destroy the singleton
-                cls = type(self)
                 cls._instance         = None
                 cls._init             = False
         else:
