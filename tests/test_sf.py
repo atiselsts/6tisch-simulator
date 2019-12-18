@@ -133,7 +133,6 @@ class TestMSF(object):
         root.tsch.dequeue(dummy_packet)
         assert not root.sf.get_tx_cells(mote_mac_addr)
 
-    @pytest.mark.skip
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
