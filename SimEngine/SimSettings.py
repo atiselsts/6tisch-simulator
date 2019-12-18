@@ -12,7 +12,6 @@ from __future__ import division
 # =========================== imports =========================================
 
 from builtins import object
-from past.utils import old_div
 import math
 import os
 import re
@@ -70,13 +69,13 @@ class SimSettings(object):
                     )
                 elif self.exec_minutesPerRun:
                     assert self.exec_numSlotframesPerRun is None
-                    # convert "minutes" to "slotframes"
+                    # convert "minutes" to "slot
                     self.exec_numSlotframesPerRun = int(
                         math.ceil(
-                            old_div(self.exec_minutesPerRun *
-                            60,
+                            self.exec_minutesPerRun *
+                            60 /
                             self.tsch_slotDuration /
-                            self.tsch_slotframeLength)
+                            self.tsch_slotframeLength
                         )
                     )
                     # invdalite self.exec_minutesPerRun for the sake

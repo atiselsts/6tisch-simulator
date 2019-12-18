@@ -34,7 +34,7 @@ def test_init_mac_addr(sim_engine, fixture_mote_id, fixture_eui64):
         expected_eui64 = netaddr.EUI(fixture_eui64)
 
     assert mote.eui64 == expected_eui64
-    assert mote.get_mac_addr() == expected_eui64
+    assert mote.get_mac_addr() == str(expected_eui64)
 
 
 def test_is_my_mac(sim_engine):
