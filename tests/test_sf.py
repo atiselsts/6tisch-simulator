@@ -265,6 +265,12 @@ class TestMSF(object):
             mote.settings.tsch_slotDuration
         )
         mote.app.startSendingData()
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength
+        )
+        mote.sf.num_tx_cells_elapsed = 0
+        mote.sf.num_tx_cells_used    = 0
 
         # 2.5 run for 10 slotframes
         assert mote.sf.tx_cell_utilization == 0.0
@@ -294,8 +300,8 @@ class TestMSF(object):
 
         # adjust the packet interval
         mote.settings.app_pkPeriod = (
-            old_div(mote.settings.tsch_slotframeLength, 3 *
-            mote.settings.tsch_slotDuration)
+            old_div(mote.settings.tsch_slotframeLength, 3) *
+            mote.settings.tsch_slotDuration
         )
 
         # 3. test cell relocation
@@ -326,6 +332,10 @@ class TestMSF(object):
                 return self.rxDone_original(packet, channel)
         root.tsch.rxDone_original = root.tsch.rxDone
         root.tsch.rxDone = types.MethodType(rxDone_wrapper, root.tsch)
+        for cell in mote.tsch.get_cells(root.get_mac_addr(),
+                                        mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS):
+            cell.num_tx = 0
+            cell.num_tx_ack = 0
 
         # 3.3 run for the next 20 slotframes
         asn_start = sim_engine.getAsn()
