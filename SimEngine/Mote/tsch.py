@@ -1756,12 +1756,12 @@ class Cell(object):
     def __repr__(self):
 
         return u'cell({0})'.format(
-            u', u'.join(
+            u', '.join(
                 [
                     u'slot_offset: {0}'.format(self.slot_offset),
                     u'channel_offset: {0}'.format(self.channel_offset),
                     u'mac_addr: {0}'.format(self.mac_addr),
-                    u'options: [{0}]'.format(u', '.join(self.options)),
+                    u'options: [{0}]'.format(', '.join(self.options)),
                     u'link_type: {0}'.format(self.link_type)
                 ]
             )
