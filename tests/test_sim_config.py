@@ -1,8 +1,11 @@
+from __future__ import absolute_import
+from __future__ import division
+from past.utils import old_div
 import json
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine.SimConfig import SimConfig
 from SimEngine.SimLog import SimLog
 
@@ -18,7 +21,7 @@ def test_generate_config(sim_engine):
     # put first values in combination settings to 'regular' field as well as
     # empty the combination field
     if 'combination' in expected_config['settings']:
-        comb_keys = expected_config['settings']['combination'].keys()
+        comb_keys = list(expected_config['settings']['combination'].keys())
 
         while len(comb_keys) > 0:
             key = comb_keys.pop(0)
@@ -104,6 +107,6 @@ def test_exec_minutes_per_run(
         else:
             assert exec_minutes_per_run
             end_asn = (
-                exec_minutes_per_run * 60 / diff_config['tsch_slotDuration']
+                old_div(exec_minutes_per_run * 60, diff_config['tsch_slotDuration'])
             )
         assert sim_engine.getAsn() == end_asn

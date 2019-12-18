@@ -1,12 +1,18 @@
 """
 Tests for SimEngine.Mote.rpl
 """
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 import SimEngine.Mote.rpl as rpl
 from SimEngine import SimLog
@@ -203,7 +209,7 @@ class TestOF0(object):
         assert motes[0].rpl.get_rank()   == 256
         assert motes[0].rpl.getDagRank() == 1
 
-        print motes[1].rpl.of.preferred_parent
+        print(motes[1].rpl.of.preferred_parent)
         assert motes[1].rpl.get_rank()   == 768
         assert motes[1].rpl.getDagRank() == 3
 
@@ -360,8 +366,8 @@ class TestOF0(object):
         preferred_parent = mote.rpl.of.preferred_parent
         preferred_parent['numTx'] = 99
         preferred_parent['numTxAck'] = (
-            preferred_parent['numTx'] /
-            mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX
+            old_div(preferred_parent['numTx'],
+            mote.rpl.of.UPPER_LIMIT_OF_ACCEPTABLE_ETX)
         )
         mote.rpl.of.update_etx(cell, root.get_mac_addr(), isACKed=False)
 

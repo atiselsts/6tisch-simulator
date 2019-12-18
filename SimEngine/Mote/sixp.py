@@ -5,14 +5,17 @@ are implemented in test/test_sixp.py to get an insight of how to implement a
 scheduling function with the SixP APIs defined here. SchedulingFunctionMSF
 implemented in sf.py is another example to see.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
+from builtins import range
+from builtins import object
 import copy
 import random
 
 # Mote sub-modules
-import MoteDefines as d
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
@@ -55,16 +58,16 @@ class SixP(object):
         self.log(
             SimEngine.SimLog.LOG_SIXP_RX,
             {
-                '_mote_id': self.mote.id,
-                'packet':   packet
+                u'_mote_id': self.mote.id,
+                u'packet':   packet
             }
         )
 
-        if   packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST:
+        if   packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_REQUEST:
             self._recv_request(packet)
-        elif packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE:
+        elif packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_RESPONSE:
             self._recv_response(packet)
-        elif packet['app']['msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION:
+        elif packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION:
             self._recv_confirmation(packet)
         else:
             raise Exception()
@@ -78,21 +81,21 @@ class SixP(object):
             return
 
         if (
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
+                (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_REQUEST)
                 and
-                (packet['app']['code'] != d.SIXP_CMD_CLEAR)
+                (packet[u'app'][u'code'] != d.SIXP_CMD_CLEAR)
             ):
-            self.mote.sixp.increment_seqnum(packet['mac']['dstMac'])
+            self.mote.sixp.increment_seqnum(packet[u'mac'][u'dstMac'])
 
         if (
                 (
-                    (packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
+                    (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
                     and
                     (transaction.type == d.SIXP_TRANSACTION_TYPE_2_STEP)
                 )
                 or
                 (
-                    (packet['app']['msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
+                    (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
                     and
                     (transaction.type == d.SIXP_TRANSACTION_TYPE_3_STEP)
                 )
@@ -266,11 +269,11 @@ class SixP(object):
     def abort_transaction(self, initiator_mac_addr, responder_mac_addr):
         # make sure we have a transaction to abort
         dummy_packet = {
-            'mac': {
-                'srcMac': initiator_mac_addr,
-                'dstMac': responder_mac_addr
+            u'mac': {
+                u'srcMac': initiator_mac_addr,
+                u'dstMac': responder_mac_addr
             },
-            'app': {'msgType': d.SIXP_MSG_TYPE_REQUEST}
+            u'app': {u'msgType': d.SIXP_MSG_TYPE_REQUEST}
         }
         transaction_key = SixPTransaction.get_transaction_key(dummy_packet)
         transaction = self.transaction_table[transaction_key]
@@ -293,18 +296,18 @@ class SixP(object):
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_ABORTED,
             {
-                '_mote_id': self.mote.id,
-                'srcMac'  : transaction.initiator,
-                'dstMac'  : transaction.peerMac,
-                'seqNum'  : transaction.seqNum,
-                'cmd'     : transaction.request['app']['code']
+                u'_mote_id': self.mote.id,
+                u'srcMac'  : transaction.initiator,
+                u'dstMac'  : transaction.peerMac,
+                u'seqNum'  : transaction.seqNum,
+                u'cmd'     : transaction.request[u'app'][u'code']
             }
         )
 
         self.increment_seqnum(transaction.peerMac)
 
     def increment_seqnum(self, peerMac):
-        assert peerMac in self.seqnum_table.keys()
+        assert peerMac in list(self.seqnum_table.keys())
         self.seqnum_table[peerMac] += 1
         if self.seqnum_table[peerMac] == 0x100:
             # SeqNum is two-octet long and the value of 0 is treated specially
@@ -318,8 +321,8 @@ class SixP(object):
         self.log(
             SimEngine.SimLog.LOG_SIXP_TX,
             {
-                '_mote_id': self.mote.id,
-                'packet':   packet
+                u'_mote_id': self.mote.id,
+                u'packet':   packet
             }
         )
         self.mote.tsch.enqueue(packet, priority=True)
@@ -349,9 +352,9 @@ class SixP(object):
                 # an exception we will respond with RC_ERR_BUSY using SeqNum of
                 # the incoming request.
                 self.send_response(
-                    dstMac      = request['mac']['srcMac'],
+                    dstMac      = request[u'mac'][u'srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
-                    seqNum      = request['app']['seqNum']
+                    seqNum      = request[u'app'][u'seqNum']
                 )
             else:
                 peerMac = transaction.get_peerMac()
@@ -364,9 +367,9 @@ class SixP(object):
                     )
                     self.mote.sf.detect_schedule_inconsistency(peerMac)
                 else:
-                    if request['app']['code'] == d.SIXP_CMD_CLEAR:
+                    if request[u'app'][u'code'] == d.SIXP_CMD_CLEAR:
                         # reset SeqNum when it's a CLEAR request
-                        self.reset_seqnum(request['mac']['srcMac'])
+                        self.reset_seqnum(request[u'mac'][u'srcMac'])
                     else:
                         # increment SeqNum managed internally; this could be
                         # seen not aligned with the text of Section 3.4.6,
@@ -401,7 +404,7 @@ class SixP(object):
                 # by timeout and sent a request for a new transaction. Respond
                 # with RC_ERR_BUSY.
                 self.send_response(
-                    dstMac      = request['mac']['srcMac'],
+                    dstMac      = request[u'mac'][u'srcMac'],
                     return_code = d.SIXP_RC_ERR_BUSY,
                 )
                 # terminate the outstanding transaction and call the timeout
@@ -471,21 +474,21 @@ class SixP(object):
             payload            = None
         ):
         packet = {
-            'type'       : d.PKT_TYPE_SIXP,
-            'mac': {
-                'srcMac' : self.mote.get_mac_addr(),
-                'dstMac' : dstMac
+            u'type'       : d.PKT_TYPE_SIXP,
+            u'mac': {
+                u'srcMac' : self.mote.get_mac_addr(),
+                u'dstMac' : dstMac
             },
-            'app': {
-                'msgType': msgType,
-                'code'   : code,
-                'seqNum' : None
+            u'app': {
+                u'msgType': msgType,
+                u'code'   : code,
+                u'seqNum' : None
             }
         }
 
         if   msgType == d.SIXP_MSG_TYPE_REQUEST:
             # put the next SeqNum
-            packet['app']['seqNum'] = self._get_seqnum(dstMac)
+            packet[u'app'][u'seqNum'] = self._get_seqnum(dstMac)
 
             # command specific
             if (
@@ -493,29 +496,29 @@ class SixP(object):
                     or
                     (code == d.SIXP_CMD_DELETE)
                 ):
-                packet['app']['metadata']           = metadata
-                packet['app']['cellOptions']        = cellOptions
-                packet['app']['numCells']           = numCells
-                packet['app']['cellList']           = cellList
+                packet[u'app'][u'metadata']           = metadata
+                packet[u'app'][u'cellOptions']        = cellOptions
+                packet[u'app'][u'numCells']           = numCells
+                packet[u'app'][u'cellList']           = cellList
             elif code == d.SIXP_CMD_RELOCATE:
-                packet['app']['metadata']           = metadata
-                packet['app']['cellOptions']        = cellOptions
-                packet['app']['numCells']           = numCells
-                packet['app']['relocationCellList'] = relocationCellList
-                packet['app']['candidateCellList']  = candidateCellList
+                packet[u'app'][u'metadata']           = metadata
+                packet[u'app'][u'cellOptions']        = cellOptions
+                packet[u'app'][u'numCells']           = numCells
+                packet[u'app'][u'relocationCellList'] = relocationCellList
+                packet[u'app'][u'candidateCellList']  = candidateCellList
             elif code == d.SIXP_CMD_COUNT:
-                packet['app']['metadata']           = metadata
-                packet['app']['cellOptions']        = cellOptions
+                packet[u'app'][u'metadata']           = metadata
+                packet[u'app'][u'cellOptions']        = cellOptions
             elif code == d.SIXP_CMD_LIST:
-                packet['app']['metadata']           = metadata
-                packet['app']['cellOptions']        = cellOptions
-                packet['app']['offset']             = offset
-                packet['app']['maxNumCells']        = maxNumCells
+                packet[u'app'][u'metadata']           = metadata
+                packet[u'app'][u'cellOptions']        = cellOptions
+                packet[u'app'][u'offset']             = offset
+                packet[u'app'][u'maxNumCells']        = maxNumCells
             elif code == d.SIXP_CMD_CLEAR:
-                packet['app']['metadata']           = metadata
+                packet[u'app'][u'metadata']           = metadata
             elif code == d.SIXP_CMD_SIGNAL:
-                packet['app']['metadata']           = metadata
-                packet['app']['payload']            = payload
+                packet[u'app'][u'metadata']           = metadata
+                packet[u'app'][u'payload']            = payload
             else:
                 raise NotImplementedError()
 
@@ -529,14 +532,14 @@ class SixP(object):
             # put SeqNum of request unless it's requested to use a specific
             # value.
             if seqNum is None:
-                packet['app']['seqNum'] = transaction.request['app']['seqNum']
+                packet[u'app'][u'seqNum'] = transaction.request[u'app'][u'seqNum']
             else:
                 assert isinstance(seqNum, int)
                 assert seqNum >= 0
                 assert seqNum < 256
-                packet['app']['seqNum'] = seqNum
+                packet[u'app'][u'seqNum'] = seqNum
 
-            command = transaction.request['app']['code']
+            command = transaction.request[u'app'][u'code']
             if (
                     (command == d.SIXP_CMD_ADD)
                     or
@@ -546,14 +549,14 @@ class SixP(object):
                     or
                     (command == d.SIXP_CMD_LIST)
                 ):
-                packet['app']['cellList'] = cellList
+                packet[u'app'][u'cellList'] = cellList
             elif command == d.SIXP_CMD_COUNT:
-                packet['app']['numCells'] = numCells
+                packet[u'app'][u'numCells'] = numCells
             elif command == d.SIXP_CMD_CLEAR:
                 # no additional field
                 pass
             elif command == d.SIXP_CMD_SIGNAL:
-                packet['app']['payload']  = payload
+                packet[u'app'][u'payload']  = payload
 
         else:
             # shouldn't come here
@@ -562,7 +565,7 @@ class SixP(object):
         return packet
 
     def _get_seqnum(self, peerMac):
-        if peerMac not in self.seqnum_table.keys():
+        if peerMac not in list(self.seqnum_table.keys()):
             # the initial value of SeqNum is 0
             self.reset_seqnum(peerMac)
             return 0
@@ -579,9 +582,9 @@ class SixP(object):
             transaction = self.transaction_table[transaction_key]
             request = transaction.request
             if (
-                    (packet['app']['seqNum'] is None)
+                    (packet[u'app'][u'seqNum'] is None)
                     or
-                    (packet['app']['seqNum'] == request['app']['seqNum'])
+                    (packet[u'app'][u'seqNum'] == request[u'app'][u'seqNum'])
                 ):
                 # The input packet has the same seqNum as the request has. This
                 # is a valid packet for this transaction
@@ -605,20 +608,20 @@ class SixP(object):
         # receiving mote are supposed to be identical.
 
         request = transaction.request
-        peerMac = request['mac']['srcMac']
+        peerMac = request[u'mac'][u'srcMac']
 
         if (
-                (request['app']['code'] != d.SIXP_CMD_CLEAR)
+                (request[u'app'][u'code'] != d.SIXP_CMD_CLEAR)
                 and
                 (
                     (
-                        (request['app']['seqNum'] == 0)
+                        (request[u'app'][u'seqNum'] == 0)
                         and
                         (self._get_seqnum(peerMac) != 0)
                     )
                     or
                     (
-                        (request['app']['seqNum'] != 0)
+                        (request[u'app'][u'seqNum'] != 0)
                         and
                         (self._get_seqnum(peerMac) == 0)
                     )
@@ -636,8 +639,8 @@ class SixPTransaction(object):
     def __init__(self, mote, request):
 
         # sanity check
-        assert request['type']           == d.PKT_TYPE_SIXP
-        assert request['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST
+        assert request[u'type']           == d.PKT_TYPE_SIXP
+        assert request[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_REQUEST
 
         # keep external instances
         self.mote             = mote
@@ -655,15 +658,15 @@ class SixPTransaction(object):
         self.is_valid         = False
 
         # for quick access
-        self.seqNum           = request['app']['seqNum']
-        self.initiator        = request['mac']['srcMac']
-        self.responder        = request['mac']['dstMac']
-        self.isInitiator      = self.mote.is_my_mac_addr(request['mac']['srcMac'])
+        self.seqNum           = request[u'app'][u'seqNum']
+        self.initiator        = request[u'mac'][u'srcMac']
+        self.responder        = request[u'mac'][u'dstMac']
+        self.isInitiator      = self.mote.is_my_mac_addr(request[u'mac'][u'srcMac'])
         if self.isInitiator:
             self.peerMac      = self.responder
         else:
             self.peerMac      = self.initiator
-        self.event_unique_tag = '{0}-{1}-{2}-{3}'.format(
+        self.event_unique_tag = u'{0}-{1}-{2}-{3}'.format(
             self.mote.id,
             self.initiator,
             self.responder,
@@ -679,20 +682,20 @@ class SixPTransaction(object):
     @staticmethod
     def get_transaction_key(packet):
         if (
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_REQUEST)
+                (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_REQUEST)
                 or
-                (packet['app']['msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
+                (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
             ):
-            initiator = packet['mac']['srcMac']
-            responder = packet['mac']['dstMac']
-        elif packet['app']['msgType'] == d.SIXP_MSG_TYPE_RESPONSE:
-            initiator = packet['mac']['dstMac']
-            responder = packet['mac']['srcMac']
+            initiator = packet[u'mac'][u'srcMac']
+            responder = packet[u'mac'][u'dstMac']
+        elif packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_RESPONSE:
+            initiator = packet[u'mac'][u'dstMac']
+            responder = packet[u'mac'][u'srcMac']
         else:
             # shouldn't come here
             raise Exception()
 
-        return '{0}-{1}'.format(initiator, responder)
+        return u'{0}-{1}'.format(initiator, responder)
 
     @property
     def last_packet(self):
@@ -728,10 +731,10 @@ class SixPTransaction(object):
         self.log(
             SimEngine.SimLog.LOG_SIXP_TRANSACTION_COMPLETED,
             {
-                '_mote_id': self.mote.id,
-                'peerMac' : self.peerMac,
-                'seqNum'  : self.seqNum,
-                'cmd'     : self.request['app']['code']
+                u'_mote_id': self.mote.id,
+                u'peerMac' : self.peerMac,
+                u'seqNum'  : self.seqNum,
+                u'cmd'     : self.request[u'app'][u'code']
             }
         )
 
@@ -758,11 +761,11 @@ class SixPTransaction(object):
             self.log(
                 SimEngine.SimLog.LOG_SIXP_TRANSACTION_TIMEOUT,
                 {
-                    '_mote_id': self.mote.id,
-                    'srcMac'  : srcMac,
-                    'dstMac'  : dstMac,
-                    'seqNum'  : self.seqNum,
-                    'cmd'     : self.request['app']['code']
+                    u'_mote_id': self.mote.id,
+                    u'srcMac'  : srcMac,
+                    u'dstMac'  : dstMac,
+                    u'seqNum'  : self.seqNum,
+                    u'cmd'     : self.request[u'app'][u'code']
                 }
             )
 
@@ -799,21 +802,21 @@ class SixPTransaction(object):
     def _determine_transaction_type(self):
         if (
                 (
-                    (self.request['app']['code'] == d.SIXP_CMD_ADD)
+                    (self.request[u'app'][u'code'] == d.SIXP_CMD_ADD)
                     and
-                    (len(self.request['app']['cellList']) == 0)
+                    (len(self.request[u'app'][u'cellList']) == 0)
                 )
                 or
                 (
-                    (self.request['app']['code'] == d.SIXP_CMD_DELETE)
+                    (self.request[u'app'][u'code'] == d.SIXP_CMD_DELETE)
                     and
-                    (len(self.request['app']['cellList']) == 0)
+                    (len(self.request[u'app'][u'cellList']) == 0)
                 )
                 or
                 (
-                    (self.request['app']['code'] == d.SIXP_CMD_RELOCATE)
+                    (self.request[u'app'][u'code'] == d.SIXP_CMD_RELOCATE)
                     and
-                    (len(self.request['app']['candidateCellList']) == 0)
+                    (len(self.request[u'app'][u'candidateCellList']) == 0)
                 )
             ):
             transaction_type = d.SIXP_TRANSACTION_TYPE_3_STEP

@@ -1,3 +1,7 @@
+from __future__ import division
+from builtins import str
+from builtins import map
+from past.utils import old_div
 import json
 import gzip
 import math
@@ -59,12 +63,12 @@ def get_default_config():
         if 'conn_trace' not in config['settings'][settings_type]:
             continue
         if isinstance(config['settings'][settings_type]['conn_trace'], list):
-            config['settings'][settings_type]['conn_trace'] = map(
+            config['settings'][settings_type]['conn_trace'] = list(map(
                 lambda trace_file:
                 os.path.abspath(os.path.join(original_config_path, trace_file))
                 if os.path.isabs(trace_file) is False
                 else trace_file
-            )
+            ))
         elif (
                 config['settings'][settings_type]['conn_trace']
                 and
@@ -156,11 +160,7 @@ def get_available_scheduling_functions():
     ret_val.remove('SchedulingFunctionBase')
 
     # strip leading "SchedulingFunction" and return
-    return map(
-        lambda elem:
-        re.sub(r'SchedulingFunction(\w+)', r'\1', elem),
-        ret_val
-    )
+    return [re.sub(r'SchedulingFunction(\w+)', r'\1', elem) for elem in ret_val]
 
 
 @eel.expose
@@ -213,11 +213,7 @@ def get_available_connectivities():
     ret_val.remove('ConnectivityMatrixBase')
 
     # strip leading "Connectivity" and return
-    return map(
-        lambda elem:
-        re.sub(r'ConnectivityMatrix(\w+)', r'\1', elem),
-        ret_val
-    )
+    return [re.sub(r'ConnectivityMatrix(\w+)', r'\1', elem) for elem in ret_val]
 
 
 @eel.expose
@@ -466,7 +462,7 @@ def _overwrite_sim_engine_actionEndSlotframe():
 
         self.original_actionEndSlotframe()
         asn = _sim_engine.getAsn()
-        minutes = math.floor(asn * _sim_engine.settings.tsch_slotDuration / 60)
+        minutes = math.floor(old_div(asn * _sim_engine.settings.tsch_slotDuration, 60))
         if _elapsed_minutes < minutes:
            _elapsed_minutes = minutes
            eel.notifyLogEvent({

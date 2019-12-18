@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from builtins import zip
 import pytest
 import time
 
@@ -8,7 +10,7 @@ from SimEngine import SimConfig,   \
                       Connectivity
 from SimEngine.Mote.rpl import RplOFNone
 import SimEngine.Mote.MoteDefines as d
-import test_utils                 as u
+from . import test_utils                 as u
 
 def pdr_not_null(c,p,engine):
     returnVal = False
@@ -52,7 +54,7 @@ def sim_engine(request):
         config['exec_numMotes'] = sim_config.settings['combination']['exec_numMotes'][0]
 
         # update default configuration with parameters
-        for (k,v) in diff_config.items():
+        for (k,v) in list(diff_config.items()):
             assert k in config
         config.update(**diff_config)
 
@@ -107,24 +109,24 @@ def set_initial_routing_and_scheduling_state(engine):
     cur_slot = 1
 
     # list all motes, indicate state as 'unseen' for all
-    state = dict(zip(engine.motes, ['unseen']*len(engine.motes)))
+    state = dict(list(zip(engine.motes, ['unseen']*len(engine.motes))))
 
     # start by having the root as 'active' mote
     state[root] = 'active'
 
     # loop over the motes, until all are 'seen'
-    while state.values().count('seen')<len(state):
+    while list(state.values()).count('seen')<len(state):
 
         # find an active mote, this is the 'parent' in this iteration
         parent = None
-        for (k,v) in state.items():
+        for (k,v) in list(state.items()):
             if v == 'active':
                 parent = k
                 break
         assert parent
 
         # for each of its children, set initial routing state and schedule
-        for child in state.keys():
+        for child in list(state.keys()):
             if child == parent:
                 continue
             if state[child] != 'unseen':

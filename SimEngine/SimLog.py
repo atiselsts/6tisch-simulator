@@ -5,102 +5,105 @@ Usage:
     self.log(
         SimEngine.SimLog.LOG_APP_RX,
         {
-            '_mote_id': self.mote.id,
-            'source':  srcIp.id,
+            u'_mote_id': self.mote.id,
+            u'source':  srcIp.id,
         }
     )
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
 # ========================== imports =========================================
 
+from builtins import str
+from builtins import object
 import copy
 import json
 import traceback
 
-import SimSettings
-import SimEngine
+from . import SimSettings
 
 # =========================== defines =========================================
 
 # === simulator
-LOG_SIMULATOR_STATE               = {'type': 'simulator.state',           'keys': ['state', 'name']}
-LOG_SIMULATOR_RANDOM_SEED         = {'type': 'simulator.random_seed',     'keys': ['value']}
+LOG_SIMULATOR_STATE               = {u'type': u'simulator.state',           u'keys': [u'state', u'name']}
+LOG_SIMULATOR_RANDOM_SEED         = {u'type': u'simulator.random_seed',     u'keys': [u'value']}
 
 # === packet drops
-LOG_PACKET_DROPPED                = {'type': 'packet_dropped',            'keys': ['_mote_id','packet','reason']}
-DROPREASON_NO_ROUTE               = 'no_route'
-DROPREASON_TXQUEUE_FULL           = 'txqueue_full'
-DROPREASON_NO_TX_CELLS            = 'no_tx_cells'
-DROPREASON_MAX_RETRIES            = 'max_retries'
-DROPREASON_REASSEMBLY_BUFFER_FULL = 'reassembly_buffer_full'
-DROPREASON_VRB_TABLE_FULL         = 'vrb_table_full'
-DROPREASON_TIME_EXCEEDED          = 'time_exceeded'
-DROPREASON_RANK_ERROR             = 'rank_error'
+LOG_PACKET_DROPPED                = {u'type': u'packet_dropped',            u'keys': [u'_mote_id',u'packet',u'reason']}
+DROPREASON_NO_ROUTE               = u'no_route'
+DROPREASON_TXQUEUE_FULL           = u'txqueue_full'
+DROPREASON_NO_TX_CELLS            = u'no_tx_cells'
+DROPREASON_MAX_RETRIES            = u'max_retries'
+DROPREASON_REASSEMBLY_BUFFER_FULL = u'reassembly_buffer_full'
+DROPREASON_VRB_TABLE_FULL         = u'vrb_table_full'
+DROPREASON_TIME_EXCEEDED          = u'time_exceeded'
+DROPREASON_RANK_ERROR             = u'rank_error'
 
 # === app
-LOG_APP_TX                        = {'type': 'app.tx',                    'keys': ['_mote_id','packet']}
-LOG_APP_RX                        = {'type': 'app.rx',                    'keys': ['_mote_id','packet']}
+LOG_APP_TX                        = {u'type': u'app.tx',                    u'keys': [u'_mote_id',u'packet']}
+LOG_APP_RX                        = {u'type': u'app.rx',                    u'keys': [u'_mote_id',u'packet']}
 
 # === secjoin
-LOG_SECJOIN_TX                    = {'type': 'secjoin.tx',                'keys': ['_mote_id']}
-LOG_SECJOIN_RX                    = {'type': 'secjoin.rx',                'keys': ['_mote_id']}
-LOG_SECJOIN_JOINED                = {'type': 'secjoin.joined',            'keys': ['_mote_id']}
-LOG_SECJOIN_UNJOINED              = {'type': 'secjoin.unjoined',          'keys': ['_mote_id']}
-LOG_SECJOIN_FAILED                = {'type': 'secjoin.failed',            'keys': ['_mote_id']}
+LOG_SECJOIN_TX                    = {u'type': u'secjoin.tx',                u'keys': [u'_mote_id']}
+LOG_SECJOIN_RX                    = {u'type': u'secjoin.rx',                u'keys': [u'_mote_id']}
+LOG_SECJOIN_JOINED                = {u'type': u'secjoin.joined',            u'keys': [u'_mote_id']}
+LOG_SECJOIN_UNJOINED              = {u'type': u'secjoin.unjoined',          u'keys': [u'_mote_id']}
+LOG_SECJOIN_FAILED                = {u'type': u'secjoin.failed',            u'keys': [u'_mote_id']}
 
 # === rpl
-LOG_RPL_DIO_TX                    = {'type': 'rpl.dio.tx',                'keys': ['_mote_id','packet']}
-LOG_RPL_DIO_RX                    = {'type': 'rpl.dio.rx',                'keys': ['_mote_id','packet']}
-LOG_RPL_DAO_TX                    = {'type': 'rpl.dao.tx',                'keys': ['_mote_id','packet']}
-LOG_RPL_DAO_RX                    = {'type': 'rpl.dao.rx',                'keys': ['_mote_id','packet']}
-LOG_RPL_DIS_TX                    = {'type': 'rpl.dis.tx',                'keys': ['_mote_id','packet']}
-LOG_RPL_DIS_RX                    = {'type': 'rpl.dis.rx',                'keys': ['_mote_id','packet']}
-LOG_RPL_CHURN                     = {'type': 'rpl.churn',                 'keys': ['_mote_id','rank','preferredParent']}
-LOG_RPL_LOCAL_REPAIR              = {'type': 'rpl.local_repair',          'keys': ['_mote_id']}
+LOG_RPL_DIO_TX                    = {u'type': u'rpl.dio.tx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_DIO_RX                    = {u'type': u'rpl.dio.rx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_DAO_TX                    = {u'type': u'rpl.dao.tx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_DAO_RX                    = {u'type': u'rpl.dao.rx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_DIS_TX                    = {u'type': u'rpl.dis.tx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_DIS_RX                    = {u'type': u'rpl.dis.rx',                u'keys': [u'_mote_id',u'packet']}
+LOG_RPL_CHURN                     = {u'type': u'rpl.churn',                 u'keys': [u'_mote_id',u'rank',u'preferredParent']}
+LOG_RPL_LOCAL_REPAIR              = {u'type': u'rpl.local_repair',          u'keys': [u'_mote_id']}
 
 # === 6LoWPAN
-LOG_SIXLOWPAN_PKT_TX              = {'type': 'sixlowpan.pkt.tx',          'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_PKT_FWD             = {'type': 'sixlowpan.pkt.fwd',         'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_PKT_RX              = {'type': 'sixlowpan.pkt.rx',          'keys': ['_mote_id','packet']}
-LOG_SIXLOWPAN_FRAG_GEN            = {'type': 'sixlowpan.frag.gen',        'keys': ['_mote_id','packet']}
+LOG_SIXLOWPAN_PKT_TX              = {u'type': u'sixlowpan.pkt.tx',          u'keys': [u'_mote_id',u'packet']}
+LOG_SIXLOWPAN_PKT_FWD             = {u'type': u'sixlowpan.pkt.fwd',         u'keys': [u'_mote_id',u'packet']}
+LOG_SIXLOWPAN_PKT_RX              = {u'type': u'sixlowpan.pkt.rx',          u'keys': [u'_mote_id',u'packet']}
+LOG_SIXLOWPAN_FRAG_GEN            = {u'type': u'sixlowpan.frag.gen',        u'keys': [u'_mote_id',u'packet']}
 
 # === MSF
-LOG_MSF_TX_CELL_UTILIZATION       = {'type': 'msf.tx_cell_utilization',   'keys': ['_mote_id','neighbor','value']}
-LOG_MSF_RX_CELL_UTILIZATION       = {'type': 'msf.rx_cell_utilization',   'keys': ['_mote_id','neighbor','value']}
-LOG_MSF_ERROR_SCHEDULE_FULL       = {'type': 'msf.error.schedule_full',   'keys': ['_mote_id']}
+LOG_MSF_TX_CELL_UTILIZATION       = {u'type': u'msf.tx_cell_utilization',   u'keys': [u'_mote_id',u'neighbor',u'value']}
+LOG_MSF_RX_CELL_UTILIZATION       = {u'type': u'msf.rx_cell_utilization',   u'keys': [u'_mote_id',u'neighbor',u'value']}
+LOG_MSF_ERROR_SCHEDULE_FULL       = {u'type': u'msf.error.schedule_full',   u'keys': [u'_mote_id']}
 
 # === sixp
-LOG_SIXP_TX                       = {'type': 'sixp.tx',                   'keys': ['_mote_id','packet']}
-LOG_SIXP_RX                       = {'type': 'sixp.rx',                   'keys': ['_mote_id','packet']}
-LOG_SIXP_TRANSACTION_COMPLETED    = {'type': 'sixp.comp',                 'keys': ['_mote_id','peerMac','seqNum', 'cmd']}
-LOG_SIXP_TRANSACTION_TIMEOUT      = {'type': 'sixp.timeout',              'keys': ['_mote_id','srcMac','dstMac','seqNum', 'cmd']}
-LOG_SIXP_TRANSACTION_ABORTED      = {'type': 'sixp.abort',                'keys': ['_mote_id','srcMac','dstMac','seqNum', 'cmd']}
+LOG_SIXP_TX                       = {u'type': u'sixp.tx',                   u'keys': [u'_mote_id',u'packet']}
+LOG_SIXP_RX                       = {u'type': u'sixp.rx',                   u'keys': [u'_mote_id',u'packet']}
+LOG_SIXP_TRANSACTION_COMPLETED    = {u'type': u'sixp.comp',                 u'keys': [u'_mote_id',u'peerMac',u'seqNum', u'cmd']}
+LOG_SIXP_TRANSACTION_TIMEOUT      = {u'type': u'sixp.timeout',              u'keys': [u'_mote_id',u'srcMac',u'dstMac',u'seqNum', u'cmd']}
+LOG_SIXP_TRANSACTION_ABORTED      = {u'type': u'sixp.abort',                u'keys': [u'_mote_id',u'srcMac',u'dstMac',u'seqNum', u'cmd']}
 
 # === tsch
-LOG_TSCH_SYNCED                   = {'type': 'tsch.synced',               'keys': ['_mote_id']}
-LOG_TSCH_DESYNCED                 = {'type': 'tsch.desynced',             'keys': ['_mote_id']}
-LOG_TSCH_EB_TX                    = {'type': 'tsch.eb.tx',                'keys': ['_mote_id','packet']}
-LOG_TSCH_EB_RX                    = {'type': 'tsch.eb.rx',                'keys': ['_mote_id','packet']}
-LOG_TSCH_ADD_CELL                 = {'type': 'tsch.add_cell',             'keys': ['_mote_id','slotFrameHandle','slotOffset','channelOffset','neighbor','cellOptions']}
-LOG_TSCH_DELETE_CELL              = {'type': 'tsch.delete_cell',          'keys': ['_mote_id','slotFrameHandle','slotOffset','channelOffset','neighbor','cellOptions']}
-LOG_TSCH_TXDONE                   = {'type': 'tsch.txdone',               'keys': ['_mote_id','channel','slot_offset', 'channel_offset', 'packet','isACKed']}
-LOG_TSCH_RXDONE                   = {'type': 'tsch.rxdone',               'keys': ['_mote_id','channel','slot_offset', 'channel_offset', 'packet']}
-LOG_TSCH_BACKOFF_EXPONENT_UPDATED = {'type': 'tsch.be.updated',           'keys': ['_mote_id','old_be', 'new_be']}
-LOG_TSCH_ADD_SLOTFRAME            = {'type': 'tsch.add_slotframe',        'keys': ['_mote_id','slotFrameHandle','length']}
-LOG_TSCH_DELETE_SLOTFRAME         = {'type': 'tsch.delete_slotframe',     'keys': ['_mote_id','slotFrameHandle','length']}
+LOG_TSCH_SYNCED                   = {u'type': u'tsch.synced',               u'keys': [u'_mote_id']}
+LOG_TSCH_DESYNCED                 = {u'type': u'tsch.desynced',             u'keys': [u'_mote_id']}
+LOG_TSCH_EB_TX                    = {u'type': u'tsch.eb.tx',                u'keys': [u'_mote_id',u'packet']}
+LOG_TSCH_EB_RX                    = {u'type': u'tsch.eb.rx',                u'keys': [u'_mote_id',u'packet']}
+LOG_TSCH_ADD_CELL                 = {u'type': u'tsch.add_cell',             u'keys': [u'_mote_id',u'slotFrameHandle',u'slotOffset',u'channelOffset',u'neighbor',u'cellOptions']}
+LOG_TSCH_DELETE_CELL              = {u'type': u'tsch.delete_cell',          u'keys': [u'_mote_id',u'slotFrameHandle',u'slotOffset',u'channelOffset',u'neighbor',u'cellOptions']}
+LOG_TSCH_TXDONE                   = {u'type': u'tsch.txdone',               u'keys': [u'_mote_id',u'channel',u'slot_offset', u'channel_offset', u'packet',u'isACKed']}
+LOG_TSCH_RXDONE                   = {u'type': u'tsch.rxdone',               u'keys': [u'_mote_id',u'channel',u'slot_offset', u'channel_offset', u'packet']}
+LOG_TSCH_BACKOFF_EXPONENT_UPDATED = {u'type': u'tsch.be.updated',           u'keys': [u'_mote_id',u'old_be', u'new_be']}
+LOG_TSCH_ADD_SLOTFRAME            = {u'type': u'tsch.add_slotframe',        u'keys': [u'_mote_id',u'slotFrameHandle',u'length']}
+LOG_TSCH_DELETE_SLOTFRAME         = {u'type': u'tsch.delete_slotframe',     u'keys': [u'_mote_id',u'slotFrameHandle',u'length']}
 
 # === mote info
-LOG_RADIO_STATS                   = {'type': 'radio.stats',               'keys': ['_mote_id', 'idle_listen', 'tx_data_rx_ack', 'tx_data', 'rx_data_tx_ack', 'rx_data', 'sleep']}
-LOG_MAC_ADD_ADDR                  = {'type': 'mac.add_addr',              'keys': ['_mote_id', 'type', 'addr']}
-LOG_IPV6_ADD_ADDR                 = {'type': 'ipv6.add_addr',             'keys': ['_mote_id', 'type', 'addr']}
+LOG_RADIO_STATS                   = {u'type': u'radio.stats',               u'keys': [u'_mote_id', u'idle_listen', u'tx_data_rx_ack', u'tx_data', u'rx_data_tx_ack', u'rx_data', u'sleep']}
+LOG_MAC_ADD_ADDR                  = {u'type': u'mac.add_addr',              u'keys': [u'_mote_id', u'type', u'addr']}
+LOG_IPV6_ADD_ADDR                 = {u'type': u'ipv6.add_addr',             u'keys': [u'_mote_id', u'type', u'addr']}
 
 # === propagation
-LOG_PROP_TRANSMISSION             = {'type': 'prop.transmission',         'keys': ['channel','packet']}
-LOG_PROP_INTERFERENCE             = {'type': 'prop.interference',         'keys': ['_mote_id','channel','lockon_transmission','interfering_transmissions']}
-LOG_PROP_DROP_LOCKON              = {'type': 'prop.drop_lockon' ,         'keys': ['_mote_id','channel','lockon_transmission']}
+LOG_PROP_TRANSMISSION             = {u'type': u'prop.transmission',         u'keys': [u'channel',u'packet']}
+LOG_PROP_INTERFERENCE             = {u'type': u'prop.interference',         u'keys': [u'_mote_id',u'channel',u'lockon_transmission',u'interfering_transmissions']}
+LOG_PROP_DROP_LOCKON              = {u'type': u'prop.drop_lockon' ,         u'keys': [u'_mote_id',u'channel',u'lockon_transmission']}
 
 # === connectivity matrix
-LOG_CONN_MATRIX_K7_UPDATE         = {'type': 'conn.matrix.update',        'keys': ['start_trace_position', 'end_trace_position', 'asn_of_next_update']}
+LOG_CONN_MATRIX_K7_UPDATE         = {u'type': u'conn.matrix.update',        u'keys': [u'start_trace_position', u'end_trace_position', u'asn_of_next_update']}
 
 # ============================ SimLog =========================================
 
@@ -119,7 +122,7 @@ class SimLog(object):
     def __init__(self, failIfNotInit=False):
 
         if failIfNotInit and not self._init:
-            raise EnvironmentError('SimLog singleton not initialized.')
+            raise EnvironmentError(u'SimLog singleton not initialized.')
 
         # ==== start singleton
         cls = type(self)
@@ -137,18 +140,18 @@ class SimLog(object):
             self.log_filters = []
 
             # open log file
-            self.log_output_file = open(self.settings.getOutputFile(), 'a')
+            self.log_output_file = open(self.settings.getOutputFile(), u'a')
 
             # write config to log file; if a file with the same file name exists,
             # append logs to the file. this happens if you multiple runs on the
             # same CPU. And amend config line; config line in log file should have
             # '_type' field. And 'run_id' type should be '_run_id'
             config_line = copy.deepcopy(self.settings.__dict__)
-            config_line['_type']   = 'config'
-            config_line['_run_id'] = config_line['run_id']
-            del config_line['run_id']
+            config_line[u'_type']   = u'config'
+            config_line[u'_run_id'] = config_line[u'run_id']
+            del config_line[u'run_id']
             json_string = json.dumps(config_line)
-            self.log_output_file.write(json_string + '\n')
+            self.log_output_file.write(json_string + u'\n')
         except:
             # destroy the singleton
             cls._instance = None
@@ -162,15 +165,15 @@ class SimLog(object):
         """
 
         # ignore types that are not listed in the simulation config
-        if (self.log_filters != 'all') and (simlog['type'] not in self.log_filters):
+        if (self.log_filters != u'all') and (simlog[u'type'] not in self.log_filters):
             return
 
         # if a key is passed but is not listed in the log definition, raise error
-        if ("keys" in simlog) and (sorted(simlog["keys"]) != sorted(content.keys())):
+        if (u'keys' in simlog) and (sorted(simlog[u'keys']) != sorted(content.keys())):
             raise Exception(
                 "Wrong keys passed to log() function for type {0}!\n    - expected {1}\n    - got      {2}".format(
-                    simlog['type'],
-                    sorted(simlog["keys"]),
+                    simlog[u'type'],
+                    sorted(simlog[u'keys']),
                     sorted(content.keys()),
                 )
             )
@@ -194,21 +197,21 @@ class SimLog(object):
         # write line
         try:
             json_string = json.dumps(content, sort_keys=True)
-            self.log_output_file.write(json_string + '\n')
+            self.log_output_file.write(json_string + u'\n')
         except Exception as err:
             output  = []
-            output += ['----------------------']
-            output += ['']
-            output += ['log() FAILED for content']
+            output += [u'----------------------']
+            output += [u'']
+            output += [u'log() FAILED for content']
             output += [str(content)]
-            output += ['']
+            output += [u'']
             output += [str(err)]
-            output += ['']
+            output += [u'']
             output += [traceback.format_exc(err)]
-            output += ['']
-            output += ['----------------------']
-            output  = '\n'.join(output)
-            print output
+            output += [u'']
+            output += [u'----------------------']
+            output  = u'\n'.join(output)
+            print(output)
             raise
 
     def flush(self):

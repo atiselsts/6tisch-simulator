@@ -1,22 +1,27 @@
 """
 Trickle Timer: IETF RFC 6206 (https://tools.ietf.org/html/rfc6206)
 """
+from __future__ import absolute_import
+from __future__ import division
 
+from builtins import str
+from builtins import object
+from past.utils import old_div
 import math
 import random
 
 import SimEngine
-import MoteDefines as d
+from . import MoteDefines as d
 
 
 class TrickleTimer(object):
-    STATE_STOPPED = 'stopped'
-    STATE_RUNNING = 'running'
+    STATE_STOPPED = u'stopped'
+    STATE_RUNNING = u'running'
 
     def __init__(self, i_min, i_max, k, callback):
-        assert isinstance(i_min, (int, long))
-        assert isinstance(i_max, (int, long))
-        assert isinstance(k, (int, long))
+        assert isinstance(i_min, (int, int))
+        assert isinstance(i_max, (int, int))
+        assert isinstance(k, (int, int))
         assert callback is not None
 
         # shorthand to singletons
@@ -53,8 +58,8 @@ class TrickleTimer(object):
         self._start_next_interval()
 
     def stop(self):
-        self.engine.removeFutureEvent(self.unique_tag_base + '_at_i')
-        self.engine.removeFutureEvent(self.unique_tag_base + '_at_t')
+        self.engine.removeFutureEvent(self.unique_tag_base + u'_at_i')
+        self.engine.removeFutureEvent(self.unique_tag_base + u'_at_t')
         self.state = self.STATE_STOPPED
 
     def reset(self):
@@ -105,8 +110,8 @@ class TrickleTimer(object):
         #       that is, values greater than or equal to I/2 and less than I.
         #       The interval ends at I.
         slot_len = self.settings.tsch_slotDuration * 1000 # convert to ms
-        t = (1 + random.random()) * self.interval / 2
-        asn = self.engine.getAsn() + int(math.ceil(t / slot_len))
+        t = old_div((1 + random.random()) * self.interval, 2)
+        asn = self.engine.getAsn() + int(math.ceil(old_div(t, slot_len)))
         if asn == self.engine.getAsn():
             # schedule the event at the next ASN since we cannot schedule it at
             # the current ASN
@@ -125,12 +130,12 @@ class TrickleTimer(object):
         self.engine.scheduleAtAsn(
             asn            = asn,
             cb             = _callback,
-            uniqueTag      = self.unique_tag_base + '_at_t',
+            uniqueTag      = self.unique_tag_base + u'_at_t',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS)
 
     def _schedule_event_at_end_of_interval(self):
         slot_len = self.settings.tsch_slotDuration * 1000 # convert to ms
-        asn = self.engine.getAsn() + int(math.ceil(self.interval / slot_len))
+        asn = self.engine.getAsn() + int(math.ceil(old_div(self.interval, slot_len)))
 
         def _callback():
             # doubling the interval
@@ -148,5 +153,5 @@ class TrickleTimer(object):
         self.engine.scheduleAtAsn(
             asn            = asn,
             cb             = _callback,
-            uniqueTag      = self.unique_tag_base + '_at_i',
+            uniqueTag      = self.unique_tag_base + u'_at_i',
             intraSlotOrder = d.INTRASLOTORDER_STACKTASKS)

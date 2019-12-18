@@ -1,6 +1,10 @@
+from __future__ import absolute_import
+from __future__ import division
+from builtins import zip
+from past.utils import old_div
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimLog
 
@@ -44,7 +48,7 @@ def test_tsch_clock(sim_engine, with_keep_alive):
     slotframe_length = sim_engine.settings.tsch_slotframeLength
     max_drift        = sim_engine.settings.tsch_clock_max_drift_ppm
     clock_interval   = 1.0 / sim_engine.settings.tsch_clock_frequency
-    guard_time       = (macTsRxWait / 2) - (2 * clock_interval)
+    guard_time       = (old_div(macTsRxWait, 2)) - (2 * clock_interval)
 
     def _check_and_log_clock_drift():
         # without keep-alive, difference between the two clocks is

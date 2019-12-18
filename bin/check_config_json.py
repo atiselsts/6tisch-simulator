@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import argparse
 import inspect
 import json
@@ -137,7 +138,7 @@ if __name__ == '__main__':
 
     if args.dump_keys is True:
         for key in sorted(list(collect_setting_keys_in_use())):
-            print key
+            print(key)
         sys.exit(0)
 
     try:
@@ -181,8 +182,8 @@ if __name__ == '__main__':
         print_error_and_exit('settings/regular is missing')
 
     keys_in_simulator = collect_setting_keys_in_use()
-    keys_in_config = config['settings']['combination'].keys()
-    keys_in_config += config['settings']['regular'].keys()
+    keys_in_config = list(config['settings']['combination'].keys())
+    keys_in_config += list(config['settings']['regular'].keys())
     for key in keys_in_simulator:
         if key not in keys_in_config:
             print_error_and_exit('"{0}" is missing in settings'.format(key))
@@ -190,4 +191,4 @@ if __name__ == '__main__':
         if key not in keys_in_simulator:
             print_error_and_exit('"{0}" is not supported'.format(key))
 
-    print 'Looks good!'
+    print('Looks good!')

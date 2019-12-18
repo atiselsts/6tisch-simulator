@@ -7,9 +7,11 @@
 \author Nicola Accettura <nicola.accettura@eecs.berkeley.edu>
 \author Xavier Vilajosana <xvilajosana@eecs.berkeley.edu>
 """
+from __future__ import division
 
 # =========================== imports =========================================
 
+from builtins import object
 import math
 import os
 import re
@@ -67,7 +69,7 @@ class SimSettings(object):
                     )
                 elif self.exec_minutesPerRun:
                     assert self.exec_numSlotframesPerRun is None
-                    # convert "minutes" to "slotframes"
+                    # convert "minutes" to "slot
                     self.exec_numSlotframesPerRun = int(
                         math.ceil(
                             self.exec_minutesPerRun *
@@ -119,7 +121,7 @@ class SimSettings(object):
         if not os.path.exists(dirname):
             try:
                 os.makedirs(dirname)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == os.errno.EEXIST:
                     # FIXME: handle this race condition properly
                     # Another core/CPU has already made this directory

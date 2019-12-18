@@ -4,10 +4,12 @@ Plot a stat over another stat.
 Example:
     python plot.py --inputfolder simData/numMotes_50/ -x chargeConsumed --y aveLatency
 """
+from __future__ import print_function
 
 # =========================== imports =========================================
 
 # standard
+from builtins import range
 import os
 import argparse
 import json
@@ -41,9 +43,7 @@ def main(options):
 
     # chose lastest results
     subfolders = list(
-        map(lambda x: os.path.join(options.inputfolder, x),
-            os.listdir(options.inputfolder)
-        )
+        [os.path.join(options.inputfolder, x) for x in os.listdir(options.inputfolder)]
     )
     subfolder = max(subfolders, key=os.path.getmtime)
 
@@ -60,8 +60,8 @@ def main(options):
                 data[curr_combination] = []
 
                 # fill data list
-                for run in kpis.itervalues():
-                    for mote in run.itervalues():
+                for run in kpis.values():
+                    for mote in run.values():
                         if key in mote:
                             data[curr_combination].append(mote[key])
 
@@ -73,13 +73,13 @@ def main(options):
                 plot_box(data, key, subfolder)
 
         except TypeError as e:
-            print "Cannot create a plot for {0}: {1}.".format(key, e)
-    print "Plots are saved in the {0} folder.".format(subfolder)
+            print("Cannot create a plot for {0}: {1}.".format(key, e))
+    print("Plots are saved in the {0} folder.".format(subfolder))
 
 # =========================== helpers =========================================
 
 def plot_cdf(data, key, subfolder):
-    for k, values in data.iteritems():
+    for k, values in data.items():
         # convert list of list to list
         if type(values[0]) == list:
             values = sum(values, [])
@@ -97,8 +97,8 @@ def plot_cdf(data, key, subfolder):
     plt.clf()
 
 def plot_box(data, key, subfolder):
-    plt.boxplot(data.values())
-    plt.xticks(range(1, len(data) + 1), data.keys())
+    plt.boxplot(list(data.values()))
+    plt.xticks(list(range(1, len(data) + 1)), list(data.keys()))
     plt.ylabel(key)
     savefig(subfolder, key)
     plt.clf()

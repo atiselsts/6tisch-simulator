@@ -58,16 +58,16 @@ def test_check_config_json(fixture_test_type):
                 stderr = subprocess.PIPE
             )
             stdoutdata, stderrdata = popen.communicate()
-            assert 'config.json is not found' in stderrdata
+            assert 'config.json is not found' in stderrdata.decode('utf-8')
         elif fixture_test_type == 'not json':
-            wrong_config = 'garbage text' + json.dumps(config)
+            wrong_config = u'garbage text' + json.dumps(config)
             popen = subprocess.Popen(
                 [check_config_json, '-c', '-'],
                 stdin = subprocess.PIPE,
                 stderr = subprocess.PIPE
             )
-            stdoutdata, stderrdata = popen.communicate(wrong_config)
-            assert 'No JSON object could be decoded' in stderrdata
+            stdoutdata, stderrdata = popen.communicate(wrong_config.encode('utf-8'))
+            assert 'No JSON object could be decoded' in stderrdata.decode('utf-8')
         elif fixture_test_type == 'missing setting':
             # remove sf_class from config
             config['settings']['regular'].pop('sf_class')
@@ -76,8 +76,8 @@ def test_check_config_json(fixture_test_type):
                 stdin = subprocess.PIPE,
                 stderr = subprocess.PIPE
             )
-            stdoutdata, stderrdata = popen.communicate(json.dumps(config))
-            assert '"sf_class" is missing' in stderrdata
+            stdoutdata, stderrdata = popen.communicate(json.dumps(config).encode('utf-8'))
+            assert '"sf_class" is missing' in stderrdata.decode('utf-8')
         elif fixture_test_type == 'unsupported setting':
             config['settings']['regular']['dummy_setting'] = 'garbage'
             popen = subprocess.Popen(
@@ -85,8 +85,8 @@ def test_check_config_json(fixture_test_type):
                 stdin = subprocess.PIPE,
                 stderr = subprocess.PIPE
             )
-            stdoutdata, stderrdata = popen.communicate(json.dumps(config))
-            assert '"dummy_setting" is not supported' in stderrdata
+            stdoutdata, stderrdata = popen.communicate(json.dumps(config).encode('utf-8'))
+            assert '"dummy_setting" is not supported' in stderrdata.decode('utf-8')
 
     except subprocess.CalledProcessError as e:
         resulting_exception = e

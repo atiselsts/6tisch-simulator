@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import str
 import netaddr
 import pytest
 
@@ -32,7 +34,7 @@ def test_init_mac_addr(sim_engine, fixture_mote_id, fixture_eui64):
         expected_eui64 = netaddr.EUI(fixture_eui64)
 
     assert mote.eui64 == expected_eui64
-    assert mote.get_mac_addr() == expected_eui64
+    assert mote.get_mac_addr() == str(expected_eui64)
 
 
 def test_is_my_mac(sim_engine):
@@ -133,7 +135,7 @@ def test_motes_eui64(sim_engine, fixture_motes_eui64, fixture_exec_num_motes):
     else:
         sim_engine = sim_engine(diff_config=diff_config)
         for index, mote in enumerate(sim_engine.motes):
-            print index, len(fixture_motes_eui64), fixture_motes_eui64
+            print(index, len(fixture_motes_eui64), fixture_motes_eui64)
             if index < len(fixture_motes_eui64):
                 assert mote.get_mac_addr() == fixture_motes_eui64[index]
             else:

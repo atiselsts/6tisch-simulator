@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from builtins import range
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 import SimEngine.Mote.MoteDefines as d
 from SimEngine import SimConfig
 
@@ -92,10 +94,7 @@ def test_initial_scheduling_state(sim_engine):
         # check shared cell
         assert (
             len(
-                filter(
-                    lambda cell: cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED],
-                    mote.tsch.get_cells(None)
-                )
+                [cell for cell in mote.tsch.get_cells(None) if cell.options == [d.CELLOPTION_TX, d.CELLOPTION_RX, d.CELLOPTION_SHARED]]
             ) == 1
         )
 
@@ -108,19 +107,13 @@ def test_initial_scheduling_state(sim_engine):
         # "mote" has one TX to its parent
         assert (
             len(
-                filter(
-                    lambda cell: cell.options == [d.CELLOPTION_TX],
-                    mote.tsch.get_cells(parent.get_mac_addr())
-                )
+                [cell for cell in mote.tsch.get_cells(parent.get_mac_addr()) if cell.options == [d.CELLOPTION_TX]]
             ) == 1
         )
         # parent of "mote" one RX to "mote"
         assert (
             len(
-                filter(
-                    lambda cell: cell.options == [d.CELLOPTION_RX],
-                    parent.tsch.get_cells(mote.get_mac_addr())
-                )
+                [cell for cell in parent.tsch.get_cells(mote.get_mac_addr()) if cell.options == [d.CELLOPTION_RX]]
             ) == 1
         )
 
@@ -131,7 +124,7 @@ def test_sim_config(sim_engine, repeat4times):
     sim_config  = SimConfig.SimConfig(u.CONFIG_FILE_PATH)
 
     sim_engine = sim_engine()
-    for (k,v) in sim_config.config['settings']['regular'].items():
+    for (k,v) in list(sim_config.config['settings']['regular'].items()):
         assert getattr(sim_engine.settings,k) == v
 
 #=== test that run_until_asn() works

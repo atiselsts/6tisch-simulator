@@ -2,23 +2,23 @@
 
 # === admin
 NUM_SUFFICIENT_TX                           = 10      # sufficient num. of tx to estimate pdr by ACK
-WAITING_FOR_TX                              = 'waiting_for_tx'
-WAITING_FOR_RX                              = 'waiting_for_rx'
+WAITING_FOR_TX                              = u'waiting_for_tx'
+WAITING_FOR_RX                              = u'waiting_for_rx'
 
 # === addressing
-BROADCAST_ADDRESS                           = 'FF-FF'
+BROADCAST_ADDRESS                           = u'FF-FF'
 
 # === packet types
-PKT_TYPE_DATA                               = 'DATA'
-PKT_TYPE_FRAG                               = 'FRAG'
-PKT_TYPE_JOIN_REQUEST                       = 'JOIN_REQUEST'
-PKT_TYPE_JOIN_RESPONSE                      = 'JOIN_RESPONSE'
-PKT_TYPE_DIS                                = 'DIS'
-PKT_TYPE_DIO                                = 'DIO'
-PKT_TYPE_DAO                                = 'DAO'
-PKT_TYPE_EB                                 = 'EB'
-PKT_TYPE_SIXP                               = '6P'
-PKT_TYPE_KEEP_ALIVE                         = 'KEEP_ALIVE'
+PKT_TYPE_DATA                               = u'DATA'
+PKT_TYPE_FRAG                               = u'FRAG'
+PKT_TYPE_JOIN_REQUEST                       = u'JOIN_REQUEST'
+PKT_TYPE_JOIN_RESPONSE                      = u'JOIN_RESPONSE'
+PKT_TYPE_DIS                                = u'DIS'
+PKT_TYPE_DIO                                = u'DIO'
+PKT_TYPE_DAO                                = u'DAO'
+PKT_TYPE_EB                                 = u'EB'
+PKT_TYPE_SIXP                               = u'6P'
+PKT_TYPE_KEEP_ALIVE                         = u'KEEP_ALIVE'
 
 # === packet lengths
 PKT_LEN_DIS                                 = 8
@@ -35,48 +35,48 @@ RPL_INFINITE_RANK                           = 65535
 
 # === ipv6
 IPV6_DEFAULT_HOP_LIMIT                      = 64
-IPV6_DEFAULT_PREFIX                         = 'fd00::'
-IPV6_ALL_RPL_NODES_ADDRESS                  = 'ff02::1a'
+IPV6_DEFAULT_PREFIX                         = u'fd00::'
+IPV6_ALL_RPL_NODES_ADDRESS                  = u'ff02::1a'
 
 # === sixlowpan
 SIXLOWPAN_REASSEMBLY_BUFFER_LIFETIME        = 60 # in seconds
 SIXLOWPAN_VRB_TABLE_ENTRY_LIFETIME          = 60 # in seconds
 
 # === sixp
-SIXP_MSG_TYPE_REQUEST                       = 'Request'
-SIXP_MSG_TYPE_RESPONSE                      = 'Response'
-SIXP_MSG_TYPE_CONFIRMATION                  = 'Confirmation'
+SIXP_MSG_TYPE_REQUEST                       = u'Request'
+SIXP_MSG_TYPE_RESPONSE                      = u'Response'
+SIXP_MSG_TYPE_CONFIRMATION                  = u'Confirmation'
 
-SIXP_CMD_ADD                                = 'ADD'
-SIXP_CMD_DELETE                             = 'DELETE'
-SIXP_CMD_RELOCATE                           = 'RELOCATE'
-SIXP_CMD_COUNT                              = 'COUNT'
-SIXP_CMD_LIST                               = 'LIST'
-SIXP_CMD_SIGNAL                             = 'SIGNAL'
-SIXP_CMD_CLEAR                              = 'CLEAR'
+SIXP_CMD_ADD                                = u'ADD'
+SIXP_CMD_DELETE                             = u'DELETE'
+SIXP_CMD_RELOCATE                           = u'RELOCATE'
+SIXP_CMD_COUNT                              = u'COUNT'
+SIXP_CMD_LIST                               = u'LIST'
+SIXP_CMD_SIGNAL                             = u'SIGNAL'
+SIXP_CMD_CLEAR                              = u'CLEAR'
 
-SIXP_RC_SUCCESS                             = 'RC_SUCCESS'
-SIXP_RC_EOL                                 = 'RC_EOL'
-SIXP_RC_ERR                                 = 'RC_ERR'
-SIXP_RC_RESET                               = 'RC_RESET'
-SIXP_RC_ERR_VERSION                         = 'RC_ERR_VERSION'
-SIXP_RC_ERR_SFID                            = 'RC_ERR_SFID'
-SIXP_RC_ERR_SEQNUM                          = 'RC_ERR_SEQNUM'
-SIXP_RC_ERR_CELLLIST                        = 'RC_ERR_CELLLIST'
-SIXP_RC_ERR_BUSY                            = 'RC_ERR_BUSY'
-SIXP_RC_ERR_LOCKED                          = 'RC_ERR_LOCKED'
+SIXP_RC_SUCCESS                             = u'RC_SUCCESS'
+SIXP_RC_EOL                                 = u'RC_EOL'
+SIXP_RC_ERR                                 = u'RC_ERR'
+SIXP_RC_RESET                               = u'RC_RESET'
+SIXP_RC_ERR_VERSION                         = u'RC_ERR_VERSION'
+SIXP_RC_ERR_SFID                            = u'RC_ERR_SFID'
+SIXP_RC_ERR_SEQNUM                          = u'RC_ERR_SEQNUM'
+SIXP_RC_ERR_CELLLIST                        = u'RC_ERR_CELLLIST'
+SIXP_RC_ERR_BUSY                            = u'RC_ERR_BUSY'
+SIXP_RC_ERR_LOCKED                          = u'RC_ERR_LOCKED'
 
-SIXP_TRANSACTION_TYPE_2_STEP                = '2-step transaction'
-SIXP_TRANSACTION_TYPE_3_STEP                = '3-step transaction'
+SIXP_TRANSACTION_TYPE_2_STEP                = u'2-step transaction'
+SIXP_TRANSACTION_TYPE_3_STEP                = u'3-step transaction'
 
-SIXP_TRANSACTION_TYPE_TWO_STEP              = 'two-step transaction'
-SIXP_TRANSACTION_TYPE_THREE_STEP            = 'three-step transaction'
+SIXP_TRANSACTION_TYPE_TWO_STEP              = u'two-step transaction'
+SIXP_TRANSACTION_TYPE_THREE_STEP            = u'three-step transaction'
 
-SIXP_CALLBACK_EVENT_PACKET_RECEPTION        = 'packet-reception'
-SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION       = 'mac-ack-reception'
-SIXP_CALLBACK_EVENT_TIMEOUT                 = 'timeout'
-SIXP_CALLBACK_EVENT_FAILURE                 = 'failure'
-SIXP_CALLBACK_EVENT_ABORTED                 = 'aborted'
+SIXP_CALLBACK_EVENT_PACKET_RECEPTION        = u'packet-reception'
+SIXP_CALLBACK_EVENT_MAC_ACK_RECEPTION       = u'mac-ack-reception'
+SIXP_CALLBACK_EVENT_TIMEOUT                 = u'timeout'
+SIXP_CALLBACK_EVENT_FAILURE                 = u'failure'
+SIXP_CALLBACK_EVENT_ABORTED                 = u'aborted'
 
 # === sf
 MSF_MAX_NUMCELLS                            = 12
@@ -94,21 +94,21 @@ TSCH_HOPPING_SEQUENCE                       = [16, 17, 23, 18, 26, 15, 25, 22, 1
 TSCH_MAX_EB_DELAY                           = 180
 TSCH_NUM_NEIGHBORS_TO_WAIT                  = 2
 TSCH_DESYNCHRONIZED_TIMEOUT_SLOTS           = 1750
-CELLOPTION_TX                               = 'TX'
-CELLOPTION_RX                               = 'RX'
-CELLOPTION_SHARED                           = 'SHARED'
-LINKTYPE_ADVERTISING                        = 'ADVERTISING'
-LINKTYPE_ADVERTISING_ONLY                   = 'ADVERTISING_ONLY'
-LINKTYPE_NORMAL                             = 'NORMAL'
+CELLOPTION_TX                               = u'TX'
+CELLOPTION_RX                               = u'RX'
+CELLOPTION_SHARED                           = u'SHARED'
+LINKTYPE_ADVERTISING                        = u'ADVERTISING'
+LINKTYPE_ADVERTISING_ONLY                   = u'ADVERTISING_ONLY'
+LINKTYPE_NORMAL                             = u'NORMAL'
 INTRASLOTORDER_STARTSLOT                    = 0
 INTRASLOTORDER_PROPAGATE                    = 1
 INTRASLOTORDER_STACKTASKS                   = 2
 INTRASLOTORDER_ADMINTASKS                   = 3
 
 # === radio
-RADIO_STATE_TX                              = 'tx'
-RADIO_STATE_RX                              = 'rx'
-RADIO_STATE_OFF                             = 'off'
+RADIO_STATE_TX                              = u'tx'
+RADIO_STATE_RX                              = u'rx'
+RADIO_STATE_OFF                             = u'off'
 
 # === battery
 # Idle: Time slot during which a node listens for data, but receives

@@ -3,11 +3,13 @@ Called by TSCH, links with propagation model.
 
 Also accounts for charge consumed.
 """
+from __future__ import absolute_import
 
 # =========================== imports =========================================
 
 # Mote sub-modules
-import MoteDefines as d
+from builtins import object
+from . import MoteDefines as d
 
 # Simulator-wide modules
 import SimEngine
@@ -40,13 +42,13 @@ class Radio(object):
         self.state                          = d.RADIO_STATE_OFF
         self.channel                        = None
         self.stats = {
-            'last_updated'  : 0,
-            'idle_listen'   : 0,
-            'tx_data_rx_ack': 0,
-            'tx_data'       : 0,
-            'rx_data_tx_ack': 0,
-            'rx_data'       : 0,
-            'sleep'         : 0,
+            u'last_updated'  : 0,
+            u'idle_listen'   : 0,
+            u'tx_data_rx_ack': 0,
+            u'tx_data'       : 0,
+            u'rx_data_tx_ack': 0,
+            u'rx_data'       : 0,
+            u'sleep'         : 0,
         }
         self.log_stats_interval_asn = int(
             float(self.settings.radio_stats_log_period_s) /
@@ -62,8 +64,8 @@ class Radio(object):
     def startTx(self, channel, packet):
 
         assert self.onGoingTransmission is None
-        assert 'type' in packet
-        assert 'mac'  in packet
+        assert u'type' in packet
+        assert u'mac'  in packet
 
         # record the state of the radio
         self.state   = d.RADIO_STATE_TX
@@ -71,8 +73,8 @@ class Radio(object):
 
         # record ongoing, for propagation model
         self.onGoingTransmission = {
-            'channel': channel,
-            'packet':  packet,
+            u'channel': channel,
+            u'packet':  packet,
         }
 
     def txDone(self, isACKed):
@@ -81,16 +83,16 @@ class Radio(object):
 
         assert self.onGoingTransmission
 
-        onGoingBroadcast = (self.onGoingTransmission['packet']['mac']['dstMac']==d.BROADCAST_ADDRESS)
+        onGoingBroadcast = (self.onGoingTransmission[u'packet'][u'mac'][u'dstMac']==d.BROADCAST_ADDRESS)
 
         # log charge consumed
         if self.mote.tsch.getIsSync():
             if onGoingBroadcast:
                 # no ACK expected (link-layer bcast)
-                self._update_stats('tx_data')
+                self._update_stats(u'tx_data')
             else:
                 # ACK expected; radio needs to be in RX mode
-                self._update_stats('tx_data_rx_ack')
+                self._update_stats(u'tx_data_rx_ack')
 
         # nothing ongoing anymore
         self.onGoingTransmission = None
@@ -118,18 +120,18 @@ class Radio(object):
         # log charge consumed
         if not packet:
             # didn't receive any frame (idle listen)
-            self._update_stats('idle_listen')
+            self._update_stats(u'idle_listen')
         elif (
                 self.mote.tsch.getIsSync()
                 and
-                packet['mac']['dstMac'] == self.mote.get_mac_addr()
+                packet[u'mac'][u'dstMac'] == self.mote.get_mac_addr()
             ):
             # unicast frame for me, I sent an ACK only when I'm
             # synchronized with the network
-            self._update_stats('rx_data_tx_ack')
+            self._update_stats(u'rx_data_tx_ack')
         else:
             # either not for me, or broadcast. In any case, I didn't send an ACK
-            self._update_stats('rx_data')
+            self._update_stats(u'rx_data')
 
         # inform upper layer (TSCH)
         is_acked = self.mote.tsch.rxDone(packet, self.channel)
@@ -141,18 +143,18 @@ class Radio(object):
         return is_acked
 
     def _update_stats(self, stats_type):
-        self.stats['sleep'] += (
-            self.engine.getAsn() - self.stats['last_updated'] - 1
+        self.stats[u'sleep'] += (
+            self.engine.getAsn() - self.stats[u'last_updated'] - 1
         )
         self.stats[stats_type] += 1
-        self.stats['last_updated'] = self.engine.getAsn()
+        self.stats[u'last_updated'] = self.engine.getAsn()
 
     def _schedule_log_stats(self):
         next_log_asn = self.engine.getAsn() + self.log_stats_interval_asn
         self.engine.scheduleAtAsn(
             asn = next_log_asn,
             cb = self._log_stats,
-            uniqueTag = (self.mote.id, 'log_radio_stats'),
+            uniqueTag = (self.mote.id, u'log_radio_stats'),
             intraSlotOrder = d.INTRASLOTORDER_ADMINTASKS,
         )
 
@@ -160,13 +162,13 @@ class Radio(object):
         self.log(
             SimEngine.SimLog.LOG_RADIO_STATS,
             {
-                '_mote_id'      : self.mote.id,
-                'idle_listen'   : self.stats['idle_listen'],
-                'tx_data_rx_ack': self.stats['tx_data_rx_ack'],
-                'tx_data'       : self.stats['tx_data'],
-                'rx_data_tx_ack': self.stats['rx_data_tx_ack'],
-                'rx_data'       : self.stats['rx_data'],
-                'sleep'         : self.stats['sleep']
+                u'_mote_id'      : self.mote.id,
+                u'idle_listen'   : self.stats[u'idle_listen'],
+                u'tx_data_rx_ack': self.stats[u'tx_data_rx_ack'],
+                u'tx_data'       : self.stats[u'tx_data'],
+                u'rx_data_tx_ack': self.stats[u'rx_data_tx_ack'],
+                u'rx_data'       : self.stats[u'rx_data'],
+                u'sleep'         : self.stats[u'sleep']
             }
         )
 

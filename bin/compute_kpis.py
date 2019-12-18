@@ -1,4 +1,5 @@
 from __future__ import division
+from __future__ import print_function
 
 # =========================== adjust path =====================================
 
@@ -177,8 +178,8 @@ def kpis_all(inputfile):
 
     # === compute advanced motestats
 
-    for (run_id, per_mote_stats) in allstats.items():
-        for (mote_id, motestats) in per_mote_stats.items():
+    for (run_id, per_mote_stats) in list(allstats.items()):
+        for (mote_id, motestats) in list(per_mote_stats.items()):
             if mote_id != 0:
 
                 if (motestats['sync_asn'] is not None) and (motestats['charge_asn'] is not None):
@@ -195,7 +196,7 @@ def kpis_all(inputfile):
                         motestats['lifetime_AA_years'] = (BATTERY_AA_CAPACITY_mAh*1000/float(motestats['avg_current_uA']))/(24.0*365)
                 if motestats['join_asn'] is not None:
                     # latencies, upstream_num_tx, upstream_num_rx, upstream_num_lost
-                    for (appcounter, pktstats) in allstats[run_id][mote_id]['upstream_pkts'].items():
+                    for (appcounter, pktstats) in list(allstats[run_id][mote_id]['upstream_pkts'].items()):
                         motestats['upstream_num_tx']      += 1
                         if 'rx_asn' in pktstats:
                             motestats['upstream_num_rx']  += 1
@@ -212,7 +213,7 @@ def kpis_all(inputfile):
                         motestats['avg_hops'] = sum(motestats['hops'])/float(len(motestats['hops']))
 
     # === network stats
-    for (run_id, per_mote_stats) in allstats.items():
+    for (run_id, per_mote_stats) in list(allstats.items()):
 
         #-- define stats
 
@@ -227,7 +228,7 @@ def kpis_all(inputfile):
 
         #-- compute stats
 
-        for (mote_id, motestats) in per_mote_stats.items():
+        for (mote_id, motestats) in list(per_mote_stats.items()):
             if mote_id == DAGROOT_ID:
                 continue
 
@@ -387,8 +388,8 @@ def kpis_all(inputfile):
 
     # === remove unnecessary stats
 
-    for (run_id, per_mote_stats) in allstats.items():
-        for (mote_id, motestats) in per_mote_stats.items():
+    for (run_id, per_mote_stats) in list(allstats.items()):
+        for (mote_id, motestats) in list(per_mote_stats.items()):
             if 'sync_asn' in motestats:
                 del motestats['sync_asn']
             if 'charge_asn' in motestats:
@@ -409,26 +410,23 @@ def main():
     # Identify simData having the latest results. That directory should have
     # the latest "mtime".
     subfolders = list(
-        map(
-            lambda x: os.path.join('simData', x),
-            os.listdir('simData')
-        )
+        [os.path.join('simData', x) for x in os.listdir('simData')]
     )
     subfolder = max(subfolders, key=os.path.getmtime)
     for infile in glob.glob(os.path.join(subfolder, '*.dat')):
-        print 'generating KPIs for {0}'.format(infile)
+        print('generating KPIs for {0}'.format(infile))
 
         # gather the kpis
         kpis = kpis_all(infile)
 
         # print on the terminal
-        print json.dumps(kpis, indent=4)
+        print(json.dumps(kpis, indent=4))
 
         # add to the data folder
         outfile = '{0}.kpi'.format(infile)
         with open(outfile, 'w') as f:
             f.write(json.dumps(kpis, indent=4))
-        print 'KPIs saved in {0}'.format(outfile)
+        print('KPIs saved in {0}'.format(outfile))
 
 if __name__ == '__main__':
     main()

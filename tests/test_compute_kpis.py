@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from builtins import str
+from builtins import range
 import json
 import os
 import re
@@ -6,7 +9,7 @@ import types
 
 import pytest
 
-import test_utils as u
+from . import test_utils as u
 from SimEngine import SimLog
 from SimEngine import SimSettings
 import SimEngine.Mote.MoteDefines as d
@@ -38,7 +41,7 @@ def run_compute_kpis_py():
             compute_kpis_path
         ),
         shell=True
-    ).split('\n')
+    ).decode('utf-8').split('\n')
 
 
 def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
@@ -73,7 +76,8 @@ def test_avg_hops(sim_engine, fragmentation, app_pkLength, pkt_loss_mode):
     u.run_until_asn(sim_engine, 2020)
 
     # make sure SimEngine datalock is disengaged
-    assert sim_engine.dataLock._RLock__count == 0
+    with pytest.raises(RuntimeError):
+        assert sim_engine.dataLock.release()
 
     # the root should receive the first application packet
     logs = u.read_log_file([SimLog.LOG_APP_RX['type']])
