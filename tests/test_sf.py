@@ -133,7 +133,6 @@ class TestMSF(object):
         root.tsch.dequeue(dummy_packet)
         assert not root.sf.get_tx_cells(mote_mac_addr)
 
-    @pytest.mark.skip
     def test_msf(self, sim_engine):
         """ Test Scheduling Function Traffic Adaptation
         - objective   : test if msf adjust the number of allocated cells in
@@ -245,27 +244,18 @@ class TestMSF(object):
         ]
         assert len(cells) == 1
 
-        # we expect we will have a negotiated RX cell in the next two
-        # slotframes
-        u.run_until_asn(
-            sim_engine,
-            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
-        )
-        cells = [
-            cell for cell in  mote.tsch.get_cells(
-                mac_addr         = root.get_mac_addr(),
-                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-            )
-            if cell.options == [d.CELLOPTION_RX]
-        ]
-        assert len(cells) == 1
-
         # 2.4 send an application packet per slotframe
         mote.settings.app_pkPeriod = (
             mote.settings.tsch_slotframeLength *
             mote.settings.tsch_slotDuration
         )
         mote.app.startSendingData()
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength
+        )
+        mote.sf.num_tx_cells_elapsed = 0
+        mote.sf.num_tx_cells_used    = 0
 
         # 2.5 run for 10 slotframes
         assert mote.sf.tx_cell_utilization == 0.0
@@ -295,8 +285,8 @@ class TestMSF(object):
 
         # adjust the packet interval
         mote.settings.app_pkPeriod = (
-            old_div(mote.settings.tsch_slotframeLength, 3 *
-            mote.settings.tsch_slotDuration)
+            old_div(mote.settings.tsch_slotframeLength, 3) *
+            mote.settings.tsch_slotDuration
         )
 
         # 3. test cell relocation
@@ -327,6 +317,10 @@ class TestMSF(object):
                 return self.rxDone_original(packet, channel)
         root.tsch.rxDone_original = root.tsch.rxDone
         root.tsch.rxDone = types.MethodType(rxDone_wrapper, root.tsch)
+        for cell in mote.tsch.get_cells(root.get_mac_addr(),
+                                        mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS):
+            cell.num_tx = 0
+            cell.num_tx_ack = 0
 
         # 3.3 run for the next 20 slotframes
         asn_start = sim_engine.getAsn()
@@ -488,7 +482,7 @@ class TestMSF(object):
 
         # trigger scheduling adaptation
         root_mac_addr = root.get_mac_addr()
-        hop_1.sf.retry_count[root_mac_addr] = 0
+        hop_1.sf.retry_count[root_mac_addr] = -1
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.tx_cell_utilization = 100
         if function_under_test == 'adapt_to_traffic':
@@ -642,7 +636,7 @@ class TestMSF(object):
 
         u.run_until_end(sim_engine)
 
-        # we should see three 6P timeout logs
+        # we should see (MAX_RETRY + 1) 6P timeout logs
         logs = u.read_log_file(
             filter=[SimLog.LOG_SIXP_TRANSACTION_TIMEOUT['type']]
         )
@@ -757,78 +751,75 @@ class TestMSF(object):
         assert response['app']['code'] == d.SIXP_RC_SUCCESS
         assert len(response['app']['cellList']) == 0
 
-    def test_increase_negotiated_rx_cells(self, sim_engine):
-        slotframe_length = 101
+    def test_downward_traffic(self, sim_engine):
         sim_engine = sim_engine(
             diff_config = {
-                'exec_numMotes'       : 2,
-                'sf_class'            : 'MSF',
-                'conn_class'          : 'Linear',
-                'app_pkPeriod'        : 0,
-                'tsch_slotframeLength': slotframe_length
+                'app_pkPeriod'            : 0,
+                'app_pkPeriodVar'         : 0,
+                'exec_numSlotframesPerRun': 2000,
+                'exec_numMotes'           : 2,
+                'rpl_daoPeriod'           : 10,
+                'tsch_keep_alive_interval': 0,
+                'secjoin_enabled'         : False,
+                'sf_class'                : 'MSF',
+                'conn_class'              : 'Linear',
             }
         )
+        STOP_SENDING_APP_PACKET_ASN = 50000
 
+        # for quick access
         root = sim_engine.motes[0]
         mote = sim_engine.motes[1]
-
         u.run_until_mote_is_ready_for_app(sim_engine, mote)
+        assert mote.rpl.dodagId
+        # wait for a while so that a downward route is installed to
+        # the root
         u.run_until_asn(
             sim_engine,
-            sim_engine.getAsn() + slotframe_length * 2
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
         )
 
-        rx_cells = [
-            cell for cell in mote.tsch.get_cells(
-                root.get_mac_addr(),
-                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-            )
-            if cell.options == [d.CELLOPTION_RX]
-        ]
-        assert len(rx_cells) == 1
+        # now, the mote shouldn't have a negotiated RX cell
+        def _test_rx_negotiated_cells(expected_num_cells):
+            cells = [
+                cell for cell in  mote.tsch.get_cells(
+                    mac_addr         = root.get_mac_addr(),
+                    slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+                )
+                if cell.options == [d.CELLOPTION_RX]
+            ]
+            assert len(cells) == expected_num_cells
+        _test_rx_negotiated_cells(0)
 
-        # make root send a packet at every slotframe
-        for _ in range(d.MSF_MAX_NUMCELLS):
-            packet = {
-                'type': 'DATA',
-                'mac': {
-                    'srcMac': root.get_mac_addr(),
-                    'dstMac': mote.get_mac_addr()
-                },
-                'net': {
-                    'srcIp': root.get_ipv6_link_local_addr(),
-                    'dstIp': mote.get_ipv6_link_local_addr(),
-                    'packet_length': sim_engine.settings.app_pkLength
-                }
-            }
-            root.tsch.enqueue(packet)
-            u.run_until_asn(
-                sim_engine,
-                sim_engine.getAsn() + slotframe_length
+        # generate downward traffic, which will trigger an allocation
+        # of a negotiated RX cell
+        def _send_packet():
+            packet = root.app._generate_packet(
+                dstIp = mote.get_ipv6_global_addr(),
+                packet_type = d.PKT_TYPE_DATA,
+                packet_length = root.settings.app_pkLength
             )
-
-        u.run_until_asn(
-            sim_engine,
-            sim_engine.getAsn() + slotframe_length * 2
-        )
-        rx_cells = [
-            cell for cell in mote.tsch.get_cells(
-                root.get_mac_addr(),
-                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+            root.sixlowpan.sendPacket(packet)
+            if sim_engine.getAsn() < 50000:
+                _schedule_app()
+        def _schedule_app():
+            sim_engine.scheduleIn(
+                delay          = (
+                    sim_engine.settings.tsch_slotDuration *
+                    sim_engine.settings.tsch_slotframeLength
+                ),
+                cb             = _send_packet,
+                uniqueTag       = 'test_app',
+                intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
             )
-            if cell.options == [d.CELLOPTION_RX]
-        ]
-        assert len(rx_cells) == 2
+        _schedule_app()
 
-        # run until the end
+        u.run_until_asn(sim_engine, STOP_SENDING_APP_PACKET_ASN)
+
+        # the mote should have two negotiated RX cells
+        _test_rx_negotiated_cells(2)
+
         u.run_until_end(sim_engine)
 
-        # mote should remove one RX cell
-        rx_cells = [
-            cell for cell in mote.tsch.get_cells(
-                root.get_mac_addr(),
-                mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-            )
-            if cell.options == [d.CELLOPTION_RX]
-        ]
-        assert len(rx_cells) == 1
+        # in the end, the mote should remove all the negotiated RX cells
+        _test_rx_negotiated_cells(0)

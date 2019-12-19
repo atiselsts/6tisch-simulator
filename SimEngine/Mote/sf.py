@@ -137,7 +137,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
     NUM_INITIAL_NEGOTIATED_TX_CELLS = 1
-    NUM_INITIAL_NEGOTIATED_RX_CELLS = 1
+    NUM_INITIAL_NEGOTIATED_RX_CELLS = 0
 
     def __init__(self, mote):
         # initialize parent class
@@ -232,35 +232,16 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     def indication_rx_cell_elapsed(self, cell, received_packet):
         preferred_parent = self.mote.rpl.getPreferredParent()
+        if not preferred_parent:
+            # nothing to do
+            return
+
         if (
-                preferred_parent
-                and
                 (cell.mac_addr == preferred_parent)
                 and
                 (cell.options == [d.CELLOPTION_RX])
             ):
-            self._update_cell_counters(self.RX_CELL_OPT, bool(received_packet))
-            # adapt number of cells if necessary
-            rx_cell_utilization = (
-                self.num_rx_cells_used /
-                float(self.num_rx_cells_elapsed)
-            )
-            if d.MSF_MAX_NUMCELLS <= self.num_rx_cells_elapsed:
-                if rx_cell_utilization != self.rx_cell_utilization:
-                    self.log(
-                        SimEngine.SimLog.LOG_MSF_RX_CELL_UTILIZATION,
-                        {
-                            u'_mote_id'    : self.mote.id,
-                            u'neighbor'    : preferred_parent,
-                            u'value'       : u'{0}% -> {1}%'.format(
-                                int(self.rx_cell_utilization * 100),
-                                int(rx_cell_utilization * 100)
-                            )
-                        }
-                    )
-                    self.rx_cell_utilization = rx_cell_utilization
-                self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
-                self._reset_cell_counters(self.RX_CELL_OPT)
+            self._handle_rx_cell_elapsed_event(bool(received_packet))
         elif (
                 (cell.mac_addr == None)
                 and
@@ -268,20 +249,27 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     cell.slotframe.slotframe_handle ==
                     self.SLOTFRAME_HANDLE_AUTONOMOUS_CELLS
                 )
-                and
-                received_packet
-                and
-                (received_packet[u'mac'][u'srcMac'] != preferred_parent )
-                and
-                self.get_negotiated_rx_cells(received_packet[u'mac'][u'srcMac'])
             ):
-            assert cell.options == [d.CELLOPTION_RX]
-            # we received a packet on our autonomous RX cell, with the
-            # source mote of which we have negotiated RX cells. The
-            # source mote must have lost the negotaited RX cells, TX
-            # on its viewpoint. Remove them now.
-            self._clear_cells(received_packet[u'mac'][u'srcMac'])
-
+            if (
+                received_packet is None
+                or
+                received_packet[u'mac'][u'srcMac'] == preferred_parent
+                ):
+                if not self.get_negotiated_rx_cells(preferred_parent):
+                    self._handle_rx_cell_elapsed_event(bool(received_packet))
+                else:
+                    # ignore this notification
+                    pass
+            elif (
+                self.get_negotiated_rx_cells(received_packet[u'mac'][u'srcMac'])
+                ):
+                self._handle_rx_cell_elapsed_event(False)
+                assert cell.options == [d.CELLOPTION_RX]
+                # we received a packet on our autonomous RX cell, with the
+                # source mote of which we have negotiated RX cells. The
+                # source mote must have lost the negotaited RX cells, TX
+                # on its viewpoint. Remove them now.
+                self._clear_cells(received_packet[u'mac'][u'srcMac'])
 
     def indication_parent_change(self, old_parent, new_parent):
         assert old_parent != new_parent
@@ -515,6 +503,31 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             self.num_rx_cells_elapsed = 0
             self.num_rx_cells_used = 0
 
+    def _handle_rx_cell_elapsed_event(self, used_by_parent):
+        preferred_parent = self.mote.rpl.getPreferredParent()
+        self._update_cell_counters(self.RX_CELL_OPT, used_by_parent)
+        # adapt number of cells if necessary
+        rx_cell_utilization = (
+            self.num_rx_cells_used /
+            float(self.num_rx_cells_elapsed)
+        )
+        if d.MSF_MAX_NUMCELLS <= self.num_rx_cells_elapsed:
+            if rx_cell_utilization != self.rx_cell_utilization:
+                self.log(
+                    SimEngine.SimLog.LOG_MSF_RX_CELL_UTILIZATION,
+                    {
+                        u'_mote_id'    : self.mote.id,
+                        u'neighbor'    : preferred_parent,
+                        u'value'       : u'{0}% -> {1}%'.format(
+                            int(self.rx_cell_utilization * 100),
+                            int(rx_cell_utilization * 100)
+                        )
+                    }
+                )
+                self.rx_cell_utilization = rx_cell_utilization
+            self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
+            self._reset_cell_counters(self.RX_CELL_OPT)
+
     def _update_cell_counters(self, cell_opt, used):
         if cell_opt == self.TX_CELL_OPT:
             self.num_tx_cells_elapsed += 1
@@ -529,10 +542,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _adapt_to_traffic(self, neighbor, cell_opt):
         # reset retry counter
         assert neighbor in self.retry_count
-        self.retry_count[neighbor] = 0
+        if self.retry_count[neighbor] != -1:
+            # we're in the middle of a 6P transaction; try later
+            return
+
         if cell_opt == self.TX_CELL_OPT:
             if d.MSF_LIM_NUMCELLSUSED_HIGH < self.tx_cell_utilization:
                 # add one TX cell
+                self.retry_count[neighbor] = 0
                 self._request_adding_cells(
                     neighbor     = neighbor,
                     num_tx_cells = 1
@@ -546,6 +563,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
                 if len(tx_cells) > 1:
+                    self.retry_count[neighbor] = 0
                     self._request_deleting_cells(
                         neighbor     = neighbor,
                         num_cells    = 1,
@@ -554,6 +572,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         else:
             assert cell_opt == self.RX_CELL_OPT
             if d.MSF_LIM_NUMCELLSUSED_HIGH < self.rx_cell_utilization:
+                self.retry_count[neighbor] = 0
                 self._request_adding_cells(
                     neighbor     = neighbor,
                     num_tx_cells = 0,
@@ -567,7 +586,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     ) if cell.options == [d.CELLOPTION_RX]]
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
-                if len(rx_cells) > 1:
+                if len(rx_cells) > self.NUM_INITIAL_NEGOTIATED_RX_CELLS:
+                    self.retry_count[neighbor] = 0
                     self._request_deleting_cells(
                         neighbor     = neighbor,
                         num_cells    = 1,
@@ -623,9 +643,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     d.MSF_RELOCATE_PDRTHRES < (highest_pdr - pdr)
                 )
             ]
-            if len(relocation_cell_list) > 0:
+            if (
+                    len(relocation_cell_list) > 0
+                    and
+                    self.retry_count[preferred_parent] == -1
+                ):
                 # reset retry counter
-                assert preferred_parent in self.retry_count
                 self.retry_count[preferred_parent] = 0
                 self._request_relocating_cells(
                     neighbor             = preferred_parent,
@@ -841,6 +864,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 num_rx_cells = num_rx_cells - self.DEFAULT_CELL_LIST_LEN
         else:
             # nothing to add
+            self.retry_count[neighbor] = -1
             return
 
         # prepare cell_list
@@ -854,6 +878,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     '_mote_id'    : self.mote.id
                 }
             )
+            self.retry_count[neighbor] = -1
             return
 
         # prepare _callback which is passed to SixP.send_request()
@@ -984,13 +1009,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
                 else:
                     # TODO: request doesn't succeed; how should we do?
-                    pass
+                    self.retry_count[neighbor] = -1
+
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
                 if self.retry_count[neighbor] == self.MAX_RETRY:
                     # give up this neighbor
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
-                    self.retry_count[neighbor] = 0 # done
+                    self.retry_count[neighbor] = -1 # done
                 else:
                     # retry
                     self.retry_count[neighbor] += 1
@@ -1110,6 +1136,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     and
                     (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
                 ):
+                self.retry_count[neighbor] = -1
                 if packet[u'app'][u'code'] == d.SIXP_RC_SUCCESS:
                     self._delete_cells(
                         neighbor     = neighbor,
@@ -1122,7 +1149,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
                 if self.retry_count[neighbor] == self.MAX_RETRY:
                     # give it up
-                    self.retry_count[neighbor] = 0
+                    self.retry_count[neighbor] = -1
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
                 else:
@@ -1163,6 +1190,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # we don't have any cell to relocate; done
         if len(relocation_cell_list) == 0:
+            self.retry_count[neighbor] = -1
             return
 
         # prepare candidate_cell_list
@@ -1178,6 +1206,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     '_mote_id'    : self.mote.id
                 }
             )
+            self.retry_count[neighbor] = -1
             return
 
         # prepare callback
@@ -1203,6 +1232,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
 
                     # start another transaction
+                    self.retry_count[neighbor] = 0
                     self._request_relocating_cells(
                         neighbor             = neighbor,
                         cell_options         = cell_options,
@@ -1214,7 +1244,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # give up this neighbor
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
-                    self.retry_count[neighbor] = 0 # done
+                    self.retry_count[neighbor] = -1 # done
                 else:
                     # retry
                     self.retry_count[neighbor] += 1
