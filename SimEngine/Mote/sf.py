@@ -137,7 +137,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     TX_CELL_OPT   = [d.CELLOPTION_TX]
     RX_CELL_OPT   = [d.CELLOPTION_RX]
     NUM_INITIAL_NEGOTIATED_TX_CELLS = 1
-    NUM_INITIAL_NEGOTIATED_RX_CELLS = 1
+    NUM_INITIAL_NEGOTIATED_RX_CELLS = 0
 
     def __init__(self, mote):
         # initialize parent class

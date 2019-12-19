@@ -244,21 +244,6 @@ class TestMSF(object):
         ]
         assert len(cells) == 1
 
-        # we expect we will have a negotiated RX cell in the next two
-        # slotframes
-        u.run_until_asn(
-            sim_engine,
-            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 2
-        )
-        cells = [
-            cell for cell in  mote.tsch.get_cells(
-                mac_addr         = root.get_mac_addr(),
-                slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
-            )
-            if cell.options == [d.CELLOPTION_RX]
-        ]
-        assert len(cells) == 1
-
         # 2.4 send an application packet per slotframe
         mote.settings.app_pkPeriod = (
             mote.settings.tsch_slotframeLength *
