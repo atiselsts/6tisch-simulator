@@ -482,7 +482,7 @@ class TestMSF(object):
 
         # trigger scheduling adaptation
         root_mac_addr = root.get_mac_addr()
-        hop_1.sf.retry_count[root_mac_addr] = 0
+        hop_1.sf.retry_count[root_mac_addr] = -1
         # put dummy stats so that scheduling adaptation can be triggered
         hop_1.sf.tx_cell_utilization = 100
         if function_under_test == 'adapt_to_traffic':
@@ -636,7 +636,7 @@ class TestMSF(object):
 
         u.run_until_end(sim_engine)
 
-        # we should see three 6P timeout logs
+        # we should see (MAX_RETRY + 1) 6P timeout logs
         logs = u.read_log_file(
             filter=[SimLog.LOG_SIXP_TRANSACTION_TIMEOUT['type']]
         )

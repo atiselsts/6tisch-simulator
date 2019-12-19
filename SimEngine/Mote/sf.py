@@ -542,10 +542,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     def _adapt_to_traffic(self, neighbor, cell_opt):
         # reset retry counter
         assert neighbor in self.retry_count
-        self.retry_count[neighbor] = 0
+        if self.retry_count[neighbor] != -1:
+            # we're in the middle of a 6P transaction; try later
+            return
+
         if cell_opt == self.TX_CELL_OPT:
             if d.MSF_LIM_NUMCELLSUSED_HIGH < self.tx_cell_utilization:
                 # add one TX cell
+                self.retry_count[neighbor] = 0
                 self._request_adding_cells(
                     neighbor     = neighbor,
                     num_tx_cells = 1
@@ -559,6 +563,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
                 if len(tx_cells) > 1:
+                    self.retry_count[neighbor] = 0
                     self._request_deleting_cells(
                         neighbor     = neighbor,
                         num_cells    = 1,
@@ -567,6 +572,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         else:
             assert cell_opt == self.RX_CELL_OPT
             if d.MSF_LIM_NUMCELLSUSED_HIGH < self.rx_cell_utilization:
+                self.retry_count[neighbor] = 0
                 self._request_adding_cells(
                     neighbor     = neighbor,
                     num_tx_cells = 0,
@@ -581,6 +587,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 # delete one *TX* cell but we need to keep one dedicated
                 # cell to our parent at least
                 if len(rx_cells) > self.NUM_INITIAL_NEGOTIATED_RX_CELLS:
+                    self.retry_count[neighbor] = 0
                     self._request_deleting_cells(
                         neighbor     = neighbor,
                         num_cells    = 1,
@@ -636,9 +643,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     d.MSF_RELOCATE_PDRTHRES < (highest_pdr - pdr)
                 )
             ]
-            if len(relocation_cell_list) > 0:
+            if (
+                    len(relocation_cell_list) > 0
+                    and
+                    self.retry_count[preferred_parent] == -1
+                ):
                 # reset retry counter
-                assert preferred_parent in self.retry_count
                 self.retry_count[preferred_parent] = 0
                 self._request_relocating_cells(
                     neighbor             = preferred_parent,
@@ -854,6 +864,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 num_rx_cells = num_rx_cells - self.DEFAULT_CELL_LIST_LEN
         else:
             # nothing to add
+            self.retry_count[neighbor] = -1
             return
 
         # prepare cell_list
@@ -867,6 +878,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     '_mote_id'    : self.mote.id
                 }
             )
+            self.retry_count[neighbor] = -1
             return
 
         # prepare _callback which is passed to SixP.send_request()
@@ -997,13 +1009,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
                 else:
                     # TODO: request doesn't succeed; how should we do?
-                    pass
+                    self.retry_count[neighbor] = -1
+
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
                 if self.retry_count[neighbor] == self.MAX_RETRY:
                     # give up this neighbor
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
-                    self.retry_count[neighbor] = 0 # done
+                    self.retry_count[neighbor] = -1 # done
                 else:
                     # retry
                     self.retry_count[neighbor] += 1
@@ -1123,6 +1136,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     and
                     (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_RESPONSE)
                 ):
+                self.retry_count[neighbor] = -1
                 if packet[u'app'][u'code'] == d.SIXP_RC_SUCCESS:
                     self._delete_cells(
                         neighbor     = neighbor,
@@ -1135,7 +1149,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             elif event == d.SIXP_CALLBACK_EVENT_TIMEOUT:
                 if self.retry_count[neighbor] == self.MAX_RETRY:
                     # give it up
-                    self.retry_count[neighbor] = 0
+                    self.retry_count[neighbor] = -1
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
                 else:
@@ -1176,6 +1190,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # we don't have any cell to relocate; done
         if len(relocation_cell_list) == 0:
+            self.retry_count[neighbor] = -1
             return
 
         # prepare candidate_cell_list
@@ -1191,6 +1206,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     '_mote_id'    : self.mote.id
                 }
             )
+            self.retry_count[neighbor] = -1
             return
 
         # prepare callback
@@ -1216,6 +1232,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
 
                     # start another transaction
+                    self.retry_count[neighbor] = 0
                     self._request_relocating_cells(
                         neighbor             = neighbor,
                         cell_options         = cell_options,
@@ -1227,7 +1244,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     # give up this neighbor
                     if neighbor == self.mote.rpl.getPreferredParent():
                         self.mote.rpl.of.poison_rpl_parent(neighbor)
-                    self.retry_count[neighbor] = 0 # done
+                    self.retry_count[neighbor] = -1 # done
                 else:
                     # retry
                     self.retry_count[neighbor] += 1
