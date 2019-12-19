@@ -34,17 +34,17 @@ It allows you to measure the performance of a 6TiSCH network under different con
 
 Simulated protocol stack
 
-|                                                                                                              |                                          |
-|--------------------------------------------------------------------------------------------------------------|------------------------------------------|
-| [RFC6550](https://tools.ietf.org/html/rfc6550), [RFC6552](https://tools.ietf.org/html/rfc6552)               | RPL, non-storing mode, OF0               |
-| [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                        |
-| [draft-ietf-6lo-minimal-fragment-01](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-01)         | 6LoWPAN Fragment Forwarding              |
-| [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                    |
-| [draft-ietf-6tisch-msf-05](https://tools.ietf.org/html/draft-ietf-6tisch-msf-05)                             | 6TiSCH Minimal Scheduling Function (MSF) |
-| [draft-ietf-6tisch-minimal-security-09](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-09)   | 6TiSCH Minimal Security (join process)   |
-| [RFC8480](https://tools.ietf.org/html/rfc8480)                                                               | 6TiSCH 6top Protocol (6P)                |
-| [RFC8180](https://tools.ietf.org/html/rfc8180)                                                               | Minimal 6TiSCH Configuration             |
-| [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/)                                           | IEEE802.15.4 TSCH                        |
+|                                                                                                              |                                             |
+|--------------------------------------------------------------------------------------------------------------|---------------------------------------------|
+| [RFC6550](https://tools.ietf.org/html/rfc6550), [RFC6552](https://tools.ietf.org/html/rfc6552)               | RPL, non-storing mode, OF0                  |
+| [RFC6206](https://tools.ietf.org/html/rfc6206)                                                               | Trickle Algorithm                           |
+| [draft-ietf-6lo-minimal-fragment-07](https://tools.ietf.org/html/draft-ietf-6lo-minimal-fragment-07)         | 6LoWPAN Fragment Forwarding                 |
+| [RFC6282](https://tools.ietf.org/html/rfc6282), [RFC4944](https://tools.ietf.org/html/rfc4944)               | 6LoWPAN Fragmentation                       |
+| [draft-ietf-6tisch-msf-10](https://tools.ietf.org/html/draft-ietf-6tisch-msf-10)                             | 6TiSCH Minimal Scheduling Function (MSF)    |
+| [draft-ietf-6tisch-minimal-security-15](https://tools.ietf.org/html/draft-ietf-6tisch-minimal-security-15)   | Constrained Join Protocol (CoJP) for 6TiSCH |
+| [RFC8480](https://tools.ietf.org/html/rfc8480)                                                               | 6TiSCH 6top Protocol (6P)                   |
+| [RFC8180](https://tools.ietf.org/html/rfc8180)                                                               | Minimal 6TiSCH Configuration                |
+| [IEEE802.15.4-2015](https://ieeexplore.ieee.org/document/7460875/)                                           | IEEE802.15.4 TSCH                           |
 
 * connectivity models
     * Pister-hack
@@ -55,9 +55,11 @@ Simulated protocol stack
 
 ## Installation
 
-* Install Python 2.7
+* Install Python 2.7 (or Python 3)
 * Clone or download this repository
 * To plot the graphs, you need Matplotlib and scipy. On Windows, Anaconda (http://continuum.io/downloads) is a good one-stop-shop.
+
+While 6TiSCH Simulator has been tested with Python 2.7, it should work with Python 3 as well.
 
 ## Getting Started
 
