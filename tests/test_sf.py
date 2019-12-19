@@ -826,3 +826,76 @@ class TestMSF(object):
             if cell.options == [d.CELLOPTION_RX]
         ]
         assert len(rx_cells) == 1
+
+    def test_downward_traffic(self, sim_engine):
+        sim_engine = sim_engine(
+            diff_config = {
+                'app_pkPeriod'            : 0,
+                'app_pkPeriodVar'         : 0,
+                'exec_numSlotframesPerRun': 2000,
+                'exec_numMotes'           : 2,
+                'rpl_daoPeriod'           : 10,
+                'tsch_keep_alive_interval': 0,
+                'secjoin_enabled'         : False,
+                'sf_class'                : 'MSF',
+                'conn_class'              : 'Linear',
+            }
+        )
+        STOP_SENDING_APP_PACKET_ASN = 50000
+
+        # for quick access
+        root = sim_engine.motes[0]
+        mote = sim_engine.motes[1]
+        u.run_until_mote_is_ready_for_app(sim_engine, mote)
+        assert mote.rpl.dodagId
+        # wait for a while so that a downward route is installed to
+        # the root
+        u.run_until_asn(
+            sim_engine,
+            sim_engine.getAsn() + mote.settings.tsch_slotframeLength * 10
+        )
+
+        # now, the mote shouldn't have a negotiated RX cell
+        def _test_rx_negotiated_cells(expected_num_cells):
+            cells = [
+                cell for cell in  mote.tsch.get_cells(
+                    mac_addr         = root.get_mac_addr(),
+                    slotframe_handle = mote.sf.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+                )
+                if cell.options == [d.CELLOPTION_RX]
+            ]
+            assert len(cells) == expected_num_cells
+        _test_rx_negotiated_cells(0)
+
+        # generate downward traffic, which will trigger an allocation
+        # of a negotiated RX cell
+        def _send_packet():
+            packet = root.app._generate_packet(
+                dstIp = mote.get_ipv6_global_addr(),
+                packet_type = d.PKT_TYPE_DATA,
+                packet_length = root.settings.app_pkLength
+            )
+            root.sixlowpan.sendPacket(packet)
+            if sim_engine.getAsn() < 50000:
+                _schedule_app()
+        def _schedule_app():
+            sim_engine.scheduleIn(
+                delay          = (
+                    sim_engine.settings.tsch_slotDuration *
+                    sim_engine.settings.tsch_slotframeLength
+                ),
+                cb             = _send_packet,
+                uniqueTag       = 'test_app',
+                intraSlotOrder = d.INTRASLOTORDER_STACKTASKS
+            )
+        _schedule_app()
+
+        u.run_until_asn(sim_engine, STOP_SENDING_APP_PACKET_ASN)
+
+        # the mote should have two negotiated RX cells
+        _test_rx_negotiated_cells(2)
+
+        u.run_until_end(sim_engine)
+
+        # in the end, the mote should remove all the negotiated RX cells
+        _test_rx_negotiated_cells(0)
