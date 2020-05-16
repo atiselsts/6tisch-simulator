@@ -72,6 +72,7 @@ class Tsch(object):
         self.isSync           = False
         self.join_proxy       = None
         self.iAmSendingEBs    = False
+        self.timeNextSendEB   = None
         self.clock            = Clock(self.mote)
         self.next_seqnum      = 0
         self.received_eb_list = {} # indexed by source mac address
@@ -1130,16 +1131,36 @@ class Tsch(object):
     # EBs
 
     def _decided_to_send_eb(self):
-        # short-hand
-        prob = float(self.settings.tsch_probBcast_ebProb)
-        n    = 1 + len(self.neighbor_table)
 
-        # following the Bayesian broadcasting algorithm
-        return (
-            (random.random() < (old_div(prob, n)))
-            and
-            self.iAmSendingEBs
-        )
+        if self.settings.tsch_ebInterval == 0: # the 6tisch algorithm
+            # short-hand
+            prob = float(self.settings.tsch_probBcast_ebProb)
+            n    = 1 + len(self.neighbor_table)
+
+            # following the Bayesian broadcasting algorithm
+            result = (
+                (random.random() < (old_div(prob, n)))
+                and
+                self.iAmSendingEBs
+            )
+
+        elif self.iAmSendingEBs:
+            # Contiki-NG algorithm
+            timeNow = self.engine.getAsn() * self.settings.tsch_slotDuration
+            if self.timeNextSendEB is None:
+                if self.mote.dagRoot:
+                    # send immediately
+                    result = True
+                else:
+                    # send at a random time
+                    self.timeNextSendEB = timeNow + random.random() * self.settings.tsch_ebInterval
+                    result = False
+            else:
+                result = (self.timeNextSendEB <= timeNow)
+        else:
+            result = False
+
+        return result
 
     def _create_EB(self):
 
@@ -1165,6 +1186,10 @@ class Tsch(object):
                     u'packet':   newEB,
                 }
             )
+
+            now = self.engine.getAsn() * self.settings.tsch_slotDuration
+            # randomize it
+            self.timeNextSendEB = now + self.settings.tsch_ebInterval * 0.75 + random.random() * self.settings.tsch_ebInterval * 0.25
 
         return newEB
 
